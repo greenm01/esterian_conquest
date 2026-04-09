@@ -8,6 +8,16 @@ use nc_data::{
     PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
 
+mod compose;
+mod render;
+
+use compose::{
+    AbortDisposition, ReportSuppressionPlan, fleet_abort_disposition, fleet_abort_disposition_text,
+    matching_roe_abort_disposition_index, mission_event_has_assault_report,
+    mission_event_has_fleet_destroyed,
+};
+use render::{join_host_destroyed_text, join_host_retarget_text, mission_retarget_source};
+
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
 const RESULTS_TEXT_START: usize = 2;
@@ -539,94 +549,6 @@ fn aborted_mission_follow_on_text(
     }
 }
 
-fn mission_event_has_assault_report(
-    events: &MaintenanceEvents,
-    event: &nc_data::MissionEvent,
-) -> bool {
-    let Some(planet_idx) = event.planet_idx else {
-        return false;
-    };
-    events.assault_report_events.iter().any(|assault| {
-        assault.kind == event.kind
-            && assault.planet_idx == planet_idx
-            && assault.attacker_empire_raw == event.owner_empire_raw
-            && assault.outcome == event.outcome
-    })
-}
-
-fn mission_event_has_fleet_destroyed(
-    game_data: &CoreGameData,
-    events: &MaintenanceEvents,
-    event: &nc_data::MissionEvent,
-) -> bool {
-    let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
-        return false;
-    };
-    let fleet_number = fleet.local_slot_word_raw() as u8;
-    events.fleet_destroyed_events.iter().any(|destroyed| {
-        destroyed.fleet_number == fleet_number
-            && destroyed.reporting_empire_raw == event.owner_empire_raw
-    })
-}
-
-fn matching_roe_abort_disposition_index(
-    events: &MaintenanceEvents,
-    event: &nc_data::MissionEvent,
-) -> Option<usize> {
-    if event.outcome != MissionOutcome::Aborted {
-        return None;
-    }
-    let coords = event.location_coords?;
-    events
-        .encounter_disposition_events
-        .iter()
-        .position(|disposition| match disposition {
-            nc_data::EncounterDispositionEvent::Retreated {
-                fleet_idx,
-                owner_empire_raw,
-                mission: Some(mission),
-                coords: disposition_coords,
-                reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
-                ..
-            }
-            | nc_data::EncounterDispositionEvent::PursuitFire {
-                fleet_idx,
-                owner_empire_raw,
-                mission: Some(mission),
-                coords: disposition_coords,
-                reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
-                ..
-            } => {
-                *fleet_idx == event.fleet_idx
-                    && *owner_empire_raw == event.owner_empire_raw
-                    && *mission == event.kind
-                    && *disposition_coords == coords
-            }
-            _ => false,
-        })
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum AbortDisposition {
-    Retreating,
-    Holding,
-}
-
-fn fleet_abort_disposition(fleet: &nc_data::FleetRecord) -> AbortDisposition {
-    if fleet.standing_order_kind() == Order::SeekHome && fleet.current_speed() > 0 {
-        AbortDisposition::Retreating
-    } else {
-        AbortDisposition::Holding
-    }
-}
-
-fn fleet_abort_disposition_text(disposition: AbortDisposition) -> &'static str {
-    match disposition {
-        AbortDisposition::Retreating => "withdrawing toward safety",
-        AbortDisposition::Holding => "holding position and awaiting orders",
-    }
-}
-
 fn roe_abort_outcome_text(kind: Mission) -> &'static str {
     match kind {
         Mission::BombardWorld => {
@@ -647,9 +569,7 @@ fn roe_abort_outcome_text(kind: Mission) -> &'static str {
         Mission::ScoutSector | Mission::ScoutSolarSystem => {
             "This forced us to abandon our scouting assignment."
         }
-        Mission::GuardStarbase => {
-            "This forced us to abandon our starbase guard assignment."
-        }
+        Mission::GuardStarbase => "This forced us to abandon our starbase guard assignment.",
         Mission::GuardBlockadeWorld => {
             "This forced us to abandon our guarding/blockading assignment."
         }
@@ -670,6 +590,8 @@ fn merged_roe_abort_report_body(
     let prefix = mission_report_prefix(event.kind);
     match disposition {
         nc_data::EncounterDispositionEvent::Retreated {
+            friendly_initial,
+            friendly_loaded_armies_initial,
             target_empire_raw,
             target_fleet_number,
             enemy_initial,
@@ -678,15 +600,23 @@ fn merged_roe_abort_report_body(
             enemy_losses_inflicted,
             ..
         } => format!(
-            "{prefix} We engaged {}. The alien force contained {}. In accordance with our ROE, we withdrew toward {} after suffering losses of {}. {} {}",
+            "{prefix} We engaged {}. We had {}. The alien force contained {}. In accordance with our ROE, we withdrew toward {} after suffering losses of {}. {} {}",
             classic_enemy_reference(game_data, *target_fleet_number, *target_empire_raw),
+            fleet_force_summary(*friendly_initial, *friendly_loaded_armies_initial),
             fleet_force_summary(*enemy_initial, 0),
-            nearest_owned_destination_text(game_data, event.owner_empire_raw, *retreat_target_coords),
+            nearest_owned_destination_text(
+                game_data,
+                event.owner_empire_raw,
+                *retreat_target_coords
+            ),
             ship_loss_summary(*losses_sustained),
             enemy_losses_sentence(*enemy_losses_inflicted),
             roe_abort_outcome_text(event.kind),
         ),
         nc_data::EncounterDispositionEvent::PursuitFire {
+            friendly_initial,
+            friendly_loaded_armies_initial,
+            enemy_initial,
             target_empire_raw,
             target_fleet_number,
             retreat_target_coords,
@@ -694,9 +624,15 @@ fn merged_roe_abort_report_body(
             enemy_losses_inflicted,
             ..
         } => format!(
-            "{prefix} We attempted to disengage from {} in accordance with our ROE, but suffered pursuit fire while withdrawing toward {} after suffering losses of {}. {} {}",
+            "{prefix} We had {}. We attempted to disengage from {} in accordance with our ROE, but suffered pursuit fire from an alien force containing {} while withdrawing toward {} after suffering losses of {}. {} {}",
+            fleet_force_summary(*friendly_initial, *friendly_loaded_armies_initial),
             classic_enemy_reference(game_data, *target_fleet_number, *target_empire_raw),
-            nearest_owned_destination_text(game_data, event.owner_empire_raw, *retreat_target_coords),
+            fleet_force_summary(*enemy_initial, 0),
+            nearest_owned_destination_text(
+                game_data,
+                event.owner_empire_raw,
+                *retreat_target_coords
+            ),
             ship_loss_summary(*losses_sustained),
             enemy_losses_sentence(*enemy_losses_inflicted),
             roe_abort_outcome_text(event.kind),
@@ -1327,66 +1263,20 @@ fn generate_report_entries(
     }
 
     // ----- Fleet battle events -----
-    let surviving_fleet_report_keys: BTreeSet<(u8, u8)> = game_data
-        .fleets
-        .records
-        .iter()
-        .filter(|fleet| fleet.has_any_force())
-        .filter_map(|fleet| {
-            let fleet_number = fleet.local_slot_word_raw() as u8;
-            (fleet.owner_empire_raw() != 0 && fleet_number != 0)
-                .then_some((fleet.owner_empire_raw(), fleet_number))
-        })
-        .collect();
-    let destroyed_fleet_report_keys: BTreeSet<(u8, u8)> = events
-        .fleet_destroyed_events
-        .iter()
-        .filter_map(|event| {
-            (event.fleet_number != 0).then_some((event.reporting_empire_raw, event.fleet_number))
-        })
-        .collect();
-    // Suppress FleetBattleEvent reports for fleets already covered by an
-    // EncounterDispositionEvent::Retreated or ::PursuitFire report. The disposition
-    // report is more informative (it includes the ROE context and retreat destination)
-    // so the generic FleetBattleEvent is redundant and produces a duplicate report.
-    let roe_covered_fleet_keys: std::collections::HashSet<(u8, u8)> = events
-        .encounter_disposition_events
-        .iter()
-        .filter_map(|event| match *event {
-            nc_data::EncounterDispositionEvent::Retreated {
-                fleet_idx,
-                owner_empire_raw,
-                ..
-            }
-            | nc_data::EncounterDispositionEvent::PursuitFire {
-                fleet_idx,
-                owner_empire_raw,
-                ..
-            } => {
-                let fleet_number = game_data
-                    .fleets
-                    .records
-                    .get(fleet_idx)
-                    .map(|f| f.local_slot_word_raw() as u8)
-                    .filter(|n| *n != 0)?;
-                Some((owner_empire_raw, fleet_number))
-            }
-            _ => None,
-        })
-        .collect();
+    let suppression_plan = ReportSuppressionPlan::build(game_data, events);
     for event in &events.fleet_battle_events {
         if event.reporting_fleet_number.is_some_and(|fleet_number| {
-            destroyed_fleet_report_keys.contains(&(event.reporting_empire_raw, fleet_number))
+            suppression_plan.destroyed_supersedes_battle(event.reporting_empire_raw, fleet_number)
         }) {
             continue;
         }
         if event.reporting_fleet_number.is_some_and(|fleet_number| {
-            roe_covered_fleet_keys.contains(&(event.reporting_empire_raw, fleet_number))
+            suppression_plan.disposition_supersedes_battle(event.reporting_empire_raw, fleet_number)
         }) {
             continue;
         }
         let reporting_fleet_survives = event.reporting_fleet_number.is_some_and(|fleet_number| {
-            surviving_fleet_report_keys.contains(&(event.reporting_empire_raw, fleet_number))
+            suppression_plan.fleet_survives(event.reporting_empire_raw, fleet_number)
         });
         let enemy_list = join_report_parts(
             &event
@@ -1534,8 +1424,16 @@ fn generate_report_entries(
             verb,
             enemy,
             fleet_force_summary(event.friendly_initial, event.friendly_loaded_armies_initial),
-            fleet_force_summary(event.enemy_initial, event.enemy_loaded_armies_initial),
-            ship_loss_summary(event.enemy_losses),
+            fleet_force_summary_with_starbases(
+                event.enemy_initial,
+                event.enemy_loaded_armies_initial,
+                event.enemy_initial_starbases,
+            ),
+            combat_loss_summary(
+                event.enemy_losses,
+                event.enemy_starbases_destroyed,
+                "no losses",
+            ),
         );
         entries.push(ReportEntry {
             text: format!("{header}{body}"),
@@ -1811,6 +1709,10 @@ fn generate_report_entries(
                 let label = mission_report_label(kind);
                 let location = mission_location_phrase(kind, event.coords);
                 let source = owned_fleet_source_clause(event.reporting_fleet_number, &location);
+                let reporting_force = fleet_force_summary(
+                    event.reporting_initial,
+                    event.reporting_loaded_armies_initial,
+                );
                 let header = report_header(&source, event.stardate_week, year);
                 let body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
@@ -1818,11 +1720,11 @@ fn generate_report_entries(
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It is {enemy}. Their fleet contains {fleet_description}."
+                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. We had {reporting_force}. It is {enemy}. Their fleet contains {fleet_description}."
                     )
                 } else {
                     format!(
-                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It belongs to {}. Their fleet contains {fleet_description}.",
+                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. We had {reporting_force}. It belongs to {}. Their fleet contains {fleet_description}.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
@@ -1840,6 +1742,10 @@ fn generate_report_entries(
             }
             ContactReportSource::Fleet(fleet_id) => {
                 let source = owned_fleet_source_clause(Some(fleet_id), &format!("System({x},{y})"));
+                let reporting_force = fleet_force_summary(
+                    event.reporting_initial,
+                    event.reporting_loaded_armies_initial,
+                );
                 let header = report_header(&source, event.stardate_week, year);
                 let body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
@@ -1847,11 +1753,11 @@ fn generate_report_entries(
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {fleet_description}."
+                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). We had {reporting_force}. It is {enemy}. Their fleet contains {fleet_description}."
                     )
                 } else {
                     format!(
-                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {fleet_description}.",
+                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). We had {reporting_force}. It belongs to {}. Their fleet contains {fleet_description}.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
@@ -2130,7 +2036,12 @@ fn generate_report_entries(
         let source_clause =
             owned_fleet_source_clause_from_idx(game_data, event.fleet_idx, &mission_location);
         let merged_roe_abort_disposition = matching_roe_abort_disposition_index(events, event)
-            .and_then(|idx| events.encounter_disposition_events.get(idx).map(|disp| (idx, disp)));
+            .and_then(|idx| {
+                events
+                    .encounter_disposition_events
+                    .get(idx)
+                    .map(|disp| (idx, disp))
+            });
         let (kind, tail, source, body) = if let Some((disposition_idx, disposition)) =
             merged_roe_abort_disposition
         {
@@ -2633,6 +2544,8 @@ fn generate_report_entries(
                 owner_empire_raw,
                 mission,
                 coords,
+                friendly_initial,
+                friendly_loaded_armies_initial,
                 target_empire_raw,
                 target_fleet_number,
                 small_vessels,
@@ -2672,8 +2585,11 @@ fn generate_report_entries(
                             format!("{size_summary} of unknown type")
                         };
                     format!(
-                        "{prefix} We have located and identified the alien fleet in System({},{}) {} Their fleet contains {fleet_desc}. In accordance to our ROE, we are avoiding this enemy fleet...",
-                        coords[0], coords[1], enemy,
+                        "{prefix} We had {}. We have located and identified the alien fleet in System({},{}) {} Their fleet contains {fleet_desc}. In accordance to our ROE, we are avoiding this enemy fleet...",
+                        fleet_force_summary(friendly_initial, friendly_loaded_armies_initial),
+                        coords[0],
+                        coords[1],
+                        enemy,
                     )
                 },
             ),
@@ -2682,6 +2598,8 @@ fn generate_report_entries(
                 owner_empire_raw,
                 mission,
                 coords,
+                friendly_initial,
+                friendly_loaded_armies_initial,
                 target_empire_raw,
                 target_fleet_number,
                 enemy_initial,
@@ -2701,8 +2619,9 @@ fn generate_report_entries(
                 {
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
                     format!(
-                        "{prefix} We engaged {}. The alien force contained {}. In accordance with our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
+                        "{prefix} We engaged {}. We had {}. The alien force contained {}. In accordance with our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
+                        fleet_force_summary(friendly_initial, friendly_loaded_armies_initial),
                         fleet_force_summary(enemy_initial, 0),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
@@ -2716,8 +2635,11 @@ fn generate_report_entries(
                 owner_empire_raw,
                 mission,
                 coords,
+                friendly_initial,
+                friendly_loaded_armies_initial,
                 target_empire_raw,
                 target_fleet_number,
+                enemy_initial,
                 retreat_target_coords,
                 losses_sustained,
                 enemy_losses_inflicted,
@@ -2734,8 +2656,10 @@ fn generate_report_entries(
                 {
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
                     format!(
-                        "{prefix} We attempted to disengage from {} but suffered pursuit fire. We withdrew toward System({},{}) after suffering losses of {}. {}",
+                        "{prefix} We had {}. We attempted to disengage from {} but suffered pursuit fire from an alien force containing {}. We withdrew toward System({},{}) after suffering losses of {}. {}",
+                        fleet_force_summary(friendly_initial, friendly_loaded_armies_initial),
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
+                        fleet_force_summary(enemy_initial, 0),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
                         ship_loss_summary(losses_sustained),
@@ -3024,11 +2948,7 @@ fn generate_report_entries(
                         fleet_idx,
                         &format!("Sector({x},{y})"),
                     ),
-                    format!(
-                        " Join mission report: Our intended host fleet ({}) has moved. We are now joining the {} instead.",
-                        fleet_label(previous_host_fleet_number),
-                        fleet_label(new_host_fleet_number)
-                    ),
+                    join_host_retarget_text(previous_host_fleet_number, new_host_fleet_number),
                 )
             }
             nc_data::JoinMissionHostEvent::HostDestroyed {
@@ -3046,10 +2966,7 @@ fn generate_report_entries(
                         fleet_idx,
                         &format!("Sector({x},{y})"),
                     ),
-                    format!(
-                        " Join mission report: Our intended host fleet ({}) was destroyed. We are holding our position in Sector({x},{y}) and awaiting orders.",
-                        fleet_label(destroyed_host_fleet_number)
-                    ),
+                    join_host_destroyed_text(destroyed_host_fleet_number, coords),
                 )
             }
         };
@@ -3070,13 +2987,9 @@ fn generate_report_entries(
         let source = match *event {
             nc_data::MissionRetargetEvent::Retargeted {
                 fleet_idx,
-                new_target_coords,
+                current_coords,
                 ..
-            } => owned_fleet_source_clause_from_idx(
-                game_data,
-                fleet_idx,
-                &format!("Sector({},{})", new_target_coords[0], new_target_coords[1]),
-            ),
+            } => mission_retarget_source(game_data, fleet_idx, current_coords),
             nc_data::MissionRetargetEvent::Abandoned {
                 fleet_idx, coords, ..
             } => owned_fleet_source_clause_from_idx(

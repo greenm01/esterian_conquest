@@ -51,6 +51,11 @@ fn results_reports_contact_before_destroyed_fleet_notice() {
         viewer_empire_raw: 1,
         source: ContactReportSource::FleetMission(Mission::ScoutSector),
         reporting_fleet_number: Some(15),
+        reporting_initial: ShipLosses {
+            destroyers: 1,
+            ..ShipLosses::default()
+        },
+        reporting_loaded_armies_initial: 0,
         coords,
         target_empire_raw: 3,
         target_fleet_number: Some(4),
@@ -75,8 +80,10 @@ fn results_reports_contact_before_destroyed_fleet_notice() {
             etacs: 2,
             ..ShipLosses::default()
         },
+        enemy_initial_starbases: 0,
         enemy_loaded_armies_initial: 0,
         enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
         primary_enemy_empire_raw: Some(3),
         primary_enemy_fleet_number: Some(4),
         stardate_week: Some(2),
@@ -113,6 +120,12 @@ fn results_reports_battle_before_bombard_aftermath() {
         viewer_empire_raw: 1,
         source: ContactReportSource::FleetMission(Mission::GuardBlockadeWorld),
         reporting_fleet_number: Some(7),
+        reporting_initial: ShipLosses {
+            cruisers: 2,
+            destroyers: 1,
+            ..ShipLosses::default()
+        },
+        reporting_loaded_armies_initial: 0,
         coords,
         target_empire_raw: 2,
         target_fleet_number: Some(9),
@@ -581,6 +594,12 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
             owner_empire_raw: 1,
             mission: Some(Mission::InvadeWorld),
             coords: [15, 13],
+            friendly_initial: ShipLosses {
+                cruisers: 1,
+                transports: 2,
+                ..ShipLosses::default()
+            },
+            friendly_loaded_armies_initial: 3,
             target_empire_raw: 2,
             target_fleet_number: Some(4),
             enemy_initial: ShipLosses {
@@ -603,14 +622,18 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
     let joined = texts.join(" ").replace('\n', " ");
 
     assert_eq!(
-        texts.iter()
+        texts
+            .iter()
             .filter(|text| text.contains("Invasion mission report"))
             .count(),
         1,
         "expected one merged invasion abort report: {texts:?}"
     );
     assert!(joined.contains("In accordance with our ROE, we withdrew"));
-    assert!(joined.contains("This forced us to abort the invasion before the landing could begin."));
+    assert!(
+        joined.contains("This forced us to abort the invasion before the landing could begin.")
+    );
+    assert!(joined.contains("We had 1 cruiser and 2 troop transport ships carrying 3 armies."));
     assert!(joined.contains("The alien force contained 2 cruisers and 3 troop transport ships."));
     assert!(!joined.contains("Hostile action stripped us of our invasion capability"));
 }
@@ -780,6 +803,11 @@ fn results_projection_is_pure_until_reviewable_flags_are_applied() {
         viewer_empire_raw: 1,
         source: ContactReportSource::FleetMission(Mission::ScoutSector),
         reporting_fleet_number: Some(15),
+        reporting_initial: ShipLosses {
+            scouts: 1,
+            ..ShipLosses::default()
+        },
+        reporting_loaded_armies_initial: 0,
         coords,
         target_empire_raw: 3,
         target_fleet_number: Some(4),

@@ -1,6 +1,6 @@
 use crate::{
     ContactReportSource, CoreGameData, Mission, Order, PlanetIntelEvent, PlanetIntelSource,
-    ScoutContactEvent,
+    ScoutContactEvent, ShipLosses,
 };
 
 use super::super::FleetBattlePerspective;
@@ -31,6 +31,8 @@ pub(super) fn push_contact_event_for_task_force(
             viewer_empire_raw: fleet.owner_empire_raw(),
             source,
             reporting_fleet_number: Some(fleet.local_slot_word_raw() as u8),
+            reporting_initial: ship_counts_from_fleet(fleet),
+            reporting_loaded_armies_initial: u32::from(fleet.army_count()),
             coords,
             target_empire_raw: target_task_force.empire,
             target_fleet_number,
@@ -57,6 +59,8 @@ pub(super) fn push_contact_event_for_task_force(
             viewer_empire_raw: task_force.empire,
             source: ContactReportSource::Starbase(base.base_id_raw()),
             reporting_fleet_number: None,
+            reporting_initial: ShipLosses::default(),
+            reporting_loaded_armies_initial: 0,
             coords,
             target_empire_raw: target_task_force.empire,
             target_fleet_number,
@@ -72,6 +76,17 @@ pub(super) fn push_contact_event_for_task_force(
             task_force.empire,
             target_task_force.empire,
         );
+    }
+}
+
+fn ship_counts_from_fleet(fleet: &nc_data::FleetRecord) -> ShipLosses {
+    ShipLosses {
+        destroyers: u32::from(fleet.destroyer_count()),
+        cruisers: u32::from(fleet.cruiser_count()),
+        battleships: u32::from(fleet.battleship_count()),
+        scouts: u32::from(fleet.scout_count()),
+        transports: u32::from(fleet.troop_transport_count()),
+        etacs: u32::from(fleet.etac_count()),
     }
 }
 

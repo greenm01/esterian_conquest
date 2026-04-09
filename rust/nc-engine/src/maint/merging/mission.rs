@@ -195,7 +195,7 @@ pub(super) fn process_join_host_updates(
                 fleet_idx,
                 owner_empire_raw: fleet.owner_empire_raw(),
                 // Host record is gone; its fleet number is no longer available.
-                destroyed_host_fleet_number: 0,
+                destroyed_host_fleet_number: None,
                 coords,
             });
             continue;
@@ -209,8 +209,8 @@ pub(super) fn process_join_host_updates(
             events.push(JoinMissionHostEvent::Retargeted {
                 fleet_idx,
                 owner_empire_raw: fleet.owner_empire_raw(),
-                previous_host_fleet_number: fleet_number_by_id.get(&host_id).copied().unwrap_or(0),
-                new_host_fleet_number: fleet_number_by_id.get(&new_host_id).copied().unwrap_or(0),
+                previous_host_fleet_number: fleet_number_by_id.get(&host_id).copied(),
+                new_host_fleet_number: fleet_number_by_id.get(&new_host_id).copied(),
                 coords: fleet.current_location_coords_raw(),
             });
             continue;
@@ -230,7 +230,7 @@ pub(super) fn process_join_host_updates(
             events.push(JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
                 owner_empire_raw: fleet.owner_empire_raw(),
-                destroyed_host_fleet_number: fleet_number_by_id.get(&host_id).copied().unwrap_or(0),
+                destroyed_host_fleet_number: fleet_number_by_id.get(&host_id).copied(),
                 coords,
             });
         }

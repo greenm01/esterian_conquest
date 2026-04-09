@@ -200,10 +200,14 @@ pub struct FleetDestroyedEvent {
     pub friendly_loaded_armies_initial: u32,
     /// Initial observed hostile composition.
     pub enemy_initial: ShipLosses,
+    /// Initial hostile starbases participating in the battle.
+    pub enemy_initial_starbases: u32,
     /// Loaded armies aboard the hostile force at battle start.
     pub enemy_loaded_armies_initial: u32,
     /// Observed hostile losses before contact was lost.
     pub enemy_losses: ShipLosses,
+    /// Hostile starbases destroyed before contact was lost.
+    pub enemy_starbases_destroyed: u32,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
     /// Hostile fleet number if one specific enemy fleet can be named.
@@ -250,6 +254,10 @@ pub struct ScoutContactEvent {
     pub source: ContactReportSource,
     /// Fleet number of the reporting fleet when the source is a fleet.
     pub reporting_fleet_number: Option<u8>,
+    /// Initial composition of the reporting fleet when the source is a fleet.
+    pub reporting_initial: ShipLosses,
+    /// Loaded armies aboard the reporting fleet when the source is a fleet.
+    pub reporting_loaded_armies_initial: u32,
     /// Coordinates where the contact occurred.
     pub coords: [u8; 2],
     /// Empire that was detected.
@@ -300,10 +308,10 @@ pub enum JoinMissionHostEvent {
         fleet_idx: usize,
         /// Empire that owned the joining fleet.
         owner_empire_raw: u8,
-        /// Previous host fleet number.
-        previous_host_fleet_number: u8,
-        /// New surviving host fleet number.
-        new_host_fleet_number: u8,
+        /// Previous host fleet number, when still known.
+        previous_host_fleet_number: Option<u8>,
+        /// New surviving host fleet number, when one specific fleet can be named.
+        new_host_fleet_number: Option<u8>,
         /// Current location of the joining fleet.
         coords: [u8; 2],
     },
@@ -313,8 +321,8 @@ pub enum JoinMissionHostEvent {
         fleet_idx: usize,
         /// Empire that owned the joining fleet.
         owner_empire_raw: u8,
-        /// Destroyed host fleet number.
-        destroyed_host_fleet_number: u8,
+        /// Destroyed host fleet number, when still known.
+        destroyed_host_fleet_number: Option<u8>,
         /// Current location of the joining fleet.
         coords: [u8; 2],
     },
@@ -327,6 +335,7 @@ pub enum MissionRetargetEvent {
         fleet_idx: usize,
         owner_empire_raw: u8,
         mission: Mission,
+        current_coords: [u8; 2],
         previous_target_coords: [u8; 2],
         new_target_coords: [u8; 2],
     },
@@ -402,6 +411,8 @@ pub enum EncounterDispositionEvent {
         owner_empire_raw: u8,
         mission: Option<Mission>,
         coords: [u8; 2],
+        friendly_initial: ShipLosses,
+        friendly_loaded_armies_initial: u32,
         target_empire_raw: u8,
         target_fleet_number: Option<u8>,
         small_vessels: u32,
@@ -416,6 +427,8 @@ pub enum EncounterDispositionEvent {
         owner_empire_raw: u8,
         mission: Option<Mission>,
         coords: [u8; 2],
+        friendly_initial: ShipLosses,
+        friendly_loaded_armies_initial: u32,
         target_empire_raw: u8,
         target_fleet_number: Option<u8>,
         enemy_initial: ShipLosses,
@@ -434,6 +447,8 @@ pub enum EncounterDispositionEvent {
         owner_empire_raw: u8,
         mission: Option<Mission>,
         coords: [u8; 2],
+        friendly_initial: ShipLosses,
+        friendly_loaded_armies_initial: u32,
         target_empire_raw: u8,
         target_fleet_number: Option<u8>,
         enemy_initial: ShipLosses,

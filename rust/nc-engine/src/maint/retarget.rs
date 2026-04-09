@@ -37,6 +37,7 @@ pub(super) fn refresh_seek_home_targets(game_data: &mut CoreGameData) -> Vec<Mis
                 fleet_idx,
                 owner_empire_raw,
                 mission: Mission::SeekHome,
+                current_coords,
                 previous_target_coords,
                 new_target_coords,
             });
@@ -89,11 +90,13 @@ pub(super) fn refresh_join_host_targets(game_data: &mut CoreGameData) -> Vec<Mis
         if let Some(coords) = current_fleet_coords.get(&host_id).copied() {
             let previous_target_coords = fleet.standing_order_target_coords_raw();
             if coords != previous_target_coords {
+                let current_coords = fleet.current_location_coords_raw();
                 fleet.set_standing_order_target_coords_raw(coords);
                 events.push(MissionRetargetEvent::Retargeted {
                     fleet_idx,
                     owner_empire_raw: fleet.owner_empire_raw(),
                     mission: Mission::JoinAnotherFleet,
+                    current_coords,
                     previous_target_coords,
                     new_target_coords: coords,
                 });
@@ -174,6 +177,7 @@ pub(super) fn refresh_guard_starbase_targets(
                 fleet_idx,
                 owner_empire_raw,
                 mission: Mission::GuardStarbase,
+                current_coords,
                 previous_target_coords,
                 new_target_coords,
             });

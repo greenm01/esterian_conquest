@@ -759,8 +759,8 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
             JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
                 // Host was culled before fleet_number_by_id was snapshotted,
-                // so destroyed_host_fleet_number is 0 (fleet record is gone).
-                destroyed_host_fleet_number: 0,
+                // so the host fleet number is no longer available.
+                destroyed_host_fleet_number: None,
                 coords,
                 ..
             } if *fleet_idx == 0
@@ -800,11 +800,13 @@ fn test_seek_home_retargets_to_next_owned_planet_when_target_is_lost() {
             MissionRetargetEvent::Retargeted {
                 fleet_idx,
                 mission,
+                current_coords,
                 previous_target_coords,
                 new_target_coords,
                 ..
             } if *fleet_idx == 1
                 && *mission == Mission::SeekHome
+                && *current_coords == [9, 9]
                 && *previous_target_coords == original_target
                 && *new_target_coords == fallback_target
         )
@@ -842,11 +844,13 @@ fn test_guard_starbase_retargets_to_live_base_coords() {
             MissionRetargetEvent::Retargeted {
                 fleet_idx,
                 mission,
+                current_coords,
                 previous_target_coords,
                 new_target_coords,
                 ..
             } if *fleet_idx == 1
                 && *mission == Mission::GuardStarbase
+                && *current_coords == [4, 8]
                 && *previous_target_coords == [9, 8]
                 && *new_target_coords == [12, 8]
         )

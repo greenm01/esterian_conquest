@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     CoreGameData, DiplomacyOverride, DiplomaticRelation, EncounterDispositionEvent,
     EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError,
-    MissionEvent, MissionOutcome, Order, PlanetIntelEvent, ScoutContactEvent,
+    MissionEvent, MissionOutcome, Order, PlanetIntelEvent, ScoutContactEvent, ShipLosses,
     StarbaseDestroyedEvent,
 };
 
@@ -386,6 +386,29 @@ pub(crate) fn process_fleet_battles(
                     loaded_armies_for_fleet_indices(game_data, &tf.fleet_indices),
                 )
             })
+            .collect();
+        let original_fleet_states: HashMap<usize, ShipLosses> = task_forces
+            .iter()
+            .flat_map(|tf| tf.fleet_indices.iter().copied())
+            .map(|idx| {
+                let fleet = &game_data.fleets.records[idx];
+                (
+                    idx,
+                    ShipLosses {
+                        destroyers: u32::from(fleet.destroyer_count()),
+                        cruisers: u32::from(fleet.cruiser_count()),
+                        battleships: u32::from(fleet.battleship_count()),
+                        scouts: u32::from(fleet.scout_count()),
+                        transports: u32::from(fleet.troop_transport_count()),
+                        etacs: u32::from(fleet.etac_count()),
+                    },
+                )
+            })
+            .collect();
+        let original_fleet_loaded_armies: HashMap<usize, u32> = task_forces
+            .iter()
+            .flat_map(|tf| tf.fleet_indices.iter().copied())
+            .map(|idx| (idx, u32::from(game_data.fleets.records[idx].army_count())))
             .collect();
 
         for (i, left) in task_forces.iter().enumerate() {
@@ -885,6 +908,14 @@ pub(crate) fn process_fleet_battles(
                         owner_empire_raw: tf.empire,
                         mission: mission_kind_for_order(pre_encounter_orders.get(&idx).copied()),
                         coords,
+                        friendly_initial: original_fleet_states
+                            .get(&idx)
+                            .copied()
+                            .unwrap_or_default(),
+                        friendly_loaded_armies_initial: original_fleet_loaded_armies
+                            .get(&idx)
+                            .copied()
+                            .unwrap_or(0),
                         target_empire_raw,
                         target_fleet_number,
                         enemy_initial: ship_counts_from_state(&enemy_before),
@@ -1000,8 +1031,11 @@ pub(crate) fn process_fleet_battles(
                         .copied()
                         .unwrap_or(0),
                     enemy_initial: ship_counts_from_state(&enemy_before),
+                    enemy_initial_starbases: enemy_before.counts[IDX_SB],
                     enemy_loaded_armies_initial,
                     enemy_losses,
+                    enemy_starbases_destroyed: enemy_before.counts[IDX_SB]
+                        .saturating_sub(enemy_after.counts[IDX_SB]),
                     primary_enemy_empire_raw,
                     primary_enemy_fleet_number,
                     stardate_week: None,

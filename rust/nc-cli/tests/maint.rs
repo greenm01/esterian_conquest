@@ -2471,6 +2471,7 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
         .collect::<Vec<_>>();
     let normalized = lines.join(" ");
     assert!(normalized.contains("In accordance with our ROE, we withdrew"));
+    assert!(normalized.contains("We had"));
     assert!(normalized.contains("Alien force contained"));
     assert!(normalized.contains("suffering losses of no ship losses"));
     assert!(normalized.contains("unable to inflict any losses"));
@@ -2881,6 +2882,72 @@ fn maint_rust_join_contact_uses_join_report_label() {
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Join mission report"));
     assert!(text.contains("Sensor contact") || text.contains("contact shows"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_join_host_destroyed_report_never_shows_zero_fleet_number() {
+    let target = unique_temp_dir("nc-cli-maint-rust-join-host-destroyed");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let host_id = game_data.fleets.records[0].fleet_id();
+    game_data.fleets.records[0].set_destroyer_count(0);
+    game_data.fleets.records[0].set_cruiser_count(0);
+    game_data.fleets.records[0].set_battleship_count(0);
+    game_data.fleets.records[0].set_scout_count(0);
+    game_data.fleets.records[0].set_troop_transport_count(0);
+    game_data.fleets.records[0].set_etac_count(0);
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw([7, 9]);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw([10, 10]);
+    joiner.set_current_speed(3);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("Our intended host fleet was destroyed."));
+    assert!(!text.contains("(0th Fleet)"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_join_retarget_report_uses_current_location_in_source() {
+    let target = unique_temp_dir("nc-cli-maint-rust-join-retarget");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let host_id = game_data.fleets.records[0].fleet_id();
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw([3, 9]);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw([1, 1]);
+    joiner.set_current_speed(3);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("located in Sector(3,9):"));
+    assert!(text.contains("Join mission report: Our host fleet moved."));
+    assert!(text.contains("continuing pursuit to"));
+    assert_eq!(text.matches("Sector(3,9)").count(), 1, "{text}");
 
     cleanup_dir(&target);
 }
