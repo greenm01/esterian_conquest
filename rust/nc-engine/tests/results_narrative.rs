@@ -395,6 +395,9 @@ fn blitz_report_for_undefended_world_includes_attacker_force_and_no_battery_text
     let rows = build_results_report_blocks(&game_data, &events);
     let blitz = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
+    assert!(
+        blitz.contains("Blitz mission report: We have seized planet \"dog\" in a fast assault.")
+    );
     assert!(blitz.contains("Our assault force initially contained 2 cruisers and 2 troop transport ships carrying 2 armies."));
     assert!(blitz.contains("The world was undefended at the start of the assault."));
     assert!(!blitz.contains("failed to suppress the defending batteries"));
@@ -438,6 +441,7 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     let rows = build_results_report_blocks(&game_data, &events);
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
+    assert!(invasion.contains("Invasion mission report: Our armies have captured planet \"dog\"."));
     assert!(invasion.contains("Our assault force initially contained 1 battleship and 2 troop transport ships carrying 2 armies."));
     assert!(invasion.contains("The world was undefended at the start of the assault."));
 }

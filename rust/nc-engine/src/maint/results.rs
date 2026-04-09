@@ -952,7 +952,7 @@ fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> Stri
             target[0], target[1]
         ),
         FleetOrderValidationError::InvalidJoinHost => {
-            "the target fleet no longer exists or does not belong to this empire".to_string()
+            "the target fleet no longer exists".to_string()
         }
         FleetOrderValidationError::InvalidGuardStarbase => {
             "the selected starbase linkage is invalid".to_string()
@@ -1585,9 +1585,9 @@ fn generate_report_entries(
         let header = report_header(&source, event.stardate_week, year);
         let body = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
-                " Invasion mission report: Our assault force initially contained {}. Our armies have captured planet \"{}\".{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                attacker_force,
+                " Invasion mission report: Our armies have captured planet \"{}\". Our assault force initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 planet.planet_name(),
+                attacker_force,
                 defense_opening,
                 ship_losses,
                 event.attacker_army_losses,
@@ -1595,7 +1595,7 @@ fn generate_report_entries(
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
-                " Invasion mission report: Our assault force initially contained {}. The landing was repulsed.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: The landing was repulsed. Our assault force initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 attacker_force,
                 defense_opening,
                 ship_losses,
@@ -1604,7 +1604,7 @@ fn generate_report_entries(
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
-                " Invasion mission report: Our assault force initially contained {}. Enemy ground batteries prevented a landing.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: Enemy ground batteries prevented a landing. Our assault force initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 attacker_force,
                 defense_opening,
                 ship_losses,
@@ -1613,9 +1613,9 @@ fn generate_report_entries(
                 event.defender_army_losses,
             ),
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
-                " Blitz mission report: Our assault force initially contained {}. We have seized planet \"{}\" in a fast assault.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
-                attacker_force,
+                " Blitz mission report: We have seized planet \"{}\" in a fast assault. Our assault force initially contained {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 planet.planet_name(),
+                attacker_force,
                 defense_opening,
                 blitz_cover_note,
                 ship_losses,
@@ -1625,7 +1625,7 @@ fn generate_report_entries(
                 transport_note,
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
-                " Blitz mission report: Our assault force initially contained {}. The blitz attack failed.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                " Blitz mission report: The blitz attack failed. Our assault force initially contained {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 attacker_force,
                 defense_opening,
                 blitz_cover_note,
