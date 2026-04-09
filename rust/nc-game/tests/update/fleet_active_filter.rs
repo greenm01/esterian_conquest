@@ -205,3 +205,92 @@ fn fleet_menu_defaults_and_review_list_skip_empty_owned_slots() {
         Some("Fleet #2 is not in your fleet list.")
     );
 }
+
+#[test]
+fn fleet_list_action_clamps_stale_cursor_before_using_visible_hold_row() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let held_fleet_number = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .map(|fleet| fleet.local_slot_word_raw())
+        .expect("owned fleet");
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        clear_fleet_force(fleet);
+    }
+    {
+        let held_fleet = owned_fleet_mut(&mut state, held_fleet_number);
+        held_fleet.set_battleship_count(4);
+        held_fleet.set_standing_order_kind(nc_data::Order::HoldPosition);
+        held_fleet.set_standing_order_target_coords_raw(held_fleet.current_location_coords_raw());
+        held_fleet.recompute_max_speed_from_composition();
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    app.fleet.list_filter = nc_game::screen::FleetListFilter::Holding;
+    app.fleet.cursor = 99;
+    app.fleet.scroll_offset = 99;
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list should render the held fleet");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("FLEET LIST: ID DESC HOLD"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Hold") && line.contains("4BB"))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenChangePrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert!(app.fleet.list_dismiss_message.is_none());
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list should render inline change prompt");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Change <R>OE, <I>D, or <S>peed [R] <Q> ->"))
+    );
+}

@@ -1340,6 +1340,55 @@ mod tests {
     }
 
     #[test]
+    fn holding_filter_with_visible_rows_does_not_render_empty_state_footer() {
+        let mut app = dash_app();
+        for (idx, fleet) in app.game_data.fleets.records.iter_mut().enumerate() {
+            if fleet.owner_empire_raw() != 1 {
+                continue;
+            }
+            if idx == 0 {
+                fleet.set_standing_order_kind(Order::HoldPosition);
+                fleet.set_standing_order_target_coords_raw(fleet.current_location_coords_raw());
+                fleet.set_destroyer_count(1);
+                fleet.recompute_max_speed_from_composition();
+                continue;
+            }
+            fleet.set_scout_count(0);
+            fleet.set_battleship_count(0);
+            fleet.set_cruiser_count(0);
+            fleet.set_destroyer_count(0);
+            fleet.set_troop_transport_count(0);
+            fleet.set_army_count(0);
+            fleet.set_etac_count(0);
+            fleet.recompute_max_speed_from_composition();
+        }
+        app.overlay = ActiveOverlay::FleetList;
+        app.fleet_overlay.filter = crate::app::state::FleetOverlayFilter::Holding;
+
+        let rows = table_rows(&app);
+        assert_eq!(rows.len(), 1);
+
+        let layout = dashboard_layout(&app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        draw(&mut buffer, &app, layout.widgets.center_map);
+
+        let lines = (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .collect::<Vec<_>>();
+        assert!(lines.iter().any(|line| line.contains("FLEET LIST: ID DESC HOLD")));
+        assert!(lines.iter().any(|line| line.contains("COMMAND <- ? F S O SPACE <Q>")));
+        assert!(
+            !lines
+                .iter()
+                .any(|line| line.contains("You have no active fleets or starbases."))
+        );
+    }
+
+    #[test]
     fn group_fleet_order_confirm_footer_renders_standard_yes_no_prompt() {
         let mut app = dash_app();
         configure_group_confirm_prompt(&mut app, &[0, 1]);

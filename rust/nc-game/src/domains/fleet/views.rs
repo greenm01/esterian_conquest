@@ -3,6 +3,12 @@ use crate::screen::{PlayfieldBuffer, ScreenFrame, ScreenId, format_sector_coords
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     app.enforce_valid_fleet_filter();
+    if matches!(
+        app.current_screen,
+        ScreenId::FleetList | ScreenId::FleetListFilterPrompt | ScreenId::FleetListSortPrompt
+    ) {
+        app.normalize_fleet_list_selection();
+    }
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,

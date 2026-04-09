@@ -164,7 +164,26 @@ impl App {
         }
     }
 
-    pub(crate) fn fleet_selected_list_row(&self) -> Result<FleetRow, String> {
+    fn clamp_fleet_list_cursor_for_len(&mut self, total: usize) {
+        if total == 0 {
+            self.fleet.cursor = 0;
+            self.fleet.scroll_offset = 0;
+            return;
+        }
+        self.fleet.cursor = self.fleet.cursor.min(total - 1);
+        let visible_rows = self.fleet_list_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
+            visible_rows,
+        );
+    }
+
+    pub(crate) fn normalize_fleet_list_selection(&mut self) {
+        self.clamp_fleet_list_cursor_for_len(self.fleet_list_rows().len());
+    }
+
+    pub(crate) fn fleet_selected_list_row(&mut self) -> Result<FleetRow, String> {
         let ScreenId::FleetList = self.current_screen else {
             return Err("Fleet list is not active.".to_string());
         };
@@ -182,6 +201,7 @@ impl App {
                 .find(|row| row.fleet_number == fleet_number)
                 .ok_or_else(|| format!("Fleet #{fleet_number} is not in your fleet list."));
         }
+        self.clamp_fleet_list_cursor_for_len(rows.len());
         rows.get(self.fleet.cursor)
             .cloned()
             .ok_or_else(|| "You have no active fleets.".to_string())
