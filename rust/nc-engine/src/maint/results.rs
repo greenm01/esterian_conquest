@@ -1128,6 +1128,7 @@ enum NarrativePhase {
 fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
     if text.contains("Sensor contact") && text.contains("detected and identified")
         || text.contains("We identified an alien fleet")
+        || text.contains("We have located and identified an alien fleet")
         || text.contains("we are avoiding engagement")
     {
         NarrativePhase::ContactIdentify

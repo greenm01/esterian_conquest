@@ -925,6 +925,57 @@ fn destroyed_starbase_only_defender_emits_only_telemetry_report() {
 }
 
 #[test]
+fn results_reports_starbase_contact_before_destroyed_starbase_notice() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3024)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [9, 13];
+    seed_target_world(&mut game_data, coords, "Target");
+
+    let mut events = MaintenanceEvents::default();
+    events.scout_contact_events.push(ScoutContactEvent {
+        viewer_empire_raw: 1,
+        source: ContactReportSource::Starbase(5),
+        reporting_fleet_number: None,
+        reporting_initial: ShipLosses::default(),
+        reporting_loaded_armies_initial: 0,
+        coords,
+        target_empire_raw: 2,
+        target_fleet_number: Some(7),
+        small_vessels: 31,
+        medium_vessels: 19,
+        large_vessels: 2,
+        stardate_week: Some(2),
+    });
+    events
+        .starbase_destroyed_events
+        .push(nc_data::StarbaseDestroyedEvent {
+            reporting_empire_raw: 1,
+            starbase_id: 5,
+            coords,
+            enemy_initial: ShipLosses {
+                battleships: 2,
+                cruisers: 19,
+                destroyers: 5,
+                scouts: 1,
+                transports: 25,
+                ..ShipLosses::default()
+            },
+            enemy_losses: ShipLosses::default(),
+            primary_enemy_empire_raw: Some(2),
+            primary_enemy_fleet_number: Some(7),
+            stardate_week: Some(2),
+        });
+
+    let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
+    assert_eq!(texts.len(), 2, "expected contact and destroyed-starbase reports: {texts:?}");
+    assert!(texts[0].contains("We have located and identified an alien fleet"));
+    assert!(texts[1].contains("We lost all contact with Starbase 5"));
+}
+
+#[test]
 fn results_projection_is_pure_until_reviewable_flags_are_applied() {
     let mut game_data = GameStateBuilder::new()
         .with_player_count(4)
