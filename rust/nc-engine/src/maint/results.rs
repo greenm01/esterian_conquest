@@ -1842,11 +1842,6 @@ fn generate_report_entries(
             continue;
         };
         let [x, y] = planet.coords_raw();
-        let from = if event.previous_owner_empire_raw == 0 {
-            "unowned world".to_string()
-        } else {
-            classic_empire_clause(game_data, event.previous_owner_empire_raw)
-        };
         let source = format!(
             "From planet \"{}\" in System({x},{y}):",
             planet.planet_name()
@@ -1859,9 +1854,8 @@ fn generate_report_entries(
                 && assault.outcome == MissionOutcome::Succeeded
         }) {
             format!(
-                " We have been invaded and captured by {} from {}. The attacking force initially contained {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies. Enemy losses: {}.",
+                " We have been invaded and captured by {}. The attacking force initially contained {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies. Enemy losses: {}.",
                 classic_empire_clause(game_data, event.new_owner_empire_raw),
-                from,
                 fleet_force_summary(assault.attacker_initial, 0),
                 planet_defense_summary(
                     assault.defender_batteries_initial,
@@ -1873,9 +1867,8 @@ fn generate_report_entries(
             )
         } else {
             format!(
-                " We have been invaded and captured by {} from {}.",
+                " We have been invaded and captured by {}.",
                 classic_empire_clause(game_data, event.new_owner_empire_raw),
-                from
             )
         };
         entries.push(ReportEntry {

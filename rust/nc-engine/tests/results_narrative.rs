@@ -494,7 +494,7 @@ fn ownership_change_report_uses_assault_context_for_defender() {
     let rows = build_results_report_blocks(&game_data, &events);
     let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
     assert!(text.contains("We have been invaded and captured by"));
-    assert!(text.contains("from"));
+    assert!(!text.contains("captured by \"Player1\", (Empire #1) from"));
     assert!(text.contains("The attacking force initially"));
     assert!(text.contains("contained 1 cruiser."));
     assert!(
