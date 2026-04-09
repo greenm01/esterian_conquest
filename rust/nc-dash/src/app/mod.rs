@@ -1531,7 +1531,9 @@ impl DashApp {
     }
 
     fn enforce_valid_fleet_filter(&mut self) {
-        if self.fleet_overlay.filter != FleetOverlayFilter::All && fleet_list::table_rows(self).is_empty() {
+        if self.fleet_overlay.filter != FleetOverlayFilter::All
+            && fleet_list::table_rows(self).is_empty()
+        {
             self.fleet_overlay.filter = FleetOverlayFilter::All;
         }
     }
