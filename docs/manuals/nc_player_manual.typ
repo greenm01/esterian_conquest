@@ -111,7 +111,7 @@
 
 = Introduction
 
-Beyond the mapped frontiers of the old Nostrian dominion lies a small galaxy of contested solar systems. The old masters are gone. Their stations are silent, their patrols vanished, and their subjects left with fleets, factories, and enough knowledge to build empires.
+Beyond the mapped frontiers of the old Nostrian dominion lies a small galaxy of contested solar systems. The old masters are gone. Their stations are silent, their patrols vanished, and their subjects left with fleets, industry, and enough knowledge to build empires.
 
 You rise as one of the new Star Masters. From a single world and a few small fleets, you must tax, build, scout, bargain, threaten, and strike before rival powers can do the same. Some systems will join your banner willingly. Others will require persuasion from orbit.
 
@@ -346,9 +346,9 @@ You control five major force types: planets, ships, starbases, armies, and groun
 
 === Planets
 
-Planets are the foundation of your empire. Each one has a *Potential Production* --- the ceiling it can reach at full efficiency, ranging from 10 to 150 across the galaxy --- and a *Present Production*, which is what the planet can actually deliver right now. Present Production grows toward Potential over time, and the speed of that growth depends heavily on your tax rate.
+Planets are the foundation of your empire. Each one has a *Potential Production* --- the ceiling it can reach at full efficiency, ranging from 10 to 150 across the galaxy --- and a *Production*, which is what the planet can actually deliver right now. Production grows toward Potential over time, and the speed of that growth depends heavily on your tax rate.
 
-Taxes convert Present Production into spendable build points each year. See @economy for the full tax rate, growth, and starbase economics model.
+Taxes convert Production into spendable build points each year. See @economy for the full tax rate, growth, and starbase economics model.
 
 === Ships
 
@@ -395,18 +395,18 @@ Your empire runs on production. Every owned planet generates tax revenue each ma
 
 === Key Terms
 
-Every planet has a *Potential Production* --- the maximum productive capacity it can ever reach --- and a *Present Production*, which is what it can deliver right now. Present Production grows toward Potential over time. Your empire's *Empire Revenue* is the sum of tax revenue across all your planets. Any revenue a planet does not spend accumulates on it as its *Treasury* --- the reserve of saved production points available to fund future builds. Each turn, how much of that treasury a planet can actually spend is limited by its *build capacity*; that per-turn spending limit is the planet's *Budget*.
+Every planet has a *Potential Production* --- the maximum productive capacity it can ever reach --- and a *Production*, which is what it can deliver right now. Production grows toward Potential over time. Your empire's *Empire Revenue* is the sum of tax revenue across all your planets. Any revenue a planet does not spend accumulates on it as its *Treasury* --- the reserve of saved production points available to fund future builds. Each turn, how much of that treasury a planet can actually spend is limited by its *build capacity*; that per-turn spending limit is the planet's *Budget*.
 
 === Tax Revenue
 
 The tax rate is empire-wide: you set one rate for all your planets. Revenue per
-planet per year is a fixed percentage of Present Production, and your empire's
+planet per year is a fixed percentage of Production, and your empire's
 Empire Revenue is the sum of that revenue across all owned planets. See
 @appendix-economy for the exact formula.
 
 === Growth Toward Potential
 
-Each maintenance turn, every owned planet grows its Present Production toward its Potential. Lower taxes produce faster growth --- a planet at 30% tax develops far faster than one at 60%. Growth also slows naturally as a planet approaches its ceiling. Even at punishingly high tax rates, a planet below its Potential always grows by at least 1 point per year.
+Each maintenance turn, every owned planet grows its Production toward its Potential. Lower taxes produce faster growth --- a planet at 30% tax develops far faster than one at 60%. Growth also slows naturally as a planet approaches its ceiling. Even at punishingly high tax rates, a planet below its Potential always grows by at least 1 point per year.
 
 The engine computes this from the remaining gap to Potential and the tax
 headroom, then clamps the result so a planet below Potential always grows by at
@@ -415,9 +415,9 @@ least `1` and never grows by more than the remaining gap. See
 
 === The 65% Tax Threshold
 
-#admonition("WARNING")[Setting taxes above *65%* can directly _reduce_ Present Production on your planets, not just slow growth.]
+#admonition("WARNING")[Setting taxes above *65%* can directly _reduce_ Production on your planets, not just slow growth.]
 
-Below 65%, growth is always positive --- lower is faster. Above 65%, a penalty kicks in that actively damages Present Production. A commissioned starbase does *not* remove this danger. Its value is that it helps young colonies grow faster before you reach punitive tax rates, and it still preserves the powerful build-capacity bonus described below.
+Below 65%, growth is always positive --- lower is faster. Above 65%, a penalty kicks in that actively damages Production. A commissioned starbase does *not* remove this danger. Its value is that it helps young colonies grow faster before you reach punitive tax rates, and it still preserves the powerful build-capacity bonus described below.
 
 The recommended early-game rate is around 50--65%. Drop taxes on new colonies to accelerate their development.
 See @appendix-economy for the exact penalty and yearly update formulas.
@@ -430,24 +430,24 @@ the full bonus applies at *50% tax or lower*, then tapers away as taxes climb
 toward *65%*. This means underdeveloped planets with starbases catch up
 significantly faster when you are managing them sensibly, but the bonus is not
 meant to offset punitive taxes. Second, the planet gains a *build capacity
-multiplier* --- it can spend up to *5x* its Present Production on builds in a
+multiplier* --- it can spend up to *5x* its Production on builds in a
 single turn, drawing from its treasury. Without a starbase, a
-planet can only spend up to 1x its Present Production per turn. See
+planet can only spend up to 1x its Production per turn. See
 @appendix-economy for the exact bonus taper and build-capacity formulas.
 
 #admonition("NOTE")[These bonuses require an active, commissioned starbase in orbit --- not an uncommissioned starbase sitting in stardock.]
 
 === Treasury <treasury>
 
-Tax revenue that a planet does not spend accumulates in its *Treasury* --- the planet's savings reserve. The treasury is what allows starbase worlds to execute large builds: up to 5x Present Production in a single turn. Each turn, a planet's *Budget* is the lesser of its treasury and its build capacity. That is what the build screen shows as *BUDGET* --- how many production points remain uncommitted this turn. When maintenance processes a build queue, only the points actually spent that year are deducted from the treasury; unfinished builds keep their remaining cost for later turns.
+Tax revenue that a planet does not spend accumulates in its *Treasury* --- the planet's savings reserve. The treasury is what allows starbase worlds to execute large builds: up to 5x Production in a single turn. Each turn, a planet's *Budget* is the lesser of its treasury and its build capacity. That is what the build screen shows as *BUDGET* --- how many production points remain uncommitted this turn. When maintenance processes a build queue, only the points actually spent that year are deducted from the treasury; unfinished builds keep their remaining cost for later turns.
 
 === Newly Colonized Planets
 
-A freshly colonized planet starts with Present Production far below its Potential and with no treasury. It does not collect revenue or growth on the same maintenance turn that establishes the colony. Growth begins on later turns, and because tax revenue is credited before growth is applied, a new colony can remain at zero budget for multiple turns even at reasonable tax rates. Keep taxes low on new colonies so they develop quickly.
+A freshly colonized planet starts with Production far below its Potential and with no treasury. It does not collect revenue or growth on the same maintenance turn that establishes the colony. Growth begins on later turns, and because tax revenue is credited before growth is applied, a new colony can remain at zero budget for multiple turns even at reasonable tax rates. Keep taxes low on new colonies so they develop quickly.
 
 === Conquered Planets
 
-When you capture an enemy planet by invasion or blitz, the factories need approximately *two turns* before they are fully converted and begin producing tax revenue for your empire. Plan your logistics around this delay.
+When you capture an enemy planet by invasion or blitz, the planet's industry needs approximately *two turns* before it is fully converted and begins producing tax revenue for your empire. Plan your logistics around this delay.
 
 #pagebreak()
 
@@ -560,11 +560,11 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 #admonition("IMPORTANT")[Hostile missions require the fleet to be *in orbit at the start of maintenance* to execute. A fleet that arrives at the target world this turn will carry out its assault *next turn*. This one-turn delay is a critical tactical consideration --- defend accordingly.]
 
-*Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Each turn your fleet bombards, the engine runs three rounds of fire. In rounds 1 and 2, your ships exchange fire with ground batteries --- hits destroy stardock contents first, then batteries, but armies, stored goods, and factories are shielded behind the battery wall. In round 3, if batteries have been eliminated, your firepower breaks through to armies, stored goods, and finally factories. If batteries still stand after round 2, round 3 is another suppression exchange and the planet's production survives. Bombardment persists each turn until you issue new orders. Use it to grind down a world's defenses before invasion, or to deny resources to an enemy over time.
+*Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Each turn your fleet bombards, the engine runs three rounds of fire. In rounds 1 and 2, your ships exchange fire with ground batteries --- hits destroy stardock contents first, then batteries, but armies, stored goods, and industry are shielded behind the battery wall. In round 3, if batteries have been eliminated, your firepower breaks through to armies, stored goods, and finally industry. If batteries still stand after round 2, round 3 is another suppression exchange and the planet's production survives. Bombardment persists each turn until you issue new orders. Use it to grind down a world's defenses before invasion, or to deny resources to an enemy over time.
 
-*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- factories and stored goods are preserved because the goal is to capture the planet with its production intact. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
+*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- industry and stored goods are preserved because the goal is to capture the planet with its production intact. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
 
-*Mission 8: Blitz a World.* Transports drop armies immediately in a fast assault that bypasses the full orbital suppression sequence. Escorting combat ships provide brief cover fire, but surviving batteries fire directly on descending transports, causing heavy losses. Landed armies fight defenders immediately, and the defender receives a defensive bonus. If you take the planet, surviving ground batteries transfer intact to your control. The blitz preserves factories but carries high risk to your armies and transports --- a 2:1 army advantage or better is recommended. Choose blitz when the planet has few or no batteries and you want to preserve its industry, or when speed matters more than casualties.
+*Mission 8: Blitz a World.* Transports drop armies immediately in a fast assault that bypasses the full orbital suppression sequence. Escorting combat ships provide brief cover fire, but surviving batteries fire directly on descending transports, causing heavy losses. Landed armies fight defenders immediately, and the defender receives a defensive bonus. If you take the planet, surviving ground batteries transfer intact to your control. The blitz preserves industry but carries high risk to your armies and transports --- a 2:1 army advantage or better is recommended. Choose blitz when the planet has few or no batteries and you want to preserve its industry, or when speed matters more than casualties.
 
 #pagebreak()
 
@@ -594,7 +594,7 @@ To keep messaging civil, you may send no more than three messages to any single 
 
 === Planet Command
 
-Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. From the main Planet Command menu, Scorch Earth (*S*) destroys your own factories to deny them to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.
+Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. From the main Planet Command menu, Scorch Earth (*S*) destroys your own industry to deny it to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.
 
 The *Planet List* is the fast row-centric operations screen for owned worlds. Once you open it, the highlighted planet becomes the working row for the most common actions: Build (*B*), Auto-Commission (*A*), Commission (*C*), Load / Unload armies (*L* / *U*), and Scorch Earth (*X*). On that screen, *S* is reserved for *Sort*, while *I* or *Enter* opens planet information for the selected row.
 
@@ -606,7 +606,7 @@ Fleet Command controls your ships in space. Mission (*O*) assigns missions 0--15
 
 Each planet has a *10-slot build queue*. During maintenance, a planet processes as many queued build points as its current per-turn build capacity allows. Small orders may finish in one maintenance turn, while larger ones can stay queued across multiple years until the remaining cost reaches zero. As enough points are applied to complete individual units, ships and starbases move to *Stardock* --- a holding area on the planet where they sit idle and vulnerable until commissioned --- even if other units from the same order remain queued. Ships are commissioned into numbered fleets, while starbases are commissioned individually and managed through their own Starbase Command submenu. Armies and ground batteries, by contrast, deploy directly to the planet surface and do not pass through stardock.
 
-A planet without a starbase can spend up to its Present Production in a single turn. A planet with an orbiting starbase can spend up to *5x* its Present Production, drawing from its treasury (see @treasury). The build screen shows *BUDGET* --- your treasury capped by build capacity, minus what you have already committed this turn.
+A planet without a starbase can spend up to its Production in a single turn. A planet with an orbiting starbase can spend up to *5x* its Production, drawing from its treasury (see @treasury). The build screen shows *BUDGET* --- your treasury capped by build capacity, minus what you have already committed this turn.
 
 #admonition("NOTE")[The build queue, stardock, and treasury are all linked. If stardock is full for a given unit type, that slot stops drawing points. Blocked slots do not drain your treasury --- but they also do not free capacity for other work. Commission your ships promptly to keep the pipeline moving.]
 
@@ -705,7 +705,7 @@ and never grows by more than the remaining `gap`.
   )
 ]
 
-Final yearly Present Production is:
+Final yearly Production is:
 
 #align(left)[
   #stack(
@@ -896,13 +896,13 @@ Planetary return fire is:
 Each bombardment turn runs three rounds:
 - *Rounds 1--2 (Suppression):* Attacker hits target stardock contents, then
   batteries. Batteries fire back each round. Armies, stored goods, and
-  factories are shielded.
+  industry is shielded.
 - *Round 3 (Breakthrough):* If batteries reached zero before this round,
-  attacker hits cascade into armies, stored goods, and factories. If batteries
+  attacker hits cascade into armies, stored goods, and industry. If batteries
   still stand, round 3 is another suppression exchange.
 
 Invasion uses one suppression exchange against batteries. If batteries are
-cleared, the softening pass targets armies only --- factories and stored goods
+cleared, the softening pass targets armies only --- industry and stored goods
 are not damaged during invasion. Ground combat in invasion and blitz uses the
 same CRT framework, with defender ties winning by default.
 

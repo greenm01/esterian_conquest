@@ -403,7 +403,7 @@ Extended orbit detailed report:
 Scouting mission report: We are in extended orbit around planet "<planet>" and have compiled the following data:
   Owned by: "<empire>", (Empire #<empire_no>)
   Potential production: <production_points> points
-  Estimated present production: <production_points> points
+  Estimated production: <production_points> points
   Estimated amount of stored goods: <goods_points> points
   Number of armies: <army_count>
   Number of ground batteries: <ground_battery_count>

@@ -205,7 +205,7 @@ mod tests {
         let lines = popup_lines(
             &[DetailLine {
                 label: "Status",
-                value: String::from("Regular planet - factories fully functional"),
+                value: String::from("Regular planet - industry intact"),
             }],
             36,
         );

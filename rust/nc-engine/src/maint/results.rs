@@ -956,33 +956,33 @@ fn bombardment_collateral_damage_sentence(
     factories_destroyed: u16,
     is_attacker: bool,
 ) -> String {
-    let mut parts = Vec::new();
+    let mut sentences = Vec::new();
+    let verb_phrase = if is_attacker {
+        "Our bombing run destroyed"
+    } else {
+        "We also lost"
+    };
     if stardock_items_destroyed > 0 {
-        parts.push(unit_count_text(
-            stardock_items_destroyed,
-            "stardock item",
-            "stardock items",
+        sentences.push(format!(
+            "{verb_phrase} {}.",
+            unit_count_text(stardock_items_destroyed, "stardock item", "stardock items",)
         ));
     }
     if factories_destroyed > 0 {
-        parts.push(unit_count_text(
-            factories_destroyed as u32,
-            "factory",
-            "factories",
+        sentences.push(format!(
+            "{verb_phrase} {} points of industry.",
+            factories_destroyed
         ));
     }
     if stored_goods_destroyed > 0 {
-        parts.push(format!("{stored_goods_destroyed} stored production"));
+        sentences.push(format!(
+            "{verb_phrase} {stored_goods_destroyed} stored production."
+        ));
     }
-    if parts.is_empty() {
+    if sentences.is_empty() {
         String::new()
     } else {
-        let verb_phrase = if is_attacker {
-            "Our bombing run destroyed"
-        } else {
-            "We also lost"
-        };
-        format!(" {verb_phrase} {}.", join_report_parts(&parts))
+        format!(" {}", sentences.join(" "))
     }
 }
 
@@ -2466,7 +2466,7 @@ fn generate_report_entries(
                             None => "Unknown".to_string(),
                         };
                         let body = format!(
-                            " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
+                            " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
                             snapshot.known_name.as_deref().unwrap_or("Unknown"),
                             owner,
                             snapshot.known_potential_production.unwrap_or(0),
@@ -2495,7 +2495,7 @@ fn generate_report_entries(
                         };
                         let stardock_summary = stardock_scan_summary(planet);
                         let body = format!(
-                            " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
+                            " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
                             planet.planet_name(),
                             owner,
                             planet.potential_production_points(),

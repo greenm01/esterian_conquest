@@ -759,7 +759,7 @@ fn display_or_unknown(value: &str) -> &str {
 const INTRO_PAGE_1: [&str; 13] = [
     "Beyond the mapped frontiers of the old Nostrian dominion lies a small galaxy of",
     "contested solar systems. The old masters are gone. Their stations are silent,",
-    "their patrols vanished, and their subjects left with fleets, factories, and",
+    "their patrols vanished, and their subjects left with fleets, industry, and",
     "enough knowledge to build empires.",
     "",
     "You rise as one of the new Star Masters. From a single world and a few small",

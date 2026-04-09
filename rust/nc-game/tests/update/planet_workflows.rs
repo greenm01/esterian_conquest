@@ -2483,8 +2483,8 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
     assert!(
-        line_containing(&terminal, "Present Production").contains('0'),
-        "present production line should show zero"
+        line_containing(&terminal, "Production").contains('0'),
+        "production line should show zero"
     );
     assert!(
         line_containing(&terminal, "Potential Production").contains('0'),

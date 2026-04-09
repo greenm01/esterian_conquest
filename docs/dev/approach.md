@@ -30,7 +30,7 @@ Name fields only after confirming them through diffs, screenshots, or manuals.
 Keep unknown bytes raw until mapped with confidence. When the UI exposes a
 high-level label, prefer that term. For example, Rust may carry internal field
 names like `factories` during development, but player surfaces must align to
-classic terms like **Present Production**, **Potential Production**, and **Total
+current terms like **Production**, **Potential Production**, and **Total
 Available Points**.
 
 ### Meaningful Fidelity Over Ghost Fidelity

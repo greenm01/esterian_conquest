@@ -2,7 +2,8 @@ use nc_data::{
     AssaultReportEvent, BombardEvent, ContactReportSource, EncounterDispositionEvent,
     EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError,
     GameStateBuilder, InvalidPlayerStateEvent, MaintenanceEvents, Mission, MissionEvent,
-    MissionOutcome, PlanetOwnershipChangeEvent, PlanetRecord, ScoutContactEvent, ShipLosses,
+    MissionOutcome, PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, PlanetRecord,
+    ScoutContactEvent, ShipLosses,
 };
 use nc_engine::{
     apply_results_reviewable_flags, build_results_report_blocks, maint::FleetBattlePerspective,
@@ -558,8 +559,14 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
         "Our 10th Fleet contained 10 battleships, 11 cruisers and 21 troop transport ships."
     ));
     assert!(text.contains("The target world was undefended."));
+    assert!(text.contains("Our bombing run destroyed 336 points of industry."));
+    assert!(text.contains("Our bombing run destroyed 25 stored production."));
+    assert!(!text.contains("336 factories"));
     assert!(!text.contains("We were unable to inflict any ground losses."));
-    assert!(!text.contains("We broke through planetary defenses and struck the world's infrastructure."));
+    assert!(
+        !text
+            .contains("We broke through planetary defenses and struck the world's infrastructure.")
+    );
     assert!(!text.contains("0 ground battery(ies)"));
     assert!(!text.contains("0 armies"));
 }
@@ -606,10 +613,61 @@ fn bombardment_defender_report_uses_no_defenses_for_zero_counts() {
         "The attacking fleet contained 10 battleships, 11 cruisers and 21 troop transport ships."
     ));
     assert!(text.contains("We had no defenses."));
+    assert!(text.contains("We also lost 336 points of industry."));
+    assert!(text.contains("We also lost 25 stored production."));
+    assert!(!text.contains("336 factories"));
     assert!(!text.contains("appeared to contain"));
     assert!(!text.contains("0 ground battery(ies)"));
     assert!(!text.contains("0 army(ies)"));
     assert!(!text.contains("We lost 0"));
+}
+
+#[test]
+fn scout_system_report_uses_estimated_production_not_present_production() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3026)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [6, 14];
+    seed_target_world(&mut game_data, coords, "spyglass");
+    let planet = &mut game_data.planets.records[0];
+    let _ = planet.set_present_production_points(73);
+    planet.set_stored_production_points(41);
+    planet.set_army_count_raw(7);
+    planet.set_ground_batteries_raw(2);
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_owner_empire_raw(1);
+    fleet.set_local_slot_word_raw(4);
+    fleet.set_current_location_coords_raw(coords);
+
+    let mut events = MaintenanceEvents::default();
+    events.planet_intel_events.push(PlanetIntelEvent {
+        planet_idx: 0,
+        viewer_empire_raw: 1,
+        source: PlanetIntelSource::ScoutSolarSystem,
+        source_fleet_idx: Some(0),
+        observed_snapshot: None,
+        stardate_week: Some(4),
+    });
+    events.mission_events.push(MissionEvent {
+        fleet_idx: 0,
+        owner_empire_raw: 1,
+        kind: Mission::ScoutSolarSystem,
+        outcome: MissionOutcome::Succeeded,
+        planet_idx: Some(0),
+        location_coords: Some(coords),
+        target_coords: Some(coords),
+        stardate_week: Some(4),
+    });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Potential production: 100 points"));
+    assert!(text.contains("Estimated production: 73 points"));
+    assert!(!text.contains("Estimated present production"));
 }
 
 #[test]

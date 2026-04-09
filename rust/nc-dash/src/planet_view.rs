@@ -105,7 +105,7 @@ fn owned_planet_detail(
             owner_state_detail_label(&app.game_data, viewer_empire_id),
         ),
         detail_line("Owned Since", owned_since),
-        detail_line("Present Production", present.to_string()),
+        detail_line("Production", present.to_string()),
         detail_line("Potential Production", potential.to_string()),
         detail_line("Treasury", planet.stored_production_points().to_string()),
         detail_line("Efficiency", owned_efficiency_label(present, potential)),
@@ -136,7 +136,7 @@ fn owned_planet_detail(
             "State",
             owned_status_widget_label(app, planet_index_0_based, planet),
         ),
-        widget_field("Current Production", present.to_string()),
+        widget_field("Production", present.to_string()),
         widget_field("Potential Production", potential.to_string()),
         widget_field("Treasury", planet.stored_production_points().to_string()),
         widget_field("Armies", planet.army_count_raw().to_string()),
@@ -187,7 +187,7 @@ fn intel_planet_detail(
                 .unwrap_or_else(|| String::from("?")),
         ),
         detail_line(
-            "Present Production",
+            "Production",
             known_u8(world.known_current_production),
         ),
         detail_line(
@@ -239,7 +239,7 @@ fn intel_planet_detail(
             format!("{intel_year} {}", intel_tier_code(snapshot, world)),
         ),
         widget_field(
-            "Current Production",
+            "Production",
             known_u8(world.known_current_production),
         ),
         widget_field(
@@ -306,7 +306,7 @@ fn preferred_widget_field_width(field: &DetailLine) -> usize {
 fn widget_label_variants(label: &'static str) -> Option<&'static [&'static str]> {
     Some(match label {
         "Potential Production" => &["Pot Prod"],
-        "Current Production" => &["Curr Prod"],
+        "Production" => &["Production", "Prod"],
         "Treasury" => &["Treasury", "Trsry"],
         "Ground Batteries" => &["Grnd Batt", "GBs"],
         "Armies" => &["Armies", "ARs"],
@@ -535,11 +535,11 @@ fn owned_status_detail_label(
         OwnedPlanetStatus::Homeworld => String::from("Homeworld - fully developed"),
         OwnedPlanetStatus::StarbasePresent => String::from("Regular planet - starbase present"),
         OwnedPlanetStatus::FactoriesDestroyed => {
-            String::from("Regular planet - factories destroyed")
+            String::from("Regular planet - industry destroyed")
         }
-        OwnedPlanetStatus::FactoriesDamaged => String::from("Regular planet - factories damaged"),
+        OwnedPlanetStatus::FactoriesDamaged => String::from("Regular planet - industry damaged"),
         OwnedPlanetStatus::FactoriesFunctional => {
-            String::from("Regular planet - factories fully functional")
+            String::from("Regular planet - industry intact")
         }
     }
 }
@@ -580,7 +580,7 @@ mod tests {
                 "Planet",
                 "Owner",
                 "State",
-                "Current Production",
+                "Production",
                 "Potential Production",
                 "Treasury",
                 "Armies",
@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn widget_field_format_prefers_fuller_labels_when_they_fit() {
         let current = DetailLine {
-            label: "Current Production",
+            label: "Production",
             value: String::from("9"),
         };
         let potential = DetailLine {
@@ -612,11 +612,11 @@ mod tests {
             value: String::from("4"),
         };
 
-        assert_eq!(widget_label_for_width(&current, 19), "Curr Prod");
+        assert_eq!(widget_label_for_width(&current, 19), "Production");
         assert_eq!(widget_label_for_width(&potential, 19), "Pot Prod");
         assert_eq!(widget_label_for_width(&stored, 19), "Treasury");
         assert_eq!(widget_label_for_width(&batteries, 19), "Grnd Batt");
-        assert_eq!(widget_label_for_width(&current, 14), "Curr Prod");
+        assert_eq!(widget_label_for_width(&current, 14), "Production");
         assert_eq!(widget_label_for_width(&stored, 14), "Treasury");
         assert_eq!(widget_label_for_width(&batteries, 14), "Grnd Batt");
         assert_eq!(widget_label_for_width(&batteries, 6), "GBs");

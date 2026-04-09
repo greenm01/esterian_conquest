@@ -32,14 +32,14 @@ impl EmpireProfileScreen {
         let stardock = frame.game_data.empire_stardock_summary(player_idx);
         let left_stat_width = aligned_label_width([
             "Number of Planets",
-            "Present Production",
+            "Production",
             "Potential Production",
             "Empire Revenue",
             "Efficiency of Empire",
         ]);
         let right_stat_width = aligned_label_width([
             "Rank by Number of Planets",
-            "Rank by Present Production",
+            "Rank by Production",
             "Tax Rate of Empire",
             "Maximum # of Fleets & Bases",
             "Current # of Fleets & Bases",
@@ -80,10 +80,10 @@ impl EmpireProfileScreen {
             &mut buffer,
             3,
             left_stat_width,
-            "Present Production",
+            "Production",
             &economy.present_production.to_string(),
             right_stat_width,
-            "Rank by Present Production",
+            "Rank by Production",
             &ordinal_rank(economy.rank_by_present_production),
         );
         write_stat_pair(

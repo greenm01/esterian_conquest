@@ -68,7 +68,7 @@ Manual-facing requirements:
 ## Canonical Terms
 
 Use these player-facing terms:
-- **Present Production**: Current productive capacity.
+- **Production**: Current productive capacity.
 - **Potential Production**: Maximum productive capacity.
 - **Revenue**: Per-planet current-turn tax income (`floor(present_production * tax_rate / 100)`).
 - **Treasury**: Accumulated production points stored on a planet (per-planet).
@@ -81,7 +81,7 @@ Avoid low-level storage nicknames like `factories` in player surfaces.
 
 Rust starts encode the intended opening economy:
 - Homeworld Potential Production: **100**.
-- Homeworld Present Production: **100**.
+- Homeworld Production: **100**.
 - Default Tax Rate: **50%**.
 - First-Turn Empire Revenue: **50**.
 - Homeworld Defenses: **10** armies, **4** ground batteries.
@@ -97,7 +97,7 @@ Yearly revenue per planet:
 Empire Revenue:
 `total = sum(revenue)` across all owned planets.
 
-## Present Production Growth and Tax Pressure
+## Production Growth and Tax Pressure
 
 Every owned planet grows toward its potential production each maintenance turn.
 

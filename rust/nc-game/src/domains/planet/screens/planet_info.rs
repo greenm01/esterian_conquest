@@ -66,7 +66,7 @@ impl PlanetInfoScreen {
             "Owner",
             "State",
             "Owned Since",
-            "Present Production",
+            "Production",
             "Potential Production",
             "Treasury",
             "Efficiency",
@@ -107,7 +107,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             7,
             info_label_width,
-            "Present Production",
+            "Production",
             &present.to_string(),
         );
         draw_aligned_status_line(
@@ -215,7 +215,7 @@ impl PlanetInfoScreen {
             "Owner",
             "State",
             "Last Viewed/Scouted",
-            "Present Production",
+            "Production",
             "Potential Production",
             "Efficiency",
             "Treasury",
@@ -259,7 +259,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             7,
             info_label_width,
-            "Present Production",
+            "Production",
             &world
                 .known_current_production
                 .map(|value| value.to_string())
@@ -394,10 +394,10 @@ fn owned_status_summary(
         OwnedPlanetStatus::Scorched => "Planet is scorched!".to_string(),
         OwnedPlanetStatus::Homeworld => "Homeworld - fully developed".to_string(),
         OwnedPlanetStatus::StarbasePresent => "Regular planet - starbase present".to_string(),
-        OwnedPlanetStatus::FactoriesDestroyed => "Regular planet - factories destroyed".to_string(),
-        OwnedPlanetStatus::FactoriesDamaged => "Regular planet - factories damaged".to_string(),
+        OwnedPlanetStatus::FactoriesDestroyed => "Regular planet - industry destroyed".to_string(),
+        OwnedPlanetStatus::FactoriesDamaged => "Regular planet - industry damaged".to_string(),
         OwnedPlanetStatus::FactoriesFunctional => {
-            "Regular planet - factories fully functional".to_string()
+            "Regular planet - industry intact".to_string()
         }
     }
 }

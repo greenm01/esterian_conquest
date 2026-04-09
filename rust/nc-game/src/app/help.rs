@@ -122,7 +122,7 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("C", "manually commission ships into a fleet"),
                 ("L", "load armies from planet onto transports"),
                 ("U", "unload armies from transports to planet"),
-                ("X", "scorch earth (destroy factories)"),
+                ("X", "scorch earth (destroy industry)"),
                 ("S", "sort the planet list"),
                 ("Q", "return"),
                 ("Esc", "return"),

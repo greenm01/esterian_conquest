@@ -161,7 +161,7 @@ fn row_priority(label: &str) -> usize {
         "Owner" => 1,
         "State" => 2,
         "Intel" => 3,
-        "Current Production" => 4,
+        "Production" => 4,
         "Potential Production" => 5,
         "Treasury" => 6,
         "Armies" => 7,
@@ -205,7 +205,7 @@ mod tests {
                 value: String::from("Normal"),
             },
             DetailLine {
-                label: "Current Production",
+                label: "Production",
                 value: String::from("9"),
             },
             DetailLine {
@@ -248,7 +248,7 @@ mod tests {
                 String::from("Planet: Foo"),
                 String::from("Owner: You"),
                 String::from("State: Normal"),
-                String::from("Curr Prod: 9"),
+                String::from("Production: 9"),
                 String::from("Pot Prod: 10"),
             ]
         );
@@ -339,7 +339,7 @@ mod tests {
                 value: String::from("Stable"),
             },
             DetailLine {
-                label: "Current Production",
+                label: "Production",
                 value: String::from("98"),
             },
             DetailLine {
