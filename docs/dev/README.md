@@ -26,9 +26,8 @@ These are the docs that should drive engine/client behavior.
   - canonical fleet-order target default and validation behavior for the Rust client
 - [ec-setup-spec.md](ec-setup-spec.md)
   - setup/generator expectations and compatibility boundaries
-- [ec-reports.md](ec-reports.md)
-  - canonical player-facing report wording, narrative style, and classic
-    `RESULTS.DAT` layout contract
+- [nc-reports.md](nc-reports.md)
+  - canonical Rust-engine report wording, family style, and format policy
 - [nc-game-prompt-standard.md](nc-game-prompt-standard.md)
   - canonical non-table command-line prompt grammar and theming for the Rust client
 
@@ -64,6 +63,8 @@ behavior by themselves.
   - historical combat-oriented oracle/reference notes
 - [planet-report-reference.md](planet-report-reference.md)
   - report-side target-world reference profiles
+- [classic-results-dat-compat.md](classic-results-dat-compat.md)
+  - classic `RESULTS.DAT` binary/export compatibility contract
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
   - client/delivery direction for the SQLite-native Rust player-side stack
 - [config-architecture.md](config-architecture.md)

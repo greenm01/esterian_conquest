@@ -18,7 +18,7 @@ Before an LLM starts planning moves, give it these docs in this order:
 
 Recommended supporting references for operators:
 
-- [ec-reports.md](ec-reports.md)
+- [nc-reports.md](nc-reports.md)
   - report wording and narrative shapes
 - [harness/README.md](harness/README.md)
   - runtime scenario replay and combat harness workflows

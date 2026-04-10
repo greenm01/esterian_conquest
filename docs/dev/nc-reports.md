@@ -1,0 +1,227 @@
+# NC Report Spec
+
+This doc is the canonical player-facing report spec for the Rust engine.
+
+Use it to guide report wording, format, and family-specific presentation across
+`nc-engine`, `nc-cli`, and `nc-game`.
+
+Read this together with:
+
+- [ec-timing-spec.md](ec-timing-spec.md)
+  for `Stardate` placement and weekly assignment
+- [ec-combat-spec.md](ec-combat-spec.md)
+  for combat and hostile-world mechanics
+- [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
+  for where reports are emitted in the yearly loop
+
+## Report Policy
+
+The Rust engine uses a hybrid report surface:
+
+- combat and hostile-world aftermath use a structured briefing format
+- movement, logistics, intel, and administrative flow stay narrative by default
+- the shell stays consistent across both styles
+
+The report surface is no longer governed by classic EC prose templates. Classic
+behavior still matters at the file/export boundary, but Rust report wording is
+owned here.
+
+## Shared Shell
+
+Every player-visible report keeps the same outer shell:
+
+- first line: source header plus right-justified `Stardate: <week>/<year>`
+- body: one or more wrapped 72-column lines
+- final line: lowercase `<end of transmission>`
+
+Shell rules:
+
+- keep the source clause specific: fleet, planet, starbase, or Fleet Command
+  Center
+- fleet-origin reports must name a fleet whenever that identity is known
+- use full ship names, not abbreviations such as `BB`, `CA`, or `DD`
+- wrap on word boundaries
+- preserve explicit blank separator lines in structured reports
+
+## Format Choice
+
+Use the report family to choose the body style.
+
+### Structured Reports
+
+Use structured reports when the player is comparing multiple facts in one event:
+
+- fleet battles
+- Fleet Command Center lost-fleet and lost-starbase combat aftermath
+- bombardment reports
+- invasion reports
+- blitz reports
+- defender-side captured-world reports
+
+Structured body shape:
+
+```text
+[family title]
+
+[labeled data rows]
+
+[short outcome lines]
+```
+
+Rules:
+
+- use left-justified labeled rows
+- use blank lines between title, data rows, and outcomes
+- outcome lines should be short and direct
+- do not restate facts already shown in the labeled rows
+- prefer labels such as `Our forces:`, `Alien forces:`, `Our defenses:`,
+  `Attacking force:`, `Our losses:`, and `Enemy losses:`
+- when all initial planetary defenses are eliminated, prefer
+  `All planetary defenses were destroyed.`
+
+### Narrative Reports
+
+Use narrative reports when the player is following a single event flow rather
+than scanning a comparison:
+
+- move / patrol / seek-home / join / rendezvous reports
+- retarget and follow-on notices
+- colonization and salvage reports
+- most abort notices
+- administrative and validation notices
+
+Rules:
+
+- prefer one clear event sentence followed by only the minimum supporting
+  detail
+- avoid clause chains that repeat the same fact with slightly different words
+- keep the tone report-like, not bureaucratic
+
+### Hybrid Intel Reports
+
+Scouting and viewing reports may mix a short narrative lead-in with compact
+fact rows when that reads better than either pure style.
+
+Use hybrid formatting for dense intel only when the extra structure materially
+improves readability.
+
+## Style Rules
+
+- keep viewpoint consistent within a report
+- use first person for the viewer's own forces and status
+- use direct, concrete wording over filler
+- avoid robotic stitch-phrases like `Our defenses had X. We lost X.` when a
+  single outcome line can say the same thing
+- avoid freeform flourish; the tone should still feel like a concise
+  transmission
+- use labels for factual inventory, not for obvious one-step narrative events
+
+Zero-count rules:
+
+- do not emit `0 ground battery(ies)` or `0 army(ies)`
+- use `none`, `undefended`, or a family-specific zero phrase instead
+- omit meaningless zero-loss prose
+
+## Family Guidance
+
+### Combat And Hostile-World Reports
+
+These should optimize for scanability. A player should be able to find:
+
+- who engaged whom
+- force composition
+- defenses
+- outcome
+- friendly losses
+- enemy losses
+
+Prefer one short outcome sentence plus labeled loss rows over paragraph-style
+battle narration.
+
+### Movement And Logistics Reports
+
+These should optimize for event flow. A player should be able to read them as a
+status update:
+
+- what changed
+- where the fleet now is
+- what happens next
+
+Do not convert simple movement/retarget/status notices into form-like blocks
+unless they become fact-dense enough to justify it.
+
+### Intel Reports
+
+These should present findings without sounding like a database dump.
+
+Use a brief narrative lead-in, then compact fact presentation only for the
+world/fleet details that matter to planning.
+
+## Examples
+
+### Structured Battle Report
+
+```text
+From your 3rd Fleet, located in System(9,5):           Stardate: 02/3031
+Guard/Blockade World mission report
+
+Enemy:             the 8th Fleet of "Player2", (Empire #2)
+Our forces:        2 battleships, 4 cruisers and 6 destroyers
+Alien forces:      1 battleship, 5 cruisers and 3 destroyers
+
+We successfully intercepted the alien fleet.
+The enemy fled the field.
+Our losses:        1 cruiser and 2 destroyers
+Alien losses:      2 cruisers and 1 destroyer
+<end of transmission>
+```
+
+### Structured Captured-World Report
+
+```text
+From planet "Red" in System(9,6):                      Stardate: 03/3031
+Invasion report
+
+Invader:           "Player1", (Empire #1)
+Attacking force:   11 battleships, 28 cruisers, 8 destroyers and 106 troop
+                   transport ships
+Our defenses:      12 ground batteries and 40 armies
+
+We have been invaded and captured by "Player1", (Empire #1).
+All planetary defenses were destroyed.
+Enemy losses:      no ship losses
+<end of transmission>
+```
+
+### Narrative Movement Report
+
+```text
+From your 5th Fleet, located in Sector(7,10):         Stardate: 01/3031
+Join mission report: Our host fleet moved. We are continuing pursuit to
+Sector(9,9).
+<end of transmission>
+```
+
+### Hybrid Intel Report
+
+```text
+From your 4th Fleet, located in System(6,14):         Stardate: 04/3031
+Scouting mission report: We are in extended orbit around planet "Spyglass"
+and have compiled the following data:
+Owned by:           Empire #2
+Potential production: 100 points
+Estimated production: 73 points
+Number of armies:   7
+Number of ground batteries: 2
+<end of transmission>
+```
+
+## Implementation Rule
+
+When Rust report wording and older classic prose differ:
+
+- follow this doc for player-facing Rust behavior
+- keep classic compatibility requirements in
+  [classic-results-dat-compat.md](classic-results-dat-compat.md)
+- do not reintroduce classic paragraph wording as the default authority unless
+  there is a deliberate product decision to do so
