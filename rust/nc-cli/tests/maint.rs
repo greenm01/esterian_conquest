@@ -1264,11 +1264,11 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
     );
     assert!(
         report_texts.iter().any(|report| report
-            .contains("Our forces: 3 destroyers and 2 troop transport ships carrying 2 armies")),
+            .contains("Our forces: 3DD, 2TT*")),
         "expected friendly force summary with loaded armies, got: {report_texts:?}"
     );
     assert!(report_texts.iter().any(|report| {
-        report.contains("Alien forces: 1 destroyer and 2 troop transport ships")
+        report.contains("Alien forces: 1DD, 2TT")
     }));
     assert!(
         !report_texts
@@ -2816,6 +2816,64 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
 }
 
 #[test]
+fn maint_rust_destroyed_fleet_report_separates_last_contact_from_force_rows() {
+    let target = unique_temp_dir("nc-cli-maint-rust-destroyed-fleet-layout");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let fleet = &mut game_data.fleets.records[0];
+    let coords = fleet.current_location_coords_raw();
+    fleet.set_standing_order_kind(Order::HoldPosition);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_current_speed(0);
+    fleet.set_destroyer_count(1);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_etac_count(0);
+
+    let enemy = &mut game_data.fleets.records[4];
+    enemy.set_battleship_count(9);
+    enemy.set_cruiser_count(1);
+    enemy.set_destroyer_count(0);
+    enemy.set_troop_transport_count(13);
+    enemy.set_army_count(12);
+    enemy.set_scout_count(0);
+    enemy.set_etac_count(0);
+
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let records = results_records(&results);
+    let (_, report_lines) = logical_result_reports(&records)
+        .into_iter()
+        .find(|(_, lines)| lines.iter().any(|line| line == "Fleet Command Center report"))
+        .expect("expected Fleet Command Center report");
+    let report = report_lines.join("\n");
+
+    assert!(report_lines.iter().any(|line| line.starts_with("Last contact:")));
+    assert!(
+        report.contains("destroyed by") || report.contains("destroyed while intercepting"),
+        "{report}"
+    );
+    let our_forces_idx = report_lines
+        .iter()
+        .position(|line| line.starts_with("Our forces:"))
+        .expect("expected Our forces section");
+    assert_eq!(report_lines[our_forces_idx - 1], "", "{report}");
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_rendezvous_arrival_generates_waiting_report() {
     let target = unique_temp_dir("nc-cli-maint-rust-rendezvous-wait");
     copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
@@ -2944,7 +3002,7 @@ fn maint_rust_join_host_destroyed_report_never_shows_zero_fleet_number() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Our intended host fleet was destroyed."));
+    assert!(text.contains("Our intended host fleet (1st Fleet) was destroyed."));
     assert!(!text.contains("(0th Fleet)"));
 
     cleanup_dir(&target);

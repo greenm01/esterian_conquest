@@ -1001,7 +1001,8 @@ pub(crate) fn process_planetary_assaults(
                         defender_batteries_initial: pre_batteries,
                         defender_armies_initial: pre_armies,
                         attacker_ship_losses: ship_losses,
-                        attacker_army_losses: attacking_armies.saturating_sub(attacker_survivors),
+                        attacker_army_losses: armies_after_landing
+                            .saturating_sub(attacker_survivors),
                         transport_army_losses: landing_army_losses,
                         defender_battery_losses,
                         defender_army_losses,
@@ -1043,7 +1044,7 @@ pub(crate) fn process_planetary_assaults(
                         defender_batteries_initial: pre_batteries,
                         defender_armies_initial: pre_armies,
                         attacker_ship_losses: ship_losses,
-                        attacker_army_losses: attacking_armies,
+                        attacker_army_losses: armies_after_landing,
                         transport_army_losses: landing_army_losses,
                         defender_battery_losses,
                         defender_army_losses,

@@ -29,6 +29,12 @@ pub(super) fn process_join_host_updates(
     game_data: &mut CoreGameData,
     merge_events: &[FleetMergeEvent],
     fleet_number_by_id: &std::collections::HashMap<u8, u8>,
+    destroyed_join_host_fleet_numbers: &std::collections::HashMap<u8, u8>,
 ) -> Vec<JoinMissionHostEvent> {
-    mission::process_join_host_updates(game_data, merge_events, fleet_number_by_id)
+    mission::process_join_host_updates(
+        game_data,
+        merge_events,
+        fleet_number_by_id,
+        destroyed_join_host_fleet_numbers,
+    )
 }

@@ -20,6 +20,7 @@ use stepper::{process_single_fleet_movement, set_fleet_to_local_hold};
 pub(super) fn process_fleet_movement(
     game_data: &mut CoreGameData,
     visible_hazards_by_empire: &[VisibleHazardIntel],
+    destroyed_join_host_fleet_numbers: &mut std::collections::HashMap<u8, u8>,
 ) -> Result<MovementEvents, Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
     let mut movement_events = MovementEvents::default();
@@ -105,7 +106,7 @@ pub(super) fn process_fleet_movement(
 
     if to_remove.iter().any(|remove| *remove) {
         remap_movement_event_fleet_indices_after_removal(&mut movement_events, &to_remove);
-        super::remove_selected_fleets(game_data, &to_remove);
+        destroyed_join_host_fleet_numbers.extend(super::remove_selected_fleets(game_data, &to_remove));
     }
 
     Ok(movement_events)

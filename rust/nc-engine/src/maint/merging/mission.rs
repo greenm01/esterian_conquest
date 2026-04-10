@@ -134,6 +134,7 @@ pub(super) fn process_join_host_updates(
     game_data: &mut CoreGameData,
     merge_events: &[FleetMergeEvent],
     fleet_number_by_id: &std::collections::HashMap<u8, u8>,
+    destroyed_join_host_fleet_numbers: &std::collections::HashMap<u8, u8>,
 ) -> Vec<JoinMissionHostEvent> {
     let mut absorbed_to_host = std::collections::HashMap::new();
     for event in merge_events {
@@ -194,8 +195,9 @@ pub(super) fn process_join_host_updates(
             events.push(JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
                 owner_empire_raw: fleet.owner_empire_raw(),
-                // Host record is gone; its fleet number is no longer available.
-                destroyed_host_fleet_number: None,
+                destroyed_host_fleet_number: destroyed_join_host_fleet_numbers
+                    .get(&fleet.fleet_id())
+                    .copied(),
                 coords,
             });
             continue;

@@ -758,9 +758,7 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
             event,
             JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
-                // Host was culled before fleet_number_by_id was snapshotted,
-                // so the host fleet number is no longer available.
-                destroyed_host_fleet_number: None,
+                destroyed_host_fleet_number: Some(1),
                 coords,
                 ..
             } if *fleet_idx == 0

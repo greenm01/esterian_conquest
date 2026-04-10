@@ -63,7 +63,9 @@ Structured body shape:
 ```text
 [family title]
 
-[labeled data rows]
+[context rows]
+
+[force or defense rows]
 
 [short outcome lines]
 ```
@@ -71,11 +73,17 @@ Structured body shape:
 Rules:
 
 - use left-justified labeled rows
-- use blank lines between title, data rows, and outcomes
+- group structured combat reports into three sections after the title:
+  context rows, force/defense rows, then outcomes
+- use blank lines between title and each non-empty section
 - outcome lines should be short and direct
 - do not restate facts already shown in the labeled rows
 - prefer labels such as `Our forces:`, `Alien forces:`, `Our defenses:`,
   `Attacking force:`, `Our losses:`, and `Enemy losses:`
+- keep `Fleet lost:`, `Starbase lost:`, `Last contact:`, `Enemy:`,
+  `Attacker:`, `Invader:`, and `Target world:` in the context section
+- for Fleet Command Center destruction telemetry, prefer `destroyed by ...`
+  or `destroyed while intercepting ...` over `was attacked by ...`
 - when all initial planetary defenses are eliminated, prefer
   `All planetary defenses were destroyed.`
 

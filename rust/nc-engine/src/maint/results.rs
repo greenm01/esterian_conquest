@@ -281,10 +281,16 @@ fn battle_outcome_sentence(
     }
 }
 
-fn battle_verb_for_perspective(perspective: FleetBattlePerspective) -> &'static str {
-    match perspective {
-        FleetBattlePerspective::Intercepted => "intercepted",
-        FleetBattlePerspective::Attacked => "was attacked by",
+fn fleet_command_last_contact_value(
+    enemy: &str,
+    coords: [u8; 2],
+    was_intercepting: bool,
+) -> String {
+    let [x, y] = coords;
+    if was_intercepting {
+        format!("destroyed while intercepting {enemy} in System({x},{y})")
+    } else {
+        format!("destroyed by {enemy} in System({x},{y})")
     }
 }
 
@@ -326,6 +332,27 @@ fn render_structured_body(items: &[StructuredBodyItem]) -> String {
         lines.pop();
     }
     lines.join("\n")
+}
+
+fn push_structured_section(items: &mut Vec<StructuredBodyItem>, section: Vec<StructuredBodyItem>) {
+    if section.is_empty() {
+        return;
+    }
+    items.push(StructuredBodyItem::Blank);
+    items.extend(section);
+}
+
+fn structured_combat_body(
+    title: impl Into<String>,
+    context_rows: Vec<StructuredBodyItem>,
+    force_rows: Vec<StructuredBodyItem>,
+    outcome_rows: Vec<StructuredBodyItem>,
+) -> Vec<StructuredBodyItem> {
+    let mut items = vec![StructuredBodyItem::Title(title.into())];
+    push_structured_section(&mut items, context_rows);
+    push_structured_section(&mut items, force_rows);
+    push_structured_section(&mut items, outcome_rows);
+    items
 }
 
 fn wrap_text_lines(text: &str, width: usize) -> Vec<String> {
@@ -417,6 +444,48 @@ mod tests {
         assert_eq!(lines[1], "Fleet Command Center report");
         assert_eq!(lines[2], "");
         assert_eq!(lines[4], "");
+        assert!(lines.iter().all(|line| line.chars().count() <= 72));
+    }
+
+    #[test]
+    fn structured_combat_body_inserts_blank_lines_between_sections() {
+        let header = "From your Fleet Command Center:                        Stardate: 03/3031";
+        let text = structured_report_text(
+            header,
+            super::structured_combat_body(
+                "Fleet Command Center report",
+                vec![
+                    StructuredBodyItem::Label {
+                        label: "Fleet lost:".to_string(),
+                        value: "13th Fleet".to_string(),
+                    },
+                    StructuredBodyItem::Label {
+                        label: "Last contact:".to_string(),
+                        value: "destroyed by the 29th Fleet of \"Player1\", (Empire #1) in System(6,7)"
+                            .to_string(),
+                    },
+                ],
+                vec![
+                    StructuredBodyItem::Label {
+                        label: "Our forces:".to_string(),
+                        value: "1BB".to_string(),
+                    },
+                    StructuredBodyItem::Label {
+                        label: "Alien forces:".to_string(),
+                        value: "9BB, 1CA, 12TT*, 1TT".to_string(),
+                    },
+                ],
+                vec![StructuredBodyItem::Text(
+                    "We lost all contact with the 13th Fleet.".to_string(),
+                )],
+            ),
+        );
+        let lines = classic_results_lines(&text);
+        let forces_idx = lines
+            .iter()
+            .position(|line| line.starts_with("Our forces:"))
+            .expect("expected Our forces line");
+        assert_eq!(lines[forces_idx - 1], "");
         assert!(lines.iter().all(|line| line.chars().count() <= 72));
     }
 }
@@ -810,39 +879,27 @@ fn merged_roe_abort_report_body(
 fn ship_loss_summary(losses: ShipLosses) -> String {
     let mut parts = Vec::new();
     if losses.battleships > 0 {
-        parts.push(unit_count_text(
-            losses.battleships,
-            "battleship",
-            "battleships",
-        ));
+        parts.push(format!("{}BB", losses.battleships));
     }
     if losses.cruisers > 0 {
-        parts.push(unit_count_text(losses.cruisers, "cruiser", "cruisers"));
+        parts.push(format!("{}CA", losses.cruisers));
     }
     if losses.destroyers > 0 {
-        parts.push(unit_count_text(
-            losses.destroyers,
-            "destroyer",
-            "destroyers",
-        ));
+        parts.push(format!("{}DD", losses.destroyers));
     }
     if losses.scouts > 0 {
-        parts.push(unit_count_text(losses.scouts, "scout ship", "scout ships"));
+        parts.push(format!("{}SC", losses.scouts));
     }
     if losses.transports > 0 {
-        parts.push(unit_count_text(
-            losses.transports,
-            "troop transport ship",
-            "troop transport ships",
-        ));
+        parts.push(format!("{}TT", losses.transports));
     }
     if losses.etacs > 0 {
-        parts.push(unit_count_text(losses.etacs, "ETAC ship", "ETAC ships"));
+        parts.push(format!("{}ET", losses.etacs));
     }
     if parts.is_empty() {
         "no ship losses".to_string()
     } else {
-        join_report_parts(&parts)
+        parts.join(", ")
     }
 }
 
@@ -853,58 +910,46 @@ fn combat_loss_summary(losses: ShipLosses, starbases: u32, no_loss_text: &str) -
         parts.push(ship_summary);
     }
     if starbases > 0 {
-        parts.push(unit_count_text(starbases, "starbase", "starbases"));
+        parts.push(format!("{}SB", starbases));
     }
     if parts.is_empty() {
         no_loss_text.to_string()
     } else {
-        join_report_parts(&parts)
+        parts.join(", ")
     }
 }
 
 fn fleet_force_summary(losses: ShipLosses, loaded_armies: u32) -> String {
     let mut parts = Vec::new();
     if losses.battleships > 0 {
-        parts.push(unit_count_text(
-            losses.battleships,
-            "battleship",
-            "battleships",
-        ));
+        parts.push(format!("{}BB", losses.battleships));
     }
     if losses.cruisers > 0 {
-        parts.push(unit_count_text(losses.cruisers, "cruiser", "cruisers"));
+        parts.push(format!("{}CA", losses.cruisers));
     }
     if losses.destroyers > 0 {
-        parts.push(unit_count_text(
-            losses.destroyers,
-            "destroyer",
-            "destroyers",
-        ));
+        parts.push(format!("{}DD", losses.destroyers));
     }
     if losses.scouts > 0 {
-        parts.push(unit_count_text(losses.scouts, "scout ship", "scout ships"));
+        parts.push(format!("{}SC", losses.scouts));
     }
     if losses.transports > 0 {
-        let transport_summary = unit_count_text(
-            losses.transports,
-            "troop transport ship",
-            "troop transport ships",
-        );
         if loaded_armies > 0 {
-            parts.push(format!(
-                "{transport_summary} carrying {loaded_armies} armies"
-            ));
+            parts.push(format!("{}TT*", loaded_armies));
+            if losses.transports > loaded_armies {
+                parts.push(format!("{}TT", losses.transports - loaded_armies));
+            }
         } else {
-            parts.push(transport_summary);
+            parts.push(format!("{}TT", losses.transports));
         }
     }
     if losses.etacs > 0 {
-        parts.push(unit_count_text(losses.etacs, "ETAC ship", "ETAC ships"));
+        parts.push(format!("{}ET", losses.etacs));
     }
     if parts.is_empty() {
         "no ships".to_string()
     } else {
-        join_report_parts(&parts)
+        parts.join(", ")
     }
 }
 
@@ -915,11 +960,11 @@ fn fleet_force_summary_with_starbases(
 ) -> String {
     let ship_summary = fleet_force_summary(losses, loaded_armies);
     if starbases > 0 {
-        let sb = unit_count_text(starbases, "starbase", "starbases");
+        let sb = format!("{}SB", starbases);
         if ship_summary == "no ships" {
             sb
         } else {
-            format!("{ship_summary} and {sb}")
+            format!("{ship_summary}, {sb}")
         }
     } else {
         ship_summary
@@ -1080,14 +1125,19 @@ fn bombardment_collateral_damage_lines(
     lines
 }
 
-fn assault_friendly_losses_summary(ship_losses: ShipLosses, army_losses: u32) -> String {
+fn assault_friendly_losses_summary(
+    ship_losses: ShipLosses,
+    army_losses: u32,
+    transport_army_losses: u32,
+) -> String {
     let ship_summary = ship_loss_summary(ship_losses);
     let mut parts = Vec::new();
     if ship_summary != "no ship losses" {
         parts.push(ship_summary);
     }
-    if army_losses > 0 {
-        parts.push(unit_count_text(army_losses, "army", "armies"));
+    let total_army_losses = army_losses.saturating_add(transport_army_losses);
+    if total_army_losses > 0 {
+        parts.push(unit_count_text(total_army_losses, "army", "armies"));
     }
     if parts.is_empty() {
         "none".to_string()
@@ -1111,21 +1161,13 @@ fn stardock_scan_summary(planet: &nc_data::PlanetRecord) -> String {
         }
         let kind = ProductionItemKind::from_raw(planet.stardock_kind_raw(slot));
         let name = match kind {
-            ProductionItemKind::Destroyer => {
-                unit_count_text(count as u32, "destroyer", "destroyers")
-            }
-            ProductionItemKind::Cruiser => unit_count_text(count as u32, "cruiser", "cruisers"),
-            ProductionItemKind::Battleship => {
-                unit_count_text(count as u32, "battleship", "battleships")
-            }
-            ProductionItemKind::Scout => unit_count_text(count as u32, "scout ship", "scout ships"),
-            ProductionItemKind::Transport => unit_count_text(
-                count as u32,
-                "troop transport ship",
-                "troop transport ships",
-            ),
-            ProductionItemKind::Etac => unit_count_text(count as u32, "ETAC ship", "ETAC ships"),
-            ProductionItemKind::Starbase => unit_count_text(count as u32, "starbase", "starbases"),
+            ProductionItemKind::Destroyer => format!("{}DD", count),
+            ProductionItemKind::Cruiser => format!("{}CA", count),
+            ProductionItemKind::Battleship => format!("{}BB", count),
+            ProductionItemKind::Scout => format!("{}SC", count),
+            ProductionItemKind::Transport => format!("{}TT", count),
+            ProductionItemKind::Etac => format!("{}ET", count),
+            ProductionItemKind::Starbase => format!("{}SB", count),
             ProductionItemKind::GroundBattery
             | ProductionItemKind::Army
             | ProductionItemKind::Unknown(_) => continue,
@@ -1137,7 +1179,7 @@ fn stardock_scan_summary(planet: &nc_data::PlanetRecord) -> String {
     } else {
         format!(
             "Scanning the planet's stardock, we detected {}.",
-            join_report_parts(&parts)
+            parts.join(", ")
         )
     }
 }
@@ -1458,13 +1500,11 @@ fn generate_report_entries(
             event.attacker_empire_raw,
         )
         .unwrap_or_else(|| empire_label(game_data, event.attacker_empire_raw));
-        let mut items = vec![
-            StructuredBodyItem::Title(structured_bombardment_title(false).to_string()),
-            StructuredBodyItem::Blank,
-            StructuredBodyItem::Label {
-                label: LABEL_ATTACKER.to_string(),
-                value: attacker.clone(),
-            },
+        let context_rows = vec![StructuredBodyItem::Label {
+            label: LABEL_ATTACKER.to_string(),
+            value: attacker.clone(),
+        }];
+        let force_rows = vec![
             StructuredBodyItem::Label {
                 label: LABEL_ATTACKING_FORCE.to_string(),
                 value: fleet_force_summary(event.attacker_initial, 0),
@@ -1477,18 +1517,19 @@ fn generate_report_entries(
                     "none",
                 ),
             },
-            StructuredBodyItem::Blank,
+        ];
+        let mut outcome_rows = vec![
             StructuredBodyItem::Text(format!("Our world has been bombarded by {attacker}.")),
         ];
         if event.defender_batteries_initial > 0 || event.defender_armies_initial > 0 {
-            items.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
+            outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
                 event.defender_batteries_initial,
                 event.defender_armies_initial,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             )));
         }
-        items.extend(
+        outcome_rows.extend(
             bombardment_collateral_damage_lines(
                 event.stardock_items_destroyed,
                 event.stored_goods_destroyed,
@@ -1497,6 +1538,12 @@ fn generate_report_entries(
             )
             .into_iter()
             .map(StructuredBodyItem::Text),
+        );
+        let items = structured_combat_body(
+            structured_bombardment_title(false),
+            context_rows,
+            force_rows,
+            outcome_rows,
         );
         let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
@@ -1572,21 +1619,21 @@ fn generate_report_entries(
         {
             let source = "From your Fleet Command Center:";
             let header = report_header(source, event.stardate_week, year);
-            let items = vec![
-                StructuredBodyItem::Title(structured_fleet_command_title().to_string()),
-                StructuredBodyItem::Blank,
+            let context_rows = vec![
                 StructuredBodyItem::Label {
                     label: "Fleet lost:".to_string(),
                     value: fleet_label(event.reporting_fleet_number.unwrap_or(0)),
                 },
                 StructuredBodyItem::Label {
                     label: LABEL_LAST_CONTACT.to_string(),
-                    value: format!(
-                        "{} {} in System({x},{y})",
-                        battle_verb_for_perspective(event.perspective),
-                        enemy
+                    value: fleet_command_last_contact_value(
+                        &enemy,
+                        [x, y],
+                        matches!(event.perspective, FleetBattlePerspective::Intercepted),
                     ),
                 },
+            ];
+            let force_rows = vec![
                 StructuredBodyItem::Label {
                     label: LABEL_OUR_FORCES.to_string(),
                     value: friendly_initial,
@@ -1595,7 +1642,8 @@ fn generate_report_entries(
                     label: LABEL_ALIEN_FORCES.to_string(),
                     value: enemy_initial,
                 },
-                StructuredBodyItem::Blank,
+            ];
+            let outcome_rows = vec![
                 StructuredBodyItem::Text(format!(
                     "We lost all contact with the {}.",
                     fleet_label(event.reporting_fleet_number.unwrap_or(0))
@@ -1605,6 +1653,12 @@ fn generate_report_entries(
                     value: combat_losses_value(event.enemy_losses, event.enemy_starbases_destroyed),
                 },
             ];
+            let items = structured_combat_body(
+                structured_fleet_command_title(),
+                context_rows,
+                force_rows,
+                outcome_rows,
+            );
             let body = render_structured_body(&items);
             let text = structured_report_text(&header, items);
             entries.push(ReportEntry {
@@ -1636,13 +1690,11 @@ fn generate_report_entries(
             .reporting_mission
             .map(mission_report_label)
             .unwrap_or("Fleet engagement report");
-        let mut items = vec![
-            StructuredBodyItem::Title(title.to_string()),
-            StructuredBodyItem::Blank,
-            StructuredBodyItem::Label {
-                label: LABEL_ENEMY.to_string(),
-                value: enemy.clone(),
-            },
+        let context_rows = vec![StructuredBodyItem::Label {
+            label: LABEL_ENEMY.to_string(),
+            value: enemy.clone(),
+        }];
+        let force_rows = vec![
             StructuredBodyItem::Label {
                 label: if starbase_only_defender {
                     LABEL_OUR_DEFENSES.to_string()
@@ -1655,28 +1707,29 @@ fn generate_report_entries(
                 label: LABEL_ALIEN_FORCES.to_string(),
                 value: enemy_initial.clone(),
             },
-            StructuredBodyItem::Blank,
         ];
+        let mut outcome_rows = Vec::new();
         if matches!(event.perspective, FleetBattlePerspective::Intercepted) {
-            items.push(StructuredBodyItem::Text(format!(
+            outcome_rows.push(StructuredBodyItem::Text(format!(
                 "We successfully intercepted {enemy}."
             )));
         } else {
-            items.push(StructuredBodyItem::Text(format!(
+            outcome_rows.push(StructuredBodyItem::Text(format!(
                 "We were attacked by {enemy} in System({x},{y})."
             )));
         }
-        items.push(StructuredBodyItem::Text(outcome_text.clone()));
-        items.push(StructuredBodyItem::Label {
+        outcome_rows.push(StructuredBodyItem::Text(outcome_text.clone()));
+        outcome_rows.push(StructuredBodyItem::Label {
             label: LABEL_OUR_LOSSES.to_string(),
             value: combat_losses_value(event.friendly_losses, event.friendly_starbases_lost),
         });
         if !outcome_text.contains("completely destroyed") {
-            items.push(StructuredBodyItem::Label {
+            outcome_rows.push(StructuredBodyItem::Label {
                 label: LABEL_ENEMY_LOSSES.to_string(),
                 value: combat_losses_value(event.enemy_losses, event.enemy_starbases_destroyed),
             });
         }
+        let items = structured_combat_body(title, context_rows, force_rows, outcome_rows);
         let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
         entries.push(ReportEntry {
@@ -1702,24 +1755,19 @@ fn generate_report_entries(
                     .or_else(|| Some(classic_empire_clause(game_data, empire)))
             })
             .unwrap_or_else(|| "an alien fleet".to_string());
-        let verb = if event.was_intercepting {
-            "intercepted"
-        } else {
-            "was attacked by"
-        };
         let source = "From your Fleet Command Center:";
         let header = report_header(source, event.stardate_week, year);
-        let items = vec![
-            StructuredBodyItem::Title(structured_fleet_command_title().to_string()),
-            StructuredBodyItem::Blank,
+        let context_rows = vec![
             StructuredBodyItem::Label {
                 label: "Fleet lost:".to_string(),
                 value: fleet_label(event.fleet_number),
             },
             StructuredBodyItem::Label {
                 label: LABEL_LAST_CONTACT.to_string(),
-                value: format!("{verb} {enemy} in System({x},{y})"),
+                value: fleet_command_last_contact_value(&enemy, [x, y], event.was_intercepting),
             },
+        ];
+        let force_rows = vec![
             StructuredBodyItem::Label {
                 label: LABEL_OUR_FORCES.to_string(),
                 value: fleet_force_summary(
@@ -1735,7 +1783,8 @@ fn generate_report_entries(
                     event.enemy_initial_starbases,
                 ),
             },
-            StructuredBodyItem::Blank,
+        ];
+        let outcome_rows = vec![
             StructuredBodyItem::Text(format!(
                 "We lost all contact with the {}.",
                 fleet_label(event.fleet_number)
@@ -1745,6 +1794,12 @@ fn generate_report_entries(
                 value: combat_losses_value(event.enemy_losses, event.enemy_starbases_destroyed),
             },
         ];
+        let items = structured_combat_body(
+            structured_fleet_command_title(),
+            context_rows,
+            force_rows,
+            outcome_rows,
+        );
         let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
         entries.push(ReportEntry {
@@ -1772,22 +1827,23 @@ fn generate_report_entries(
             .unwrap_or_else(|| "an alien fleet".to_string());
         let source = "From your Fleet Command Center:";
         let header = report_header(source, event.stardate_week, year);
-        let items = vec![
-            StructuredBodyItem::Title(structured_fleet_command_title().to_string()),
-            StructuredBodyItem::Blank,
+        let context_rows = vec![
             StructuredBodyItem::Label {
                 label: "Starbase lost:".to_string(),
                 value: format!("Starbase {}", event.starbase_id),
             },
             StructuredBodyItem::Label {
                 label: LABEL_LAST_CONTACT.to_string(),
-                value: format!("was attacked by {enemy} in System({x},{y})"),
+                value: fleet_command_last_contact_value(&enemy, [x, y], false),
             },
+        ];
+        let force_rows = vec![
             StructuredBodyItem::Label {
                 label: LABEL_ALIEN_FORCES.to_string(),
                 value: ship_loss_summary(event.enemy_initial),
             },
-            StructuredBodyItem::Blank,
+        ];
+        let outcome_rows = vec![
             StructuredBodyItem::Text(format!(
                 "We lost all contact with Starbase {}.",
                 event.starbase_id
@@ -1797,6 +1853,12 @@ fn generate_report_entries(
                 value: ship_loss_summary(event.enemy_losses),
             },
         ];
+        let items = structured_combat_body(
+            structured_fleet_command_title(),
+            context_rows,
+            force_rows,
+            outcome_rows,
+        );
         let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
         entries.push(ReportEntry {
@@ -1920,13 +1982,11 @@ fn generate_report_entries(
             }
             _ => continue,
         };
-        let mut items = vec![
-            StructuredBodyItem::Title(mission_report_label(event.kind).to_string()),
-            StructuredBodyItem::Blank,
-            StructuredBodyItem::Label {
-                label: LABEL_TARGET_WORLD.to_string(),
-                value: format!("planet \"{}\"", planet.planet_name()),
-            },
+        let context_rows = vec![StructuredBodyItem::Label {
+            label: LABEL_TARGET_WORLD.to_string(),
+            value: format!("planet \"{}\"", planet.planet_name()),
+        }];
+        let mut force_rows = vec![
             StructuredBodyItem::Label {
                 label: LABEL_OUR_FORCES.to_string(),
                 value: attacker_force,
@@ -1942,22 +2002,22 @@ fn generate_report_entries(
         ];
         if event.kind == Mission::BlitzWorld {
             if let Some(cover_fire) = blitz_cover_value(event) {
-                items.push(StructuredBodyItem::Label {
+                force_rows.push(StructuredBodyItem::Label {
                     label: "Cover fire:".to_string(),
                     value: cover_fire,
                 });
             }
         }
-        items.push(StructuredBodyItem::Blank);
-        items.push(StructuredBodyItem::Text(outcome_text));
-        items.push(StructuredBodyItem::Label {
+        let mut outcome_rows = vec![StructuredBodyItem::Text(outcome_text)];
+        outcome_rows.push(StructuredBodyItem::Label {
             label: LABEL_OUR_LOSSES.to_string(),
             value: assault_friendly_losses_summary(
                 event.attacker_ship_losses,
                 event.attacker_army_losses,
+                event.transport_army_losses,
             ),
         });
-        items.push(StructuredBodyItem::Label {
+        outcome_rows.push(StructuredBodyItem::Label {
             label: LABEL_ENEMY_LOSSES.to_string(),
             value: assault_enemy_losses_summary(
                 event.defender_battery_losses,
@@ -1965,11 +2025,17 @@ fn generate_report_entries(
             ),
         });
         if event.kind == Mission::BlitzWorld {
-            items.push(StructuredBodyItem::Label {
+            outcome_rows.push(StructuredBodyItem::Label {
                 label: "Transport losses:".to_string(),
                 value: transport_loss_value(event),
             });
         }
+        let items = structured_combat_body(
+            mission_report_label(event.kind),
+            context_rows,
+            force_rows,
+            outcome_rows,
+        );
         let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
         entries.push(ReportEntry {
@@ -2161,13 +2227,11 @@ fn generate_report_entries(
                 && assault.outcome == MissionOutcome::Succeeded
         }) {
             let invader = classic_empire_clause(game_data, event.new_owner_empire_raw);
-            let mut items = vec![
-                StructuredBodyItem::Title(structured_capture_title().to_string()),
-                StructuredBodyItem::Blank,
-                StructuredBodyItem::Label {
-                    label: LABEL_INVADER.to_string(),
-                    value: invader.clone(),
-                },
+            let context_rows = vec![StructuredBodyItem::Label {
+                label: LABEL_INVADER.to_string(),
+                value: invader.clone(),
+            }];
+            let force_rows = vec![
                 StructuredBodyItem::Label {
                     label: LABEL_ATTACKING_FORCE.to_string(),
                     value: fleet_force_summary(assault.attacker_initial, 0),
@@ -2180,33 +2244,40 @@ fn generate_report_entries(
                         "none",
                     ),
                 },
-                StructuredBodyItem::Blank,
+            ];
+            let mut outcome_rows = vec![
                 StructuredBodyItem::Text(format!(
                     "We have been invaded and captured by {invader}."
                 )),
             ];
             if assault.defender_batteries_initial > 0 || assault.defender_armies_initial > 0 {
-                items.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
+                outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
                     assault.defender_batteries_initial,
                     assault.defender_armies_initial,
                     assault.defender_battery_losses,
                     assault.defender_army_losses,
                 )));
             }
-            items.push(StructuredBodyItem::Label {
+            outcome_rows.push(StructuredBodyItem::Label {
                 label: LABEL_ENEMY_LOSSES.to_string(),
                 value: ship_loss_summary(assault.attacker_ship_losses),
             });
-            items
+            structured_combat_body(
+                structured_capture_title(),
+                context_rows,
+                force_rows,
+                outcome_rows,
+            )
         } else {
-            vec![
-                StructuredBodyItem::Title(structured_capture_title().to_string()),
-                StructuredBodyItem::Blank,
-                StructuredBodyItem::Text(format!(
+            structured_combat_body(
+                structured_capture_title(),
+                Vec::new(),
+                Vec::new(),
+                vec![StructuredBodyItem::Text(format!(
                     "We have been invaded and captured by {}.",
                     classic_empire_clause(game_data, event.new_owner_empire_raw),
-                )),
-            ]
+                ))],
+            )
         };
         let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
@@ -2627,15 +2698,11 @@ fn generate_report_entries(
                 });
                 let body = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
-                        let mut items = vec![
-                            StructuredBodyItem::Title(
-                                structured_bombardment_title(true).to_string(),
-                            ),
-                            StructuredBodyItem::Blank,
-                            StructuredBodyItem::Label {
-                                label: LABEL_TARGET_WORLD.to_string(),
-                                value: format!("planet \"{}\"", planet.planet_name()),
-                            },
+                        let context_rows = vec![StructuredBodyItem::Label {
+                            label: LABEL_TARGET_WORLD.to_string(),
+                            value: format!("planet \"{}\"", planet.planet_name()),
+                        }];
+                        let force_rows = vec![
                             StructuredBodyItem::Label {
                                 label: LABEL_OUR_FORCES.to_string(),
                                 value: bombard_event
@@ -2654,7 +2721,8 @@ fn generate_report_entries(
                                     })
                                     .unwrap_or_else(|| "unknown".to_string()),
                             },
-                            StructuredBodyItem::Blank,
+                        ];
+                        let mut outcome_rows = vec![
                             StructuredBodyItem::Text(format!(
                                 "We have just concluded a bombing run against planet \"{}\".",
                                 planet.planet_name()
@@ -2678,7 +2746,7 @@ fn generate_report_entries(
                             },
                         ];
                         if let Some(bombard_event) = bombard_event.filter(|e| e.breakthrough) {
-                            items.extend(
+                            outcome_rows.extend(
                                 bombardment_collateral_damage_lines(
                                     bombard_event.stardock_items_destroyed,
                                     bombard_event.stored_goods_destroyed,
@@ -2689,11 +2757,16 @@ fn generate_report_entries(
                                 .map(StructuredBodyItem::Text),
                             );
                         }
-                        items.push(StructuredBodyItem::Text(
+                        outcome_rows.push(StructuredBodyItem::Text(
                             "We are maintaining bombardment position and will continue next turn."
                                 .to_string(),
                         ));
-                        MissionReportBody::Structured(items)
+                        MissionReportBody::Structured(structured_combat_body(
+                            structured_bombardment_title(true),
+                            context_rows,
+                            force_rows,
+                            outcome_rows,
+                        ))
                     } else {
                         MissionReportBody::Narrative(
                             " Bombardment mission report: We have concluded our bombing run and are awaiting new orders.".to_string(),

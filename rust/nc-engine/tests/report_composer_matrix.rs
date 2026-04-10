@@ -98,6 +98,13 @@ fn fleet_destroyed_event_supersedes_generic_battle_report() {
         1,
         "destroyed fleet should suppress generic battle: {texts:?}"
     );
+    let before_forces = texts[0]
+        .split("Our forces:")
+        .next()
+        .expect("expected Our forces section");
+    assert!(before_forces.ends_with("\n\n"), "{:?}", texts[0]);
+    assert!(texts[0].contains("Last contact:"));
+    assert!(texts[0].contains("destroyed while intercepting"));
     assert!(texts[0].contains("We lost all contact with the 11th Fleet"));
     assert!(!texts[0].contains("We successfully intercepted"));
 }
@@ -130,7 +137,7 @@ fn roe_retreat_and_abort_merge_into_one_report() {
                 transports: 2,
                 ..ShipLosses::default()
             },
-            friendly_loaded_armies_initial: 3,
+            friendly_loaded_armies_initial: 2,
             target_empire_raw: 2,
             target_fleet_number: Some(3),
             enemy_initial: ShipLosses {
@@ -153,7 +160,7 @@ fn roe_retreat_and_abort_merge_into_one_report() {
     assert!(joined.contains("Invasion mission report"));
     assert!(joined.contains("In accordance with our ROE"));
     assert!(joined.contains("abort the invasion"));
-    assert!(joined.contains("We had 1 cruiser and 2 troop transport ships carrying 3 armies."));
+    assert!(joined.contains("We had 1CA, 2TT*."));
 }
 
 #[test]
@@ -175,6 +182,28 @@ fn unknown_join_host_never_renders_zero_fleet_number() {
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("Our intended host fleet was destroyed."));
+    assert!(!text.contains("(0th Fleet)"));
+}
+
+#[test]
+fn known_join_host_renders_destroyed_host_fleet_number() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 10, [3, 9]);
+
+    let mut events = MaintenanceEvents::default();
+    events
+        .join_host_events
+        .push(JoinMissionHostEvent::HostDestroyed {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            destroyed_host_fleet_number: Some(7),
+            coords: [3, 9],
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Our intended host fleet (7th Fleet) was destroyed."));
     assert!(!text.contains("(0th Fleet)"));
 }
 
@@ -258,7 +287,7 @@ fn destroyed_fleet_telemetry_reports_starbase_only_opponent() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("1 starbase"));
+    assert!(text.contains("1SB"));
     assert!(!text.contains("no ships"));
 }
 
@@ -293,7 +322,7 @@ fn no_engagement_report_includes_reporting_fleet_composition() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("We had 1 cruiser and 1 destroyer."));
+    assert!(text.contains("We had 1CA, 1DD."));
     assert!(text.contains("Their fleet contains"));
 }
 
@@ -324,7 +353,7 @@ fn fleet_contact_report_includes_reporting_fleet_composition() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("We had 1 scout ship."));
+    assert!(text.contains("We had 1SC."));
     assert!(text.contains("Their fleet contains"));
 }
 
