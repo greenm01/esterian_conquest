@@ -4,7 +4,7 @@ use nc_data::{CoreGameData, MaintenanceEvents, Mission};
 
 use crate::maint::results::binary::classic_results_lines;
 use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
-use crate::maint::results::format::{fleet_number_from_idx, join_report_parts, report_header};
+use crate::maint::results::format::{compact_fleet_number_list, fleet_number_from_idx, report_header};
 use crate::maint::results::mod_constants::{JOIN_SUMMARY_PREVIEW_LINE_BUDGET, RESULTS_TAIL_FLEET};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,15 +28,14 @@ fn fleet_numbers_subject(numbers: &[u8], compression: JoinSummaryCompression) ->
         [] => "0 fleets".to_string(),
         [only] => format!("Fleet {only}"),
         many => match compression {
-            JoinSummaryCompression::Full => format!(
-                "Fleets {}",
-                join_report_parts(
-                    &many
-                        .iter()
-                        .map(|fleet_number| fleet_number.to_string())
-                        .collect::<Vec<_>>(),
-                )
-            ),
+            JoinSummaryCompression::Full => {
+                let compact = compact_fleet_number_list(many);
+                let mut chars = compact.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                    None => compact,
+                }
+            }
             _ => format!("{} fleets", many.len()),
         },
     }

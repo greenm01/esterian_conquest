@@ -487,3 +487,64 @@ fn join_summary_combines_completed_retargeted_and_lost_hosts() {
     assert!(text.contains("Retargeted to follow host: Fleet 11."));
     assert!(text.contains("Lost hosts: Fleet 13 lost host Fleet 2 and is holding position."));
 }
+
+#[test]
+fn join_summary_uses_compact_fleet_lists_for_multi_fleet_sections() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 3, [7, 7]);
+    configure_fleet(&mut game_data, 1, 1, 5, [7, 7]);
+    configure_fleet(&mut game_data, 2, 1, 6, [7, 7]);
+    configure_fleet(&mut game_data, 3, 1, 7, [7, 7]);
+    configure_fleet(&mut game_data, 4, 1, 8, [7, 7]);
+    configure_fleet(&mut game_data, 5, 1, 9, [7, 7]);
+    configure_fleet(&mut game_data, 6, 1, 10, [7, 7]);
+    configure_fleet(&mut game_data, 7, 1, 11, [7, 7]);
+    configure_fleet(&mut game_data, 8, 1, 12, [7, 7]);
+
+    let mut events = MaintenanceEvents::default();
+    for absorbed in [11, 5, 7] {
+        events.fleet_merge_events.push(FleetMergeEvent {
+            fleet_idx: (absorbed - 4) as usize,
+            owner_empire_raw: 1,
+            kind: Mission::JoinAnotherFleet,
+            host_fleet_id_raw: 1,
+            absorbed_fleet_id_raw: absorbed,
+            host_fleet_number: 3,
+            absorbed_fleet_number: absorbed,
+            coords: [7, 7],
+            survivor_side: false,
+            stardate_week: Some(1),
+        });
+    }
+    for fleet_number in [10, 6, 4] {
+        events
+            .mission_retarget_events
+            .push(MissionRetargetEvent::Retargeted {
+                fleet_idx: 0,
+                reporting_fleet_number: Some(fleet_number),
+                owner_empire_raw: 1,
+                mission: Mission::JoinAnotherFleet,
+                current_coords: [7, 7],
+                previous_target_coords: [4, 4],
+                new_target_coords: [8, 8],
+            });
+    }
+    for fleet_number in [12, 9, 8] {
+        events
+            .join_host_events
+            .push(JoinMissionHostEvent::HostDestroyed {
+                fleet_idx: (fleet_number - 4) as usize,
+                owner_empire_raw: 1,
+                destroyed_host_fleet_number: Some(2),
+                coords: [7, 7],
+            });
+    }
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Completed joins: Fleets 5, 7, and 11 merged into Fleet 3."), "{text}");
+    assert!(text.contains("Retargeted to follow host: Fleets 4, 6, and 10."), "{text}");
+    assert!(text.contains("Lost hosts: Fleets 8, 9, and 12 lost host Fleet 2 and are holding position."), "{text}");
+    assert!(!text.contains("Fleets 5, 7 and 11"), "{text}");
+}

@@ -3360,6 +3360,62 @@ fn maint_rust_join_retarget_report_uses_fleet_command_summary_without_sector_noi
 }
 
 #[test]
+fn maint_rust_join_summary_uses_compact_oxford_fleet_lists() {
+    let target = unique_temp_dir("nc-cli-maint-rust-join-compact-lists");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let host_id = game_data.fleets.records[0].fleet_id();
+
+    for fleet_idx in [1usize, 2, 3] {
+        game_data.fleets.records[fleet_idx].set_current_location_coords_raw([3, 9]);
+        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::JoinAnotherFleet);
+        game_data.fleets.records[fleet_idx].set_join_host_fleet_id_raw(host_id);
+        game_data.fleets.records[fleet_idx].set_standing_order_target_coords_raw([1, 1]);
+        game_data.fleets.records[fleet_idx].set_current_speed(3);
+    }
+
+    let lost_host = game_data.fleets.records[4].fleet_id();
+    game_data.fleets.records[4].set_current_location_coords_raw([7, 9]);
+    game_data.fleets.records[4].set_standing_order_kind(Order::HoldPosition);
+    game_data.fleets.records[4].set_standing_order_target_coords_raw([7, 9]);
+    game_data.fleets.records[4].set_current_speed(0);
+    game_data.fleets.records[4].set_battleship_count(0);
+    game_data.fleets.records[4].set_cruiser_count(0);
+    game_data.fleets.records[4].set_destroyer_count(0);
+    game_data.fleets.records[4].set_scout_count(0);
+    game_data.fleets.records[4].set_troop_transport_count(0);
+    game_data.fleets.records[4].set_army_count(0);
+    game_data.fleets.records[4].set_etac_count(0);
+
+    for fleet_idx in [5usize, 6, 7] {
+        game_data.fleets.records[fleet_idx].set_current_location_coords_raw([7, 9]);
+        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::JoinAnotherFleet);
+        game_data.fleets.records[fleet_idx].set_join_host_fleet_id_raw(lost_host);
+        game_data.fleets.records[fleet_idx].set_standing_order_target_coords_raw([10, 10]);
+        game_data.fleets.records[fleet_idx].set_current_speed(3);
+    }
+
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Join mission summary"));
+    assert!(text.contains("Completed joins: Fleets 3 and 4 merged into Fleet 2."), "{text}");
+    assert!(text.contains("Lost hosts: Fleets 2 and 3 lost their host and are holding position."), "{text}");
+    assert!(!text.contains("Lost hosts: Fleets 2, 3 and"), "{text}");
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_join_summary_emits_single_footer_line() {
     let target = unique_temp_dir("nc-cli-maint-rust-join-single-footer");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
