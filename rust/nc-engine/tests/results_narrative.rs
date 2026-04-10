@@ -495,9 +495,7 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     assert!(invasion.contains("Invasion mission report"));
     assert!(invasion.contains("Our armies have captured planet \"dog\"."));
     assert!(invasion.contains("Our forces:"));
-    assert!(invasion.contains(
-        "1BB, 2TT*"
-    ));
+    assert!(invasion.contains("1BB, 2TT*"));
     assert!(invasion.contains("World defenses:"));
     assert!(invasion.contains("undefended"));
     assert!(invasion.contains("Enemy losses:"));
@@ -660,9 +658,7 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("Bombardment mission report"));
-    assert!(text.contains(
-        "Our forces: 10BB, 11CA, 21TT"
-    ));
+    assert!(text.contains("Our forces: 10BB, 11CA, 21TT"));
     assert!(text.contains("World defenses: undefended"));
     assert!(text.contains("Bombing damage: 336 points of industry destroyed."));
     assert!(text.contains("Bombing damage: 25 stored production destroyed."));
@@ -715,9 +711,7 @@ fn bombardment_defender_report_uses_no_defenses_for_zero_counts() {
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("Attacking force:"));
-    assert!(text.contains(
-        "10BB, 11CA, 21TT"
-    ));
+    assert!(text.contains("10BB, 11CA, 21TT"));
     assert!(text.contains("Our defenses:"));
     assert!(text.contains("none"));
     assert!(text.contains("Local damage: 336 points of industry destroyed."));

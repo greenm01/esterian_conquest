@@ -5,7 +5,7 @@ mod stepper;
 use super::{ColonizationEvent, MovementEvents};
 use crate::{CoreGameData, Order, VisibleHazardIntel};
 use arrivals::handle_fleet_arrival;
-use nc_data::fleet_motion_state::decode_exact_position;
+use nc_data::fleet_motion_state::{decode_exact_position, reset_motion_state_for_new_orders};
 use salvage::{queue_salvage_resolution, remap_movement_event_fleet_indices_after_removal};
 use stepper::{process_single_fleet_movement, set_fleet_to_local_hold};
 
@@ -27,7 +27,7 @@ pub(super) fn process_fleet_movement(
     let mut to_remove = vec![false; fleet_count];
 
     for i in 0..fleet_count {
-        let (target_x, target_y, current_x, current_y, speed, order_kind, owner_empire) = {
+        let (target_x, target_y, current_x, current_y, speed, order_kind, owner_empire, ready) = {
             let fleet = &game_data.fleets.records[i];
             (
                 fleet.standing_order_target_coords_raw()[0],
@@ -37,8 +37,18 @@ pub(super) fn process_fleet_movement(
                 fleet.current_speed(),
                 fleet.standing_order_kind(),
                 fleet.owner_empire_raw(),
+                fleet.transit_ready_flag_raw(),
             )
         };
+        if is_stale_off_target_hostile(
+            order_kind,
+            speed,
+            ready,
+            [current_x, current_y],
+            [target_x, target_y],
+        ) {
+            rearm_stale_off_target_hostile_fleet(&mut game_data.fleets.records[i]);
+        }
         // ColonizeWorld on-station: fleet already at target (or arrived with speed still set).
         // Queue colonization and reset to HoldPosition immediately; do not enter the
         // should_move gate which would skip the fleet with no side-effects.
@@ -106,7 +116,8 @@ pub(super) fn process_fleet_movement(
 
     if to_remove.iter().any(|remove| *remove) {
         remap_movement_event_fleet_indices_after_removal(&mut movement_events, &to_remove);
-        destroyed_join_host_fleet_numbers.extend(super::remove_selected_fleets(game_data, &to_remove));
+        destroyed_join_host_fleet_numbers
+            .extend(super::remove_selected_fleets(game_data, &to_remove));
     }
 
     Ok(movement_events)
@@ -114,4 +125,26 @@ pub(super) fn process_fleet_movement(
 
 pub(super) fn set_view_world_completion_hold(fleet: &mut nc_data::FleetRecord) {
     arrivals::set_view_world_completion_hold(fleet);
+}
+
+fn is_stale_off_target_hostile(
+    order: Order,
+    speed: u8,
+    ready: u8,
+    current: [u8; 2],
+    target: [u8; 2],
+) -> bool {
+    matches!(
+        order,
+        Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld
+    ) && speed == 0
+        && ready == 0x80
+        && current != target
+}
+
+fn rearm_stale_off_target_hostile_fleet(fleet: &mut nc_data::FleetRecord) {
+    let speed = fleet.max_speed().max(1);
+    reset_motion_state_for_new_orders(fleet);
+    fleet.set_current_speed(speed);
+    fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
 }

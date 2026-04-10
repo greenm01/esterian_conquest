@@ -1076,4 +1076,4 @@ fn guard_blockade_does_not_intercept_transit_fleet() {
 // But assault orders (Invade/Bombard/Blitz) put fleets in SystemEntry context, forcing engagement.
 // This creates a design tension: we want guards to intercept assault fleets but NOT leave station
 // for innocent transit. The current implementation prioritizes guards staying at station.
-// See docs/dev/ec-combat-spec.md for the full pursuit fire rules.
+// See docs/dev/nc-combat-spec.md for the full pursuit fire rules.

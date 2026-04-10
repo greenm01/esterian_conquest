@@ -380,13 +380,12 @@ pub fn run_maintenance_turn_with_context_and_seed(
         &blitz_ready,
     )?;
 
-    let join_host_events =
-        merging::process_join_host_updates(
-            game_data,
-            &merge_events,
-            &fleet_number_by_id,
-            &destroyed_join_host_fleet_numbers,
-        );
+    let join_host_events = merging::process_join_host_updates(
+        game_data,
+        &merge_events,
+        &fleet_number_by_id,
+        &destroyed_join_host_fleet_numbers,
+    );
 
     // Normalize CONQUEST.DAT header fields
     campaign::process_conquest_header(game_data, should_accumulate_conquest)?;
@@ -797,8 +796,9 @@ fn apply_fleet_removal_remap(
             let remapped_host_id = remap_id(u16::from(prior_host_id)) as u8;
             remapped.set_join_host_fleet_id_raw(remapped_host_id);
             if remapped_host_id == 0 {
-                if let Some(host_fleet_number) =
-                    removed_fleet_number_by_id.get(&u16::from(prior_host_id)).copied()
+                if let Some(host_fleet_number) = removed_fleet_number_by_id
+                    .get(&u16::from(prior_host_id))
+                    .copied()
                 {
                     destroyed_join_host_fleet_numbers.insert(new_fleet_id as u8, host_fleet_number);
                 }

@@ -8,7 +8,7 @@ Rust rule set.
 Read this together with:
 - [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
 - [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
-- [ec-combat-spec.md](ec-combat-spec.md)
+- [nc-combat-spec.md](nc-combat-spec.md)
 
 ## Status
 

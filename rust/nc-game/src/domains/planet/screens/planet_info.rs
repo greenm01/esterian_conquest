@@ -396,9 +396,7 @@ fn owned_status_summary(
         OwnedPlanetStatus::StarbasePresent => "Regular planet - starbase present".to_string(),
         OwnedPlanetStatus::FactoriesDestroyed => "Regular planet - industry destroyed".to_string(),
         OwnedPlanetStatus::FactoriesDamaged => "Regular planet - industry damaged".to_string(),
-        OwnedPlanetStatus::FactoriesFunctional => {
-            "Regular planet - industry intact".to_string()
-        }
+        OwnedPlanetStatus::FactoriesFunctional => "Regular planet - industry intact".to_string(),
     }
 }
 

@@ -63,6 +63,9 @@ fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, ord
         return false;
     }
     let target_coords = fleet.standing_order_target_coords_raw();
+    if fleet.current_location_coords_raw() != target_coords {
+        return false;
+    }
     game_data
         .validate_fleet_order_payload(fleet_idx + 1, order.to_raw(), target_coords, None, None)
         .is_ok()

@@ -7,7 +7,7 @@ Read it together with:
 
 - [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   for yearly maintenance phase ordering
-- [ec-combat-spec.md](ec-combat-spec.md)
+- [nc-combat-spec.md](nc-combat-spec.md)
   for combat and hostile world-resolution mechanics
 - [ec-timing-spec.md](ec-timing-spec.md)
   for weekly timing and report `Stardate` behavior
@@ -418,7 +418,7 @@ Subsystem behavior should follow the companion specs:
 - build/economy behavior:
   [economics.md](economics.md)
 - combat/hostile world resolution:
-  [ec-combat-spec.md](ec-combat-spec.md)
+  [nc-combat-spec.md](nc-combat-spec.md)
 
 The architecture consequence is straightforward:
 

@@ -7,7 +7,7 @@ fixtures in real historical behavior rather than invented scenarios.
 Status:
 
 - this is a historical/reference document, not the canonical Rust combat spec
-- use [ec-combat-spec.md](ec-combat-spec.md)
+- use [nc-combat-spec.md](nc-combat-spec.md)
   for Rust combat mechanics
 - use [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   and
@@ -291,7 +291,7 @@ The Rust model uses a three-round-per-turn structure where ground batteries
 shield vulnerable targets during rounds 1--2 and only allow breakthrough damage
 in round 3 if batteries have been eliminated. This improves game balance by
 making batteries a meaningful defensive investment and giving defenders time to
-respond. See [ec-combat-spec.md](ec-combat-spec.md) for the canonical Rust rules.
+respond. See [nc-combat-spec.md](nc-combat-spec.md) for the canonical Rust rules.
 
 ## Reference 2: Follow-on Invasion Travel
 

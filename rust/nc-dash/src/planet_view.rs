@@ -186,10 +186,7 @@ fn intel_planet_detail(
                 .map(|year| format!("Y{year}"))
                 .unwrap_or_else(|| String::from("?")),
         ),
-        detail_line(
-            "Production",
-            known_u8(world.known_current_production),
-        ),
+        detail_line("Production", known_u8(world.known_current_production)),
         detail_line(
             "Potential Production",
             known_u16(world.known_potential_production),
@@ -238,10 +235,7 @@ fn intel_planet_detail(
             "Intel",
             format!("{intel_year} {}", intel_tier_code(snapshot, world)),
         ),
-        widget_field(
-            "Production",
-            known_u8(world.known_current_production),
-        ),
+        widget_field("Production", known_u8(world.known_current_production)),
         widget_field(
             "Potential Production",
             known_u16(world.known_potential_production),
@@ -538,9 +532,7 @@ fn owned_status_detail_label(
             String::from("Regular planet - industry destroyed")
         }
         OwnedPlanetStatus::FactoriesDamaged => String::from("Regular planet - industry damaged"),
-        OwnedPlanetStatus::FactoriesFunctional => {
-            String::from("Regular planet - industry intact")
-        }
+        OwnedPlanetStatus::FactoriesFunctional => String::from("Regular planet - industry intact"),
     }
 }
 

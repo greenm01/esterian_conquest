@@ -1379,8 +1379,16 @@ mod tests {
         let lines = (0..buffer.height())
             .map(|row| buffer.plain_line(row))
             .collect::<Vec<_>>();
-        assert!(lines.iter().any(|line| line.contains("FLEET LIST: ID DESC HOLD")));
-        assert!(lines.iter().any(|line| line.contains("COMMAND <- ? F S O SPACE <Q>")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("FLEET LIST: ID DESC HOLD"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("COMMAND <- ? F S O SPACE <Q>"))
+        );
         assert!(
             !lines
                 .iter()

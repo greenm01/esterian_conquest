@@ -7,7 +7,7 @@ Status:
 
 - this is a reference-only report-side catalog, not a canonical Rust behavior
   spec
-- use [ec-combat-spec.md](ec-combat-spec.md),
+- use [nc-combat-spec.md](nc-combat-spec.md),
   [economics.md](economics.md), and
   [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   for authoritative implementation behavior

@@ -707,7 +707,10 @@ pub(crate) fn process_fleet_battles(
                 let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
                 let kind = if defending_starbase_holds_planet(tf) {
                     RoundActionKind::Fight
-                } else if round > 3 && !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
+                } else if round > 3
+                    && !forced_engagement
+                    && !rule_threshold_satisfied(roe, our_as, enemy_as)
+                {
                     RoundActionKind::Withdraw
                 } else {
                     RoundActionKind::Fight
@@ -779,8 +782,7 @@ pub(crate) fn process_fleet_battles(
                         let sup_hits;
                         let exe_hits;
                         if result.hits > 0 {
-                            let sup_ratio =
-                                actor_tf.state.suppression_as() as f64 / our_as as f64;
+                            let sup_ratio = actor_tf.state.suppression_as() as f64 / our_as as f64;
                             sup_hits = (result.hits as f64 * sup_ratio).round() as u32;
                             exe_hits = result.hits.saturating_sub(sup_hits);
                         } else {

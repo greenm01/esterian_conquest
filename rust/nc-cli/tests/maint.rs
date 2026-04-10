@@ -1263,13 +1263,16 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
             .any(|report| report.contains("From your 1st Fleet, located in System(11,11):"))
     );
     assert!(
-        report_texts.iter().any(|report| report
-            .contains("Our forces: 3DD, 2TT*")),
+        report_texts
+            .iter()
+            .any(|report| report.contains("Our forces: 3DD, 2TT*")),
         "expected friendly force summary with loaded armies, got: {report_texts:?}"
     );
-    assert!(report_texts.iter().any(|report| {
-        report.contains("Alien forces: 1DD, 2TT")
-    }));
+    assert!(
+        report_texts
+            .iter()
+            .any(|report| { report.contains("Alien forces: 1DD, 2TT") })
+    );
     assert!(
         !report_texts
             .iter()
@@ -1740,10 +1743,7 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
     let text = decode_chunked_report(&results);
     assert!(text.contains("Bombardment mission report"));
     assert!(text.contains("bombing run"));
-    assert!(
-        text.contains("Our forces:"),
-        "{text}"
-    );
+    assert!(text.contains("Our forces:"), "{text}");
     assert!(!text.contains("appeared to contain"));
     assert!(text.contains("World defenses:"), "{text}");
     assert!(!text.contains("We were unable to inflict any ground losses."));
@@ -2855,11 +2855,19 @@ fn maint_rust_destroyed_fleet_report_separates_last_contact_from_force_rows() {
     let records = results_records(&results);
     let (_, report_lines) = logical_result_reports(&records)
         .into_iter()
-        .find(|(_, lines)| lines.iter().any(|line| line == "Fleet Command Center report"))
+        .find(|(_, lines)| {
+            lines
+                .iter()
+                .any(|line| line == "Fleet Command Center report")
+        })
         .expect("expected Fleet Command Center report");
     let report = report_lines.join("\n");
 
-    assert!(report_lines.iter().any(|line| line.starts_with("Last contact:")));
+    assert!(
+        report_lines
+            .iter()
+            .any(|line| line.starts_with("Last contact:"))
+    );
     assert!(
         report.contains("destroyed by") || report.contains("destroyed while intercepting"),
         "{report}"

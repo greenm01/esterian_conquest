@@ -1,6 +1,6 @@
-# Esterian Conquest Canonical Combat Spec
+# Nostrian Conquest Canonical Combat Spec
 
-This document defines the canonical Rust combat model for Esterian Conquest.
+This document defines the canonical Rust combat model for Nostrian Conquest.
 While the 1992 `ECMAINT.EXE` internal formulas remain unrecovered, this spec
 translates the documented manuals into an auditable, seeded, and reproducible
 rule set.

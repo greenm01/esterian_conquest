@@ -792,6 +792,7 @@ fn test_seek_home_retargets_to_next_owned_planet_when_target_is_lost() {
         game_data.fleets.records[1].standing_order_target_coords_raw(),
         fallback_target
     );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 3);
     assert!(events.mission_retarget_events.iter().any(|event| {
         matches!(
             event,
@@ -837,6 +838,7 @@ fn test_guard_starbase_retargets_to_live_base_coords() {
         game_data.fleets.records[1].standing_order_target_coords_raw(),
         [12, 8]
     );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 3);
     assert_eq!(game_data.fleets.records[1].mission_aux_bytes(), [0, 1]);
     assert!(events.mission_retarget_events.iter().any(|event| {
         matches!(
@@ -2130,6 +2132,88 @@ fn test_blitz_world_executes_on_second_turn() {
                 && e.attacker_empire_raw == 1),
         "AssaultReportEvent must reference BlitzWorld, the target planet, and attacker empire"
     );
+}
+
+#[test]
+fn test_stale_off_target_hostile_orders_resume_travel_instead_of_executing() {
+    let cases = [
+        ("bombard", Order::BombardWorld, Mission::BombardWorld),
+        ("invade", Order::InvadeWorld, Mission::InvadeWorld),
+        ("blitz", Order::BlitzWorld, Mission::BlitzWorld),
+    ];
+
+    for (name, order, mission) in cases {
+        let ships = match order {
+            Order::BombardWorld => (0, 0, 1, 0, 0, 0, 0),
+            Order::InvadeWorld => (0, 0, 1, 2, 6, 0, 0),
+            Order::BlitzWorld => (0, 0, 1, 4, 8, 0, 0),
+            _ => unreachable!(),
+        };
+        let (mut game_data, target_idx, target_coords) =
+            configured_delayed_hostile_arrival_state(order, ships);
+
+        let fleet = &mut game_data.fleets.records[0];
+        fleet.set_current_location_coords_raw([20, 25]);
+        fleet.set_current_speed(0);
+        fleet.set_transit_ready_flag_raw(0x80);
+        fleet.set_tuple_c_payload_raw([0x80, 0xb9, 0xff, 0xff, 0xff]);
+        let pre_batteries = game_data.planets.records[target_idx].ground_batteries_raw();
+        let pre_armies = game_data.planets.records[target_idx].army_count_raw();
+
+        let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+        let fleet = &game_data.fleets.records[0];
+
+        assert_eq!(
+            fleet.standing_order_kind(),
+            order,
+            "{name} order should persist"
+        );
+        assert_eq!(
+            fleet.standing_order_target_coords_raw(),
+            target_coords,
+            "{name} target"
+        );
+        assert_eq!(
+            fleet.current_speed(),
+            fleet.max_speed().max(1),
+            "{name} speed should rearm"
+        );
+        assert_eq!(
+            fleet.transit_ready_flag_raw(),
+            0x81,
+            "{name} should leave stale ready state and resume travel"
+        );
+        assert_ne!(
+            fleet.current_location_coords_raw(),
+            target_coords,
+            "{name} should not teleport to the target"
+        );
+        assert!(
+            events
+                .mission_events
+                .iter()
+                .all(|event| !(event.fleet_idx == 0 && event.kind == mission)),
+            "{name} should not emit hostile mission events while still off target"
+        );
+        assert!(
+            events.bombard_events.is_empty(),
+            "{name} should not emit bombardment execution while off target"
+        );
+        assert!(
+            events.assault_report_events.is_empty(),
+            "{name} should not emit assault execution while off target"
+        );
+        assert_eq!(
+            game_data.planets.records[target_idx].ground_batteries_raw(),
+            pre_batteries,
+            "{name} should not change target batteries while off target"
+        );
+        assert_eq!(
+            game_data.planets.records[target_idx].army_count_raw(),
+            pre_armies,
+            "{name} should not change target armies while off target"
+        );
+    }
 }
 
 #[test]

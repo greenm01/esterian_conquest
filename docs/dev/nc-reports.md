@@ -9,7 +9,7 @@ Read this together with:
 
 - [ec-timing-spec.md](ec-timing-spec.md)
   for `Stardate` placement and weekly assignment
-- [ec-combat-spec.md](ec-combat-spec.md)
+- [nc-combat-spec.md](nc-combat-spec.md)
   for combat and hostile-world mechanics
 - [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   for where reports are emitted in the yearly loop

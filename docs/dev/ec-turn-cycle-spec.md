@@ -67,7 +67,7 @@ The yearly simulation core (step `4`) is now substantially recovered:
 No material turn-order gaps remain in the yearly simulation core. The
 turn-cycle ordering is now closed to implementation depth; mission/combat
 behavior is specified separately in
-[ec-combat-spec.md](ec-combat-spec.md).
+[nc-combat-spec.md](nc-combat-spec.md).
 
 ## Practical Rust Consequences
 
@@ -1208,7 +1208,7 @@ The canonical turn order is now recovered to implementation depth.
 
 This document no longer carries open turn-order items. Mission/combat rules for
 the Rust target belong in
-[ec-combat-spec.md](ec-combat-spec.md),
+[nc-combat-spec.md](nc-combat-spec.md),
 not here.
 
 ## Current Working Canonical Spec

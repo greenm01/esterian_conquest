@@ -14,7 +14,7 @@ These are the docs that should drive engine/client behavior.
   - canonical oracle-backed yearly maintenance ordering
 - [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   - implementation-facing Rust companion for the turn cycle
-- [ec-combat-spec.md](ec-combat-spec.md)
+- [nc-combat-spec.md](nc-combat-spec.md)
   - canonical Rust combat and hostile world-resolution mechanics
 - [ec-timing-spec.md](ec-timing-spec.md)
   - weekly scheduler and `Stardate` behavior

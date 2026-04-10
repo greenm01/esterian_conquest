@@ -388,7 +388,9 @@ fn wrap_labeled_lines(label: &str, value: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{classic_results_lines, ordinal_number, structured_report_text, StructuredBodyItem};
+    use super::{
+        StructuredBodyItem, classic_results_lines, ordinal_number, structured_report_text,
+    };
 
     #[test]
     fn ordinal_number_formats_st_nd_rd_and_teen_exceptions() {
@@ -461,8 +463,9 @@ mod tests {
                     },
                     StructuredBodyItem::Label {
                         label: "Last contact:".to_string(),
-                        value: "destroyed by the 29th Fleet of \"Player1\", (Empire #1) in System(6,7)"
-                            .to_string(),
+                        value:
+                            "destroyed by the 29th Fleet of \"Player1\", (Empire #1) in System(6,7)"
+                                .to_string(),
                     },
                 ],
                 vec![
@@ -1399,8 +1402,7 @@ fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
         } else {
             NarrativePhase::AttackerAftermath
         }
-    } else if text.contains("Viewing mission report") || text.contains("Scouting mission report")
-    {
+    } else if text.contains("Viewing mission report") || text.contains("Scouting mission report") {
         if text.contains("completed a long range viewing analysis")
             || text.contains("compiled the following data")
         {
@@ -1518,9 +1520,9 @@ fn generate_report_entries(
                 ),
             },
         ];
-        let mut outcome_rows = vec![
-            StructuredBodyItem::Text(format!("Our world has been bombarded by {attacker}.")),
-        ];
+        let mut outcome_rows = vec![StructuredBodyItem::Text(format!(
+            "Our world has been bombarded by {attacker}."
+        ))];
         if event.defender_batteries_initial > 0 || event.defender_armies_initial > 0 {
             outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
                 event.defender_batteries_initial,
@@ -1837,12 +1839,10 @@ fn generate_report_entries(
                 value: fleet_command_last_contact_value(&enemy, [x, y], false),
             },
         ];
-        let force_rows = vec![
-            StructuredBodyItem::Label {
-                label: LABEL_ALIEN_FORCES.to_string(),
-                value: ship_loss_summary(event.enemy_initial),
-            },
-        ];
+        let force_rows = vec![StructuredBodyItem::Label {
+            label: LABEL_ALIEN_FORCES.to_string(),
+            value: ship_loss_summary(event.enemy_initial),
+        }];
         let outcome_rows = vec![
             StructuredBodyItem::Text(format!(
                 "We lost all contact with Starbase {}.",
@@ -1966,7 +1966,10 @@ fn generate_report_entries(
         let header = report_header(&source, event.stardate_week, year);
         let outcome_text = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => {
-                format!("Our armies have captured planet \"{}\".", planet.planet_name())
+                format!(
+                    "Our armies have captured planet \"{}\".",
+                    planet.planet_name()
+                )
             }
             (Mission::InvadeWorld, MissionOutcome::Failed) => {
                 "The landing was repulsed.".to_string()
@@ -1975,11 +1978,12 @@ fn generate_report_entries(
                 "Enemy ground batteries prevented a landing.".to_string()
             }
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => {
-                format!("We have seized planet \"{}\" in a fast assault.", planet.planet_name())
+                format!(
+                    "We have seized planet \"{}\" in a fast assault.",
+                    planet.planet_name()
+                )
             }
-            (Mission::BlitzWorld, MissionOutcome::Failed) => {
-                "The blitz attack failed.".to_string()
-            }
+            (Mission::BlitzWorld, MissionOutcome::Failed) => "The blitz attack failed.".to_string(),
             _ => continue,
         };
         let context_rows = vec![StructuredBodyItem::Label {
@@ -2245,11 +2249,9 @@ fn generate_report_entries(
                     ),
                 },
             ];
-            let mut outcome_rows = vec![
-                StructuredBodyItem::Text(format!(
-                    "We have been invaded and captured by {invader}."
-                )),
-            ];
+            let mut outcome_rows = vec![StructuredBodyItem::Text(format!(
+                "We have been invaded and captured by {invader}."
+            ))];
             if assault.defender_batteries_initial > 0 || assault.defender_armies_initial > 0 {
                 outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
                     assault.defender_batteries_initial,

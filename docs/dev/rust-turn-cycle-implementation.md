@@ -9,7 +9,7 @@ spec, use
 
 Read it together with:
 
-- [ec-combat-spec.md](ec-combat-spec.md)
+- [nc-combat-spec.md](nc-combat-spec.md)
   for mission/combat behavior
 - [economics.md](economics.md)
   for the Rust economy/build policy that lives inside the post-loop
@@ -23,7 +23,7 @@ Read it together with:
 Ownership boundary:
 
 - this document owns yearly phase placement and turn-order boundaries
-- [ec-combat-spec.md](ec-combat-spec.md)
+- [nc-combat-spec.md](nc-combat-spec.md)
   owns combat and hostile world-resolution mechanics
 - [ec-timing-spec.md](ec-timing-spec.md)
   owns weekly timing, report-week assignment, and `Stardate` header formatting
@@ -423,7 +423,7 @@ Updated Durable State + Durable Event Pool
 Turn-order placement is now recovered strongly enough for implementation.
 
 Mission/combat behavior is specified separately in
-[ec-combat-spec.md](ec-combat-spec.md).
+[nc-combat-spec.md](nc-combat-spec.md).
 This document is only the turn-order/phase-boundary companion.
 
 ## Current Practical Step-4 Shape
@@ -668,7 +668,7 @@ run_turn(directory):
 ```
 
 Use that as the current implementation skeleton. For combat mechanics, defer to
-[ec-combat-spec.md](ec-combat-spec.md).
+[nc-combat-spec.md](nc-combat-spec.md).
 
 ## Current Rust Driver Snapshot
 
@@ -800,7 +800,7 @@ Flushed
 This document does not claim:
 
 - the full mission/combat rulebook; use
-  [ec-combat-spec.md](ec-combat-spec.md)
+  [nc-combat-spec.md](nc-combat-spec.md)
   for that
 - the semantic meaning of every still-raw planet/player field
 - the original combat RNG or full Pascal-era implementation structure
@@ -840,7 +840,7 @@ It does claim:
 
 - use [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   for oracle-backed phase evidence
-- use [ec-combat-spec.md](ec-combat-spec.md)
+- use [nc-combat-spec.md](nc-combat-spec.md)
   for mission/combat behavior and hostile world-resolution mechanics
 - use [economics.md](economics.md)
   for the canonical Rust economy/build policy applied in the post-loop

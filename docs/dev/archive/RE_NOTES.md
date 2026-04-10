@@ -19,10 +19,10 @@
 > | Modern TUI Direction | Stale | `refactor-tui.md` |
 > | ECMAINT Build/Fleet Scenarios | Superseded | Fixtures + spec docs |
 > | Historical Combat References | Reference | Unique doc text captures |
-> | Synthetic Bombardment Sequence | Superseded | `ec-combat-spec.md` |
+> | Synthetic Bombardment Sequence | Superseded | `nc-combat-spec.md` |
 > | Fleet Command Surface | Mixed | Some unique fleet order detail |
 > | Porting Strategy / Preservation | Stale | `approach.md`, `rust-architecture.md` |
-> | Session 2026-03-10: Invasions | Superseded | `ec-combat-spec.md` |
+> | Session 2026-03-10: Invasions | Superseded | `nc-combat-spec.md` |
 > | Session 2026-03-10: Starbases | Mixed | Some unique starbase detail |
 > | Environment Setup Notes | Stale | `dosbox-workflow.md` |
 > | Guard Starbase / Build Queue | Superseded | `ec-turn-cycle-spec.md` |
