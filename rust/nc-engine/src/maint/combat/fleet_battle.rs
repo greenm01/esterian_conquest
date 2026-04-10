@@ -430,6 +430,31 @@ fn abort_invalid_dominant_missions_after_battle(
     }
 }
 
+fn emit_aborted_mission_events_for_task_force(
+    game_data: &CoreGameData,
+    events: &mut FleetBattlePhaseEvents,
+    fleet_indices: &[usize],
+    pre_orders: &HashMap<usize, Order>,
+    coords: [u8; 2],
+) {
+    for &fleet_idx in fleet_indices {
+        let Some(kind) = mission_kind_for_order(pre_orders.get(&fleet_idx).copied()) else {
+            continue;
+        };
+        let fleet = &game_data.fleets.records[fleet_idx];
+        events.mission_events.push(MissionEvent {
+            fleet_idx,
+            owner_empire_raw: fleet.owner_empire_raw(),
+            kind,
+            outcome: MissionOutcome::Aborted,
+            planet_idx: planet_idx_at_coords(game_data, coords),
+            location_coords: Some(coords),
+            target_coords: Some(fleet.standing_order_target_coords_raw()),
+            stardate_week: None,
+        });
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct FleetBattlePhaseEvents {
     pub fleet_battle_events: Vec<FleetBattleEvent>,
@@ -1005,7 +1030,9 @@ pub(crate) fn process_fleet_battles(
         let winner_empire = {
             let mut survivors: Vec<&TaskForce> = task_forces
                 .iter()
-                .filter(|tf| tf.state.has_units() && tf.state.total_combat_as() > 0)
+                .filter(|tf| {
+                    tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
+                })
                 .collect();
             if survivors.len() == 1 {
                 Some(survivors[0].empire)
@@ -1062,23 +1089,13 @@ pub(crate) fn process_fleet_battles(
         for tf in &task_forces {
             if Some(tf.empire) != dominant_empire && !tf.withdrew_under_roe {
                 retreat_task_force(game_data, tf);
-                for &idx in &tf.fleet_indices {
-                    if let Some(kind) =
-                        mission_kind_for_order(pre_retreat_orders.get(&idx).copied())
-                    {
-                        let fleet = &game_data.fleets.records[idx];
-                        events.mission_events.push(MissionEvent {
-                            fleet_idx: idx,
-                            owner_empire_raw: fleet.owner_empire_raw(),
-                            kind,
-                            outcome: MissionOutcome::Aborted,
-                            planet_idx: None,
-                            location_coords: Some(coords),
-                            target_coords: Some(fleet.standing_order_target_coords_raw()),
-                            stardate_week: None,
-                        });
-                    }
-                }
+                emit_aborted_mission_events_for_task_force(
+                    game_data,
+                    &mut events,
+                    &tf.fleet_indices,
+                    &pre_retreat_orders,
+                    coords,
+                );
             }
         }
         abort_invalid_dominant_missions_after_battle(
@@ -1093,6 +1110,13 @@ pub(crate) fn process_fleet_battles(
             if !tf.withdrew_under_roe {
                 continue;
             }
+            emit_aborted_mission_events_for_task_force(
+                game_data,
+                &mut events,
+                &tf.fleet_indices,
+                &pre_encounter_orders,
+                coords,
+            );
             if !tf_has_any_units(tf) {
                 clear_empty_withdrawn_fleets(game_data, &tf.fleet_indices);
                 continue;

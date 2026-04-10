@@ -2499,6 +2499,84 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
 }
 
 #[test]
+fn maint_rust_enemy_roe_withdrawal_does_not_abort_invade_mission() {
+    let target = unique_temp_dir("nc-cli-maint-rust-enemy-roe-withdrawal-invade");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let coords = [9, 13];
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw(coords);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.set_destroyer_count(2);
+    attacker.set_cruiser_count(4);
+    attacker.set_battleship_count(1);
+    attacker.set_scout_count(0);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    attacker.set_rules_of_engagement(10);
+
+    let hostile = &mut game_data.fleets.records[4];
+    hostile.set_current_location_coords_raw(coords);
+    hostile.set_standing_order_kind(Order::MoveOnly);
+    hostile.set_standing_order_target_coords_raw([8, 13]);
+    hostile.set_current_speed(0);
+    hostile.set_destroyer_count(0);
+    hostile.set_cruiser_count(2);
+    hostile.set_battleship_count(0);
+    hostile.set_scout_count(0);
+    hostile.set_troop_transport_count(0);
+    hostile.set_army_count(0);
+    hostile.set_etac_count(0);
+    hostile.set_rules_of_engagement(0);
+
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let attacker = &reloaded.fleets.records[0];
+    assert_eq!(attacker.standing_order_kind(), Order::InvadeWorld);
+    assert_eq!(attacker.standing_order_target_coords_raw(), [15, 13]);
+    assert_ne!(attacker.standing_order_kind(), Order::SeekHome);
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let records = results_records(&results);
+    let reports = logical_result_reports(&records);
+    let invasion_report = reports
+        .iter()
+        .find(|(_, lines)| {
+            lines
+                .iter()
+                .any(|line| line.contains("Invasion mission report"))
+        })
+        .map(|(_, lines)| lines.join(" "))
+        .expect("expected invasion report");
+    assert!(
+        invasion_report.contains("Sensor contact"),
+        "{invasion_report}"
+    );
+    assert!(
+        !invasion_report.contains("In accordance with our ROE, we withdrew"),
+        "{invasion_report}"
+    );
+    assert!(
+        !invasion_report.contains("abort the invasion before the landing could begin."),
+        "{invasion_report}"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
     let target = unique_temp_dir("nc-cli-maint-rust-invalid-fleet-order");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

@@ -56,6 +56,42 @@ fn configured_assault_state(order_code: u8) -> CoreGameData {
     game_data
 }
 
+fn configured_invade_contact_state(attacker_roe: u8, hostile_roe: u8) -> CoreGameData {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [9, 13];
+    let target = [15, 13];
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw(coords);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw(target);
+    attacker.set_current_speed(0);
+    attacker.set_destroyer_count(2);
+    attacker.set_cruiser_count(4);
+    attacker.set_battleship_count(1);
+    attacker.set_scout_count(0);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    attacker.set_rules_of_engagement(attacker_roe);
+
+    let hostile = &mut game_data.fleets.records[4];
+    hostile.set_current_location_coords_raw(coords);
+    hostile.set_standing_order_kind(Order::MoveOnly);
+    hostile.set_standing_order_target_coords_raw([8, 13]);
+    hostile.set_current_speed(0);
+    hostile.set_destroyer_count(0);
+    hostile.set_cruiser_count(2);
+    hostile.set_battleship_count(0);
+    hostile.set_scout_count(0);
+    hostile.set_troop_transport_count(0);
+    hostile.set_army_count(0);
+    hostile.set_etac_count(0);
+    hostile.set_rules_of_engagement(hostile_roe);
+
+    game_data
+}
+
 fn configure_bombard_target_world(
     game_data: &mut CoreGameData,
     batteries: u8,
@@ -440,6 +476,86 @@ fn hostile_contact_with_roe_zero_allows_clean_sensor_retreat() {
         Order::SeekHome
     );
     assert!(game_data.fleets.records[4].current_speed() > 0);
+}
+
+#[test]
+fn enemy_roe_withdrawal_does_not_abort_invader_mission() {
+    let mut game_data = configured_invade_contact_state(10, 0);
+    let diplomacy = mutual_enemy_overrides(1, 2);
+
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert!(
+        events.encounter_disposition_events.iter().any(|event| {
+            matches!(
+                event,
+                EncounterDispositionEvent::Retreated {
+                    owner_empire_raw,
+                    mission: Some(Mission::MoveOnly),
+                    reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
+                    ..
+                } if *owner_empire_raw == 2
+            )
+        }),
+        "{events:?}"
+    );
+    assert!(!events.encounter_disposition_events.iter().any(|event| {
+        matches!(
+            event,
+            EncounterDispositionEvent::Retreated {
+                owner_empire_raw,
+                mission: Some(Mission::InvadeWorld),
+                reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
+                ..
+            } if *owner_empire_raw == 1
+        )
+    }));
+    assert!(!events.mission_events.iter().any(|event| {
+        event.owner_empire_raw == 1
+            && event.kind == Mission::InvadeWorld
+            && event.outcome == MissionOutcome::Aborted
+    }));
+
+    let attacker = &game_data.fleets.records[0];
+    assert_eq!(attacker.standing_order_kind(), Order::InvadeWorld);
+    assert_eq!(attacker.standing_order_target_coords_raw(), [15, 13]);
+    assert_eq!(attacker.current_location_coords_raw(), [9, 13]);
+    assert_eq!(attacker.current_speed(), 0);
+
+    let hostile = &game_data.fleets.records[4];
+    assert_eq!(hostile.standing_order_kind(), Order::SeekHome);
+    assert!(hostile.current_speed() > 0);
+}
+
+#[test]
+fn friendly_roe_withdrawal_aborts_invade_mission_and_records_abort_event() {
+    let mut game_data = configured_invade_contact_state(0, 10);
+    let diplomacy = mutual_enemy_overrides(1, 2);
+
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert!(events.encounter_disposition_events.iter().any(|event| {
+        matches!(
+            event,
+            EncounterDispositionEvent::Retreated {
+                owner_empire_raw,
+                mission: Some(Mission::InvadeWorld),
+                reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
+                ..
+            } if *owner_empire_raw == 1
+        )
+    }));
+    assert!(events.mission_events.iter().any(|event| {
+        event.owner_empire_raw == 1
+            && event.kind == Mission::InvadeWorld
+            && event.outcome == MissionOutcome::Aborted
+    }));
+
+    let attacker = &game_data.fleets.records[0];
+    assert_eq!(attacker.standing_order_kind(), Order::SeekHome);
+    assert!(attacker.current_speed() > 0);
 }
 
 #[test]

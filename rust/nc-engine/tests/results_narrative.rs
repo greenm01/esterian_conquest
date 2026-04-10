@@ -910,6 +910,81 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
 }
 
 #[test]
+fn victorious_invasion_report_says_enemy_fled_without_roe_leak() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 1,
+        reporting_fleet_number: Some(12),
+        reporting_mission: Some(Mission::InvadeWorld),
+        perspective: FleetBattlePerspective::Intercepted,
+        coords: [9, 13],
+        enemy_empires_raw: vec![2],
+        primary_enemy_fleet_number: Some(8),
+        held_field: true,
+        friendly_initial: ShipLosses {
+            battleships: 5,
+            cruisers: 32,
+            destroyers: 2,
+            transports: 39,
+            ..ShipLosses::default()
+        },
+        friendly_initial_starbases: 0,
+        friendly_loaded_armies_initial: 6,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses {
+            cruisers: 2,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 0,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(2),
+    });
+    events
+        .encounter_disposition_events
+        .push(EncounterDispositionEvent::Retreated {
+            fleet_idx: 4,
+            owner_empire_raw: 2,
+            mission: Some(Mission::MoveOnly),
+            coords: [9, 13],
+            friendly_initial: ShipLosses {
+                cruisers: 2,
+                ..ShipLosses::default()
+            },
+            friendly_loaded_armies_initial: 0,
+            target_empire_raw: 1,
+            target_fleet_number: Some(12),
+            enemy_initial: ShipLosses {
+                battleships: 5,
+                cruisers: 32,
+                destroyers: 2,
+                transports: 39,
+                ..ShipLosses::default()
+            },
+            retreat_target_coords: [5, 13],
+            losses_sustained: ShipLosses::default(),
+            enemy_losses_inflicted: ShipLosses::default(),
+            reason: EncounterDispositionReason::RoeWithdrawal,
+            stardate_week: Some(2),
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Invasion mission report"));
+    assert!(text.contains("The enemy fled the field."));
+    assert!(!text.contains("In accordance with our ROE"));
+}
+
+#[test]
 fn starbase_only_defender_report_uses_command_center_source() {
     let game_data = GameStateBuilder::new()
         .with_player_count(4)
