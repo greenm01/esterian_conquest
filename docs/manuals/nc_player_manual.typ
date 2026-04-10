@@ -814,6 +814,10 @@ place.
 
 === Unit Combat Values
 
+The Rust engine uses a *10x internal scale* for combat values to ensure
+high-precision damage resolution. This ensures that crippled light ships
+continue to contribute fire and that attrition is granular.
+
 #figure(
   table(
     columns: (auto, auto, auto, 1fr),
@@ -822,15 +826,15 @@ place.
     table.header(
       [Unit], [AS], [DS], [Notes],
     ),
-    [Destroyer], [1],  [1],  [Fast escort / screen],
-    [Cruiser],   [3],  [3],  [Mid-line combatant],
-    [Battleship],[9],  [10], [Primary battle line],
-    [Scout],     [0],  [1],  [Non-combat hull],
-    [Transport], [0],  [1],  [Non-combat hull],
-    [ETAC],      [0],  [2],  [Colonization hull],
-    [Starbase],  [10], [12], [Heavy orbital defender],
-    [Battery],   [9],  [2],  [Surface defense],
-    [Army],      [1],  [1],  [Ground combatant],
+    [Destroyer], [10], [5],  [Agile glass cannon],
+    [Cruiser],   [30], [30], [Balanced brawler],
+    [Battleship],[90], [100],[Primary battle line],
+    [Scout],     [0],  [10], [Non-combat hull],
+    [Transport], [0],  [10], [Non-combat hull],
+    [ETAC],      [0],  [20], [Colonization hull],
+    [Starbase],  [100],[120],[Heavy orbital defender],
+    [Battery],   [90], [20], [Planetary defense],
+    [Army],      [10], [10], [Ground combatant],
   ),
 )
 

@@ -89,24 +89,26 @@ over mono-type swarms.
 
 ## Combat Actors
 
+The Rust engine uses a **10x internal scale** for combat values to ensure high-precision damage resolution and to prevent crippled light ships from rounding to zero effectiveness.
+
 ### Fleet and Orbital Units
 
 | Unit | AS (Attack) | DS (Defense) | Notes |
 | ---- | -- | -- | ----- |
-| Destroyer | 1 | 1 | Fast screen |
-| Cruiser | 3 | 3 | Balanced fighter |
-| Battleship | 9 | 10 | Battle line anchor |
-| Scout | 0 | 1 | Non-combatant |
-| Troop Transport | 0 | 1 | Vulnerable landing craft |
-| ETAC | 0 | 2 | Colony ship |
-| Starbase | 10 | 12 | Orbital fortress |
+| Destroyer | 10 | 5 | Agile glass cannon (Execution) |
+| Cruiser | 30 | 30 | Balanced brawler (Suppression) |
+| Battleship | 90 | 100 | Fleet anchor (Suppression) |
+| Scout | 0 | 10 | Non-combatant |
+| Troop Transport | 0 | 10 | Vulnerable landing craft |
+| ETAC | 0 | 20 | Colony ship |
+| Starbase | 100 | 120 | Orbital fortress (Execution) |
 
 ### Ground and Planetary Defenses
 
 | Unit | AS | DS | Notes |
 | ---- | -- | -- | ----- |
-| Ground Battery | 9 | 2 | Anti-orbital cannon |
-| Army | 1 | 1 | Surface combatant |
+| Ground Battery | 90 | 20 | Anti-orbital cannon (Execution) |
+| Army | 10 | 10 | Surface combatant |
 
 ## Contact and Hostility
 

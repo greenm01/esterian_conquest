@@ -170,7 +170,13 @@ fn apply_planet_bombardment_damage(planet: &mut nc_data::PlanetRecord, mut hits:
 }
 
 fn bombard_attack_as(state: &FleetCombatState) -> u32 {
-    state.counts[IDX_DD] / 2 + state.counts[IDX_CA] * 3 + state.counts[IDX_BB] * 9 * 3 / 2
+    let mut as_total = 0;
+    // Healthy ships (AS_DD: 10, AS_CA: 30, AS_BB: 90)
+    // Bombard modifiers (0.5x, 1.0x, 1.5x)
+    as_total += state.nominal_count(IDX_DD) * 5 + state.crippled[IDX_DD] * 2;
+    as_total += state.nominal_count(IDX_CA) * 30 + state.crippled[IDX_CA] * 15;
+    as_total += state.nominal_count(IDX_BB) * 135 + state.crippled[IDX_BB] * 67;
+    as_total
 }
 
 fn blitz_cover_exchange(
