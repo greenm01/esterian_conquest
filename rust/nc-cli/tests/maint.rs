@@ -2446,29 +2446,29 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
     fleet.set_current_location_coords_raw(coords);
     fleet.set_standing_order_kind(Order::PatrolSector);
     fleet.set_standing_order_target_coords_raw(coords);
-    fleet.set_current_speed(3);
-    fleet.set_destroyer_count(6);
+    fleet.set_current_speed(0);
+    fleet.set_destroyer_count(1);
     fleet.set_cruiser_count(0);
     fleet.set_battleship_count(0);
     fleet.set_scout_count(0);
     fleet.set_troop_transport_count(0);
     fleet.set_army_count(0);
     fleet.set_etac_count(0);
-    fleet.set_rules_of_engagement(5);
+    fleet.set_rules_of_engagement(0);
 
     let hostile = &mut game_data.fleets.records[4];
     hostile.set_current_location_coords_raw(coords);
     hostile.set_standing_order_kind(Order::MoveOnly);
     hostile.set_standing_order_target_coords_raw(coords);
     hostile.set_current_speed(3);
-    hostile.set_destroyer_count(2);
-    hostile.set_cruiser_count(2);
+    hostile.set_destroyer_count(1);
+    hostile.set_cruiser_count(0);
     hostile.set_battleship_count(0);
     hostile.set_scout_count(0);
     hostile.set_troop_transport_count(0);
     hostile.set_army_count(0);
     hostile.set_etac_count(0);
-    hostile.set_rules_of_engagement(10);
+    hostile.set_rules_of_engagement(0);
 
     game_data
         .save(&target)
@@ -2483,7 +2483,10 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
         .map(result_record_text)
         .collect::<Vec<_>>();
     let normalized = lines.join(" ");
-    assert!(normalized.contains("In accordance with our ROE, we withdrew"));
+    assert!(
+        normalized.contains("In accordance with our ROE, we withdrew"),
+        "{normalized}"
+    );
     assert!(normalized.contains("We had"));
     assert!(
         normalized.contains("The alien force contained")
