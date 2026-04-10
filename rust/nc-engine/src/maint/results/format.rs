@@ -1,5 +1,5 @@
-use nc_data::{CoreGameData, Mission, ShipLosses};
 use crate::maint::timing::format_report_first_line;
+use nc_data::{CoreGameData, Mission, ShipLosses};
 
 pub fn report_header(source_clause: &str, week: Option<u8>, year: u16) -> String {
     format_report_first_line(source_clause, week.unwrap_or(1), year)

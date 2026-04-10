@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use nc_data::{CoreGameData, MaintenanceEvents, ReportBlockRow};
 
 use super::binary::{
-    RESULTS_RECORD_SIZE, RESULTS_END_OF_TRANSMISSION, classic_results_record_count,
-    classic_results_chain_tail_for_year, push_classic_results_chunked, classic_results_lines,
+    RESULTS_END_OF_TRANSMISSION, RESULTS_RECORD_SIZE, classic_results_chain_tail_for_year,
+    classic_results_lines, classic_results_record_count, push_classic_results_chunked,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -237,8 +237,8 @@ pub(super) fn clone_report_entry(entry: &ReportEntry) -> ReportEntry {
 
 pub mod combat;
 pub mod intel;
-pub mod missions;
 pub mod misc;
+pub mod missions;
 
 pub fn generate_report_entries(
     game_data: &CoreGameData,

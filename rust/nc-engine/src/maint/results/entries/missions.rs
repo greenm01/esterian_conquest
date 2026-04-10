@@ -2,19 +2,19 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionOutcome};
 
-use crate::maint::results::mod_constants::*;
-use crate::maint::results::format::*;
 use crate::maint::results::combat::*;
-use crate::maint::results::structured::*;
-use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
 use crate::maint::results::compose::{
     AbortDisposition, fleet_abort_disposition, fleet_abort_disposition_text,
-    mission_event_has_fleet_destroyed, mission_event_has_assault_report,
-    matching_roe_abort_disposition_index,
+    matching_roe_abort_disposition_index, mission_event_has_assault_report,
+    mission_event_has_fleet_destroyed,
 };
 use crate::maint::results::entries::intel::{
     matching_planet_intel_event, owner_clause_from_snapshot, stardock_scan_summary_from_snapshot,
 };
+use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::format::*;
+use crate::maint::results::mod_constants::*;
+use crate::maint::results::structured::*;
 
 fn roe_abort_outcome_text(kind: Mission) -> &'static str {
     match kind {

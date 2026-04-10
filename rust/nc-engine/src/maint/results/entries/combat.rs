@@ -1,12 +1,12 @@
 use crate::maint::FleetBattlePerspective;
 use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionOutcome};
 
-use crate::maint::results::mod_constants::*;
-use crate::maint::results::format::*;
 use crate::maint::results::combat::*;
-use crate::maint::results::structured::*;
-use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
 use crate::maint::results::compose::ReportSuppressionPlan;
+use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::format::*;
+use crate::maint::results::mod_constants::*;
+use crate::maint::results::structured::*;
 
 pub fn push_combat_entries(
     entries: &mut Vec<ReportEntry>,

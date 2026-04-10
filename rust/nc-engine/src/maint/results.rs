@@ -10,16 +10,14 @@ pub mod render;
 pub mod structured;
 pub mod validation;
 
-pub use entries::{
-    build_results_dat, build_results_report_blocks, apply_results_reviewable_flags,
-};
+pub use entries::{apply_results_reviewable_flags, build_results_dat, build_results_report_blocks};
 pub use rankings::build_rankings_text;
 
 #[cfg(test)]
 mod tests {
     use super::binary::classic_results_lines;
     use super::format::ordinal_number;
-    use super::structured::{StructuredBodyItem, structured_report_text, structured_combat_body};
+    use super::structured::{StructuredBodyItem, structured_combat_body, structured_report_text};
 
     #[test]
     fn ordinal_number_formats_st_nd_rd_and_teen_exceptions() {

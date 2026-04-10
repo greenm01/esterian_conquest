@@ -42,7 +42,10 @@ pub fn render_structured_body(items: &[StructuredBodyItem]) -> String {
     lines.join("\n")
 }
 
-pub fn push_structured_section(items: &mut Vec<StructuredBodyItem>, section: Vec<StructuredBodyItem>) {
+pub fn push_structured_section(
+    items: &mut Vec<StructuredBodyItem>,
+    section: Vec<StructuredBodyItem>,
+) {
     if section.is_empty() {
         return;
     }

@@ -1,5 +1,5 @@
-use nc_data::CoreGameData;
 use super::format::empire_label;
+use nc_data::CoreGameData;
 
 pub const RESULTS_RECORD_SIZE: usize = 84;
 pub const RESULTS_TEXT_SIZE: usize = 72;
@@ -154,7 +154,12 @@ pub fn wrap_classic_paragraph(paragraph: &str, width: usize, lines: &mut Vec<Str
     }
 }
 
-pub fn push_split_long_word(word: &str, width: usize, lines: &mut Vec<String>, current: &mut String) {
+pub fn push_split_long_word(
+    word: &str,
+    width: usize,
+    lines: &mut Vec<String>,
+    current: &mut String,
+) {
     let mut chunk = String::new();
     for ch in word.chars() {
         if char_width(&chunk) == width {
@@ -173,7 +178,12 @@ pub fn push_split_long_word(word: &str, width: usize, lines: &mut Vec<String>, c
 }
 
 #[allow(dead_code)]
-pub fn push_routed_message_legacy_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 10], text: &str) {
+pub fn push_routed_message_legacy_chunked(
+    data: &mut Vec<u8>,
+    kind: u8,
+    tail: [u8; 10],
+    text: &str,
+) {
     let bytes = text.as_bytes();
     if bytes.is_empty() {
         return;

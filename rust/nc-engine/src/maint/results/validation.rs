@@ -56,7 +56,9 @@ pub fn capability_loss_invalid_order_reason(reason: FleetOrderValidationError) -
     )
 }
 
-pub fn fleet_player_input_validation_reason_text(reason: FleetPlayerInputValidationError) -> String {
+pub fn fleet_player_input_validation_reason_text(
+    reason: FleetPlayerInputValidationError,
+) -> String {
     match reason {
         FleetPlayerInputValidationError::InvalidOrder(order_reason) => {
             fleet_order_validation_reason_text(order_reason)

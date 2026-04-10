@@ -1,10 +1,13 @@
-use nc_data::{CoreGameData, MaintenanceEvents, ContactReportSource, MissionOutcome, PlanetIntelEvent, Mission, PlanetIntelSource, PlanetIntelSnapshot};
+use nc_data::{
+    ContactReportSource, CoreGameData, MaintenanceEvents, Mission, MissionOutcome,
+    PlanetIntelEvent, PlanetIntelSnapshot, PlanetIntelSource,
+};
 
-use crate::maint::results::mod_constants::*;
-use crate::maint::results::format::*;
 use crate::maint::results::combat::*;
-use crate::maint::results::structured::*;
 use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::format::*;
+use crate::maint::results::mod_constants::*;
+use crate::maint::results::structured::*;
 
 pub fn matching_planet_intel_event<'a>(
     events: &'a MaintenanceEvents,
@@ -22,7 +25,10 @@ pub fn matching_planet_intel_event<'a>(
     })
 }
 
-pub fn owner_clause_from_snapshot(snapshot: &PlanetIntelSnapshot, game_data: &CoreGameData) -> String {
+pub fn owner_clause_from_snapshot(
+    snapshot: &PlanetIntelSnapshot,
+    game_data: &CoreGameData,
+) -> String {
     match snapshot.known_owner_empire_id {
         Some(0) => "unowned".to_string(),
         Some(owner) => format!("owned by {}", classic_empire_clause(game_data, owner)),

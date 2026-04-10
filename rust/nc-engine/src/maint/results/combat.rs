@@ -1,5 +1,5 @@
+use super::format::{join_report_parts, ship_loss_summary, unit_count_text};
 use nc_data::{MaintenanceEvents, ShipLosses};
-use super::format::{ship_loss_summary, unit_count_text, join_report_parts};
 
 pub fn enemy_losses_sentence(losses: ShipLosses) -> String {
     let summary = ship_loss_summary(losses);

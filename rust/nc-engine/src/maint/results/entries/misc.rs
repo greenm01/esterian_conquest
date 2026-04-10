@@ -1,12 +1,12 @@
 use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionOutcome};
 
-use crate::maint::results::mod_constants::*;
-use crate::maint::results::format::*;
 use crate::maint::results::combat::*;
-use crate::maint::results::validation::*;
-use crate::maint::results::join::build_join_summary_entries;
 use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::format::*;
+use crate::maint::results::join::build_join_summary_entries;
+use crate::maint::results::mod_constants::*;
 use crate::maint::results::render::mission_retarget_source;
+use crate::maint::results::validation::*;
 
 pub fn push_misc_entries(
     entries: &mut Vec<ReportEntry>,
