@@ -16,7 +16,7 @@ use compose::{
     matching_roe_abort_disposition_index, mission_event_has_assault_report,
     mission_event_has_fleet_destroyed,
 };
-use render::{join_host_destroyed_text, join_host_retarget_text, mission_retarget_source};
+use render::mission_retarget_source;
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -29,6 +29,7 @@ const RESULTS_TAIL_INVASION: [u8; 10] = [0, 0, 0, 0, 0, 0, 0, 0, 195, 11];
 const RESULTS_TAIL_FLEET: [u8; 10] = [0, 0, 0, 0, 7, 0, 0, 0, 194, 11];
 const RESULTS_TAIL_COLONIZATION: [u8; 10] = [0, 0, 0, 0, 0, 0, 0, 0, 184, 11];
 const RESULTS_TAIL_SCOUTING: [u8; 10] = [0, 0, 0, 0, 0, 0, 0, 0, 186, 11];
+const JOIN_SUMMARY_PREVIEW_LINE_BUDGET: usize = 9;
 const STRUCTURED_TITLE_BOMBARDMENT: &str = "Bombardment report";
 const STRUCTURED_TITLE_FLEET_COMMAND: &str = "Fleet Command Center report";
 const STRUCTURED_TITLE_CAPTURED_WORLD: &str = "Invasion report";
@@ -144,12 +145,17 @@ fn owned_fleet_source_clause_from_idx(
     fleet_idx: usize,
     location: &str,
 ) -> String {
-    let fleet_number = game_data
+    let fleet_number = fleet_number_from_idx(game_data, fleet_idx);
+    owned_fleet_source_clause(fleet_number, location)
+}
+
+fn fleet_number_from_idx(game_data: &CoreGameData, fleet_idx: usize) -> Option<u8> {
+    game_data
         .fleets
         .records
         .get(fleet_idx)
-        .map(|fleet| fleet.local_slot_word_raw() as u8);
-    owned_fleet_source_clause(fleet_number, location)
+        .map(|fleet| fleet.local_slot_word_raw() as u8)
+        .filter(|fleet_number| *fleet_number != 0)
 }
 
 fn known_hostile_fleet_label(
@@ -998,6 +1004,290 @@ fn join_report_parts(parts: &[String]) -> String {
             text
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JoinSummaryCompression {
+    Full,
+    RetargetCounts,
+    RetargetAndCompletionCounts,
+    SectionCounts,
+}
+
+#[derive(Debug, Default)]
+struct JoinSummaryData {
+    completed_by_host: BTreeMap<u8, Vec<u8>>,
+    retargeted_joiners: BTreeSet<u8>,
+    lost_hosts: BTreeMap<Option<u8>, Vec<u8>>,
+    summary_week: Option<u8>,
+}
+
+fn fleet_numbers_subject(numbers: &[u8], compression: JoinSummaryCompression) -> String {
+    match numbers {
+        [] => "0 fleets".to_string(),
+        [only] => format!("Fleet {only}"),
+        many => match compression {
+            JoinSummaryCompression::Full => format!(
+                "Fleets {}",
+                join_report_parts(
+                    &many
+                        .iter()
+                        .map(|fleet_number| fleet_number.to_string())
+                        .collect::<Vec<_>>(),
+                )
+            ),
+            _ => format!("{} fleets", many.len()),
+        },
+    }
+}
+
+fn fleet_count_subject(total_fleets: usize) -> String {
+    if total_fleets == 1 {
+        "1 fleet".to_string()
+    } else {
+        format!("{total_fleets} fleets")
+    }
+}
+
+fn join_summary_section_lines(
+    label: &str,
+    mut lines: Vec<String>,
+    compression: JoinSummaryCompression,
+    total_fleets: usize,
+) -> Vec<String> {
+    if lines.is_empty() {
+        return Vec::new();
+    }
+    if compression == JoinSummaryCompression::SectionCounts {
+        return vec![format!("{label}: {}.", fleet_count_subject(total_fleets))];
+    }
+    for line in &mut lines {
+        *line = format!("{label}: {line}");
+    }
+    lines
+}
+
+fn build_join_summary_entries(
+    game_data: &CoreGameData,
+    events: &MaintenanceEvents,
+    year: u16,
+) -> Vec<ReportEntry> {
+    let mut by_empire: BTreeMap<u8, JoinSummaryData> = BTreeMap::new();
+
+    for event in events
+        .fleet_merge_events
+        .iter()
+        .filter(|event| event.kind == Mission::JoinAnotherFleet)
+    {
+        let summary = by_empire.entry(event.owner_empire_raw).or_default();
+        summary
+            .completed_by_host
+            .entry(event.host_fleet_number)
+            .or_default()
+            .push(event.absorbed_fleet_number);
+        summary.summary_week = match (summary.summary_week, event.stardate_week) {
+            (Some(existing), Some(candidate)) => Some(existing.min(candidate)),
+            (None, Some(candidate)) => Some(candidate),
+            (existing, None) => existing,
+        };
+    }
+
+    for event in &events.join_host_events {
+        match *event {
+            nc_data::JoinMissionHostEvent::Retargeted {
+                fleet_idx,
+                owner_empire_raw,
+                ..
+            } => {
+                if let Some(fleet_number) = fleet_number_from_idx(game_data, fleet_idx) {
+                    by_empire
+                        .entry(owner_empire_raw)
+                        .or_default()
+                        .retargeted_joiners
+                        .insert(fleet_number);
+                }
+            }
+            nc_data::JoinMissionHostEvent::HostDestroyed {
+                fleet_idx,
+                owner_empire_raw,
+                destroyed_host_fleet_number,
+                ..
+            } => {
+                if let Some(fleet_number) = fleet_number_from_idx(game_data, fleet_idx) {
+                    by_empire
+                        .entry(owner_empire_raw)
+                        .or_default()
+                        .lost_hosts
+                        .entry(
+                            destroyed_host_fleet_number.filter(|fleet_number| *fleet_number != 0),
+                        )
+                        .or_default()
+                        .push(fleet_number);
+                }
+            }
+        }
+    }
+
+    for event in &events.mission_retarget_events {
+        if let nc_data::MissionRetargetEvent::Retargeted {
+            fleet_idx,
+            reporting_fleet_number,
+            owner_empire_raw,
+            mission: Mission::JoinAnotherFleet,
+            ..
+        } = *event
+        {
+            if let Some(fleet_number) = reporting_fleet_number
+                .filter(|fleet_number| *fleet_number != 0)
+                .or_else(|| fleet_number_from_idx(game_data, fleet_idx))
+            {
+                by_empire
+                    .entry(owner_empire_raw)
+                    .or_default()
+                    .retargeted_joiners
+                    .insert(fleet_number);
+            }
+        }
+    }
+
+    let mut entries = Vec::new();
+    for (owner_empire_raw, mut summary) in by_empire {
+        if summary.completed_by_host.is_empty()
+            && summary.retargeted_joiners.is_empty()
+            && summary.lost_hosts.is_empty()
+        {
+            continue;
+        }
+
+        for absorbed_numbers in summary.completed_by_host.values_mut() {
+            absorbed_numbers.sort_unstable();
+        }
+        for lost_numbers in summary.lost_hosts.values_mut() {
+            lost_numbers.sort_unstable();
+        }
+
+        let build_body_lines = |compression: JoinSummaryCompression| {
+            let mut lines = vec!["Join mission summary".to_string()];
+
+            let completed_subject_compression = match compression {
+                JoinSummaryCompression::Full | JoinSummaryCompression::RetargetCounts => {
+                    JoinSummaryCompression::Full
+                }
+                JoinSummaryCompression::RetargetAndCompletionCounts
+                | JoinSummaryCompression::SectionCounts => {
+                    JoinSummaryCompression::RetargetAndCompletionCounts
+                }
+            };
+            let mut completed_lines = Vec::new();
+            for (host_fleet_number, absorbed_numbers) in &summary.completed_by_host {
+                completed_lines.push(format!(
+                    "{} merged into Fleet {}.",
+                    fleet_numbers_subject(absorbed_numbers, completed_subject_compression),
+                    host_fleet_number
+                ));
+            }
+            lines.extend(join_summary_section_lines(
+                "Completed joins",
+                completed_lines,
+                if compression == JoinSummaryCompression::SectionCounts {
+                    JoinSummaryCompression::SectionCounts
+                } else {
+                    JoinSummaryCompression::Full
+                },
+                summary.completed_by_host.values().map(Vec::len).sum(),
+            ));
+
+            if !summary.retargeted_joiners.is_empty() {
+                let retargeted_numbers = summary
+                    .retargeted_joiners
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>();
+                let retargeted_lines = vec![format!(
+                    "{}.",
+                    fleet_numbers_subject(
+                        &retargeted_numbers,
+                        match compression {
+                            JoinSummaryCompression::Full => JoinSummaryCompression::Full,
+                            _ => JoinSummaryCompression::RetargetCounts,
+                        }
+                    )
+                )];
+                lines.extend(join_summary_section_lines(
+                    "Retargeted to follow host",
+                    retargeted_lines,
+                    if compression == JoinSummaryCompression::SectionCounts {
+                        JoinSummaryCompression::SectionCounts
+                    } else {
+                        JoinSummaryCompression::Full
+                    },
+                    retargeted_numbers.len(),
+                ));
+            }
+
+            let mut lost_lines = Vec::new();
+            for (destroyed_host_fleet_number, fleet_numbers) in &summary.lost_hosts {
+                let subject = fleet_numbers_subject(fleet_numbers, JoinSummaryCompression::Full);
+                let action = if fleet_numbers.len() == 1 {
+                    "is"
+                } else {
+                    "are"
+                };
+                let line = match destroyed_host_fleet_number {
+                    Some(host_fleet_number) => format!(
+                        "{subject} lost host Fleet {host_fleet_number} and {action} holding position."
+                    ),
+                    None => {
+                        format!("{subject} lost their host and {action} holding position.")
+                    }
+                };
+                lost_lines.push(line);
+            }
+            lines.extend(join_summary_section_lines(
+                "Lost hosts",
+                lost_lines,
+                if compression == JoinSummaryCompression::SectionCounts {
+                    JoinSummaryCompression::SectionCounts
+                } else {
+                    JoinSummaryCompression::Full
+                },
+                summary.lost_hosts.values().map(Vec::len).sum(),
+            ));
+
+            lines.push(RESULTS_END_OF_TRANSMISSION.to_string());
+            lines
+        };
+
+        let source = "From your Fleet Command Center:";
+        let header = report_header(source, summary.summary_week, year);
+        let mut chosen_lines = build_body_lines(JoinSummaryCompression::Full);
+        for compression in [
+            JoinSummaryCompression::Full,
+            JoinSummaryCompression::RetargetCounts,
+            JoinSummaryCompression::RetargetAndCompletionCounts,
+            JoinSummaryCompression::SectionCounts,
+        ] {
+            let candidate_lines = build_body_lines(compression);
+            let candidate_text = format!("{header}\n{}", candidate_lines.join("\n"));
+            chosen_lines = candidate_lines;
+            if classic_results_lines(&candidate_text).len() <= JOIN_SUMMARY_PREVIEW_LINE_BUDGET {
+                break;
+            }
+        }
+        let body = chosen_lines.join("\n");
+        entries.push(ReportEntry {
+            text: format!("{header}\n{body}"),
+            kind: 0x05,
+            tail: RESULTS_TAIL_FLEET,
+            target: ReportTarget::Both {
+                recipient: owner_empire_raw,
+            },
+            repeat_next_pointer: false,
+            stardate_week: summary.summary_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
+        });
+    }
+    entries
 }
 
 fn assault_attacker_force_summary(event: &nc_data::AssaultReportEvent) -> String {
@@ -3328,64 +3618,6 @@ fn generate_report_entries(
     }
 
     // ----- Fleet merge events -----
-    // Join events: one consolidated report per host fleet.
-    {
-        let mut join_groups: std::collections::BTreeMap<(u8, [u8; 2], u8), Vec<u8>> =
-            std::collections::BTreeMap::new();
-        let mut join_meta: std::collections::HashMap<(u8, [u8; 2], u8), Option<u8>> =
-            std::collections::HashMap::new();
-        for event in events
-            .fleet_merge_events
-            .iter()
-            .filter(|e| e.kind == Mission::JoinAnotherFleet)
-        {
-            let key = (
-                event.owner_empire_raw,
-                event.coords,
-                event.host_fleet_number,
-            );
-            join_groups
-                .entry(key)
-                .or_default()
-                .push(event.absorbed_fleet_number);
-            join_meta.entry(key).or_insert(event.stardate_week);
-        }
-        for (key, absorbed_numbers) in &join_groups {
-            let (owner_empire_raw, coords, host_fleet_number) = *key;
-            let [x, y] = coords;
-            let stardate_week = join_meta[key];
-            let source =
-                owned_fleet_source_clause(Some(host_fleet_number), &format!("System({x},{y})"));
-            let fleet_list = absorbed_numbers
-                .iter()
-                .map(|n| n.to_string())
-                .collect::<Vec<_>>();
-            let body = if fleet_list.len() == 1 {
-                format!(
-                    " Join mission report: Fleet {} has merged with us.",
-                    fleet_list[0]
-                )
-            } else {
-                format!(
-                    " Join mission report: Fleets {} have merged with us.",
-                    join_report_parts(&fleet_list.iter().map(|s| s.clone()).collect::<Vec<_>>())
-                )
-            };
-            let header = report_header(&source, stardate_week, year);
-            entries.push(ReportEntry {
-                text: format!("{header}{body}"),
-                kind: 0x05,
-                tail: RESULTS_TAIL_FLEET,
-                target: ReportTarget::Both {
-                    recipient: owner_empire_raw,
-                },
-                repeat_next_pointer: false,
-                stardate_week: stardate_week,
-                narrative_phase: narrative_phase_for_report_text(&body),
-            });
-        }
-    }
-
     // Rendezvous events: one consolidated report per survivor fleet.
     {
         let rendezvous_arrived: std::collections::HashSet<usize> = events
@@ -3454,58 +3686,8 @@ fn generate_report_entries(
         }
     }
 
-    // ----- Join host events -----
-    for event in &events.join_host_events {
-        let (recipient, source, body) = match *event {
-            nc_data::JoinMissionHostEvent::Retargeted {
-                fleet_idx,
-                owner_empire_raw,
-                previous_host_fleet_number,
-                new_host_fleet_number,
-                coords,
-                ..
-            } => {
-                let [x, y] = coords;
-                (
-                    owner_empire_raw,
-                    owned_fleet_source_clause_from_idx(
-                        game_data,
-                        fleet_idx,
-                        &format!("Sector({x},{y})"),
-                    ),
-                    join_host_retarget_text(previous_host_fleet_number, new_host_fleet_number),
-                )
-            }
-            nc_data::JoinMissionHostEvent::HostDestroyed {
-                fleet_idx,
-                owner_empire_raw,
-                destroyed_host_fleet_number,
-                coords,
-                ..
-            } => {
-                let [x, y] = coords;
-                (
-                    owner_empire_raw,
-                    owned_fleet_source_clause_from_idx(
-                        game_data,
-                        fleet_idx,
-                        &format!("Sector({x},{y})"),
-                    ),
-                    join_host_destroyed_text(destroyed_host_fleet_number, coords),
-                )
-            }
-        };
-        let header = report_header(&source, None, year);
-        entries.push(ReportEntry {
-            text: format!("{header}{body}"),
-            kind: 0x05,
-            tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient },
-            repeat_next_pointer: false,
-            stardate_week: None,
-            narrative_phase: narrative_phase_for_report_text(&body),
-        });
-    }
+    // ----- Join mission summary -----
+    entries.extend(build_join_summary_entries(game_data, events, year));
 
     // ----- Mission retarget events -----
     for event in &events.mission_retarget_events {
@@ -3576,19 +3758,6 @@ fn generate_report_entries(
                 format!(
                     " Guard Starbase mission report: The guarded starbase was destroyed or lost. We are holding our position in Sector({},{}) and awaiting orders.",
                     coords[0], coords[1]
-                ),
-            ),
-            nc_data::MissionRetargetEvent::Retargeted {
-                owner_empire_raw,
-                mission: Mission::JoinAnotherFleet,
-                previous_target_coords: _,
-                new_target_coords,
-                ..
-            } => (
-                owner_empire_raw,
-                format!(
-                    " Join mission report: Our host fleet moved. We are continuing pursuit to Sector({},{}).",
-                    new_target_coords[0], new_target_coords[1]
                 ),
             ),
             _ => continue,

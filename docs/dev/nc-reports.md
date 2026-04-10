@@ -20,6 +20,7 @@ The Rust engine uses a hybrid report surface:
 
 - combat and hostile-world aftermath use a structured briefing format
 - movement, logistics, intel, and administrative flow stay narrative by default
+- repeated join logistics should collapse into one compact Fleet Command summary
 - the shell stays consistent across both styles
 
 The report surface is no longer governed by classic EC prose templates. Classic
@@ -93,6 +94,8 @@ Use narrative reports when the player is following a single event flow rather
 than scanning a comparison:
 
 - move / patrol / seek-home / join / rendezvous reports
+- except that per-turn `JoinAnotherFleet` churn should be summarized once from
+  Fleet Command instead of emitting one notice per affected fleet
 - retarget and follow-on notices
 - colonization and salvage reports
 - most abort notices
@@ -201,12 +204,14 @@ Enemy losses:      no ship losses
 <end of transmission>
 ```
 
-### Narrative Movement Report
+### Compact Join Summary
 
 ```text
-From your 5th Fleet, located in Sector(7,10):         Stardate: 01/3031
-Join mission report: Our host fleet moved. We are continuing pursuit to
-Sector(9,9).
+From your Fleet Command Center:                        Stardate: 01/3031
+Join mission summary
+Completed joins: Fleets 8 and 11 merged into Fleet 3.
+Retargeted to follow host: Fleets 4, 5, 6 and 7.
+Lost hosts: Fleets 10 and 12 lost host Fleet 14 and are holding position.
 <end of transmission>
 ```
 

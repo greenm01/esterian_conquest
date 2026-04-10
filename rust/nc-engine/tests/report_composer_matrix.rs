@@ -1,7 +1,8 @@
 use nc_data::{
     ContactReportSource, EncounterDispositionEvent, EncounterDispositionReason, FleetBattleEvent,
-    FleetDestroyedEvent, GameStateBuilder, JoinMissionHostEvent, MaintenanceEvents, Mission,
-    MissionEvent, MissionOutcome, MissionRetargetEvent, ScoutContactEvent, ShipLosses,
+    FleetDestroyedEvent, FleetMergeEvent, GameStateBuilder, JoinMissionHostEvent,
+    MaintenanceEvents, Mission, MissionEvent, MissionOutcome, MissionRetargetEvent,
+    ScoutContactEvent, ShipLosses,
 };
 use nc_engine::{build_results_report_blocks, maint::FleetBattlePerspective};
 
@@ -181,7 +182,8 @@ fn unknown_join_host_never_renders_zero_fleet_number() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("Our intended host fleet was destroyed."));
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Lost hosts: Fleet 10 lost their host and is holding position."));
     assert!(!text.contains("(0th Fleet)"));
 }
 
@@ -203,38 +205,13 @@ fn known_join_host_renders_destroyed_host_fleet_number() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("Our intended host fleet (7th Fleet) was destroyed."));
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Lost hosts: Fleet 10 lost host Fleet 7 and is holding position."));
     assert!(!text.contains("(0th Fleet)"));
 }
 
 #[test]
-fn retarget_report_source_uses_current_location_not_new_target() {
-    let mut game_data = seeded_game_data();
-    configure_fleet(&mut game_data, 0, 1, 11, [6, 6]);
-
-    let mut events = MaintenanceEvents::default();
-    events
-        .mission_retarget_events
-        .push(MissionRetargetEvent::Retargeted {
-            fleet_idx: 0,
-            reporting_fleet_number: Some(11),
-            owner_empire_raw: 1,
-            mission: Mission::JoinAnotherFleet,
-            current_coords: [6, 6],
-            previous_target_coords: [4, 4],
-            new_target_coords: [8, 8],
-        });
-
-    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
-        .join(" ")
-        .replace('\n', " ");
-    assert!(text.contains("From your 11th Fleet, located in Sector(6,6):"));
-    assert!(text.contains("continuing pursuit to Sector(8,8)"));
-    assert!(!text.contains("located in Sector(8,8):"));
-}
-
-#[test]
-fn retarget_report_source_uses_stored_reporting_fleet_number() {
+fn join_summary_retarget_uses_stored_reporting_fleet_number_and_omits_sector() {
     let mut game_data = seeded_game_data();
     configure_fleet(&mut game_data, 0, 1, 99, [6, 6]);
 
@@ -254,8 +231,10 @@ fn retarget_report_source_uses_stored_reporting_fleet_number() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("From your 11th Fleet, located in Sector(6,6):"));
-    assert!(!text.contains("From your 99th Fleet"));
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Retargeted to follow host: Fleet 11."));
+    assert!(!text.contains("Fleet 99"));
+    assert!(!text.contains("Sector(8,8)"));
 }
 
 #[test]
@@ -358,7 +337,7 @@ fn fleet_contact_report_includes_reporting_fleet_composition() {
 }
 
 #[test]
-fn join_host_retarget_report_describes_host_merge_not_movement() {
+fn join_host_retarget_summary_lists_joiner_without_host_merge_prose() {
     let mut game_data = seeded_game_data();
     configure_fleet(&mut game_data, 0, 1, 12, [2, 7]);
 
@@ -376,7 +355,59 @@ fn join_host_retarget_report_describes_host_merge_not_movement() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("Our intended host fleet (14th Fleet) merged into the 2nd Fleet."));
-    assert!(text.contains("joining that surviving fleet instead"));
-    assert!(!text.contains("has moved"));
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Retargeted to follow host: Fleet 12."));
+    assert!(!text.contains("14th Fleet"));
+    assert!(!text.contains("2nd Fleet"));
+}
+
+#[test]
+fn join_summary_combines_completed_retargeted_and_lost_hosts() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 3, [5, 5]);
+    configure_fleet(&mut game_data, 1, 1, 8, [5, 5]);
+    configure_fleet(&mut game_data, 2, 1, 11, [6, 6]);
+    configure_fleet(&mut game_data, 3, 1, 13, [7, 7]);
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_merge_events.push(FleetMergeEvent {
+        fleet_idx: 1,
+        owner_empire_raw: 1,
+        kind: Mission::JoinAnotherFleet,
+        host_fleet_id_raw: 1,
+        absorbed_fleet_id_raw: 2,
+        host_fleet_number: 3,
+        absorbed_fleet_number: 8,
+        coords: [5, 5],
+        survivor_side: false,
+        stardate_week: Some(2),
+    });
+    events
+        .mission_retarget_events
+        .push(MissionRetargetEvent::Retargeted {
+            fleet_idx: 2,
+            reporting_fleet_number: Some(11),
+            owner_empire_raw: 1,
+            mission: Mission::JoinAnotherFleet,
+            current_coords: [6, 6],
+            previous_target_coords: [4, 4],
+            new_target_coords: [8, 8],
+        });
+    events
+        .join_host_events
+        .push(JoinMissionHostEvent::HostDestroyed {
+            fleet_idx: 3,
+            owner_empire_raw: 1,
+            destroyed_host_fleet_number: Some(2),
+            coords: [7, 7],
+        });
+
+    let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
+    assert_eq!(texts.len(), 1, "{texts:?}");
+    let text = &texts[0];
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Join mission summary"));
+    assert!(text.contains("Completed joins: Fleet 8 merged into Fleet 3."));
+    assert!(text.contains("Retargeted to follow host: Fleet 11."));
+    assert!(text.contains("Lost hosts: Fleet 13 lost host Fleet 2 and is holding position."));
 }

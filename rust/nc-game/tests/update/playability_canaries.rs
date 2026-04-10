@@ -132,3 +132,83 @@ fn structured_combat_report_round_trips_through_reports_screen_and_delete() {
     );
     assert!(refreshed.result_blocks.is_empty());
 }
+
+#[test]
+fn join_summary_report_stays_compact_in_reports_preview() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    clear_runtime_report_blocks(&mut state);
+    state.queued_mail.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        length_prefixed_report_block(&[
+            "From your Fleet Command Center:",
+            "Join mission summary",
+            "Completed joins: Fleets 8 and 11 merged into Fleet 3.",
+            "Retargeted to follow host: Fleets 4, 5, 6 and 7.",
+            "Lost hosts: Fleets 10 and 12 lost host Fleet 14 and are holding",
+            "position.",
+            "<end of transmission>",
+        ]),
+    );
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SetInboxTypeFilterReports)
+        ),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("reports screen should render compact join summary");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Join mission summary"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Completed joins: Fleets 8 and 11"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Retargeted to follow host: Fleets 4, 5, 6 and 7."))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Lost hosts: Fleets 10 and 12"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("<end of transmission>"))
+    );
+}

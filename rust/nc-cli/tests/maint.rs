@@ -76,19 +76,6 @@ fn logical_result_reports(records: &[&[u8]]) -> Vec<(u8, Vec<String>)> {
     reports
 }
 
-fn ordinal_number(value: usize) -> String {
-    let suffix = match value % 100 {
-        11..=13 => "th",
-        _ => match value % 10 {
-            1 => "st",
-            2 => "nd",
-            3 => "rd",
-            _ => "th",
-        },
-    };
-    format!("{value}{suffix}")
-}
-
 fn zero_all_fleets(game_data: &mut CoreGameData) {
     for fleet in &mut game_data.fleets.records {
         let current = fleet.current_location_coords_raw();
@@ -2924,9 +2911,10 @@ fn maint_rust_join_merge_generates_join_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Join mission report"));
-    // Report is from the host fleet's perspective.
-    assert!(text.contains("has merged with us") || text.contains("have merged with us"));
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Join mission summary"));
+    assert!(text.contains("Completed joins:"));
+    assert!(text.contains("merged into Fleet"));
 
     cleanup_dir(&target);
 }
@@ -3010,14 +2998,16 @@ fn maint_rust_join_host_destroyed_report_never_shows_zero_fleet_number() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Our intended host fleet (1st Fleet) was destroyed."));
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Join mission summary"));
+    assert!(text.contains("Lost hosts: Fleet 2 lost host Fleet 1 and is holding position."));
     assert!(!text.contains("(0th Fleet)"));
 
     cleanup_dir(&target);
 }
 
 #[test]
-fn maint_rust_join_retarget_report_uses_current_location_in_source() {
+fn maint_rust_join_retarget_report_uses_fleet_command_summary_without_sector_noise() {
     let target = unique_temp_dir("nc-cli-maint-rust-join-retarget");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
@@ -3040,15 +3030,15 @@ fn maint_rust_join_retarget_report_uses_current_location_in_source() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Join mission summary"));
     assert!(text.contains(&format!(
-        "From your {} Fleet, located in Sector(3,9):",
-        ordinal_number(joiner_fleet_number)
+        "Retargeted to follow host: Fleet {}.",
+        joiner_fleet_number
     )));
     assert!(!text.contains("From your fleet, located in Sector(3,9):"));
-    assert!(text.contains("located in Sector(3,9):"));
-    assert!(text.contains("Join mission report: Our host fleet moved."));
-    assert!(text.contains("continuing pursuit to"));
-    assert_eq!(text.matches("Sector(3,9)").count(), 1, "{text}");
+    assert!(!text.contains("Sector(3,9)"));
+    assert!(!text.contains("Sector(1,1)"));
 
     cleanup_dir(&target);
 }
