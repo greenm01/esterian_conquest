@@ -431,7 +431,7 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
 }
 
 #[test]
-fn test_view_world_arrival_still_emits_intel_with_enemy_fleet_present() {
+fn test_view_world_arrival_with_enemy_fleet_present_aborts_before_intel_is_committed() {
     let (mut game_data, target_idx, target_coords) =
         configured_delayed_hostile_arrival_state(Order::ViewWorld, (0, 0, 1, 0, 0, 0, 0));
     game_data.planets.records[target_idx].set_owner_empire_slot_raw(2);
@@ -458,25 +458,25 @@ fn test_view_world_arrival_still_emits_intel_with_enemy_fleet_present() {
             .expect("maintenance should succeed");
 
     assert!(
-        events.planet_intel_events.iter().any(|event| {
+        !events.planet_intel_events.iter().any(|event| {
             event.viewer_empire_raw == 1 && event.source == PlanetIntelSource::ViewWorld
         }),
-        "arrival ViewWorld should still emit intel before any later hostility logic"
+        "aborted ViewWorld should not commit intel"
     );
     assert!(
         events.mission_events.iter().any(|event| {
             event.fleet_idx == 0
                 && event.kind == Mission::ViewWorld
-                && event.outcome == MissionOutcome::Succeeded
+                && event.outcome == MissionOutcome::Aborted
         }),
-        "arrival ViewWorld should still emit success on the arrival tick"
+        "hostile contact should abort the ViewWorld mission on arrival"
     );
     assert!(
         events
             .fleet_destroyed_events
             .iter()
             .all(|event| event.reporting_empire_raw != 1),
-        "the arrival viewer should not be destroyed on the same tick"
+        "the arrival viewer should abort cleanly without being destroyed on the same tick"
     );
 }
 
@@ -2049,12 +2049,34 @@ fn hostile_on_station_ready(
     fleet.set_current_location_coords_raw(target_coords);
     fleet.set_standing_order_kind(order);
     fleet.set_standing_order_target_coords_raw(target_coords);
-    // Speed matches what the stepper preserves on hostile arrival.
-    fleet.set_current_speed(fleet.max_speed());
+    // Hostile fleets stop in orbit on arrival and execute next turn.
+    fleet.set_current_speed(0);
     // transit_ready_flag_raw == 0x80 means the fleet arrived last turn and is
     // ready to execute this turn.
     fleet.set_transit_ready_flag_raw(0x80);
 
+    (game_data, target_idx, target_coords)
+}
+
+fn hostile_mixed_ready_exact_transit_state(
+    order: Order,
+    ships: (u16, u16, u16, u16, u16, u16, u16),
+) -> (CoreGameData, usize, [u8; 2]) {
+    let (mut game_data, target_idx, target_coords) =
+        configured_delayed_hostile_arrival_state(order, ships);
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    fleet.set_movement_state_flag_raw(0x7f);
+    fleet.set_movement_fraction_raw(0);
+    fleet.set_transit_ready_flag_raw(0x80);
+    store_exact_position(
+        fleet,
+        [
+            f64::from(target_coords[0]) - 0.4,
+            f64::from(target_coords[1]),
+        ],
+    );
     (game_data, target_idx, target_coords)
 }
 
@@ -2213,6 +2235,89 @@ fn test_stale_off_target_hostile_orders_resume_travel_instead_of_executing() {
             pre_armies,
             "{name} should not change target armies while off target"
         );
+    }
+}
+
+#[test]
+fn test_delayed_hostile_orders_do_not_arrive_and_execute_in_same_turn() {
+    let cases = [
+        (
+            "bombard",
+            Order::BombardWorld,
+            Mission::BombardWorld,
+            (0, 3, 5, 0, 0, 0, 0),
+        ),
+        (
+            "invade",
+            Order::InvadeWorld,
+            Mission::InvadeWorld,
+            (0, 1, 0, 10, 10, 0, 0),
+        ),
+        (
+            "blitz",
+            Order::BlitzWorld,
+            Mission::BlitzWorld,
+            (100, 50, 50, 50, 50, 0, 0),
+        ),
+    ];
+
+    for (name, order, mission, ships) in cases {
+        let (mut game_data, target_idx, target_coords) =
+            hostile_mixed_ready_exact_transit_state(order, ships);
+
+        let first_turn =
+            run_maintenance_turn(&mut game_data).expect("first maintenance turn should succeed");
+
+        assert!(
+            first_turn.mission_events.iter().any(|event| {
+                event.fleet_idx == 0
+                    && event.kind == mission
+                    && event.outcome == MissionOutcome::Arrived
+                    && event.planet_idx == Some(target_idx)
+            }),
+            "{name} should still report arrival on the first turn"
+        );
+        assert!(
+            !first_turn.mission_events.iter().any(|event| {
+                event.fleet_idx == 0
+                    && event.kind == mission
+                    && event.outcome != MissionOutcome::Arrived
+            }),
+            "{name} should not also execute on the arrival turn"
+        );
+        assert!(
+            first_turn.bombard_events.is_empty(),
+            "{name} should not create a bombard event on the arrival turn"
+        );
+        assert!(
+            first_turn.assault_report_events.is_empty(),
+            "{name} should not create an assault report on the arrival turn"
+        );
+
+        let fleet = &game_data.fleets.records[0];
+        assert_eq!(fleet.current_location_coords_raw(), target_coords, "{name} coords");
+        assert_eq!(fleet.standing_order_kind(), order, "{name} order");
+        assert_eq!(fleet.current_speed(), 0, "{name} speed");
+        assert_eq!(fleet.raw[0x19], 0x80, "{name} ready flag");
+
+        let second_turn =
+            run_maintenance_turn(&mut game_data).expect("second maintenance turn should succeed");
+
+        match order {
+            Order::BombardWorld => {
+                assert!(
+                    !second_turn.bombard_events.is_empty(),
+                    "{name} should execute on the next turn"
+                );
+            }
+            Order::InvadeWorld | Order::BlitzWorld => {
+                assert!(
+                    !second_turn.assault_report_events.is_empty(),
+                    "{name} should execute on the next turn"
+                );
+            }
+            _ => unreachable!(),
+        }
     }
 }
 

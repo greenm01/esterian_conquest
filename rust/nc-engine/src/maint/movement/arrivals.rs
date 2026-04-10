@@ -224,6 +224,7 @@ pub(super) fn handle_fleet_arrival(
             });
         }
         Order::BombardWorld => {
+            movement_events.hostile_arrived_fleet_indices.push(fleet_idx);
             let planet_idx = game_data
                 .planets
                 .records
@@ -245,6 +246,7 @@ pub(super) fn handle_fleet_arrival(
             });
         }
         Order::InvadeWorld => {
+            movement_events.hostile_arrived_fleet_indices.push(fleet_idx);
             let planet_idx = game_data
                 .planets
                 .records
@@ -266,6 +268,7 @@ pub(super) fn handle_fleet_arrival(
             });
         }
         Order::BlitzWorld => {
+            movement_events.hostile_arrived_fleet_indices.push(fleet_idx);
             let planet_idx = game_data
                 .planets
                 .records

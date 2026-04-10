@@ -7,7 +7,8 @@ use common::{
     write_mutual_enemy_diplomacy,
 };
 use nc_compat::DatabaseDat;
-use nc_data::{CoreGameData, Order};
+use nc_data::CoreGameData;
+use nc_data::Order;
 use nc_engine::GameStateBuilder;
 use std::fs;
 
@@ -91,6 +92,49 @@ fn zero_all_fleets(game_data: &mut CoreGameData) {
         fleet.set_army_count(0);
         fleet.set_etac_count(0);
     }
+}
+
+fn configure_delayed_invade_arrival_directory(target: &std::path::Path) {
+    let mut game_data = CoreGameData::load(target).expect("fixture should load");
+    let coords = [15, 13];
+
+    zero_all_fleets(&mut game_data);
+
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        coords,
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        1,
+        1,
+        0,
+        2,
+    );
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([14, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw(coords);
+    attacker.set_current_speed(3);
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(20);
+    attacker.set_cruiser_count(20);
+    attacker.set_destroyer_count(20);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    attacker.set_movement_state_flag_raw(0x80);
+    attacker.set_movement_fraction_raw(0);
+    attacker.set_transit_ready_flag_raw(0x81);
+
+    game_data
+        .save(target)
+        .expect("mutated fixture should save");
 }
 
 fn configure_dominant_invalidated_invade_directory(target: &std::path::Path) {
@@ -1801,7 +1845,7 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     attacker.set_current_location_coords_raw([15, 13]);
     attacker.set_standing_order_kind(Order::InvadeWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
-    attacker.set_current_speed(3);
+    attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x80;
     attacker.set_rules_of_engagement(10);
     attacker.set_scout_count(0);
@@ -1856,7 +1900,7 @@ fn maint_rust_invade_failure_exports_ecgame_accepted_enemy_view_row_shape() {
     attacker.set_current_location_coords_raw([15, 13]);
     attacker.set_standing_order_kind(Order::InvadeWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
-    attacker.set_current_speed(3);
+    attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x80;
     attacker.set_rules_of_engagement(10);
     attacker.set_scout_count(0);
@@ -1929,7 +1973,7 @@ fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
     attacker.set_current_location_coords_raw([15, 13]);
     attacker.set_standing_order_kind(Order::InvadeWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
-    attacker.set_current_speed(3);
+    attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x80;
     attacker.set_rules_of_engagement(10);
     attacker.set_scout_count(0);
@@ -1980,6 +2024,36 @@ fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
 }
 
 #[test]
+fn maint_rust_invasion_reports_arrival_and_execution_on_separate_turns() {
+    let target = unique_temp_dir("nc-cli-maint-rust-invade-arrival-delay");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+    configure_delayed_invade_arrival_directory(&target);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let first_results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let first_text = decode_chunked_report(&first_results);
+    assert!(first_text.contains("preparing"), "{first_text}");
+    assert!(first_text.contains("invasion"), "{first_text}");
+    assert!(!first_text.contains("Target world:"), "{first_text}");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let second_results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let second_text = decode_chunked_report(&second_results);
+    assert!(second_text.contains("Invasion mission report"), "{second_text}");
+    assert!(second_text.contains("Target world:"), "{second_text}");
+    assert!(
+        !second_text.contains("We have arrived at our target world and are preparing to begin the invasion."),
+        "{second_text}"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_blitz_success_generates_attacker_side_report() {
     let target = unique_temp_dir("nc-cli-maint-rust-blitz-report");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
@@ -2003,7 +2077,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     attacker.set_current_location_coords_raw([15, 13]);
     attacker.set_standing_order_kind(Order::BlitzWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
-    attacker.set_current_speed(3);
+    attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x80;
     attacker.set_rules_of_engagement(10);
     attacker.set_scout_count(0);
@@ -2062,7 +2136,7 @@ fn maint_rust_blitz_success_exports_ecgame_accepted_owned_row_shape() {
     attacker.set_current_location_coords_raw([15, 13]);
     attacker.set_standing_order_kind(Order::BlitzWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
-    attacker.set_current_speed(3);
+    attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x80;
     attacker.set_rules_of_engagement(10);
     attacker.set_scout_count(0);
@@ -2315,7 +2389,7 @@ fn maint_rust_blitz_failure_exports_ecgame_accepted_enemy_view_row_shape() {
     attacker.set_current_location_coords_raw([15, 13]);
     attacker.set_standing_order_kind(Order::BlitzWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
-    attacker.set_current_speed(3);
+    attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x80;
     attacker.set_rules_of_engagement(10);
     attacker.set_scout_count(0);
@@ -2586,7 +2660,7 @@ fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
     fleet.set_current_location_coords_raw([15, 13]);
     fleet.set_standing_order_kind(Order::BombardWorld);
     fleet.set_standing_order_target_coords_raw([15, 13]);
-    fleet.set_current_speed(3);
+    fleet.set_current_speed(0);
     fleet.raw[0x19] = 0x80;
     fleet.set_destroyer_count(0);
     fleet.set_cruiser_count(0);

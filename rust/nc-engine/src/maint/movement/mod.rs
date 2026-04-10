@@ -2,7 +2,7 @@ mod arrivals;
 mod salvage;
 mod stepper;
 
-use super::{ColonizationEvent, MovementEvents};
+use super::{ColonizationEvent, MovementEvents, hostile_order_ready_for_execution};
 use crate::{CoreGameData, Order, VisibleHazardIntel};
 use arrivals::handle_fleet_arrival;
 use nc_data::fleet_motion_state::{decode_exact_position, reset_motion_state_for_new_orders};
@@ -40,6 +40,9 @@ pub(super) fn process_fleet_movement(
                 fleet.transit_ready_flag_raw(),
             )
         };
+        let has_unresolved_exact_transit = target_x == current_x
+            && target_y == current_y
+            && decode_exact_position(&game_data.fleets.records[i]).is_some();
         if is_stale_off_target_hostile(
             order_kind,
             speed,
@@ -48,6 +51,16 @@ pub(super) fn process_fleet_movement(
             [target_x, target_y],
         ) {
             rearm_stale_off_target_hostile_fleet(&mut game_data.fleets.records[i]);
+        }
+        if ready == 0x80
+            && matches!(
+                order_kind,
+                Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld
+            )
+            && !hostile_order_ready_for_execution(&game_data.fleets.records[i], order_kind)
+            && (speed > 0 || has_unresolved_exact_transit)
+        {
+            clear_stale_hostile_ready_state(&mut game_data.fleets.records[i]);
         }
         // ColonizeWorld on-station: fleet already at target (or arrived with speed still set).
         // Queue colonization and reset to HoldPosition immediately; do not enter the
@@ -90,9 +103,6 @@ pub(super) fn process_fleet_movement(
         // they are allowed here — arrival handling decides whether the order persists and
         // whether movement state stops or stays armed for the next phase.
         let order_code = game_data.fleets.records[i].standing_order_code_raw();
-        let has_unresolved_exact_transit = target_x == current_x
-            && target_y == current_y
-            && decode_exact_position(&game_data.fleets.records[i]).is_some();
         let should_move = speed > 0
             && order_code != 0x00
             && ((target_x != current_x || target_y != current_y) || has_unresolved_exact_transit);
@@ -147,4 +157,8 @@ fn rearm_stale_off_target_hostile_fleet(fleet: &mut nc_data::FleetRecord) {
     reset_motion_state_for_new_orders(fleet);
     fleet.set_current_speed(speed);
     fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+}
+
+fn clear_stale_hostile_ready_state(fleet: &mut nc_data::FleetRecord) {
+    fleet.set_transit_ready_flag_raw(0x00);
 }

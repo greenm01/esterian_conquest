@@ -6,6 +6,7 @@ use crate::{
     STARDOCK_SLOT_COUNT, ShipLosses,
 };
 
+use super::super::hostile_order_ready_for_execution;
 use super::exchange::{
     COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND, COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND,
     COMBAT_KIND_INVASION_SOFTEN, COMBAT_KIND_INVASION_SUPPRESSION, ExchangeResolution,
@@ -59,13 +60,10 @@ fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, ord
     let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
         return false;
     };
-    if fleet.standing_order_kind() != order {
+    if !hostile_order_ready_for_execution(fleet, order) {
         return false;
     }
     let target_coords = fleet.standing_order_target_coords_raw();
-    if fleet.current_location_coords_raw() != target_coords {
-        return false;
-    }
     game_data
         .validate_fleet_order_payload(fleet_idx + 1, order.to_raw(), target_coords, None, None)
         .is_ok()
@@ -344,10 +342,16 @@ pub(crate) fn process_planetary_assaults(
     bombard_ready: &[usize],
     invade_ready: &[usize],
     blitz_ready: &[usize],
+    hostile_arrived_this_turn: &[usize],
 ) -> Result<AssaultEvents, Box<dyn std::error::Error>> {
     let battle_year = game_data.conquest.game_year();
+    let hostile_arrived_this_turn: HashSet<usize> =
+        hostile_arrived_this_turn.iter().copied().collect();
     let mut by_planet: BTreeMap<usize, BTreeMap<u8, Vec<usize>>> = BTreeMap::new();
     for &idx in bombard_ready {
+        if hostile_arrived_this_turn.contains(&idx) {
+            continue;
+        }
         if !fleet_still_ready_for_assault(game_data, idx, Order::BombardWorld) {
             continue;
         }
@@ -362,6 +366,9 @@ pub(crate) fn process_planetary_assaults(
         }
     }
     for &idx in invade_ready {
+        if hostile_arrived_this_turn.contains(&idx) {
+            continue;
+        }
         if !fleet_still_ready_for_assault(game_data, idx, Order::InvadeWorld) {
             continue;
         }
@@ -376,6 +383,9 @@ pub(crate) fn process_planetary_assaults(
         }
     }
     for &idx in blitz_ready {
+        if hostile_arrived_this_turn.contains(&idx) {
+            continue;
+        }
         if !fleet_still_ready_for_assault(game_data, idx, Order::BlitzWorld) {
             continue;
         }

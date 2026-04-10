@@ -20,7 +20,7 @@ pub use results::{
 };
 
 use crate::VisibleHazardIntel;
-use nc_data::{CoreGameData, FleetRecord, Order};
+use nc_data::{CoreGameData, FleetRecord, Order, fleet_motion_state::decode_exact_position};
 use std::fmt;
 
 /// Event produced when a fleet completes a ColonizeWorld order.
@@ -37,6 +37,7 @@ struct ColonizationEvent {
 #[derive(Debug, Default)]
 struct MovementEvents {
     colonization_events: Vec<ColonizationEvent>,
+    hostile_arrived_fleet_indices: Vec<usize>,
     planet_intel_events: Vec<PlanetIntelEvent>,
     pending_observation_events: Vec<PendingObservationEvent>,
     mission_events: Vec<MissionEvent>,
@@ -87,6 +88,23 @@ impl fmt::Display for MaintenancePreflightError {
 }
 
 impl std::error::Error for MaintenancePreflightError {}
+
+fn is_delayed_hostile_order(order: Order) -> bool {
+    matches!(
+        order,
+        Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld
+    )
+}
+
+fn hostile_order_ready_for_execution(fleet: &FleetRecord, order: Order) -> bool {
+    if !is_delayed_hostile_order(order) || fleet.standing_order_kind() != order {
+        return false;
+    }
+    let target_coords = fleet.standing_order_target_coords_raw();
+    fleet.transit_ready_flag_raw() == 0x80
+        && fleet.current_location_coords_raw() == target_coords
+        && decode_exact_position(fleet).is_none()
+}
 
 pub fn validate_maintenance_state(
     game_data: &CoreGameData,
@@ -227,12 +245,13 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if f.transit_ready_flag_raw() == 0x80
-                && matches!(
-                    Order::from_raw(f.standing_order_code_raw()),
-                    Order::BombardWorld
-                )
-            {
+            if hostile_order_ready_for_execution(
+                f,
+                Order::from_raw(f.standing_order_code_raw()),
+            ) && matches!(
+                Order::from_raw(f.standing_order_code_raw()),
+                Order::BombardWorld
+            ) {
                 Some(i)
             } else {
                 None
@@ -257,12 +276,13 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if f.transit_ready_flag_raw() == 0x80
-                && matches!(
-                    Order::from_raw(f.standing_order_code_raw()),
-                    Order::InvadeWorld
-                )
-            {
+            if hostile_order_ready_for_execution(
+                f,
+                Order::from_raw(f.standing_order_code_raw()),
+            ) && matches!(
+                Order::from_raw(f.standing_order_code_raw()),
+                Order::InvadeWorld
+            ) {
                 Some(i)
             } else {
                 None
@@ -276,12 +296,13 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if f.transit_ready_flag_raw() == 0x80
-                && matches!(
-                    Order::from_raw(f.standing_order_code_raw()),
-                    Order::BlitzWorld
-                )
-            {
+            if hostile_order_ready_for_execution(
+                f,
+                Order::from_raw(f.standing_order_code_raw()),
+            ) && matches!(
+                Order::from_raw(f.standing_order_code_raw()),
+                Order::BlitzWorld
+            ) {
                 Some(i)
             } else {
                 None
@@ -378,6 +399,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
         &bombard_ready,
         &invade_ready,
         &blitz_ready,
+        &movement_events.hostile_arrived_fleet_indices,
     )?;
 
     let join_host_events = merging::process_join_host_updates(
