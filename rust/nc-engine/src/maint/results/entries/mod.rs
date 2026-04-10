@@ -246,16 +246,14 @@ pub fn generate_report_entries(
 ) -> Vec<ReportEntry> {
     let year = game_data.conquest.game_year();
     let mut entries: Vec<ReportEntry> = Vec::new();
-    let mut consumed_roe_disposition_indices = BTreeSet::new();
 
     combat::push_combat_entries(&mut entries, game_data, events, year);
     intel::push_intel_entries(&mut entries, game_data, events, year);
-    missions::push_mission_entries(
+    let consumed_roe_disposition_indices = missions::push_mission_entries(
         &mut entries,
         game_data,
         events,
         year,
-        &mut consumed_roe_disposition_indices,
     );
     misc::push_misc_entries(&mut entries, game_data, events, year);
     misc::push_roe_entries(

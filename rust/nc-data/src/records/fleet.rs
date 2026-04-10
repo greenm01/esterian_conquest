@@ -148,6 +148,23 @@ impl FleetRecord {
     pub fn next_fleet_id(&self) -> u8 {
         self.raw[0x03]
     }
+
+    pub fn total_starships(&self) -> u32 {
+        u32::from(self.battleship_count())
+            + u32::from(self.cruiser_count())
+            + u32::from(self.destroyer_count())
+            + u32::from(self.troop_transport_count())
+            + u32::from(self.scout_count())
+            + u32::from(self.etac_count())
+    }
+
+    pub fn has_any_combat_ships(&self) -> bool {
+        self.destroyer_count() > 0 || self.cruiser_count() > 0 || self.battleship_count() > 0
+    }
+
+    pub fn is_support_only(&self) -> bool {
+        !self.has_any_combat_ships() && self.total_starships() > 0
+    }
     pub fn fleet_id_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
     }

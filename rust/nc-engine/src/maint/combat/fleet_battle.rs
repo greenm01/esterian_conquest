@@ -541,85 +541,86 @@ pub(crate) fn process_fleet_battles(
         // --- PRE-COMBAT SENSOR CHECK ---
         // Fleets detect overwhelming force before combat begins and seek home without taking damage.
         {
-            let combat_as_map: HashMap<u8, u32> = task_forces
+            // Evaluate withdrawals sequentially by ROE level (ascending).
+            // A higher ROE (more aggressive) fleet re-evaluates after a lower ROE fleet retreats.
+            let mut evaluation_order: Vec<(u8, u8)> = task_forces
                 .iter()
-                .map(|tf| (tf.empire, tf.state.total_combat_as()))
+                .filter(|tf| tf.state.has_units() && tf.state.total_combat_as() > 0)
+                .map(|tf| {
+                    let max_roe = tf.fleet_indices.iter()
+                        .filter_map(|&idx| {
+                            let fleet = &game_data.fleets.records[idx];
+                            (fleet.destroyer_count() > 0 || fleet.cruiser_count() > 0 || fleet.battleship_count() > 0)
+                                .then_some(fleet.rules_of_engagement())
+                        })
+                        .max()
+                        .unwrap_or(0);
+                    (tf.empire, max_roe)
+                })
                 .collect();
-            let mut sensor_withdrawals = Vec::new();
+            // Sort by ROE ascending (cowards first).
+            evaluation_order.sort_by_key(|&(_, roe)| roe);
 
-            for tf in &task_forces {
-                let our_as = *combat_as_map.get(&tf.empire).unwrap_or(&0);
-                if our_as == 0 || !tf.state.has_units() {
+            for (empire_raw, roe) in evaluation_order {
+                let Some(tf_idx) = task_forces.iter().position(|tf| tf.empire == empire_raw) else { continue; };
+                if task_forces[tf_idx].withdrew_under_roe || !task_forces[tf_idx].state.has_units() {
                     continue;
                 }
+
+                let our_as = task_forces[tf_idx].state.total_combat_as();
+                if our_as == 0 { continue; }
+
                 let hostile_opponents = task_forces
                     .iter()
+                    .filter(|other| !other.withdrew_under_roe && other.empire != empire_raw)
                     .filter_map(|other| {
-                        (other.empire != tf.empire)
-                            .then(|| {
-                                hostility_reason_between(
-                                    game_data,
-                                    diplomacy_overrides,
-                                    coords,
-                                    tf,
-                                    other,
-                                )
-                                .map(|reason| (other, reason))
-                            })
-                            .flatten()
+                        hostility_reason_between(
+                            game_data,
+                            diplomacy_overrides,
+                            coords,
+                            &task_forces[tf_idx],
+                            other,
+                        )
+                        .map(|reason| (other, reason))
                     })
                     .collect::<Vec<_>>();
+                
                 let enemy_as = hostile_opponents
                     .iter()
                     .map(|(other, _)| other.state.total_combat_as())
                     .max()
                     .unwrap_or(0);
 
+                if enemy_as == 0 {
+                    continue;
+                }
+
                 let Some((_, hostility_reason)) =
-                    hostile_target_priority(tf.empire, tf.role, &hostile_opponents, planet_owner)
+                    hostile_target_priority(empire_raw, task_forces[tf_idx].role, &hostile_opponents, planet_owner)
                 else {
                     continue;
                 };
 
-                let roe = tf
-                    .fleet_indices
-                    .iter()
-                    .filter_map(|idx| {
-                        let fleet = &game_data.fleets.records[*idx];
-                        (fleet.destroyer_count() > 0
-                            || fleet.cruiser_count() > 0
-                            || fleet.battleship_count() > 0)
-                            .then_some(fleet.rules_of_engagement())
-                    })
-                    .max()
-                    .unwrap_or(0);
-
                 let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
                 let is_guard = matches!(
-                    tf.role,
+                    task_forces[tf_idx].role,
                     BattleRole::GuardingDefender | BattleRole::IncumbentDefender
                 ) || matches!(
-                    super::state::task_force_encounter_context(game_data, tf),
+                    super::state::task_force_encounter_context(game_data, &task_forces[tf_idx]),
                     EncounterContext::SectorPatrol
                 );
 
-                if !defending_starbase_holds_planet(tf)
+                if !defending_starbase_holds_planet(&task_forces[tf_idx])
                     && !forced_engagement
                     && !is_guard
                     && !rule_threshold_satisfied(roe, our_as, enemy_as)
                 {
-                    sensor_withdrawals.push(tf.empire);
-                }
-            }
-
-            for empire in sensor_withdrawals {
-                if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
-                    task_force.withdrew_under_roe = true;
+                    task_forces[tf_idx].withdrew_under_roe = true;
                     let retreat_target =
-                        nearest_owned_planet(game_data, empire, coords).unwrap_or(coords);
+                        nearest_owned_planet(game_data, empire_raw, coords).unwrap_or(coords);
                     apply_roe_retreat_to_task_force(
                         game_data,
-                        &task_force.fleet_indices,
+                        &task_forces[tf_idx].fleet_indices,
                         retreat_target,
                     );
                 }
@@ -890,71 +891,79 @@ pub(crate) fn process_fleet_battles(
                 break;
             }
 
-            let current_as_map: HashMap<u8, u32> = task_forces
-                .iter()
-                .map(|tf| (tf.empire, tf.state.total_combat_as()))
-                .collect();
             let mut post_round_retreats = Vec::new();
             let mut free_holds_to_consume = Vec::new();
-            for tf in &task_forces {
-                if !tf.engaged_in_battle || tf.withdrew_under_roe || !tf.state.has_units() {
-                    continue;
-                }
-                let our_as = *current_as_map.get(&tf.empire).unwrap_or(&0);
-                if our_as == 0 {
-                    continue;
-                }
+
+            // Evaluate post-round retreats sequentially by ROE level (ascending).
+            let mut evaluation_order: Vec<(u8, u8)> = task_forces
+                .iter()
+                .filter(|tf| tf.engaged_in_battle && !tf.withdrew_under_roe && tf.state.has_units())
+                .map(|tf| {
+                    let max_roe = tf.fleet_indices.iter()
+                        .filter_map(|&idx| {
+                            let fleet = &game_data.fleets.records[idx];
+                            (fleet.destroyer_count() > 0 || fleet.cruiser_count() > 0 || fleet.battleship_count() > 0)
+                                .then_some(fleet.rules_of_engagement())
+                        })
+                        .max()
+                        .unwrap_or(0);
+                    (tf.empire, max_roe)
+                })
+                .collect();
+            evaluation_order.sort_by_key(|&(_, roe)| roe);
+
+            for (empire_raw, roe) in evaluation_order {
+                let Some(tf_idx) = task_forces.iter().position(|tf| tf.empire == empire_raw) else { continue; };
+                
+                let our_as = task_forces[tf_idx].state.total_combat_as();
+                if our_as == 0 { continue; }
+
                 let hostile_opponents = task_forces
                     .iter()
-                    .filter(|other| !other.withdrew_under_roe && other.empire != tf.empire)
+                    .filter(|other| !other.withdrew_under_roe && other.empire != empire_raw)
                     .filter_map(|other| {
-                        hostility_reason_between(game_data, diplomacy_overrides, coords, tf, other)
+                        hostility_reason_between(game_data, diplomacy_overrides, coords, &task_forces[tf_idx], other)
                             .map(|reason| (other, reason))
                     })
                     .collect::<Vec<_>>();
+                
                 let enemy_as = hostile_opponents
                     .iter()
                     .map(|(other, _)| other.state.total_combat_as())
                     .max()
                     .unwrap_or(0);
+                
                 if enemy_as == 0 {
                     continue;
                 }
-                let roe = tf
-                    .fleet_indices
-                    .iter()
-                    .filter_map(|idx| {
-                        let fleet = &game_data.fleets.records[*idx];
-                        (fleet.destroyer_count() > 0
-                            || fleet.cruiser_count() > 0
-                            || fleet.battleship_count() > 0)
-                            .then_some(fleet.rules_of_engagement())
-                    })
-                    .max()
-                    .unwrap_or(0);
-                if defending_starbase_holds_planet(tf) {
+
+                if defending_starbase_holds_planet(&task_forces[tf_idx]) {
                     continue;
                 }
+
                 if round > 3 && !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     let is_guard = matches!(
-                        tf.role,
+                        task_forces[tf_idx].role,
                         BattleRole::GuardingDefender | BattleRole::IncumbentDefender
                     );
-                    if is_guard && !tf.free_hold_used {
-                        free_holds_to_consume.push(tf.empire);
+                    if is_guard && !task_forces[tf_idx].free_hold_used {
+                        free_holds_to_consume.push(empire_raw);
                         continue;
                     }
                     let Some((target_empire, _)) = hostile_target_priority(
-                        tf.empire,
-                        tf.role,
+                        empire_raw,
+                        task_forces[tf_idx].role,
                         &hostile_opponents,
                         planet_owner,
                     ) else {
                         continue;
                     };
                     let retreat_target =
-                        nearest_owned_planet(game_data, tf.empire, coords).unwrap_or(coords);
-                    post_round_retreats.push((tf.empire, target_empire, retreat_target));
+                        nearest_owned_planet(game_data, empire_raw, coords).unwrap_or(coords);
+                    
+                    // Mark as withdrawn immediately for the benefit of subsequent fleets in the evaluation loop.
+                    task_forces[tf_idx].withdrew_under_roe = true;
+                    post_round_retreats.push((empire_raw, target_empire, retreat_target));
                 }
             }
 

@@ -113,8 +113,8 @@ pub fn push_mission_entries(
     game_data: &CoreGameData,
     events: &MaintenanceEvents,
     year: u16,
-    consumed_roe_disposition_indices: &mut BTreeSet<usize>,
-) {
+) -> BTreeSet<usize> {
+    let mut consumed_roe_disposition_indices = BTreeSet::new();
     //
     // Pre-pass: group MissionOutcome::Aborted events for the same empire at
     // the same coords into a single batched report when 2+ fleets qualify.
@@ -718,4 +718,5 @@ pub fn push_mission_entries(
             narrative_phase,
         });
     }
+    consumed_roe_disposition_indices
 }

@@ -71,7 +71,7 @@ impl CoreGameData {
             }
         }
 
-        let remaining_ships = total_starships(donor).saturating_sub(selection.total_ships());
+        let remaining_ships = donor.total_starships().saturating_sub(selection.total_ships());
         if remaining_ships == 0 {
             return Err(GameStateMutationError::FleetDetachLeavesFleetEmpty {
                 fleet_index_1_based: donor_fleet_record_index_1_based,
@@ -270,7 +270,7 @@ impl CoreGameData {
             }
         }
 
-        let remaining_ships = total_starships(&donor).saturating_sub(selection.total_ships());
+        let remaining_ships = donor.total_starships().saturating_sub(selection.total_ships());
         if remaining_ships == 0 {
             return Err(GameStateMutationError::FleetDetachLeavesFleetEmpty {
                 fleet_index_1_based: donor_fleet_record_index_1_based,
@@ -342,6 +342,12 @@ impl CoreGameData {
         if host_after.current_speed() > host_after.max_speed() {
             host_after.set_current_speed(host_after.max_speed());
         }
+
+        if !host.has_any_combat_ships() && donor.has_any_combat_ships() {
+            // Transferring combat ships to a support-only host: host assumes donor's ROE.
+            host_after.set_rules_of_engagement(donor.rules_of_engagement());
+        }
+
         normalize_post_composition_fleet_state(&mut donor_after);
         normalize_fleet_roe_for_composition(&mut host_after);
 

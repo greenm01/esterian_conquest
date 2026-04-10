@@ -149,7 +149,7 @@ impl CoreGameData {
             return Err(FleetOrderValidationError::UnknownOrderCode(order_code));
         }
         let owner = fleet.owner_empire_raw();
-        let has_combat = fleet_has_combat_ships(fleet);
+        let has_combat = fleet.has_any_combat_ships();
         let has_scout = fleet.scout_count() > 0;
         let has_etac = fleet.etac_count() > 0;
         let has_loaded_troops =
@@ -295,7 +295,7 @@ impl CoreGameData {
                 max: fleet.max_speed(),
             });
         }
-        if fleet_is_support_only(fleet) && fleet.rules_of_engagement() != 0 {
+        if fleet.is_support_only() && fleet.rules_of_engagement() != 0 {
             return Err(
                 FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
                     roe: fleet.rules_of_engagement(),
@@ -392,7 +392,7 @@ impl CoreGameData {
                 reason: FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { roe },
             });
         }
-        if fleet_is_support_only(fleet) && roe != 0 {
+        if fleet.is_support_only() && roe != 0 {
             return Err(GameStateMutationError::InvalidFleetPlayerInput {
                 fleet_index_1_based,
                 reason: FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { roe },

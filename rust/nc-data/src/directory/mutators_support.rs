@@ -44,33 +44,16 @@ pub(super) fn next_available_global_fleet_id(records: &[FleetRecord]) -> u16 {
     next
 }
 
-pub(super) fn total_starships(record: &FleetRecord) -> u32 {
-    u32::from(record.battleship_count())
-        + u32::from(record.cruiser_count())
-        + u32::from(record.destroyer_count())
-        + u32::from(record.troop_transport_count())
-        + u32::from(record.scout_count())
-        + u32::from(record.etac_count())
-}
-
-pub(super) fn fleet_has_combat_ships(record: &FleetRecord) -> bool {
-    record.destroyer_count() > 0 || record.cruiser_count() > 0 || record.battleship_count() > 0
-}
-
-pub(super) fn fleet_is_support_only(record: &FleetRecord) -> bool {
-    !fleet_has_combat_ships(record) && total_starships(record) > 0
-}
-
 pub(super) fn composition_invalidates_current_mission(
     record: &FleetRecord,
 ) -> Option<FleetOrderValidationError> {
     match record.standing_order_kind() {
         Order::GuardStarbase | Order::GuardBlockadeWorld | Order::BombardWorld
-            if !fleet_has_combat_ships(record) =>
+            if !record.has_any_combat_ships() =>
         {
             Some(FleetOrderValidationError::MissingCombatShips)
         }
-        Order::InvadeWorld if !fleet_has_combat_ships(record) => {
+        Order::InvadeWorld if !record.has_any_combat_ships() => {
             Some(FleetOrderValidationError::MissingCombatShips)
         }
         Order::InvadeWorld if record.troop_transport_count() == 0 || record.army_count() == 0 => {
@@ -101,8 +84,12 @@ pub(super) fn set_fleet_to_local_hold(record: &mut FleetRecord) {
 }
 
 pub(super) fn normalize_fleet_roe_for_composition(record: &mut FleetRecord) {
-    if fleet_is_support_only(record) {
+    if record.is_support_only() {
         record.set_rules_of_engagement(0);
+    } else if record.has_any_combat_ships() && record.rules_of_engagement() == 0 {
+        // Combat fleets should not default to Pacifist (ROE 0) upon commissioning.
+        // Default to ROE 6 (Engage equal or inferior strength).
+        record.set_rules_of_engagement(6);
     }
 }
 
