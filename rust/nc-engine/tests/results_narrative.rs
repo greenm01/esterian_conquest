@@ -332,6 +332,7 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
         defender_empire_raw: 2,
         attacker_initial: ShipLosses {
             cruisers: 1,
+            transports: 3,
             ..ShipLosses::default()
         },
         attacker_loaded_armies_initial: 3,

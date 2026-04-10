@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use nc_data::{CoreGameData, MaintenanceEvents, Mission};
 
-use crate::maint::results::binary::{RESULTS_END_OF_TRANSMISSION, classic_results_lines};
+use crate::maint::results::binary::classic_results_lines;
 use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
 use crate::maint::results::format::{fleet_number_from_idx, join_report_parts, report_header};
 use crate::maint::results::mod_constants::{JOIN_SUMMARY_PREVIEW_LINE_BUDGET, RESULTS_TAIL_FLEET};
@@ -254,8 +254,6 @@ pub fn build_join_summary_entries(
                 },
                 summary.lost_hosts.values().map(Vec::len).sum(),
             ));
-
-            lines.push(RESULTS_END_OF_TRANSMISSION.to_string());
             lines
         };
 

@@ -77,6 +77,15 @@ fn logical_result_reports(records: &[&[u8]]) -> Vec<(u8, Vec<String>)> {
     reports
 }
 
+fn joined_report_containing(bytes: &[u8], needle: &str) -> String {
+    let records = results_records(bytes);
+    let (_, lines) = logical_result_reports(&records)
+        .into_iter()
+        .find(|(_, lines)| lines.iter().any(|line| line.contains(needle)))
+        .unwrap_or_else(|| panic!("expected report containing {needle:?}"));
+    lines.join(" ")
+}
+
 fn zero_all_fleets(game_data: &mut CoreGameData) {
     for fleet in &mut game_data.fleets.records {
         let current = fleet.current_location_coords_raw();
@@ -2024,6 +2033,79 @@ fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
 }
 
 #[test]
+fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
+    let target = unique_temp_dir("nc-cli-maint-rust-invade-army-report");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        142,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(20);
+    attacker.set_cruiser_count(20);
+    attacker.set_destroyer_count(20);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let attacker_report = joined_report_containing(&results, "Invasion mission report");
+    assert!(
+        attacker_report.contains("World defenses: 15 ground batteries and 142 armies"),
+        "{attacker_report}"
+    );
+    assert!(
+        attacker_report.contains("Enemy losses: 15 ground batteries and 142 armies"),
+        "{attacker_report}"
+    );
+
+    let defender_report = joined_report_containing(&results, "We have been invaded and captured by");
+    assert!(
+        defender_report.contains("Attacking force:"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("20BB, 20CA, 20DD"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("2TT*"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("Our defenses: 15 ground batteries and 142 armies"),
+        "{defender_report}"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_invasion_reports_arrival_and_execution_on_separate_turns() {
     let target = unique_temp_dir("nc-cli-maint-rust-invade-arrival-delay");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
@@ -2108,6 +2190,79 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     assert!(text.contains("Enemy") && text.contains("losses:"), "{text}");
     assert!(text.contains("Transport losses:"), "{text}");
     assert_eq!(text.matches("Blitz mission report").count(), 1);
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_blitz_success_reports_armies_for_attacker_and_defender() {
+    let target = unique_temp_dir("nc-cli-maint-rust-blitz-army-report");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        1,
+        1,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(10);
+    attacker.set_army_count(10);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let attacker_report = joined_report_containing(&results, "Blitz mission report");
+    assert!(
+        attacker_report.contains("World defenses: 1 ground battery and 1 army"),
+        "{attacker_report}"
+    );
+    assert!(
+        attacker_report.contains("Enemy losses: 1 ground battery and 1 army"),
+        "{attacker_report}"
+    );
+
+    let defender_report = joined_report_containing(&results, "We have been invaded and captured by");
+    assert!(
+        defender_report.contains("Attacking force:"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("1DD"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("10TT*"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("Our defenses: 1 ground battery and 1 army"),
+        "{defender_report}"
+    );
 
     cleanup_dir(&target);
 }
@@ -3194,6 +3349,53 @@ fn maint_rust_join_retarget_report_uses_fleet_command_summary_without_sector_noi
     assert!(!text.contains("From your fleet, located in Sector(3,9):"));
     assert!(!text.contains("Sector(3,9)"));
     assert!(!text.contains("Sector(1,1)"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_join_summary_emits_single_footer_line() {
+    let target = unique_temp_dir("nc-cli-maint-rust-join-single-footer");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let host_id = game_data.fleets.records[0].fleet_id();
+
+    game_data.fleets.records[1].set_current_location_coords_raw([3, 9]);
+    game_data.fleets.records[1].set_standing_order_kind(Order::JoinAnotherFleet);
+    game_data.fleets.records[1].set_join_host_fleet_id_raw(host_id);
+    game_data.fleets.records[1].set_standing_order_target_coords_raw([1, 1]);
+    game_data.fleets.records[1].set_current_speed(3);
+
+    game_data.fleets.records[2].set_current_location_coords_raw([3, 9]);
+    game_data.fleets.records[2].set_standing_order_kind(Order::JoinAnotherFleet);
+    game_data.fleets.records[2].set_join_host_fleet_id_raw(host_id);
+    game_data.fleets.records[2].set_standing_order_target_coords_raw([1, 1]);
+    game_data.fleets.records[2].set_current_speed(3);
+
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let records = results_records(&results);
+    let (_, report_lines) = logical_result_reports(&records)
+        .into_iter()
+        .find(|(_, lines)| lines.iter().any(|line| line == "Join mission summary"))
+        .expect("expected join mission summary report");
+
+    assert_eq!(
+        report_lines
+            .iter()
+            .filter(|line| line.as_str() == "<end of transmission>")
+            .count(),
+        1,
+        "{report_lines:?}"
+    );
 
     cleanup_dir(&target);
 }

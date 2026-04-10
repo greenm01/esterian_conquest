@@ -238,6 +238,53 @@ fn join_summary_retarget_uses_stored_reporting_fleet_number_and_omits_sector() {
 }
 
 #[test]
+fn join_summary_contains_single_end_of_transmission_footer() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 3, [6, 6]);
+    configure_fleet(&mut game_data, 1, 1, 8, [6, 6]);
+    configure_fleet(&mut game_data, 2, 1, 11, [6, 6]);
+    configure_fleet(&mut game_data, 3, 1, 13, [6, 6]);
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_merge_events.push(FleetMergeEvent {
+        fleet_idx: 1,
+        owner_empire_raw: 1,
+        kind: Mission::JoinAnotherFleet,
+        host_fleet_id_raw: 1,
+        absorbed_fleet_id_raw: 2,
+        coords: [6, 6],
+        host_fleet_number: 3,
+        absorbed_fleet_number: 8,
+        survivor_side: false,
+        stardate_week: Some(1),
+    });
+    events
+        .mission_retarget_events
+        .push(MissionRetargetEvent::Retargeted {
+            fleet_idx: 2,
+            reporting_fleet_number: Some(11),
+            owner_empire_raw: 1,
+            mission: Mission::JoinAnotherFleet,
+            current_coords: [6, 6],
+            previous_target_coords: [4, 4],
+            new_target_coords: [8, 8],
+        });
+    events
+        .join_host_events
+        .push(JoinMissionHostEvent::HostDestroyed {
+            fleet_idx: 3,
+            owner_empire_raw: 1,
+            destroyed_host_fleet_number: Some(2),
+            coords: [6, 6],
+        });
+
+    let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
+    let joined = texts.join("\n");
+    assert!(joined.contains("Join mission summary"));
+    assert_eq!(joined.matches("<end of transmission>").count(), 1, "{joined}");
+}
+
+#[test]
 fn destroyed_fleet_telemetry_reports_starbase_only_opponent() {
     let mut game_data = seeded_game_data();
     configure_fleet(&mut game_data, 0, 1, 20, [11, 8]);

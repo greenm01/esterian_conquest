@@ -224,7 +224,7 @@ pub fn push_intel_entries(
             let force_rows = vec![
                 StructuredBodyItem::Label {
                     label: LABEL_ATTACKING_FORCE.to_string(),
-                    value: fleet_force_summary(assault.attacker_initial, 0),
+                    value: assault_attacker_force_summary(assault),
                 },
                 StructuredBodyItem::Label {
                     label: LABEL_OUR_DEFENSES.to_string(),
