@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub mod order_trace;
 pub mod production;
 
 use std::fs;

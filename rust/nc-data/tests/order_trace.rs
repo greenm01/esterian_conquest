@@ -1,44 +1,16 @@
-use nc_data::{
-    BaseDat, BaseRecord, CoreGameData, GameStateBuilder, MaintenanceEvents, Mission,
-    MissionOutcome, Order, fleet_motion_state::reset_motion_state_for_new_orders,
+mod common;
+
+use common::order_trace::{
+    FleetTurnExpectation, TARGET_PLANET_IDX, TRACE_SPEED, TRACE_START, TRACE_TARGET, TraceCase,
+    TraceRun, assert_mission_event, build_blitz_world_trace, build_bombard_world_trace,
+    build_colonize_world_trace, build_guard_blockade_world_trace, build_guard_starbase_trace,
+    build_invade_world_trace, build_join_chase_trace, build_join_merge_trace,
+    build_move_only_trace, build_patrol_sector_trace, build_rendezvous_merge_trace,
+    build_rendezvous_travel_trace, build_salvage_trace, build_scout_sector_trace,
+    build_scout_system_trace, build_seek_home_trace, build_view_world_trace, no_turn_mutation,
+    run_trace_case,
 };
-use nc_engine::run_maintenance_turn;
-
-const TRACE_START: [u8; 2] = [8, 8];
-const TRACE_TARGET: [u8; 2] = [11, 8];
-const TRACE_SPEED: u8 = 3;
-const TARGET_PLANET_IDX: usize = 4;
-
-#[derive(Clone, Copy)]
-struct FleetTurnExpectation {
-    turn: usize,
-    coords: [u8; 2],
-    target: [u8; 2],
-    order: Order,
-    speed: u8,
-    ready_flag: Option<u8>,
-}
-
-struct TraceCase {
-    name: &'static str,
-    setup: fn() -> CoreGameData,
-    fleet_idx: usize,
-    turns_to_run: usize,
-    expectations: &'static [FleetTurnExpectation],
-    check: fn(&TraceRun),
-}
-
-struct TraceRun {
-    states: Vec<CoreGameData>,
-    events: Vec<MaintenanceEvents>,
-}
-
-#[derive(Clone, Copy)]
-enum TargetWorldOwner {
-    Unowned,
-    Friendly,
-    Foreign,
-}
+use nc_data::{Mission, MissionOutcome, Order};
 
 #[test]
 fn one_shot_order_traces_monitor_speed_and_resolution() {
@@ -74,6 +46,7 @@ fn one_shot_order_traces_monitor_speed_and_resolution() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_move_only_trace,
         },
         TraceCase {
@@ -107,6 +80,7 @@ fn one_shot_order_traces_monitor_speed_and_resolution() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_colonize_world_trace,
         },
         TraceCase {
@@ -140,6 +114,7 @@ fn one_shot_order_traces_monitor_speed_and_resolution() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_view_world_trace,
         },
         TraceCase {
@@ -173,6 +148,7 @@ fn one_shot_order_traces_monitor_speed_and_resolution() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_seek_home_trace,
         },
         TraceCase {
@@ -198,6 +174,7 @@ fn one_shot_order_traces_monitor_speed_and_resolution() {
                     ready_flag: None,
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_salvage_trace,
         },
     ];
@@ -249,6 +226,7 @@ fn persistent_order_traces_monitor_speed_on_arrival_and_on_station() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_scout_sector_trace,
         },
         TraceCase {
@@ -290,6 +268,7 @@ fn persistent_order_traces_monitor_speed_on_arrival_and_on_station() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_scout_system_trace,
         },
         TraceCase {
@@ -331,6 +310,7 @@ fn persistent_order_traces_monitor_speed_on_arrival_and_on_station() {
                     ready_flag: Some(0x81),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_patrol_sector_trace,
         },
         TraceCase {
@@ -372,6 +352,7 @@ fn persistent_order_traces_monitor_speed_on_arrival_and_on_station() {
                     ready_flag: Some(0x00),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_guard_starbase_trace,
         },
         TraceCase {
@@ -413,6 +394,7 @@ fn persistent_order_traces_monitor_speed_on_arrival_and_on_station() {
                     ready_flag: Some(0x81),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_guard_blockade_trace,
         },
     ];
@@ -464,6 +446,7 @@ fn hostile_order_traces_monitor_speed_through_delay_and_execution() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_bombard_world_trace,
         },
         TraceCase {
@@ -505,6 +488,7 @@ fn hostile_order_traces_monitor_speed_through_delay_and_execution() {
                     ready_flag: Some(0x81),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_invade_world_trace,
         },
         TraceCase {
@@ -546,6 +530,7 @@ fn hostile_order_traces_monitor_speed_through_delay_and_execution() {
                     ready_flag: Some(0x81),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_blitz_world_trace,
         },
     ];
@@ -589,6 +574,7 @@ fn merge_and_pursuit_orders_trace_speed_and_completion() {
                     ready_flag: None,
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_join_chase_trace,
         },
         TraceCase {
@@ -604,6 +590,7 @@ fn merge_and_pursuit_orders_trace_speed_and_completion() {
                 speed: 0,
                 ready_flag: Some(0x80),
             }],
+            before_turn: no_turn_mutation,
             check: check_join_merge_trace,
         },
         TraceCase {
@@ -645,6 +632,7 @@ fn merge_and_pursuit_orders_trace_speed_and_completion() {
                     ready_flag: Some(0x80),
                 },
             ],
+            before_turn: no_turn_mutation,
             check: check_rendezvous_travel_trace,
         },
         TraceCase {
@@ -660,6 +648,7 @@ fn merge_and_pursuit_orders_trace_speed_and_completion() {
                 speed: 0,
                 ready_flag: Some(0x80),
             }],
+            before_turn: no_turn_mutation,
             check: check_rendezvous_merge_trace,
         },
     ];
@@ -667,83 +656,6 @@ fn merge_and_pursuit_orders_trace_speed_and_completion() {
     for case in cases {
         run_trace_case(case);
     }
-}
-
-fn run_trace_case(case: TraceCase) {
-    let mut game_data = (case.setup)();
-    let mut states = vec![game_data.clone()];
-    let mut events = Vec::new();
-
-    for _ in 0..case.turns_to_run {
-        let turn_events = run_maintenance_turn(&mut game_data)
-            .unwrap_or_else(|err| panic!("{} maintenance failed: {err}", case.name));
-        events.push(turn_events);
-        states.push(game_data.clone());
-    }
-
-    for expected in case.expectations {
-        assert_fleet_state(case.name, &states[expected.turn], case.fleet_idx, *expected);
-    }
-
-    (case.check)(&TraceRun { states, events });
-}
-
-fn assert_fleet_state(
-    name: &str,
-    state: &CoreGameData,
-    fleet_idx: usize,
-    expected: FleetTurnExpectation,
-) {
-    let fleet = &state.fleets.records[fleet_idx];
-    assert_eq!(
-        fleet.current_location_coords_raw(),
-        expected.coords,
-        "{name} turn {} coords",
-        expected.turn
-    );
-    assert_eq!(
-        fleet.standing_order_target_coords_raw(),
-        expected.target,
-        "{name} turn {} target",
-        expected.turn
-    );
-    assert_eq!(
-        fleet.standing_order_kind(),
-        expected.order,
-        "{name} turn {} order",
-        expected.turn
-    );
-    assert_eq!(
-        fleet.current_speed(),
-        expected.speed,
-        "{name} turn {} speed",
-        expected.turn
-    );
-    if let Some(ready_flag) = expected.ready_flag {
-        assert_eq!(
-            fleet.transit_ready_flag_raw(),
-            ready_flag,
-            "{name} turn {} ready flag",
-            expected.turn
-        );
-    }
-}
-
-fn assert_mission_event(
-    events: &MaintenanceEvents,
-    fleet_idx: usize,
-    kind: Mission,
-    outcome: MissionOutcome,
-) {
-    assert!(
-        events.mission_events.iter().any(|event| {
-            event.fleet_idx == fleet_idx && event.kind == kind && event.outcome == outcome
-        }),
-        "missing mission event {:?} {:?} for fleet {}",
-        kind,
-        outcome,
-        fleet_idx
-    );
 }
 
 fn check_move_only_trace(run: &TraceRun) {
@@ -951,416 +863,4 @@ fn check_rendezvous_merge_trace(run: &TraceRun) {
     assert_eq!(survivor.standing_order_kind(), Order::RendezvousSector);
     assert_eq!(survivor.standing_order_target_coords_raw(), TRACE_TARGET);
     assert_eq!(survivor.max_speed(), 3);
-}
-
-fn build_move_only_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    let fleet = &mut game_data.fleets.records[0];
-    configure_scout_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::MoveOnly,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_colonize_world_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Unowned);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_colonizer_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::ColonizeWorld,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_view_world_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::ViewWorld,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_seek_home_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Friendly);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::SeekHome,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_salvage_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Friendly);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_salvage_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::Salvage,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_scout_sector_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_scout_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::ScoutSector,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_scout_system_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_scout_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::ScoutSolarSystem,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_patrol_sector_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    let fleet = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::PatrolSector,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_guard_starbase_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    let mut base = BaseRecord::new_zeroed();
-    base.set_active_flag_raw(1);
-    base.set_base_id_raw(1);
-    base.set_owner_empire_raw(1);
-    base.set_coords_raw(TRACE_TARGET);
-    game_data.bases = BaseDat {
-        records: vec![base],
-    };
-
-    let fleet = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::GuardStarbase,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    fleet.set_mission_aux_bytes([1, 1]);
-    game_data
-}
-
-fn build_guard_blockade_world_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::GuardBlockadeWorld,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_bombard_world_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    let fleet = &mut game_data.fleets.records[0];
-    configure_bombard_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::BombardWorld,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_invade_world_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    {
-        let target = &mut game_data.planets.records[TARGET_PLANET_IDX];
-        target.set_ground_batteries_raw(1);
-        target.set_army_count_raw(1);
-    }
-    let fleet = &mut game_data.fleets.records[0];
-    configure_assault_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::InvadeWorld,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_blitz_world_trace() -> CoreGameData {
-    let mut game_data = build_world_trace(TargetWorldOwner::Foreign);
-    {
-        let target = &mut game_data.planets.records[TARGET_PLANET_IDX];
-        target.set_ground_batteries_raw(1);
-        target.set_army_count_raw(1);
-    }
-    let fleet = &mut game_data.fleets.records[0];
-    configure_blitz_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::BlitzWorld,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_join_chase_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-
-    let host = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(host);
-    arm_new_order(host, Order::MoveOnly, [10, 10], [14, 10], TRACE_SPEED);
-
-    let host_id = game_data.fleets.records[0].fleet_id();
-    let joiner = &mut game_data.fleets.records[1];
-    configure_cruiser_fleet(joiner);
-    joiner.set_owner_empire_raw(1);
-    arm_new_order(
-        joiner,
-        Order::JoinAnotherFleet,
-        [4, 10],
-        [10, 10],
-        TRACE_SPEED,
-    );
-    joiner.set_join_host_fleet_id_raw(host_id);
-
-    game_data
-}
-
-fn build_join_merge_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    game_data.player.records[0].raw[0x00] = 0xff;
-    let coords = [10, 10];
-
-    let host = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(host);
-    arm_stationary_order(host, Order::HoldPosition, coords);
-
-    let host_id = game_data.fleets.records[0].fleet_id();
-    let joiner = &mut game_data.fleets.records[1];
-    configure_cruiser_fleet(joiner);
-    joiner.set_owner_empire_raw(1);
-    arm_stationary_order(joiner, Order::JoinAnotherFleet, coords);
-    joiner.set_join_host_fleet_id_raw(host_id);
-
-    game_data
-}
-
-fn build_rendezvous_travel_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    let fleet = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(fleet);
-    arm_new_order(
-        fleet,
-        Order::RendezvousSector,
-        TRACE_START,
-        TRACE_TARGET,
-        TRACE_SPEED,
-    );
-    game_data
-}
-
-fn build_rendezvous_merge_trace() -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    game_data.player.records[0].raw[0x00] = 0xff;
-
-    let slow = &mut game_data.fleets.records[0];
-    configure_cruiser_fleet(slow);
-    slow.set_max_speed(6);
-    arm_stationary_order(slow, Order::RendezvousSector, TRACE_TARGET);
-
-    let fast = &mut game_data.fleets.records[1];
-    configure_etac_fleet(fast);
-    fast.set_owner_empire_raw(1);
-    fast.set_max_speed(3);
-    arm_stationary_order(fast, Order::RendezvousSector, TRACE_TARGET);
-
-    game_data
-}
-
-fn build_trace_baseline() -> CoreGameData {
-    let mut game_data = GameStateBuilder::new()
-        .with_player_count(4)
-        .with_year(3000)
-        .build_initialized_baseline()
-        .expect("baseline should build");
-
-    game_data.bases = BaseDat { records: vec![] };
-    for fleet in game_data.fleets.records.iter_mut().skip(1) {
-        clear_fleet_for_probe(fleet);
-        fleet.set_owner_empire_raw(0);
-        fleet.set_current_location_coords_raw([1, 1]);
-        fleet.set_standing_order_target_coords_raw([1, 1]);
-        arm_stationary_order(fleet, Order::HoldPosition, [1, 1]);
-    }
-
-    game_data
-}
-
-fn build_world_trace(owner: TargetWorldOwner) -> CoreGameData {
-    let mut game_data = build_trace_baseline();
-    let target = &mut game_data.planets.records[TARGET_PLANET_IDX];
-    target.set_coords_raw(TRACE_TARGET);
-    target.set_planet_name("Target");
-    target.set_ground_batteries_raw(4);
-    target.set_army_count_raw(10);
-    match owner {
-        TargetWorldOwner::Unowned => {
-            target.set_owner_empire_slot_raw(0);
-            target.set_ownership_status_raw(0);
-        }
-        TargetWorldOwner::Friendly => {
-            target.set_owner_empire_slot_raw(1);
-            target.set_ownership_status_raw(2);
-        }
-        TargetWorldOwner::Foreign => {
-            target.set_owner_empire_slot_raw(2);
-            target.set_ownership_status_raw(2);
-        }
-    }
-    game_data
-}
-
-fn clear_fleet_for_probe(fleet: &mut nc_data::FleetRecord) {
-    fleet.set_battleship_count(0);
-    fleet.set_cruiser_count(0);
-    fleet.set_destroyer_count(0);
-    fleet.set_troop_transport_count(0);
-    fleet.set_army_count(0);
-    fleet.set_etac_count(0);
-    fleet.set_scout_count(0);
-    fleet.set_rules_of_engagement(0);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_cruiser_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_cruiser_count(1);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_scout_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_scout_count(1);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_colonizer_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_etac_count(3);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_salvage_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_destroyer_count(1);
-    fleet.set_cruiser_count(1);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_bombard_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_destroyer_count(1);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_assault_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_battleship_count(4);
-    fleet.set_cruiser_count(4);
-    fleet.set_destroyer_count(4);
-    fleet.set_troop_transport_count(6);
-    fleet.set_army_count(24);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_blitz_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_destroyer_count(1);
-    fleet.set_troop_transport_count(10);
-    fleet.set_army_count(10);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn configure_etac_fleet(fleet: &mut nc_data::FleetRecord) {
-    clear_fleet_for_probe(fleet);
-    fleet.set_etac_count(1);
-    fleet.recompute_max_speed_from_composition();
-}
-
-fn arm_new_order(
-    fleet: &mut nc_data::FleetRecord,
-    order: Order,
-    start: [u8; 2],
-    target: [u8; 2],
-    speed: u8,
-) {
-    fleet.set_current_location_coords_raw(start);
-    fleet.set_standing_order_kind(order);
-    fleet.set_standing_order_target_coords_raw(target);
-    fleet.set_current_speed(speed);
-    reset_motion_state_for_new_orders(fleet);
-    fleet.set_current_speed(speed);
-    fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
-}
-
-fn arm_stationary_order(fleet: &mut nc_data::FleetRecord, order: Order, coords: [u8; 2]) {
-    fleet.set_current_location_coords_raw(coords);
-    fleet.set_standing_order_kind(order);
-    fleet.set_standing_order_target_coords_raw(coords);
-    fleet.set_current_speed(0);
-    reset_motion_state_for_new_orders(fleet);
-    fleet.set_current_speed(0);
-    fleet.set_transit_ready_flag_raw(0x80);
 }
