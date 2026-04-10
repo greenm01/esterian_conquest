@@ -258,8 +258,8 @@ fn destroyed_fleet_telemetry_reports_starbase_only_opponent() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("alien force contained 1 starbase"));
-    assert!(!text.contains("alien force contained no ships"));
+    assert!(text.contains("1 starbase"));
+    assert!(!text.contains("no ships"));
 }
 
 #[test]
