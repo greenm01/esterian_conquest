@@ -374,7 +374,7 @@ pub fn version_title() -> String {
     format!("NC v{}", env!("CARGO_PKG_VERSION"))
 }
 
-const ATTRIBUTION: &str = "Inspired by EC";
+const ATTRIBUTION: &str = "Slow turns are a feature, not a bug.";
 
 const INTRO_ACCENT_PHRASES: &[&str] = &[
     "Nostrian dominion",
