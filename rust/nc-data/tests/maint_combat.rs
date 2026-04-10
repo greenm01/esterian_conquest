@@ -381,7 +381,7 @@ fn dominant_fleet_with_invalidated_invade_order_holds_and_skips_stale_assault() 
 }
 
 #[test]
-fn hostile_contact_with_roe_zero_triggers_withdrawal_exchange() {
+fn hostile_contact_with_roe_zero_allows_clean_sensor_retreat() {
     let mut game_data = load_fixture("ecmaint-post");
     let coords = [15, 13];
 
@@ -406,33 +406,40 @@ fn hostile_contact_with_roe_zero_triggers_withdrawal_exchange() {
     hostile.set_troop_transport_count(0);
     hostile.set_etac_count(0);
     hostile.set_rules_of_engagement(0);
-    let hostile_fleet_number = hostile.local_slot_word_raw() as u8;
-
     let diplomacy = mutual_enemy_overrides(1, 2);
     let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
         .expect("maintenance should succeed");
 
     assert!(
-        !events.fleet_battle_events.is_empty(),
-        "ROE-zero fleets should still take one withdrawal exchange before escape"
+        events.fleet_battle_events.is_empty(),
+        "ROE-zero transit contact should abort before combat when the patrol already holds the sector"
     );
     assert!(events.encounter_disposition_events.iter().any(|event| {
         matches!(
             event,
             EncounterDispositionEvent::Retreated {
                 owner_empire_raw,
-                mission: Some(Mission::PatrolSector),
+                mission: Some(Mission::MoveOnly),
                 coords: event_coords,
                 target_empire_raw,
-                target_fleet_number,
+                target_fleet_number: _,
                 reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
                 ..
-            } if *owner_empire_raw == 1
+            } if *owner_empire_raw == 2
                 && *event_coords == coords
-                && *target_empire_raw == 2
-                && *target_fleet_number == Some(hostile_fleet_number)
+                && *target_empire_raw == 1
         )
     }));
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::PatrolSector
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+    assert_eq!(
+        game_data.fleets.records[4].standing_order_kind(),
+        Order::SeekHome
+    );
+    assert!(game_data.fleets.records[4].current_speed() > 0);
 }
 
 #[test]
@@ -591,7 +598,7 @@ fn anchored_guard_does_not_sortie_against_deep_space_transit_contact() {
 }
 
 #[test]
-fn post_round_roe_withdrawal_exchange_can_destroy_retreating_fleet() {
+fn committed_patrol_engagement_can_resolve_before_any_roe_withdrawal() {
     let mut game_data = load_fixture("ecmaint-post");
     let coords = [15, 13];
 
@@ -621,24 +628,25 @@ fn post_round_roe_withdrawal_exchange_can_destroy_retreating_fleet() {
     let events = run_maintenance_turn_with_context_and_seed(&mut game_data, 5, &[], &diplomacy)
         .expect("maintenance should succeed");
 
-    assert_eq!(game_data.fleets.records[0].cruiser_count(), 0);
+    assert_eq!(game_data.fleets.records[0].cruiser_count(), 1);
     assert_eq!(
         game_data.fleets.records[0].standing_order_kind(),
-        Order::HoldPosition
+        Order::PatrolSector
     );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_target_coords_raw(),
+        [16, 13]
+    );
+    assert!(events.fleet_battle_events.iter().any(|event| {
+        event.reporting_empire_raw == 1
+            && event.friendly_losses.cruisers == 7
+            && event.enemy_losses.cruisers == 8
+            && event.held_field
+    }));
     assert!(
-        !events.encounter_disposition_events.iter().any(|event| {
-            matches!(
-                event,
-                EncounterDispositionEvent::Retreated {
-                    owner_empire_raw,
-                    mission: Some(Mission::PatrolSector),
-                    coords: event_coords,
-                    ..
-                } if *owner_empire_raw == 1 && *event_coords == coords
-            )
-        }),
-        "a fleet destroyed during the withdrawal exchange should not also emit a retreat report"
+        events.encounter_disposition_events.is_empty(),
+        "the battle resolves during the committed rounds with no later ROE retreat"
     );
 }
 
@@ -689,7 +697,7 @@ fn combat_reports_enemy_fleet_by_empire_local_slot() {
 }
 
 #[test]
-fn normal_fire_keeps_transports_screened_behind_combat_line() {
+fn committed_fire_can_reach_auxiliaries_after_the_combat_line_collapses() {
     let coords = [8, 8];
     let mut game_data = load_fixture("ecmaint-post");
 
@@ -734,19 +742,20 @@ fn normal_fire_keeps_transports_screened_behind_combat_line() {
     assert_eq!(
         screened.cruiser_count(),
         0,
-        "ordinary fire should strip the combat line before auxiliaries"
+        "ordinary fire should strip the combat line first"
     );
     assert_eq!(
         screened.troop_transport_count(),
-        1,
-        "transport should remain screened while the cruiser absorbs the withdrawal exchange"
+        0,
+        "once the cruiser screen collapses during the committed rounds, auxiliaries can be lost"
     );
-    assert_eq!(screened.army_count(), 1);
+    assert_eq!(screened.army_count(), 0);
     assert!(events.fleet_battle_events.iter().any(|event| {
         event.reporting_empire_raw == 1
             && event.friendly_losses.cruisers == 1
-            && event.friendly_losses.transports == 0
+            && event.friendly_losses.transports == 1
     }));
+    assert!(events.encounter_disposition_events.is_empty());
 }
 
 #[test]
@@ -928,7 +937,7 @@ fn canonical_invade_failure_removes_attacker_armies_and_holds_planet() {
     assert_eq!(target.owner_empire_slot_raw(), 2);
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.army_count_raw(), 10);
-    assert_eq!(target.ground_batteries_raw(), 4);
+    assert_eq!(target.ground_batteries_raw(), 2);
 }
 
 #[test]
@@ -955,11 +964,14 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
     assert_eq!(attacker.army_count(), 0);
     assert_eq!(target.owner_empire_slot_raw(), 1);
     assert_eq!(target.ownership_status_raw(), 2);
-    assert_eq!(target.ground_batteries_raw(), 1);
-    assert_eq!(target.army_count_raw(), 11);
+    assert_eq!(target.ground_batteries_raw(), 0);
+    assert_eq!(target.army_count_raw(), 12);
     assert_eq!(events.ownership_change_events.len(), 1);
     assert_eq!(events.assault_report_events.len(), 1);
-    assert_eq!(events.assault_report_events[0].transport_army_losses, 1);
+    assert_eq!(events.assault_report_events[0].attacker_army_losses, 3);
+    assert_eq!(events.assault_report_events[0].transport_army_losses, 0);
+    assert_eq!(events.assault_report_events[0].defender_battery_losses, 2);
+    assert_eq!(events.assault_report_events[0].defender_army_losses, 3);
     assert_eq!(events.ownership_change_events[0].planet_idx, 13);
     assert_eq!(
         events.ownership_change_events[0].previous_owner_empire_raw,
@@ -1012,7 +1024,12 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
     assert_eq!(target.owner_empire_slot_raw(), 2);
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.army_count_raw(), 10);
-    assert_eq!(target.ground_batteries_raw(), 1);
+    assert_eq!(target.ground_batteries_raw(), 0);
+    assert_eq!(events.assault_report_events.len(), 1);
+    assert_eq!(events.assault_report_events[0].attacker_army_losses, 4);
+    assert_eq!(events.assault_report_events[0].transport_army_losses, 0);
+    assert_eq!(events.assault_report_events[0].defender_battery_losses, 2);
+    assert_eq!(events.assault_report_events[0].defender_army_losses, 0);
     assert!(
         events
             .planet_intel_events

@@ -573,6 +573,9 @@ pub(crate) fn process_fleet_battles(
                 let is_guard = matches!(
                     tf.role,
                     BattleRole::GuardingDefender | BattleRole::IncumbentDefender
+                ) || matches!(
+                    super::state::task_force_encounter_context(game_data, tf),
+                    EncounterContext::SectorPatrol
                 );
 
                 if !defending_starbase_holds_planet(tf)

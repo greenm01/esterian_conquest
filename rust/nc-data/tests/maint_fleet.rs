@@ -431,7 +431,7 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
 }
 
 #[test]
-fn test_view_world_destroyed_in_same_turn_emits_no_success_or_intel() {
+fn test_view_world_arrival_still_emits_intel_with_enemy_fleet_present() {
     let (mut game_data, target_idx, target_coords) =
         configured_delayed_hostile_arrival_state(Order::ViewWorld, (0, 0, 1, 0, 0, 0, 0));
     game_data.planets.records[target_idx].set_owner_empire_slot_raw(2);
@@ -458,30 +458,30 @@ fn test_view_world_destroyed_in_same_turn_emits_no_success_or_intel() {
             .expect("maintenance should succeed");
 
     assert!(
-        !events.planet_intel_events.iter().any(|event| {
+        events.planet_intel_events.iter().any(|event| {
             event.viewer_empire_raw == 1 && event.source == PlanetIntelSource::ViewWorld
         }),
-        "destroyed viewing fleet should not emit intel"
+        "arrival ViewWorld should still emit intel before any later hostility logic"
     );
     assert!(
-        !events.mission_events.iter().any(|event| {
+        events.mission_events.iter().any(|event| {
             event.fleet_idx == 0
                 && event.kind == Mission::ViewWorld
                 && event.outcome == MissionOutcome::Succeeded
         }),
-        "destroyed viewing fleet should not emit viewing success"
+        "arrival ViewWorld should still emit success on the arrival tick"
     );
     assert!(
         events
             .fleet_destroyed_events
             .iter()
-            .any(|event| event.reporting_empire_raw == 1),
-        "destroyed fleet should still generate lost-contact event"
+            .all(|event| event.reporting_empire_raw != 1),
+        "the arrival viewer should not be destroyed on the same tick"
     );
 }
 
 #[test]
-fn test_scout_system_destroyed_in_same_turn_emits_no_success_or_intel() {
+fn test_scout_system_arrival_still_emits_intel_with_enemy_fleet_present() {
     let (mut game_data, target_idx, target_coords) =
         configured_delayed_hostile_arrival_state(Order::ScoutSolarSystem, (0, 0, 1, 0, 0, 0, 1));
     game_data.planets.records[target_idx].set_owner_empire_slot_raw(2);
@@ -508,25 +508,25 @@ fn test_scout_system_destroyed_in_same_turn_emits_no_success_or_intel() {
             .expect("maintenance should succeed");
 
     assert!(
-        !events.planet_intel_events.iter().any(|event| {
+        events.planet_intel_events.iter().any(|event| {
             event.viewer_empire_raw == 1 && event.source == PlanetIntelSource::ScoutSolarSystem
         }),
-        "destroyed scout fleet should not emit intel"
+        "arrival ScoutSolarSystem should still emit intel before any later hostility logic"
     );
     assert!(
-        !events.mission_events.iter().any(|event| {
+        events.mission_events.iter().any(|event| {
             event.fleet_idx == 0
                 && event.kind == Mission::ScoutSolarSystem
                 && event.outcome == MissionOutcome::Succeeded
         }),
-        "destroyed scout fleet should not emit scouting success"
+        "arrival ScoutSolarSystem should still emit success on the arrival tick"
     );
     assert!(
         events
             .fleet_destroyed_events
             .iter()
-            .any(|event| event.reporting_empire_raw == 1),
-        "destroyed fleet should still generate lost-contact event"
+            .all(|event| event.reporting_empire_raw != 1),
+        "the arriving scout should not be destroyed on the same tick"
     );
 }
 
