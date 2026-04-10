@@ -17,6 +17,8 @@ mod messaging;
 mod navigation;
 #[path = "update/planet_workflows.rs"]
 mod planet_workflows;
+#[path = "update/playability_canaries.rs"]
+mod playability_canaries;
 #[path = "update/reports_startup.rs"]
 mod reports_startup;
 #[path = "update/sort_toggle.rs"]

@@ -6,7 +6,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nc_data::fleet_motion_state::reset_motion_state_for_new_orders;
-use nc_data::{CampaignStore, CoreGameData, IntelTier, Order};
+use nc_data::{
+    CampaignRuntimeState, CampaignStore, CoreGameData, GameStateBuilder, IntelTier, Order,
+};
+use nc_engine::validate_maintenance_state;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -79,6 +82,60 @@ fn run_nc_sysop(args: &[&str]) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8(output.stdout).expect("stdout should be utf-8")
+}
+
+fn load_runtime_state(dir: &Path) -> CampaignRuntimeState {
+    CampaignStore::open_default_in_dir(dir)
+        .expect("open campaign store")
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime snapshot should exist")
+}
+
+fn first_owned_planet_coords(game_data: &CoreGameData, owner: u8) -> [u8; 2] {
+    game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == owner)
+        .map(|planet| planet.coords_raw())
+        .expect("owned planet should exist")
+}
+
+fn first_unowned_planet_coords(game_data: &CoreGameData, excluded: &[[u8; 2]]) -> [u8; 2] {
+    game_data
+        .planets
+        .records
+        .iter()
+        .map(|planet| planet.coords_raw())
+        .find(|coords| {
+            !excluded.contains(coords)
+                && game_data.planets.records.iter().any(|planet| {
+                    planet.coords_raw() == *coords && planet.owner_empire_slot_raw() == 0
+                })
+        })
+        .expect("unowned planet should exist")
+}
+
+fn assert_runtime_playability_invariants(runtime: &CampaignRuntimeState) {
+    validate_maintenance_state(&runtime.game_data).expect("runtime state should remain valid");
+    for fleet in &runtime.game_data.fleets.records {
+        assert!(
+            fleet.current_speed() <= fleet.max_speed(),
+            "fleet speed should never exceed max speed"
+        );
+        if matches!(
+            fleet.standing_order_kind(),
+            Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld
+        ) && fleet.current_location_coords_raw() != fleet.standing_order_target_coords_raw()
+        {
+            assert_ne!(
+                fleet.transit_ready_flag_raw(),
+                0x80,
+                "off-target hostile orders must not sit in ready-to-execute state"
+            );
+        }
+    }
 }
 
 #[test]
@@ -211,6 +268,291 @@ fn nc_sysop_maint_persists_non_intel_player_reports() {
         row.decoded_text.contains("successfully terraformed")
             && row.decoded_text.contains("started a new colony")
     }));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_maint_persists_bombardment_report_and_runtime_damage() {
+    let target = unique_temp_dir("nc-sysop-maint-bombard-runtime");
+    let pre = load_fixture("ecmaint-bombard-arrive");
+    let target_coords = pre
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.standing_order_kind() == Order::BombardWorld)
+        .map(|fleet| fleet.standing_order_target_coords_raw())
+        .expect("bombard fixture should contain a bombardment fleet");
+    let pre_target = pre
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.coords_raw() == target_coords)
+        .expect("bombard target world should exist");
+    let pre_batteries = pre_target.ground_batteries_raw();
+    let pre_armies = pre_target.army_count_raw();
+    seed_runtime_snapshot(&target, &pre);
+
+    let stdout = run_nc_sysop(&["maint", target.to_str().expect("utf-8 path"), "1"]);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let runtime = load_runtime_state(&target);
+    let post_target = runtime
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.coords_raw() == target_coords)
+        .expect("bombard target world should remain present");
+
+    assert!(runtime.report_block_rows.iter().any(|row| {
+        row.decoded_text.contains("Bombardment report")
+            || row.decoded_text.contains("Bombardment mission report")
+    }));
+    assert!(
+        runtime
+            .report_block_rows
+            .iter()
+            .any(|row| row.decoded_text.contains("Our forces:"))
+    );
+    assert!(
+        runtime
+            .report_block_rows
+            .iter()
+            .any(|row| row.decoded_text.contains("World defenses:"))
+    );
+    assert!(
+        post_target.ground_batteries_raw() < pre_batteries
+            || post_target.army_count_raw() < pre_armies,
+        "bombardment should damage the target world"
+    );
+    assert_runtime_playability_invariants(&runtime);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_maint_persists_join_host_destroyed_report_and_runtime_state() {
+    let target = unique_temp_dir("nc-sysop-maint-join-host-destroyed");
+    let mut game_data = load_fixture("ecmaint-post");
+
+    let host_id = game_data.fleets.records[0].fleet_id();
+    game_data.fleets.records[0].set_destroyer_count(0);
+    game_data.fleets.records[0].set_cruiser_count(0);
+    game_data.fleets.records[0].set_battleship_count(0);
+    game_data.fleets.records[0].set_scout_count(0);
+    game_data.fleets.records[0].set_troop_transport_count(0);
+    game_data.fleets.records[0].set_etac_count(0);
+
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw([7, 9]);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw([10, 10]);
+    joiner.set_current_speed(3);
+
+    seed_runtime_snapshot(&target, &game_data);
+
+    let stdout = run_nc_sysop(&["maint", target.to_str().expect("utf-8 path"), "1"]);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let runtime = load_runtime_state(&target);
+    let joiner = &runtime.game_data.fleets.records[0];
+
+    assert!(runtime.report_block_rows.iter().any(|row| {
+        row.decoded_text
+            .contains("Join mission report: Our intended host fleet (1st Fleet) was destroyed.")
+    }));
+    assert_eq!(joiner.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(joiner.current_speed(), 0);
+    assert_eq!(
+        joiner.standing_order_target_coords_raw(),
+        joiner.current_location_coords_raw()
+    );
+    assert_runtime_playability_invariants(&runtime);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_maint_multi_turn_canary_preserves_playability_invariants() {
+    let target = unique_temp_dir("nc-sysop-maint-multi-turn-canary");
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    for fleet in &mut game_data.fleets.records {
+        let coords = fleet.current_location_coords_raw();
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(coords);
+        fleet.set_current_speed(0);
+        reset_motion_state_for_new_orders(fleet);
+    }
+
+    let p1_home = first_owned_planet_coords(&game_data, 1);
+    let p2_home = first_owned_planet_coords(&game_data, 2);
+    let colonize_target = first_unowned_planet_coords(&game_data, &[p1_home, p2_home]);
+
+    let player1_fleets = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, fleet)| fleet.owner_empire_raw() == 1)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+    let player2_fleets = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, fleet)| fleet.owner_empire_raw() == 2)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+    let player3_fleets = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, fleet)| fleet.owner_empire_raw() == 3)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+    let player4_fleets = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, fleet)| fleet.owner_empire_raw() == 4)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+
+    {
+        let viewer = &mut game_data.fleets.records[player1_fleets[0]];
+        viewer.set_cruiser_count(1);
+        viewer.set_destroyer_count(0);
+        viewer.set_battleship_count(0);
+        viewer.set_troop_transport_count(0);
+        viewer.set_army_count(0);
+        viewer.set_etac_count(0);
+        viewer.set_scout_count(0);
+        viewer.recompute_max_speed_from_composition();
+        viewer.set_standing_order_kind(Order::ViewWorld);
+        viewer.set_standing_order_target_coords_raw(p2_home);
+        viewer.set_current_speed(viewer.max_speed());
+        reset_motion_state_for_new_orders(viewer);
+        viewer.set_current_speed(viewer.max_speed());
+    }
+    let host_id = game_data.fleets.records[player4_fleets[0]].fleet_id();
+    {
+        let host = &mut game_data.fleets.records[player4_fleets[0]];
+        host.set_cruiser_count(1);
+        host.set_destroyer_count(0);
+        host.set_battleship_count(0);
+        host.set_troop_transport_count(0);
+        host.set_army_count(0);
+        host.set_etac_count(0);
+        host.set_scout_count(0);
+        host.recompute_max_speed_from_composition();
+        host.set_current_location_coords_raw([4, 4]);
+        host.set_standing_order_kind(Order::MoveOnly);
+        host.set_standing_order_target_coords_raw([8, 4]);
+        host.set_current_speed(host.max_speed());
+        reset_motion_state_for_new_orders(host);
+        host.set_current_speed(host.max_speed());
+    }
+    {
+        let joiner = &mut game_data.fleets.records[player4_fleets[1]];
+        joiner.set_cruiser_count(1);
+        joiner.set_destroyer_count(0);
+        joiner.set_battleship_count(0);
+        joiner.set_troop_transport_count(0);
+        joiner.set_army_count(0);
+        joiner.set_etac_count(0);
+        joiner.set_scout_count(0);
+        joiner.recompute_max_speed_from_composition();
+        joiner.set_current_location_coords_raw([1, 4]);
+        joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+        joiner.set_standing_order_target_coords_raw([4, 4]);
+        joiner.set_join_host_fleet_id_raw(host_id);
+        joiner.set_current_speed(joiner.max_speed());
+        reset_motion_state_for_new_orders(joiner);
+        joiner.set_current_speed(joiner.max_speed());
+    }
+    {
+        let bombard = &mut game_data.fleets.records[player2_fleets[0]];
+        bombard.set_destroyer_count(1);
+        bombard.set_cruiser_count(0);
+        bombard.set_battleship_count(0);
+        bombard.set_troop_transport_count(0);
+        bombard.set_army_count(0);
+        bombard.set_etac_count(0);
+        bombard.set_scout_count(0);
+        bombard.recompute_max_speed_from_composition();
+        bombard.set_current_location_coords_raw([p1_home[0].saturating_sub(1).max(1), p1_home[1]]);
+        bombard.set_standing_order_kind(Order::BombardWorld);
+        bombard.set_standing_order_target_coords_raw(p1_home);
+        bombard.set_current_speed(bombard.max_speed());
+        reset_motion_state_for_new_orders(bombard);
+        bombard.set_current_speed(bombard.max_speed());
+    }
+    {
+        let colonizer = &mut game_data.fleets.records[player3_fleets[0]];
+        colonizer.set_etac_count(3);
+        colonizer.set_cruiser_count(0);
+        colonizer.set_destroyer_count(0);
+        colonizer.set_battleship_count(0);
+        colonizer.set_troop_transport_count(0);
+        colonizer.set_army_count(0);
+        colonizer.set_scout_count(0);
+        colonizer.recompute_max_speed_from_composition();
+        let colonizer_start = if colonize_target[0] > 1 {
+            [colonize_target[0] - 1, colonize_target[1]]
+        } else {
+            [colonize_target[0] + 1, colonize_target[1]]
+        };
+        colonizer.set_current_location_coords_raw(colonizer_start);
+        colonizer.set_standing_order_kind(Order::ColonizeWorld);
+        colonizer.set_standing_order_target_coords_raw(colonize_target);
+        colonizer.set_current_speed(colonizer.max_speed());
+        reset_motion_state_for_new_orders(colonizer);
+        colonizer.set_current_speed(colonizer.max_speed());
+    }
+
+    seed_runtime_snapshot(&target, &game_data);
+
+    let mut saw_view = false;
+    let mut saw_bombard = false;
+    let mut saw_join = false;
+    let mut saw_colonize = false;
+    for _turn in 1..=4 {
+        let stdout = run_nc_sysop(&["maint", target.to_str().expect("utf-8 path"), "1"]);
+        assert!(stdout.contains("Rust maintenance complete."));
+        let runtime = load_runtime_state(&target);
+        assert_runtime_playability_invariants(&runtime);
+
+        for row in &runtime.report_block_rows {
+            saw_view |= row.decoded_text.contains("Viewing mission report");
+            saw_bombard |= row.decoded_text.contains("Bombardment");
+            saw_join |= row.decoded_text.contains("Join mission report");
+            saw_colonize |= row.decoded_text.contains("terraformed");
+        }
+    }
+
+    assert!(
+        saw_view,
+        "multi-turn canary should produce a viewing report"
+    );
+    assert!(
+        saw_bombard,
+        "multi-turn canary should produce a bombardment report"
+    );
+    assert!(saw_join, "multi-turn canary should produce a join report");
+    assert!(
+        saw_colonize,
+        "multi-turn canary should produce a colonization report"
+    );
 
     let _ = fs::remove_dir_all(&target);
 }
