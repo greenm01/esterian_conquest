@@ -1214,9 +1214,25 @@ impl App {
             return false;
         };
         let rows = self.fleet_list_rows();
+        let raw_input = self.fleet.list_input.trim();
+        if raw_input.starts_with('0')
+            && raw_input.chars().all(|ch| ch.is_ascii_digit())
+            && let Some(index) = rows
+                .iter()
+                .position(|row| format!("{:02}", row.fleet_number) == raw_input)
+        {
+            self.fleet.cursor = index;
+            let visible_rows = self.fleet_list_visible_rows();
+            sync_scroll_to_cursor(
+                &mut self.fleet.scroll_offset,
+                self.fleet.cursor,
+                visible_rows,
+            );
+            return true;
+        }
         let match_rows = rows
             .iter()
-            .map(|row| vec![row.fleet_number.to_string()])
+            .map(|row| vec![format!("{:02}", row.fleet_number)])
             .collect::<Vec<_>>();
         let Some(matched) =
             crate::screen::table_selection::find_typed_jump(&match_rows, 0, &self.fleet.list_input)

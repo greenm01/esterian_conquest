@@ -71,7 +71,9 @@ impl CoreGameData {
             }
         }
 
-        let remaining_ships = donor.total_starships().saturating_sub(selection.total_ships());
+        let remaining_ships = donor
+            .total_starships()
+            .saturating_sub(selection.total_ships());
         if remaining_ships == 0 {
             return Err(GameStateMutationError::FleetDetachLeavesFleetEmpty {
                 fleet_index_1_based: donor_fleet_record_index_1_based,
@@ -270,7 +272,9 @@ impl CoreGameData {
             }
         }
 
-        let remaining_ships = donor.total_starships().saturating_sub(selection.total_ships());
+        let remaining_ships = donor
+            .total_starships()
+            .saturating_sub(selection.total_ships());
         if remaining_ships == 0 {
             return Err(GameStateMutationError::FleetDetachLeavesFleetEmpty {
                 fleet_index_1_based: donor_fleet_record_index_1_based,

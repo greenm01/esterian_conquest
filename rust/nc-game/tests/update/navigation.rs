@@ -211,6 +211,54 @@ fn fleet_list_keeps_selector_input_numeric_only() {
 }
 
 #[test]
+fn fleet_list_typed_jump_accepts_leading_zero_fleet_ids() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    let mut next_other_number = 30u16;
+    for fleet in app
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
+    {
+        let fleet_number = match next_other_number {
+            30 => 20,
+            31 => 2,
+            _ => next_other_number,
+        };
+        fleet.set_local_slot_word_raw(fleet_number);
+        next_other_number += 1;
+    }
+    advance_to_main_menu(&mut app);
+    app.open_fleet_list();
+
+    let action = app.handle_key(key(KeyCode::Char('0')));
+    assert_eq!(action, Action::Fleet(FleetAction::AppendListChar('0')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+
+    let action = app.handle_key(key(KeyCode::Char('2')));
+    assert_eq!(action, Action::Fleet(FleetAction::AppendListChar('2')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+
+    assert!(app.fleet.list_input.is_empty());
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert_eq!(
+        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U <Q>").trim(),
+        "COMMAND <- ? F S O C E D M T L U <Q> [02] ->"
+    );
+}
+
+#[test]
 fn auto_commission_prompt_enter_defaults_to_yes() {
     let root = temp_game_with_auto_commission_copy();
     let config = AppConfig {

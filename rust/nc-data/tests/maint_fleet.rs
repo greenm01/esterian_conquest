@@ -2295,7 +2295,11 @@ fn test_delayed_hostile_orders_do_not_arrive_and_execute_in_same_turn() {
         );
 
         let fleet = &game_data.fleets.records[0];
-        assert_eq!(fleet.current_location_coords_raw(), target_coords, "{name} coords");
+        assert_eq!(
+            fleet.current_location_coords_raw(),
+            target_coords,
+            "{name} coords"
+        );
         assert_eq!(fleet.standing_order_kind(), order, "{name} order");
         assert_eq!(fleet.current_speed(), 0, "{name} speed");
         assert_eq!(fleet.raw[0x19], 0x80, "{name} ready flag");

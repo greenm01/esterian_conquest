@@ -943,7 +943,17 @@ fn row_states_from_enabled_flags(flags: &[bool]) -> Vec<nc_ui::table::TableRowSt
 pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
     table_rows(app)
         .into_iter()
-        .map(|row| vec![row.id_label])
+        .map(|row| {
+            let selection_key = match row.key {
+                FleetOverlayRowKey::Fleet(_) => row
+                    .id_label
+                    .parse::<u16>()
+                    .map(|fleet_number| format!("{fleet_number:02}"))
+                    .unwrap_or(row.id_label),
+                FleetOverlayRowKey::Starbase(_) => row.id_label,
+            };
+            vec![selection_key]
+        })
         .collect()
 }
 
@@ -1103,6 +1113,21 @@ fn truncate(value: &str, width: usize) -> String {
 }
 
 pub(crate) fn sync_cursor_to_jump_input(app: &mut DashApp) -> bool {
+    let raw_input = app.fleet_overlay.jump_input.trim();
+    if raw_input.starts_with('0')
+        && raw_input.chars().all(|ch| ch.is_ascii_digit())
+        && let Some(index) = table_rows(app).iter().position(|row| match row.key {
+            FleetOverlayRowKey::Fleet(_) => row
+                .id_label
+                .parse::<u16>()
+                .map(|fleet_number| format!("{fleet_number:02}") == raw_input)
+                .unwrap_or(false),
+            FleetOverlayRowKey::Starbase(_) => false,
+        })
+    {
+        app.fleet_overlay.selected = index;
+        return true;
+    }
     let rows = selection_rows(app);
     let Some(matched) = table_selection::find_typed_jump(&rows, 0, &app.fleet_overlay.jump_input)
     else {
@@ -1177,7 +1202,10 @@ fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Orderin
 
 #[cfg(test)]
 mod tests {
-    use super::{HOTKEYS, draw, overlay_title, sort_footer_label, table_rows};
+    use super::{
+        HOTKEYS, draw, overlay_title, selection_rows, sort_footer_label, sync_cursor_to_jump_input,
+        table_rows,
+    };
     use crate::app::state::{
         ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, SortDirection,
     };
@@ -1337,6 +1365,40 @@ mod tests {
 
         assert_eq!(overlay_title(&app), "FLEET LIST: ID ASC ALL");
         assert_eq!(sort_footer_label(&app), "SORT ASC");
+    }
+
+    #[test]
+    fn fleet_jump_input_accepts_leading_zero_fleet_ids() {
+        let mut app = dash_app_with_starbase();
+        let mut next_other_number = 30u16;
+        for fleet in app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .filter(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
+        {
+            let fleet_number = match next_other_number {
+                30 => 20,
+                31 => 2,
+                _ => next_other_number,
+            };
+            fleet.set_local_slot_word_raw(fleet_number);
+            next_other_number += 1;
+        }
+        app.overlay = ActiveOverlay::FleetList;
+        app.fleet_overlay.jump_input = "02".to_string();
+
+        assert!(sync_cursor_to_jump_input(&mut app));
+
+        let rows = table_rows(&app);
+        assert_eq!(rows[app.fleet_overlay.selected].id_label, "2");
+        assert_eq!(selection_rows(&app)[app.fleet_overlay.selected][0], "02");
+        assert!(
+            selection_rows(&app)
+                .iter()
+                .any(|row| row.first().is_some_and(|value| value == "SB1"))
+        );
     }
 
     #[test]

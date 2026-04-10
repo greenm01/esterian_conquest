@@ -245,13 +245,12 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if hostile_order_ready_for_execution(
-                f,
-                Order::from_raw(f.standing_order_code_raw()),
-            ) && matches!(
-                Order::from_raw(f.standing_order_code_raw()),
-                Order::BombardWorld
-            ) {
+            if hostile_order_ready_for_execution(f, Order::from_raw(f.standing_order_code_raw()))
+                && matches!(
+                    Order::from_raw(f.standing_order_code_raw()),
+                    Order::BombardWorld
+                )
+            {
                 Some(i)
             } else {
                 None
@@ -276,13 +275,12 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if hostile_order_ready_for_execution(
-                f,
-                Order::from_raw(f.standing_order_code_raw()),
-            ) && matches!(
-                Order::from_raw(f.standing_order_code_raw()),
-                Order::InvadeWorld
-            ) {
+            if hostile_order_ready_for_execution(f, Order::from_raw(f.standing_order_code_raw()))
+                && matches!(
+                    Order::from_raw(f.standing_order_code_raw()),
+                    Order::InvadeWorld
+                )
+            {
                 Some(i)
             } else {
                 None
@@ -296,13 +294,12 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if hostile_order_ready_for_execution(
-                f,
-                Order::from_raw(f.standing_order_code_raw()),
-            ) && matches!(
-                Order::from_raw(f.standing_order_code_raw()),
-                Order::BlitzWorld
-            ) {
+            if hostile_order_ready_for_execution(f, Order::from_raw(f.standing_order_code_raw()))
+                && matches!(
+                    Order::from_raw(f.standing_order_code_raw()),
+                    Order::BlitzWorld
+                )
+            {
                 Some(i)
             } else {
                 None

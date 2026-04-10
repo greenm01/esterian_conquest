@@ -12,7 +12,7 @@ pub(super) fn merge_one_fleet_into_host(
     let army = game_data.fleets.records[donor_idx].army_count();
     let et = game_data.fleets.records[donor_idx].etac_count();
     let sc = game_data.fleets.records[donor_idx].scout_count();
-    
+
     let donor_roe = game_data.fleets.records[donor_idx].rules_of_engagement();
     let donor_is_combat = game_data.fleets.records[donor_idx].has_any_combat_ships();
     let host_is_combat_before = game_data.fleets.records[host_idx].has_any_combat_ships();

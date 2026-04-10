@@ -4,7 +4,9 @@ use nc_data::{CoreGameData, MaintenanceEvents, Mission};
 
 use crate::maint::results::binary::classic_results_lines;
 use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
-use crate::maint::results::format::{compact_fleet_number_list, fleet_number_from_idx, report_header};
+use crate::maint::results::format::{
+    compact_fleet_number_list, fleet_number_from_idx, report_header,
+};
 use crate::maint::results::mod_constants::{JOIN_SUMMARY_PREVIEW_LINE_BUDGET, RESULTS_TAIL_FLEET};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

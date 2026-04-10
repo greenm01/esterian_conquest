@@ -141,9 +141,7 @@ fn configure_delayed_invade_arrival_directory(target: &std::path::Path) {
     attacker.set_movement_fraction_raw(0);
     attacker.set_transit_ready_flag_raw(0x81);
 
-    game_data
-        .save(target)
-        .expect("mutated fixture should save");
+    game_data.save(target).expect("mutated fixture should save");
 }
 
 fn configure_dominant_invalidated_invade_directory(target: &std::path::Path) {
@@ -2084,7 +2082,8 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
 
-    let defender_report = joined_report_containing(&results, "We have been invaded and captured by");
+    let defender_report =
+        joined_report_containing(&results, "We have been invaded and captured by");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"
@@ -2093,10 +2092,7 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         defender_report.contains("20BB, 20CA, 20DD"),
         "{defender_report}"
     );
-    assert!(
-        defender_report.contains("2TT*"),
-        "{defender_report}"
-    );
+    assert!(defender_report.contains("2TT*"), "{defender_report}");
     assert!(
         defender_report.contains("Our defenses: 15 ground batteries and 142 armies"),
         "{defender_report}"
@@ -2125,10 +2121,15 @@ fn maint_rust_invasion_reports_arrival_and_execution_on_separate_turns() {
 
     let second_results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let second_text = decode_chunked_report(&second_results);
-    assert!(second_text.contains("Invasion mission report"), "{second_text}");
+    assert!(
+        second_text.contains("Invasion mission report"),
+        "{second_text}"
+    );
     assert!(second_text.contains("Target world:"), "{second_text}");
     assert!(
-        !second_text.contains("We have arrived at our target world and are preparing to begin the invasion."),
+        !second_text.contains(
+            "We have arrived at our target world and are preparing to begin the invasion."
+        ),
         "{second_text}"
     );
 
@@ -2246,19 +2247,14 @@ fn maint_rust_blitz_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
 
-    let defender_report = joined_report_containing(&results, "We have been invaded and captured by");
+    let defender_report =
+        joined_report_containing(&results, "We have been invaded and captured by");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"
     );
-    assert!(
-        defender_report.contains("1DD"),
-        "{defender_report}"
-    );
-    assert!(
-        defender_report.contains("10TT*"),
-        "{defender_report}"
-    );
+    assert!(defender_report.contains("1DD"), "{defender_report}");
+    assert!(defender_report.contains("10TT*"), "{defender_report}");
     assert!(
         defender_report.contains("Our defenses: 1 ground battery and 1 army"),
         "{defender_report}"
@@ -2721,7 +2717,10 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
         normalized.contains("The alien force contained")
             || normalized.contains("alien force contained")
     );
-    assert!(normalized.contains("without suffering losses"), "{normalized}");
+    assert!(
+        normalized.contains("without suffering losses"),
+        "{normalized}"
+    );
     assert!(!normalized.contains("suffering losses of no ship losses"));
     assert!(normalized.contains("unable to inflict any losses"));
 
@@ -3408,8 +3407,14 @@ fn maint_rust_join_summary_uses_compact_oxford_fleet_lists() {
     let text = decode_chunked_report(&results);
     assert!(text.contains("From your Fleet Command Center:"));
     assert!(text.contains("Join mission summary"));
-    assert!(text.contains("Completed joins: Fleets 3 and 4 merged into Fleet 2."), "{text}");
-    assert!(text.contains("Lost hosts: Fleets 2 and 3 lost their host and are holding position."), "{text}");
+    assert!(
+        text.contains("Completed joins: Fleets 3 and 4 merged into Fleet 2."),
+        "{text}"
+    );
+    assert!(
+        text.contains("Lost hosts: Fleets 2 and 3 lost their host and are holding position."),
+        "{text}"
+    );
     assert!(!text.contains("Lost hosts: Fleets 2, 3 and"), "{text}");
 
     cleanup_dir(&target);

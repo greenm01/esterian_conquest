@@ -188,7 +188,10 @@ fn rendezvous_absorbing_report_uses_compact_oxford_fleet_list() {
     let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
     let joined = texts.join(" ").replace('\n', " ");
     assert!(joined.contains("Rendezvous mission report"));
-    assert!(joined.contains("absorbing fleets 5, 6, 7, and 11."), "{joined}");
+    assert!(
+        joined.contains("absorbing fleets 5, 6, 7, and 11."),
+        "{joined}"
+    );
     assert!(!joined.contains("the 5th Fleet"), "{joined}");
     assert!(!joined.contains("the 11th Fleet"), "{joined}");
 }
@@ -310,7 +313,11 @@ fn join_summary_contains_single_end_of_transmission_footer() {
     let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
     let joined = texts.join("\n");
     assert!(joined.contains("Join mission summary"));
-    assert_eq!(joined.matches("<end of transmission>").count(), 1, "{joined}");
+    assert_eq!(
+        joined.matches("<end of transmission>").count(),
+        1,
+        "{joined}"
+    );
 }
 
 #[test]
@@ -543,8 +550,19 @@ fn join_summary_uses_compact_fleet_lists_for_multi_fleet_sections() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("Completed joins: Fleets 5, 7, and 11 merged into Fleet 3."), "{text}");
-    assert!(text.contains("Retargeted to follow host: Fleets 4, 6, and 10."), "{text}");
-    assert!(text.contains("Lost hosts: Fleets 8, 9, and 12 lost host Fleet 2 and are holding position."), "{text}");
+    assert!(
+        text.contains("Completed joins: Fleets 5, 7, and 11 merged into Fleet 3."),
+        "{text}"
+    );
+    assert!(
+        text.contains("Retargeted to follow host: Fleets 4, 6, and 10."),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "Lost hosts: Fleets 8, 9, and 12 lost host Fleet 2 and are holding position."
+        ),
+        "{text}"
+    );
     assert!(!text.contains("Fleets 5, 7 and 11"), "{text}");
 }

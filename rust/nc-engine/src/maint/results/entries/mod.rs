@@ -249,12 +249,8 @@ pub fn generate_report_entries(
 
     combat::push_combat_entries(&mut entries, game_data, events, year);
     intel::push_intel_entries(&mut entries, game_data, events, year);
-    let consumed_roe_disposition_indices = missions::push_mission_entries(
-        &mut entries,
-        game_data,
-        events,
-        year,
-    );
+    let consumed_roe_disposition_indices =
+        missions::push_mission_entries(&mut entries, game_data, events, year);
     misc::push_misc_entries(&mut entries, game_data, events, year);
     misc::push_roe_entries(
         &mut entries,
