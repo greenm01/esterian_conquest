@@ -296,6 +296,49 @@ fn planet_list_hotkeys_open_direct_row_actions_and_return_to_list() {
 }
 
 #[test]
+fn planet_list_build_hotkey_shows_notice_when_selected_planet_has_no_build_budget() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let homeworld = runtime
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("owned planet exists");
+    homeworld.set_stored_production_points(1);
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let config = AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    let mut terminal = CaptureTerminal::new();
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let list_screen = ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location);
+    assert_eq!(app.current_screen(), list_screen);
+
+    let action = app.handle_key(key(KeyCode::Char('b')));
+    assert_eq!(action, Action::Planet(PlanetAction::OpenBuildSpecify));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), list_screen);
+
+    app.render(&mut terminal)
+        .expect("planet list should render no-budget notice");
+    assert!(
+        line_containing(&terminal, "No build budget remains.").contains("No build budget remains.")
+    );
+}
+
+#[test]
 fn compose_body_treats_hjkl_as_text_and_keeps_arrow_navigation() {
     let screen = MessageComposeScreen::new();
 

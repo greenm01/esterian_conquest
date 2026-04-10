@@ -804,10 +804,12 @@ impl DashApp {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
             KeyCode::Char('f') | KeyCode::Char('F') => {
+                self.clear_planet_overlay_footer_notice();
                 self.planet_overlay
                     .open_prompt(PlanetOverlayPromptMode::FilterMenu);
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
+                self.clear_planet_overlay_footer_notice();
                 self.planet_overlay
                     .open_prompt(PlanetOverlayPromptMode::SortMenu);
             }
@@ -816,15 +818,18 @@ impl DashApp {
                 if self.planet_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
             {
+                self.clear_planet_overlay_footer_notice();
                 self.planet_overlay.jump_input.push(ch);
                 if planet_list::sync_cursor_to_jump_input(self) {
                     self.planet_overlay.jump_input.clear();
                 }
             }
             KeyCode::Backspace => {
+                self.clear_planet_overlay_footer_notice();
                 self.planet_overlay.jump_input.pop();
             }
             _ => {
+                self.clear_planet_overlay_footer_notice();
                 let total_rows = planet_list::selection_rows(self).len();
                 handle_list_overlay_key(
                     key,
@@ -1990,7 +1995,12 @@ mod tests {
     fn closing_planet_build_modal_returns_to_planet_list_overlay() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(50);
         app.open_planet_build_specify();
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
 
         app.handle_key(key(KeyCode::Char('q')));
 
@@ -1999,6 +2009,68 @@ mod tests {
             app.planet_overlay.prompt_mode,
             PlanetOverlayPromptMode::None
         );
+    }
+
+    #[test]
+    fn opening_build_specify_with_no_budget_shows_overlay_footer_notice() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(1);
+
+        app.open_planet_build_specify();
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::None
+        );
+        assert_eq!(
+            app.planet_overlay.footer_notice.as_deref(),
+            Some("No build budget remains.")
+        );
+    }
+
+    #[test]
+    fn successful_build_that_exhausts_budget_closes_prompt_and_shows_footer_notice() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(2);
+
+        app.open_planet_build_specify();
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
+
+        app.append_planet_build_unit_char('9');
+        app.submit_planet_build_unit();
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildQuantity
+        );
+        app.append_planet_build_quantity_char('1');
+        app.submit_planet_build_quantity()
+            .expect("build quantity should submit");
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::None
+        );
+        assert_eq!(
+            app.planet_overlay.footer_notice.as_deref(),
+            Some("No build budget remains.")
+        );
+        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, None);
+    }
+
+    #[test]
+    fn planet_overlay_footer_notice_clears_after_navigation() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.planet_overlay.footer_notice = Some("No build budget remains.".to_string());
+
+        app.handle_key(key(KeyCode::Down));
+
+        assert_eq!(app.planet_overlay.footer_notice, None);
     }
 
     #[test]

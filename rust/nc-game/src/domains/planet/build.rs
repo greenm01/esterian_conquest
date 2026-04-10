@@ -16,10 +16,12 @@ use nc_engine::{
     commission_fleet_draft_from_entries, planet_build_committed_points, planet_build_list_entries,
     planet_build_max_quantity, planet_build_orders, planet_build_unavailable_message,
     planet_build_view, planet_commission_draft_state, planet_commission_slot_entries,
-    production_item_kind_raw,
+    planet_has_any_buildable_unit, production_item_kind_raw,
 };
 
 impl App {
+    const PLANET_BUILD_BUDGET_EXHAUSTED_NOTICE: &'static str = "No build budget remains.";
+
     fn planet_commission_picker_visible_rows(&self) -> usize {
         crate::domains::planet::screens::planet_commission::planet_commission_picker_visible_rows(
             self.screen_geometry,
@@ -375,6 +377,10 @@ impl App {
     }
 
     pub fn open_planet_build_specify(&mut self) {
+        let opened_from_planet_list = matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        );
         if matches!(
             self.current_screen,
             ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
@@ -403,6 +409,10 @@ impl App {
         self.planet.build_quantity_input.clear();
         self.planet.build_quantity_status = None;
         self.planet.build_selected_kind = None;
+        if !self.current_planet_can_afford_any_build() {
+            self.show_planet_build_budget_exhausted_notice(opened_from_planet_list);
+            return;
+        }
         self.current_screen = ScreenId::PlanetBuildSpecify;
     }
 
@@ -1253,7 +1263,11 @@ impl App {
         self.planet.build_quantity_input.clear();
         self.planet.build_quantity_status = None;
         self.planet.build_selected_kind = None;
-        self.current_screen = ScreenId::PlanetBuildSpecify;
+        if self.current_planet_can_afford_any_build() {
+            self.current_screen = ScreenId::PlanetBuildSpecify;
+        } else {
+            self.show_planet_build_budget_exhausted_notice(self.planet.build_return_to_list);
+        }
         Ok(())
     }
 
@@ -1707,6 +1721,32 @@ impl App {
     ) -> Result<u32, Box<dyn std::error::Error>> {
         let view = self.current_planet_build_view()?;
         planet_build_max_quantity(&self.game_data, &view.row, kind).map_err(Into::into)
+    }
+
+    fn current_planet_can_afford_any_build(&self) -> bool {
+        let Ok(view) = self.current_planet_build_view() else {
+            return false;
+        };
+        if view.row.planet_record_index_1_based == 0 {
+            return false;
+        }
+        planet_has_any_buildable_unit(&self.game_data, &view.row).unwrap_or(false)
+    }
+
+    fn show_planet_build_budget_exhausted_notice(&mut self, return_to_list: bool) {
+        self.planet.build_status = None;
+        self.planet.build_unit_input.clear();
+        self.planet.build_unit_status = None;
+        self.planet.build_unit_notice = None;
+        self.planet.build_quantity_input.clear();
+        self.planet.build_quantity_status = None;
+        self.planet.build_selected_kind = None;
+        if return_to_list {
+            self.show_planet_context_notice(Self::PLANET_BUILD_BUDGET_EXHAUSTED_NOTICE);
+        } else {
+            self.planet.build_status = Some(Self::PLANET_BUILD_BUDGET_EXHAUSTED_NOTICE.to_string());
+            self.current_screen = ScreenId::PlanetBuildMenu;
+        }
     }
 
     fn planet_build_unavailable_message(

@@ -225,6 +225,7 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
         .expect("fixture should have a non-owned planet");
     let extra_planet = &mut state.game_data.planets.records[extra_owned_idx];
     extra_planet.set_owner_empire_slot_raw(1);
+    extra_planet.set_stored_production_points(10);
     extra_planet.set_army_count_raw(9);
     let extra_coords = extra_planet.coords_raw();
 
@@ -272,11 +273,15 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
         .game_data
         .empire_planet_economy_rows(app.player.record_index_1_based);
     rows.sort_by_key(|row| row.coords);
+    let build_cursor = rows
+        .iter()
+        .position(|row| row.stored_production_points >= 2 && u32::from(row.build_capacity) >= 2)
+        .expect("fixture should contain at least one buildable owned planet");
     let target_cursor = rows
         .iter()
         .position(|row| row.coords == extra_coords)
         .expect("extra owned planet should appear in planet list");
-    app.planet.brief_cursor = target_cursor;
+    app.planet.brief_cursor = build_cursor;
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildSpecify)),
@@ -289,6 +294,8 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
         app.current_screen(),
         ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
     );
+
+    app.planet.brief_cursor = target_cursor;
 
     assert_eq!(
         apply_action(
@@ -1222,6 +1229,97 @@ fn empty_build_quantity_submission_uses_max_affordable_default() {
     assert_eq!(planet.build_kind_raw(0), 1);
     assert_eq!(planet.build_count_raw(0), 50);
     assert!((1..10).all(|slot| planet.build_count_raw(slot) == 0));
+}
+
+#[test]
+fn build_specify_from_menu_stays_on_build_menu_when_no_budget_remains() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld = state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("owned planet exists");
+    homeworld.set_stored_production_points(1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+
+    app.open_planet_build_specify();
+
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    app.render(&mut terminal)
+        .expect("build menu should render no-budget notice");
+    assert!(
+        line_containing(&terminal, "Notice: ").contains("No build budget remains."),
+        "expected no-budget notice in build menu"
+    );
+}
+
+#[test]
+fn successful_build_that_exhausts_budget_returns_to_build_menu_with_notice() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld = state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("owned planet exists");
+    homeworld.set_stored_production_points(2);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+
+    app.open_planet_build_specify();
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildSpecify);
+    app.append_planet_build_unit_char('9');
+    app.submit_planet_build_unit();
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildQuantity);
+    app.append_planet_build_quantity_char('1');
+    app.submit_planet_build_quantity()
+        .expect("quantity submit should succeed");
+
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    app.render(&mut terminal)
+        .expect("build menu should render exhaustion notice");
+    let notice = line_containing(&terminal, "Notice: ");
+    assert!(notice.contains("No build budget remains."));
+    assert!(!notice.contains("Queued 1 Army."));
 }
 
 #[test]

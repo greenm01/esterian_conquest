@@ -87,12 +87,30 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
+    let command_bar = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default.as_deref(),
+        input: &app.planet_overlay.jump_input,
+    };
+    let notice_footer_rows;
     let footer = match app.planet_overlay.prompt_mode {
-        PlanetOverlayPromptMode::None => TableFooter::CommandBar {
-            hotkeys_markup: HOTKEYS,
-            default: selected_default.as_deref(),
-            input: &app.planet_overlay.jump_input,
-        },
+        PlanetOverlayPromptMode::None => {
+            if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
+                notice_footer_rows = [
+                    TableFooter::CommandText {
+                        label: "COMMAND",
+                        text: notice,
+                    },
+                    command_bar,
+                ];
+                TableFooter::Stacked {
+                    rows: &notice_footer_rows,
+                    active_row: 1,
+                }
+            } else {
+                command_bar
+            }
+        }
         PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
             label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
@@ -203,12 +221,30 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
+    let command_bar = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default.as_deref(),
+        input: &app.planet_overlay.jump_input,
+    };
+    let notice_footer_rows;
     let footer = match app.planet_overlay.prompt_mode {
-        PlanetOverlayPromptMode::None => TableFooter::CommandBar {
-            hotkeys_markup: HOTKEYS,
-            default: selected_default.as_deref(),
-            input: &app.planet_overlay.jump_input,
-        },
+        PlanetOverlayPromptMode::None => {
+            if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
+                notice_footer_rows = [
+                    TableFooter::CommandText {
+                        label: "COMMAND",
+                        text: notice,
+                    },
+                    command_bar,
+                ];
+                TableFooter::Stacked {
+                    rows: &notice_footer_rows,
+                    active_row: 1,
+                }
+            } else {
+                command_bar
+            }
+        }
         PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
             label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,

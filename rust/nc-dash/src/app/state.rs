@@ -229,6 +229,7 @@ pub struct PlanetOverlayState {
     pub selected: usize,
     pub scroll: usize,
     pub jump_input: String,
+    pub footer_notice: Option<String>,
     pub sort: PlanetOverlaySort,
     pub sort_direction: SortDirection,
     pub filter: PlanetOverlayFilter,
@@ -251,6 +252,7 @@ impl Default for PlanetOverlayState {
             selected: 0,
             scroll: 0,
             jump_input: String::new(),
+            footer_notice: None,
             sort: PlanetOverlaySort::CurrentProduction,
             sort_direction: default_planet_overlay_sort_direction(
                 PlanetOverlaySort::CurrentProduction,

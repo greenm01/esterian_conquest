@@ -167,6 +167,18 @@ pub fn planet_build_max_quantity(
     Ok(max_qty)
 }
 
+pub fn planet_has_any_buildable_unit(
+    game_data: &CoreGameData,
+    row: &EmpirePlanetEconomyRow,
+) -> Result<bool, GameStateMutationError> {
+    for unit in BUILD_UNITS {
+        if planet_build_max_quantity(game_data, row, unit.kind)? > 0 {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub fn planet_build_unavailable_message(
     points_left: u32,
     kind: ProductionItemKind,
