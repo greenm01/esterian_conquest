@@ -132,10 +132,6 @@ pub(super) fn fleet_state_from_records(
     state
 }
 
-fn fleet_class_order() -> [usize; 7] {
-    [IDX_DD, IDX_CA, IDX_BB, IDX_SB, IDX_SC, IDX_TT, IDX_ET]
-}
-
 fn fleet_class_as(idx: usize) -> u32 {
     match idx {
         IDX_DD => AS_DD,
