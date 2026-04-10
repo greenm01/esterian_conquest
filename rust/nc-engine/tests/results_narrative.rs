@@ -911,6 +911,49 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
 }
 
 #[test]
+fn roe_retreat_without_losses_uses_natural_wording() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3019)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events
+        .encounter_disposition_events
+        .push(EncounterDispositionEvent::Retreated {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            mission: Some(Mission::MoveOnly),
+            coords: [11, 12],
+            friendly_initial: ShipLosses {
+                transports: 9,
+                ..ShipLosses::default()
+            },
+            friendly_loaded_armies_initial: 9,
+            target_empire_raw: 2,
+            target_fleet_number: Some(14),
+            enemy_initial: ShipLosses {
+                battleships: 1,
+                cruisers: 1,
+                ..ShipLosses::default()
+            },
+            retreat_target_coords: [11, 11],
+            losses_sustained: ShipLosses::default(),
+            enemy_losses_inflicted: ShipLosses::default(),
+            reason: EncounterDispositionReason::RoeWithdrawal,
+            stardate_week: Some(2),
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("In accordance with our ROE, we withdrew"));
+    assert!(text.contains("without suffering losses."));
+    assert!(!text.contains("suffering losses of no ship losses"));
+}
+
+#[test]
 fn victorious_invasion_report_says_enemy_fled_without_roe_leak() {
     let game_data = GameStateBuilder::new()
         .with_player_count(4)

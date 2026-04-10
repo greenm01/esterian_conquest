@@ -67,7 +67,7 @@ fn merged_roe_abort_report_body(
             enemy_losses_inflicted,
             ..
         } => format!(
-            "{prefix} We engaged {}. We had {}. The alien force contained {}. In accordance with our ROE, we withdrew toward {} after suffering losses of {}. {} {}",
+            "{prefix} We engaged {}. We had {}. The alien force contained {}. In accordance with our ROE, we withdrew toward {} {}. {} {}",
             classic_enemy_reference(game_data, *target_fleet_number, *target_empire_raw),
             fleet_force_summary(*friendly_initial, *friendly_loaded_armies_initial),
             fleet_force_summary(*enemy_initial, 0),
@@ -76,7 +76,7 @@ fn merged_roe_abort_report_body(
                 event.owner_empire_raw,
                 *retreat_target_coords
             ),
-            ship_loss_summary(*losses_sustained),
+            roe_retreat_loss_clause(*losses_sustained),
             enemy_losses_sentence(*enemy_losses_inflicted),
             roe_abort_outcome_text(event.kind),
         ),
@@ -91,7 +91,7 @@ fn merged_roe_abort_report_body(
             enemy_losses_inflicted,
             ..
         } => format!(
-            "{prefix} We had {}. We attempted to disengage from {} in accordance with our ROE, but suffered pursuit fire from an alien force containing {} while withdrawing toward {} after suffering losses of {}. {} {}",
+            "{prefix} We had {}. We attempted to disengage from {} in accordance with our ROE, but suffered pursuit fire from an alien force containing {} while withdrawing toward {} {}. {} {}",
             fleet_force_summary(*friendly_initial, *friendly_loaded_armies_initial),
             classic_enemy_reference(game_data, *target_fleet_number, *target_empire_raw),
             fleet_force_summary(*enemy_initial, 0),
@@ -100,7 +100,7 @@ fn merged_roe_abort_report_body(
                 event.owner_empire_raw,
                 *retreat_target_coords
             ),
-            ship_loss_summary(*losses_sustained),
+            roe_retreat_loss_clause(*losses_sustained),
             enemy_losses_sentence(*enemy_losses_inflicted),
             roe_abort_outcome_text(event.kind),
         ),

@@ -258,6 +258,15 @@ pub fn assault_enemy_losses_summary(batteries: u8, armies: u8) -> String {
     ground_losses_summary(batteries, armies).unwrap_or_else(|| "none".to_string())
 }
 
+pub fn roe_retreat_loss_clause(losses: ShipLosses) -> String {
+    let summary = ship_loss_summary(losses);
+    if summary == "no ship losses" {
+        "without suffering losses".to_string()
+    } else {
+        format!("after suffering losses of {summary}")
+    }
+}
+
 pub fn stardock_scan_summary(planet: &nc_data::PlanetRecord) -> String {
     use nc_data::ProductionItemKind;
 

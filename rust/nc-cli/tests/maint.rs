@@ -2721,7 +2721,8 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
         normalized.contains("The alien force contained")
             || normalized.contains("alien force contained")
     );
-    assert!(normalized.contains("suffering losses of no ship losses"));
+    assert!(normalized.contains("without suffering losses"), "{normalized}");
+    assert!(!normalized.contains("suffering losses of no ship losses"));
     assert!(normalized.contains("unable to inflict any losses"));
 
     cleanup_dir(&target);
@@ -3240,6 +3241,10 @@ fn maint_rust_rendezvous_merge_generates_absorbing_report() {
     game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
     game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[2].set_current_location_coords_raw(coords);
+    game_data.fleets.records[2].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[3].set_current_location_coords_raw(coords);
+    game_data.fleets.records[3].set_standing_order_kind(Order::RendezvousSector);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -3248,9 +3253,10 @@ fn maint_rust_rendezvous_merge_generates_absorbing_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Rendezvous mission report"));
-    assert!(text.contains("absorbing the") || text.contains("merging with the"));
+    assert!(text.contains("absorbing fleets 2, 3, and 4."), "{text}");
+    assert!(!text.contains("the 2nd Fleet"), "{text}");
 
     cleanup_dir(&target);
 }

@@ -165,6 +165,35 @@ fn roe_retreat_and_abort_merge_into_one_report() {
 }
 
 #[test]
+fn rendezvous_absorbing_report_uses_compact_oxford_fleet_list() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 10, [12, 12]);
+
+    let mut events = MaintenanceEvents::default();
+    for absorbed in [11, 5, 7, 6] {
+        events.fleet_merge_events.push(FleetMergeEvent {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            kind: Mission::RendezvousSector,
+            host_fleet_id_raw: 1,
+            absorbed_fleet_id_raw: absorbed,
+            host_fleet_number: 10,
+            absorbed_fleet_number: absorbed,
+            coords: [12, 12],
+            survivor_side: true,
+            stardate_week: Some(1),
+        });
+    }
+
+    let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
+    let joined = texts.join(" ").replace('\n', " ");
+    assert!(joined.contains("Rendezvous mission report"));
+    assert!(joined.contains("absorbing fleets 5, 6, 7, and 11."), "{joined}");
+    assert!(!joined.contains("the 5th Fleet"), "{joined}");
+    assert!(!joined.contains("the 11th Fleet"), "{joined}");
+}
+
+#[test]
 fn unknown_join_host_never_renders_zero_fleet_number() {
     let mut game_data = seeded_game_data();
     configure_fleet(&mut game_data, 0, 1, 10, [3, 9]);

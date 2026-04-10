@@ -395,11 +395,7 @@ pub fn push_misc_entries(
             let (host_fleet_idx, stardate_week) = rendezvous_meta[key];
             let source =
                 owned_fleet_source_clause(Some(host_fleet_number), &format!("Sector({x},{y})"));
-            let absorbed_list = absorbed_numbers
-                .iter()
-                .map(|n| format!("the {}", fleet_label(*n)))
-                .collect::<Vec<_>>();
-            let absorbed_text = join_report_parts(&absorbed_list);
+            let absorbed_text = compact_fleet_number_list(absorbed_numbers);
             let arrived_this_turn = rendezvous_arrived.contains(&host_fleet_idx);
             let body = if arrived_this_turn {
                 format!(
@@ -608,14 +604,15 @@ pub fn push_roe_entries(
                 ),
                 {
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
+                    let loss_clause = roe_retreat_loss_clause(losses_sustained);
                     format!(
-                        "{prefix} We engaged {}. We had {}. The alien force contained {}. In accordance with our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
+                        "{prefix} We engaged {}. We had {}. The alien force contained {}. In accordance with our ROE, we withdrew toward System({},{}) {}. {}",
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
                         fleet_force_summary(friendly_initial, friendly_loaded_armies_initial),
                         fleet_force_summary(enemy_initial, 0),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
-                        ship_loss_summary(losses_sustained),
+                        loss_clause,
                         enemy_losses_sentence(enemy_losses_inflicted),
                     )
                 },
@@ -645,14 +642,15 @@ pub fn push_roe_entries(
                 ),
                 {
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
+                    let loss_clause = roe_retreat_loss_clause(losses_sustained);
                     format!(
-                        "{prefix} We had {}. We attempted to disengage from {} but suffered pursuit fire from an alien force containing {}. We withdrew toward System({},{}) after suffering losses of {}. {}",
+                        "{prefix} We had {}. We attempted to disengage from {} but suffered pursuit fire from an alien force containing {}. We withdrew toward System({},{}) {}. {}",
                         fleet_force_summary(friendly_initial, friendly_loaded_armies_initial),
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
                         fleet_force_summary(enemy_initial, 0),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
-                        ship_loss_summary(losses_sustained),
+                        loss_clause,
                         enemy_losses_sentence(enemy_losses_inflicted),
                     )
                 },

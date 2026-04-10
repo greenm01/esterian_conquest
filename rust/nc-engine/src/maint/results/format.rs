@@ -246,6 +246,27 @@ pub fn join_report_parts(parts: &[String]) -> String {
     }
 }
 
+pub fn compact_fleet_number_list(numbers: &[u8]) -> String {
+    let mut sorted = numbers.to_vec();
+    sorted.sort_unstable();
+    let parts = sorted
+        .iter()
+        .map(|fleet_number| fleet_number.to_string())
+        .collect::<Vec<_>>();
+    match parts.as_slice() {
+        [] => "0 fleets".to_string(),
+        [only] => format!("fleet {only}"),
+        [left, right] => format!("fleets {left} and {right}"),
+        _ => {
+            let mut text = String::from("fleets ");
+            text.push_str(&parts[..parts.len() - 1].join(", "));
+            text.push_str(", and ");
+            text.push_str(parts.last().unwrap());
+            text
+        }
+    }
+}
+
 pub fn structured_bombardment_title(mission_owned: bool) -> &'static str {
     if mission_owned {
         mission_report_label(Mission::BombardWorld)
