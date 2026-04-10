@@ -271,8 +271,53 @@ fn apply_critical_hit_to_fleet(state: &mut FleetCombatState) -> bool {
     false
 }
 
-pub(super) fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32, critical_hits: u32) {
-    while hits > 0 {
+fn apply_focus_fire_hits_to_fleet_classes(
+    state: &mut FleetCombatState,
+    hits: &mut u32,
+    target_order: &[usize],
+) -> bool {
+    let mut progress = false;
+    for &idx in target_order {
+        let ds = fleet_class_ds(idx);
+        if ds == 0 || *hits < ds {
+            continue;
+        }
+
+        // First, finish off any already crippled ships (cost 1x DS)
+        if state.crippled[idx] > 0 {
+            let finished = state.crippled[idx].min(*hits / ds);
+            if finished > 0 {
+                state.crippled[idx] -= finished;
+                state.counts[idx] -= finished;
+                *hits -= finished * ds;
+                progress = true;
+            }
+        }
+
+        if *hits < ds * 2 {
+            continue;
+        }
+
+        // Then, destroy nominal ships (cost 2x DS)
+        let cost = ds * 2;
+        let destroyed = state.nominal_count(idx).min(*hits / cost);
+        if destroyed > 0 {
+            state.counts[idx] -= destroyed;
+            *hits -= destroyed * cost;
+            progress = true;
+        }
+    }
+    progress
+}
+
+pub(super) fn apply_hits_to_fleet(
+    state: &mut FleetCombatState,
+    mut suppression_hits: u32,
+    mut execution_hits: u32,
+    critical_hits: u32,
+) {
+    // 1. Apply Suppression hits (Dispersed Fire)
+    while suppression_hits > 0 {
         let (combat_line_order, auxiliary_order);
         let target_order: &[usize] = if fleet_combat_line_present(state) {
             combat_line_order = fleet_combat_line_order();
@@ -282,13 +327,15 @@ pub(super) fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32, c
             &auxiliary_order
         };
 
-        let mut progress = apply_nominal_hits_to_fleet_classes(state, &mut hits, target_order);
+        let mut progress =
+            apply_nominal_hits_to_fleet_classes(state, &mut suppression_hits, target_order);
 
         if target_order
             .iter()
             .all(|&idx| state.nominal_count(idx) == 0)
         {
-            progress |= apply_destroyed_hits_to_fleet_classes(state, &mut hits, target_order);
+            progress |=
+                apply_destroyed_hits_to_fleet_classes(state, &mut suppression_hits, target_order);
         }
 
         if !progress {
@@ -296,6 +343,23 @@ pub(super) fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32, c
         }
     }
 
+    // 2. Apply Execution hits (Focus Fire)
+    while execution_hits > 0 {
+        let (combat_line_order, auxiliary_order);
+        let target_order: &[usize] = if fleet_combat_line_present(state) {
+            combat_line_order = fleet_combat_line_order();
+            &combat_line_order
+        } else {
+            auxiliary_order = fleet_auxiliary_order();
+            &auxiliary_order
+        };
+
+        if !apply_focus_fire_hits_to_fleet_classes(state, &mut execution_hits, target_order) {
+            break;
+        }
+    }
+
+    // 3. Apply Critical hits
     for _ in 0..critical_hits {
         if !apply_critical_hit_to_fleet(state) {
             break;

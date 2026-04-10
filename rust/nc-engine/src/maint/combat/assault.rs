@@ -495,6 +495,7 @@ pub(crate) fn process_planetary_assaults(
                         let mut next_state = fleet_state.clone();
                         apply_hits_to_fleet(
                             &mut next_state,
+                            0,
                             defender_exchange.hits,
                             u32::from(defender_exchange.critical),
                         );
@@ -614,6 +615,7 @@ pub(crate) fn process_planetary_assaults(
                 let mut after = state.clone();
                 apply_hits_to_fleet(
                     &mut after,
+                    0,
                     return_exchange.hits,
                     u32::from(return_exchange.critical),
                 );

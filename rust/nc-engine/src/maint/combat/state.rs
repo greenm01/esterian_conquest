@@ -63,7 +63,21 @@ pub(super) struct TaskForce {
 
 impl FleetCombatState {
     pub(super) fn total_combat_as(&self) -> u32 {
-        fleet_class_order()
+        self.suppression_as() + self.execution_as()
+    }
+
+    pub(super) fn suppression_as(&self) -> u32 {
+        [IDX_CA, IDX_BB]
+            .into_iter()
+            .map(|idx| {
+                let as_value = fleet_class_as(idx);
+                self.nominal_count(idx) * as_value + self.crippled[idx] * crippled_as(as_value)
+            })
+            .sum()
+    }
+
+    pub(super) fn execution_as(&self) -> u32 {
+        [IDX_DD, IDX_SB]
             .into_iter()
             .map(|idx| {
                 let as_value = fleet_class_as(idx);

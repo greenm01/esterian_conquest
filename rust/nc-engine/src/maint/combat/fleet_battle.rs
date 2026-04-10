@@ -176,7 +176,8 @@ fn apply_withdrawal_exchanges(
     battle_year: u16,
     coords: [u8; 2],
     round: u32,
-    pending_hits: &mut HashMap<u8, u32>,
+    pending_suppression: &mut HashMap<u8, u32>,
+    pending_execution: &mut HashMap<u8, u32>,
     pending_criticals: &mut HashMap<u8, u32>,
 ) {
     if exchange_pairs.is_empty() {
@@ -217,7 +218,19 @@ fn apply_withdrawal_exchanges(
             target_empire,
             our_as,
         );
-        *pending_hits.entry(target_empire).or_default() += outbound.hits;
+
+        let sup_hits;
+        let exe_hits;
+        if outbound.hits > 0 {
+            let sup_ratio = actor_state.suppression_as() as f64 / our_as as f64;
+            sup_hits = (outbound.hits as f64 * sup_ratio).round() as u32;
+            exe_hits = outbound.hits.saturating_sub(sup_hits);
+        } else {
+            sup_hits = 0;
+            exe_hits = 0;
+        }
+        *pending_suppression.entry(target_empire).or_default() += sup_hits;
+        *pending_execution.entry(target_empire).or_default() += exe_hits;
         *pending_criticals.entry(target_empire).or_default() += u32::from(outbound.critical);
 
         let target_as = target_state.total_combat_as();
@@ -231,7 +244,19 @@ fn apply_withdrawal_exchanges(
                 empire,
                 target_as,
             );
-            *pending_hits.entry(empire).or_default() += reply.hits;
+
+            let sup_hits;
+            let exe_hits;
+            if reply.hits > 0 {
+                let sup_ratio = target_state.suppression_as() as f64 / target_as as f64;
+                sup_hits = (reply.hits as f64 * sup_ratio).round() as u32;
+                exe_hits = reply.hits.saturating_sub(sup_hits);
+            } else {
+                sup_hits = 0;
+                exe_hits = 0;
+            }
+            *pending_suppression.entry(empire).or_default() += sup_hits;
+            *pending_execution.entry(empire).or_default() += exe_hits;
             *pending_criticals.entry(empire).or_default() += u32::from(reply.critical);
             reciprocal_withdrawal_replies.insert((target_empire, empire));
         }
@@ -705,7 +730,8 @@ pub(crate) fn process_fleet_battles(
                 .collect();
             let mut engaged_empires = HashSet::new();
             let mut pre_round_withdrawals = HashSet::new();
-            let mut pending_hits: HashMap<u8, u32> = HashMap::new();
+            let mut pending_suppression: HashMap<u8, u32> = HashMap::new();
+            let mut pending_execution: HashMap<u8, u32> = HashMap::new();
             let mut pending_criticals: HashMap<u8, u32> = HashMap::new();
             let mut pre_round_withdrawal_pairs = Vec::new();
             let mut suppressed_reciprocal_actions = HashSet::new();
@@ -749,7 +775,20 @@ pub(crate) fn process_fleet_battles(
                             actor_tf.state.is_mixed(),
                             has_starbase_column_bonus(&actor_tf.state),
                         );
-                        *pending_hits.entry(action.target_empire).or_default() += result.hits;
+
+                        let sup_hits;
+                        let exe_hits;
+                        if result.hits > 0 {
+                            let sup_ratio =
+                                actor_tf.state.suppression_as() as f64 / our_as as f64;
+                            sup_hits = (result.hits as f64 * sup_ratio).round() as u32;
+                            exe_hits = result.hits.saturating_sub(sup_hits);
+                        } else {
+                            sup_hits = 0;
+                            exe_hits = 0;
+                        }
+                        *pending_suppression.entry(action.target_empire).or_default() += sup_hits;
+                        *pending_execution.entry(action.target_empire).or_default() += exe_hits;
                         *pending_criticals.entry(action.target_empire).or_default() +=
                             u32::from(result.critical);
                     }
@@ -768,7 +807,8 @@ pub(crate) fn process_fleet_battles(
                 battle_year,
                 coords,
                 round,
-                &mut pending_hits,
+                &mut pending_suppression,
+                &mut pending_execution,
                 &mut pending_criticals,
             );
 
@@ -779,10 +819,11 @@ pub(crate) fn process_fleet_battles(
             }
 
             for tf in &mut task_forces {
-                let hits = pending_hits.get(&tf.empire).copied().unwrap_or(0);
+                let sup_hits = pending_suppression.get(&tf.empire).copied().unwrap_or(0);
+                let exe_hits = pending_execution.get(&tf.empire).copied().unwrap_or(0);
                 let critical_hits = pending_criticals.get(&tf.empire).copied().unwrap_or(0);
-                if hits > 0 || critical_hits > 0 {
-                    apply_hits_to_fleet(&mut tf.state, hits, critical_hits);
+                if sup_hits > 0 || exe_hits > 0 || critical_hits > 0 {
+                    apply_hits_to_fleet(&mut tf.state, sup_hits, exe_hits, critical_hits);
                 }
             }
 
@@ -893,6 +934,10 @@ pub(crate) fn process_fleet_battles(
                 }
             }
 
+            let mut pending_suppression: HashMap<u8, u32> = HashMap::new();
+            let mut pending_execution: HashMap<u8, u32> = HashMap::new();
+            let mut pending_criticals: HashMap<u8, u32> = HashMap::new();
+
             let post_round_withdrawal_pairs = post_round_retreats
                 .iter()
                 .map(|(empire, target_empire, _)| (*empire, *target_empire))
@@ -904,15 +949,17 @@ pub(crate) fn process_fleet_battles(
                 battle_year,
                 coords,
                 round,
-                &mut pending_hits,
+                &mut pending_suppression,
+                &mut pending_execution,
                 &mut pending_criticals,
             );
 
             for tf in &mut task_forces {
-                let hits = pending_hits.get(&tf.empire).copied().unwrap_or(0);
+                let sup_hits = pending_suppression.get(&tf.empire).copied().unwrap_or(0);
+                let exe_hits = pending_execution.get(&tf.empire).copied().unwrap_or(0);
                 let critical_hits = pending_criticals.get(&tf.empire).copied().unwrap_or(0);
-                if hits > 0 || critical_hits > 0 {
-                    apply_hits_to_fleet(&mut tf.state, hits, critical_hits);
+                if sup_hits > 0 || exe_hits > 0 || critical_hits > 0 {
+                    apply_hits_to_fleet(&mut tf.state, sup_hits, exe_hits, critical_hits);
                 }
             }
 
