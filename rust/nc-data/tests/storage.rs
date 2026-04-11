@@ -294,6 +294,16 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
             "legacy byte table {legacy} should be gone: {table_names:?}"
         );
     }
+    for retired in [
+        "hosted_player_seats",
+        "hosted_publish_jobs",
+        "active_sessions",
+    ] {
+        assert!(
+            !table_names.iter().any(|name| name == retired),
+            "retired hosted/session table {retired} should be gone: {table_names:?}"
+        );
+    }
     for current in [
         "snapshot_players",
         "snapshot_planets",
@@ -391,8 +401,43 @@ fn sqlite_store_rejects_legacy_byte_table_schema() {
         matches!(
             err,
             CampaignStoreError::SchemaVersionMismatch {
-                expected: 11,
+                expected: 12,
                 found: None
+            }
+        ),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn sqlite_store_rejects_prior_runtime_schema_version() {
+    let imported = temp_dir("nc-data-storage-prior-runtime-schema");
+    fs::create_dir_all(&imported).expect("create temp dir");
+    let store_path = imported.join(DEFAULT_CAMPAIGN_DB_NAME);
+    let conn = Connection::open(&store_path).expect("open sqlite db");
+    conn.execute_batch(
+        "PRAGMA foreign_keys = ON;
+         CREATE TABLE snapshots (
+             id INTEGER PRIMARY KEY,
+             game_year INTEGER NOT NULL UNIQUE
+         );
+         CREATE TABLE campaign_metadata (
+             key TEXT PRIMARY KEY,
+             int_value INTEGER NOT NULL
+         );
+         INSERT INTO campaign_metadata(key, int_value)
+         VALUES ('runtime_schema_version', 11);",
+    )
+    .expect("seed prior runtime schema");
+    drop(conn);
+
+    let err = CampaignStore::open(&store_path).expect_err("prior runtime schema should be rejected");
+    assert!(
+        matches!(
+            err,
+            CampaignStoreError::SchemaVersionMismatch {
+                expected: 12,
+                found: Some(11)
             }
         ),
         "unexpected error: {err}"

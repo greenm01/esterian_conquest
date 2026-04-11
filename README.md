@@ -35,7 +35,8 @@ Keep the binaries straight:
 
 A normal non-BBS game directory contains `ncgame.db` and nothing else. BBS
 campaigns add a small per-game `config.kdl` beside it for `players` and
-reserved aliases.
+reserved aliases. That runtime DB is scoped to localhost/BBS play; the planned
+Nostr GameServer path is expected to use its own schema.
 
 ## Play
 

@@ -57,14 +57,6 @@ fn run_nc_sysop_output(args: &[&str], cwd: Option<&PathBuf>) -> std::process::Ou
     cmd.output().expect("nc-sysop should run")
 }
 
-fn hosted_seat_count(dir: &PathBuf) -> usize {
-    CampaignStore::open_default_in_dir(dir)
-        .expect("open campaign store")
-        .hosted_seats()
-        .expect("load hosted seats")
-        .len()
-}
-
 #[test]
 fn nc_sysop_new_game_initializes_default_campaign_without_hosted_seats() {
     let target = unique_temp_dir("nc-sysop-new-game");
@@ -82,7 +74,6 @@ fn nc_sysop_new_game_initializes_default_campaign_without_hosted_seats() {
         .expect("load runtime")
         .expect("runtime snapshot should exist");
     assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 0);
-    assert_eq!(hosted_seat_count(&target), 0);
     assert_eq!(fs::read_dir(&target).expect("read dir").count(), 1);
 
     let _ = fs::remove_dir_all(&target);
@@ -117,7 +108,6 @@ fn nc_sysop_new_game_bbs_reads_minimal_config_kdl() {
     assert!(stdout.contains("players=4"));
     assert!(target.join("config.kdl").exists());
     assert!(target.join("ncgame.db").exists());
-    assert_eq!(hosted_seat_count(&target), 0);
 
     let runtime = CampaignStore::open_default_in_dir(&target)
         .expect("open campaign store")

@@ -14,6 +14,10 @@ story. The docs in this directory now serve two purposes:
 - legacy reference for the retired `nc-connect` / `nc-gate` design
 - forward-looking design notes for a future relay-native hosted stack
 
+The active localhost/BBS runtime database no longer carries the retired hosted
+seat, publish-job, or session-lease tables. Any future hosted stack should use
+its own storage boundary instead of reusing the old `ncgame.db` schema.
+
 If you are looking for current operator guidance, use these instead:
 
 - [NC Sysop Manual](../manuals/nc_sysop_manual.typ)

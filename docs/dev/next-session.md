@@ -12,6 +12,8 @@ Keep this file short. Historical detail belongs in
 - `nc-sysop new-game` no longer seeds hosted seats in `ncgame.db`.
 - `nc-game` no longer accepts hosted-only launch flags such as
   `--session-token` or `--hosted-invite-code`.
+- `ncgame.db` has dropped the retired hosted/session tables entirely.
+- `nc-gate` is no longer part of the active Rust workspace build.
 - `nc-dash` is still the native dashboard client, but not yet the hosted lobby.
 - The BBS door client is verified on Mystic and ENiGMA½.
 - Latest local baselines after the hosted-path cut:
@@ -41,5 +43,7 @@ Keep this file short. Historical detail belongs in
 2. Regenerate manuals/PDFs whenever the public command surface changes.
 3. Keep runtime/storage code pointed at SQLite and away from raw offset-style
    regressions.
-4. If hosted work resumes, do it as the new `nc-daemon` / `nc-dash` path, not
+4. Keep the runtime DB scoped to localhost/BBS play; future hosted work should
+   use its own schema rather than reviving retired hosted tables in `ncgame.db`.
+5. If hosted work resumes, do it as the new `nc-daemon` / `nc-dash` path, not
    by reviving the retired SSH bridge stack.

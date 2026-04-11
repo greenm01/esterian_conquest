@@ -5,9 +5,6 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
 mod hex;
-mod hosted_publish_jobs;
-mod hosted_reset;
-mod hosted_seats;
 mod intel;
 mod mail;
 mod metadata;
@@ -21,18 +18,15 @@ mod runtime;
 mod settings;
 mod snapshot_core;
 
-pub use hosted_publish_jobs::{HostedPublishJob, HostedPublishJobKind, HostedPublishJobStatus};
-pub use hosted_seats::{ClaimHostedSeatError, HostedSeat, HostedSeatStatus};
 pub use player_activity::PlayerActivityState;
 pub use player_lifecycle::{PlayerLifecycleState, TerminalOutcome, WinnerState};
 pub use player_war_stats::PlayerWarStatsState;
 pub use settings::{
     CampaignSettings, DEFAULT_CAMPAIGN_THEME_KEY, DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
-    SessionLease, SessionLeaseError, SessionLeaseState,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ncgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 11;
+const RUNTIME_SCHEMA_VERSION: i64 = 12;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -301,26 +295,6 @@ impl CampaignStore {
                  player_record_index INTEGER PRIMARY KEY,
                  theme_key TEXT NOT NULL
              );
-             CREATE TABLE IF NOT EXISTS hosted_player_seats (
-                 player_record_index INTEGER PRIMARY KEY,
-                 invite_code TEXT NOT NULL UNIQUE,
-                 claim_status TEXT NOT NULL,
-                 player_npub TEXT,
-                 CHECK (
-                     (claim_status = 'pending' AND player_npub IS NULL)
-                     OR (claim_status = 'claimed' AND player_npub IS NOT NULL)
-                 )
-             );
-             CREATE TABLE IF NOT EXISTS hosted_publish_jobs (
-                 id INTEGER PRIMARY KEY,
-                 job_kind TEXT NOT NULL,
-                 player_record_index INTEGER NOT NULL,
-                 player_npub TEXT NOT NULL,
-                 status TEXT NOT NULL,
-                 created_at INTEGER NOT NULL,
-                 published_at INTEGER,
-                 last_error TEXT
-             );
              CREATE TABLE IF NOT EXISTS campaign_settings (
                  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
                  slug TEXT NOT NULL,
@@ -340,15 +314,6 @@ impl CampaignStore {
              CREATE TABLE IF NOT EXISTS seat_reservations (
                  player_record_index INTEGER PRIMARY KEY,
                  alias TEXT NOT NULL UNIQUE
-             );
-             CREATE TABLE IF NOT EXISTS active_sessions (
-                 session_token TEXT PRIMARY KEY,
-                 player_record_index INTEGER NOT NULL UNIQUE,
-                 player_npub TEXT NOT NULL,
-                 state TEXT NOT NULL,
-                 started_at INTEGER NOT NULL,
-                 last_heartbeat_at INTEGER NOT NULL,
-                 expires_at INTEGER NOT NULL
              );
              CREATE TABLE IF NOT EXISTS planet_intel (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
@@ -631,24 +596,6 @@ impl CampaignStore {
         let schema_version = metadata::load_runtime_schema_version(&mut conn)?;
         match schema_version {
             Some(found) if found == RUNTIME_SCHEMA_VERSION => {}
-            Some(4) => {
-                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
-            }
-            Some(5) => {
-                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
-            }
-            Some(6) => {
-                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
-            }
-            Some(8) => {
-                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
-            }
-            Some(9) => {
-                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
-            }
-            Some(10) => {
-                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
-            }
             Some(found) => {
                 return Err(CampaignStoreError::SchemaVersionMismatch {
                     expected: RUNTIME_SCHEMA_VERSION,
