@@ -8,11 +8,15 @@ use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetChangeField, FleetCommandContext, FleetMenuPromptMode};
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{
-    CommandMenu, FleetEtaMode, FleetListFilter, FleetListSort, FleetRow, PlanetTransportMode,
-    ScreenId, SortDirection,
+    CommandMenu, FleetEtaMode, FleetListFilter, FleetListFilterPromptMode, FleetListSort,
+    FleetRow, PlanetTransportMode, ScreenId, SortDirection,
 };
 use nc_data::{FleetRecord, Order};
 use nc_engine::{FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line};
+use nc_ui::table_filter::{
+    FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate, is_filter_value_char,
+    parse_column_code, parse_filter_clause,
+};
 use std::cmp::{Ordering, Reverse};
 
 fn fleet_strength_key(fleet: &FleetRecord) -> (u16, u16, u16, u16, u8, u16, Reverse<u16>) {
@@ -72,6 +76,86 @@ fn fleet_matches_filter(row: &FleetRow, filter: FleetListFilter) -> bool {
                 | Order::InvadeWorld
                 | Order::BlitzWorld
         ),
+    }
+}
+
+const FLEET_FILTER_COLUMNS: &[TableFilterColumn] = &[
+    TableFilterColumn {
+        code: "id",
+        label: "Fleet ID",
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "loc",
+        label: "Location",
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "ord",
+        label: "Order",
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "tar",
+        label: "Target",
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "spd",
+        label: "Speed",
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "eta",
+        label: "ETA",
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "roe",
+        label: "ROE",
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "ars",
+        label: "Armies",
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "shi",
+        label: "Ships",
+        kind: FilterKind::Text,
+    },
+];
+
+fn fleet_matches_clause(row: &FleetRow, clause: &TableFilterClause) -> bool {
+    match clause.column.code {
+        "id" => clause.predicate.matches_number(Some(i64::from(row.fleet_number))),
+        "loc" => clause.predicate.matches_coord(row.coords),
+        "ord" => match &clause.predicate {
+            TableFilterPredicate::TextContains(value) if value == "holding" => {
+                fleet_matches_filter(row, FleetListFilter::Holding)
+            }
+            TableFilterPredicate::TextContains(value) if value == "moving" => {
+                fleet_matches_filter(row, FleetListFilter::Moving)
+            }
+            TableFilterPredicate::TextContains(value) if value == "combat" => {
+                fleet_matches_filter(row, FleetListFilter::Combat)
+            }
+            predicate => predicate.matches_text(Some(&row.order_label)),
+        },
+        "tar" => clause.predicate.matches_coord(row.target_coords),
+        "spd" => clause
+            .predicate
+            .matches_number(Some(i64::from(row.current_speed))),
+        "eta" => clause.predicate.matches_text(Some(&row.list_eta_label)),
+        "roe" => clause
+            .predicate
+            .matches_number(Some(i64::from(row.rules_of_engagement))),
+        "ars" => clause
+            .predicate
+            .matches_number(Some(i64::from(row.loaded_armies))),
+        "shi" => clause.predicate.matches_text(Some(&row.composition_label)),
+        _ => true,
     }
 }
 
@@ -501,7 +585,8 @@ impl App {
     }
 
     pub(crate) fn enforce_valid_fleet_filter(&mut self) {
-        if self.fleet.list_filter != FleetListFilter::All {
+        if self.fleet.list_filter_clause.is_none() && self.fleet.list_filter != FleetListFilter::All
+        {
             if self.fleet_list_rows().is_empty() && !self.fleet_rows().is_empty() {
                 self.fleet.list_filter = FleetListFilter::All;
                 self.fleet.cursor = 0;
@@ -511,8 +596,7 @@ impl App {
     }
 
     pub fn open_fleet_list(&mut self) {
-        self.enforce_valid_fleet_filter();
-        if self.fleet_list_rows().is_empty() {
+        if self.fleet_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
         }
@@ -528,13 +612,17 @@ impl App {
     }
 
     pub fn open_fleet_list_filter_prompt(&mut self) {
-        self.enforce_valid_fleet_filter();
-        if self.fleet_list_rows().is_empty() {
+        if self.fleet_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
         }
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
+        self.fleet.list_filter_prompt_input.clear();
+        self.fleet.list_filter_prompt_default_value = "all".to_string();
+        self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetListFilterPrompt;
     }
 
@@ -550,10 +638,16 @@ impl App {
     }
 
     pub fn close_fleet_list_prompt(&mut self) {
+        self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
+        self.fleet.list_filter_prompt_input.clear();
+        self.fleet.list_filter_prompt_default_value.clear();
+        self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetList;
     }
 
     pub fn submit_fleet_list_filter(&mut self, filter: FleetListFilter) {
+        self.fleet.list_filter_clause = None;
         let selected_record = self
             .fleet_list_rows()
             .get(self.fleet.cursor)
@@ -585,6 +679,81 @@ impl App {
             }
             return;
         }
+        self.fleet.cursor = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.fleet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        let visible_rows = self.fleet_list_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
+            visible_rows,
+        );
+    }
+
+    pub fn submit_fleet_list_filter_prompt(&mut self) {
+        if self.current_screen != ScreenId::FleetListFilterPrompt {
+            return;
+        }
+        match self.fleet.list_filter_prompt_mode {
+            FleetListFilterPromptMode::Column => {
+                let raw = if self.fleet.list_filter_prompt_input.trim().is_empty() {
+                    self.fleet.list_filter_prompt_default_value.trim()
+                } else {
+                    self.fleet.list_filter_prompt_input.trim()
+                };
+                if raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("all") {
+                    self.apply_fleet_filter_clause(None);
+                    return;
+                }
+                let Ok(column) = parse_column_code(FLEET_FILTER_COLUMNS, raw) else {
+                    self.fleet.list_filter_prompt_status =
+                        Some("Enter a column code or ALL.".to_string());
+                    return;
+                };
+                self.fleet.list_filter_pending_column = Some(column);
+                self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Value;
+                self.fleet.list_filter_prompt_input.clear();
+                self.fleet.list_filter_prompt_default_value =
+                    self.fleet_filter_default_value_for(column);
+                self.fleet.list_filter_prompt_status = None;
+            }
+            FleetListFilterPromptMode::Value => {
+                let Some(column) = self.fleet.list_filter_pending_column else {
+                    self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
+                    self.fleet.list_filter_prompt_status =
+                        Some("Enter a column code first.".to_string());
+                    return;
+                };
+                let raw = if self.fleet.list_filter_prompt_input.trim().is_empty() {
+                    self.fleet.list_filter_prompt_default_value.trim()
+                } else {
+                    self.fleet.list_filter_prompt_input.trim()
+                };
+                match parse_filter_clause(column, raw) {
+                    Ok(clause) => self.apply_fleet_filter_clause(Some(clause)),
+                    Err(err) => self.fleet.list_filter_prompt_status = Some(err),
+                }
+            }
+        }
+    }
+
+    fn apply_fleet_filter_clause(&mut self, clause: Option<TableFilterClause>) {
+        let selected_record = self
+            .fleet_list_rows()
+            .get(self.fleet.cursor)
+            .map(|row| row.fleet_record_index_1_based);
+        self.fleet.list_filter = FleetListFilter::All;
+        self.fleet.list_filter_clause = clause;
+        self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
+        self.fleet.list_filter_prompt_input.clear();
+        self.fleet.list_filter_prompt_default_value.clear();
+        self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_pending_column = None;
+        self.current_screen = ScreenId::FleetList;
+        let rows = self.fleet_list_rows();
         self.fleet.cursor = selected_record
             .and_then(|record| {
                 rows.iter()
@@ -933,6 +1102,25 @@ impl App {
         self.fleet.list_status = None;
     }
 
+    pub fn append_fleet_list_filter_prompt_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetListFilterPrompt {
+            return;
+        }
+        let allowed = match self.fleet.list_filter_prompt_mode {
+            FleetListFilterPromptMode::Column => ch.is_ascii_alphabetic(),
+            FleetListFilterPromptMode::Value => self
+                .fleet
+                .list_filter_pending_column
+                .map(|column| is_filter_value_char(column.kind, ch))
+                .unwrap_or(false),
+        };
+        if !allowed || self.fleet.list_filter_prompt_input.len() >= 16 {
+            return;
+        }
+        self.fleet.list_filter_prompt_input.push(ch);
+        self.fleet.list_filter_prompt_status = None;
+    }
+
     pub fn backspace_fleet_list_input(&mut self) {
         if self.current_screen != ScreenId::FleetList {
             return;
@@ -940,6 +1128,14 @@ impl App {
         self.fleet.list_input.pop();
         let _ = self.sync_fleet_list_cursor_to_input();
         self.fleet.list_status = None;
+    }
+
+    pub fn backspace_fleet_list_filter_prompt_input(&mut self) {
+        if self.current_screen != ScreenId::FleetListFilterPrompt {
+            return;
+        }
+        self.fleet.list_filter_prompt_input.pop();
+        self.fleet.list_filter_prompt_status = None;
     }
 
     pub fn append_fleet_menu_prompt_char(&mut self, ch: char) {
@@ -1096,6 +1292,9 @@ impl App {
     pub(crate) fn fleet_list_rows(&self) -> Vec<FleetRow> {
         let mut rows = self.fleet_rows();
         rows.retain(|row| fleet_matches_filter(row, self.fleet.list_filter));
+        if let Some(clause) = &self.fleet.list_filter_clause {
+            rows.retain(|row| fleet_matches_clause(row, clause));
+        }
         rows.sort_by(|left, right| match self.fleet.list_sort {
             FleetListSort::Id => apply_sort_direction(
                 self.fleet.list_sort_direction,
@@ -1136,6 +1335,35 @@ impl App {
             .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
         });
         rows
+    }
+
+    fn fleet_filter_default_value_for(&self, column: TableFilterColumn) -> String {
+        let selected = self
+            .fleet_list_rows()
+            .get(self.fleet.cursor)
+            .cloned()
+            .or_else(|| self.fleet_rows().first().cloned());
+        let Some(row) = selected else {
+            return String::new();
+        };
+        match column.code {
+            "id" => row.fleet_number.to_string(),
+            "loc" => format!("{},{}", row.coords[0], row.coords[1]),
+            "ord" => String::new(),
+            "tar" => {
+                if row.target_coords[0] == 0 || row.target_coords[1] == 0 {
+                    String::new()
+                } else {
+                    format!("{},{}", row.target_coords[0], row.target_coords[1])
+                }
+            }
+            "spd" => row.current_speed.to_string(),
+            "eta" => row.list_eta_label,
+            "roe" => row.rules_of_engagement.to_string(),
+            "ars" => row.loaded_armies.to_string(),
+            "shi" => String::new(),
+            _ => String::new(),
+        }
     }
 
     fn fleet_review_rows(&self) -> Vec<FleetRow> {

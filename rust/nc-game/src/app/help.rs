@@ -54,10 +54,11 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         ScreenId::FleetListFilterPrompt => Some(table_help(
             "FILTER COMMANDS",
             &[
-                ("A", "show all fleets"),
-                ("H", "show fleets holding position"),
-                ("M", "show fleets with movement orders"),
-                ("C", "show fleets on combat missions"),
+                ("Type", "enter a column code, then press Enter"),
+                ("Codes", "id loc ord tar spd eta roe ars shi"),
+                ("Order", "ord also accepts holding, moving, and combat"),
+                ("Value", "enter text, a number test, or coords at the next prompt"),
+                ("all", "clear the current filter"),
                 ("Q", "return"),
                 ("Esc", "return"),
                 ("?", "open this helper"),
@@ -173,10 +174,11 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         ScreenId::PlanetListFilterPrompt(_) => Some(table_help(
             "FILTER COMMANDS",
             &[
-                ("A", "show all planets"),
-                ("R", "filter by range from a sector"),
-                ("S", "show only planets with a friendly starbase"),
-                ("T", "show only planets with ships in stardock"),
+                ("Type", "enter a column code, then press Enter"),
+                ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
+                ("Coords", "coo accepts xx,yy or xx,yy/r"),
+                ("Value", "text matches contain; numbers accept > >= < <= = !="),
+                ("all", "clear the current filter"),
                 ("Q", "return"),
                 ("Esc", "return"),
                 ("?", "open this helper"),
@@ -185,10 +187,12 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         ScreenId::PlanetDatabaseFilterPrompt => Some(table_help(
             "FILTER COMMANDS",
             &[
-                ("A", "show all worlds"),
-                ("R", "filter by range from a sector"),
-                ("E", "filter by known owner empire"),
-                ("M", "filter by minimum max production"),
+                ("Type", "enter a column code, then press Enter"),
+                ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
+                ("Coords", "coo accepts xx,yy or xx,yy/r"),
+                ("Unknown", "use ? for unknown database values"),
+                ("Value", "text matches contain; numbers accept > >= < <= = !="),
+                ("all", "clear the current filter"),
                 ("Q", "return"),
                 ("Esc", "return"),
                 ("?", "open this helper"),

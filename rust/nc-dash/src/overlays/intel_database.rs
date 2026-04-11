@@ -7,6 +7,7 @@ use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshot
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
+use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
@@ -28,7 +29,6 @@ use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? L R E M <Q>";
-pub(crate) const FILTER_HOTKEYS: &str = "? A R E M <Q>";
 const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
 const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
@@ -42,6 +42,20 @@ const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::right("Prod", 4),
     TableColumn::right("Points", 6),
     TableColumn::right("Scout", 5),
+];
+
+const FILTER_COLUMNS: &[TableFilterColumn] = &[
+    TableFilterColumn { code: "coo", label: "Coord", kind: FilterKind::Coord },
+    TableFilterColumn { code: "pla", label: "Planet", kind: FilterKind::Text },
+    TableFilterColumn { code: "own", label: "Owner", kind: FilterKind::Text },
+    TableFilterColumn { code: "max", label: "Max", kind: FilterKind::Number },
+    TableFilterColumn { code: "see", label: "Seen", kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
+    TableFilterColumn { code: "gbs", label: "Batteries", kind: FilterKind::Number },
+    TableFilterColumn { code: "sbs", label: "Starbase", kind: FilterKind::Number },
+    TableFilterColumn { code: "cur", label: "Current", kind: FilterKind::Number },
+    TableFilterColumn { code: "trs", label: "Treasury", kind: FilterKind::Number },
+    TableFilterColumn { code: "sco", label: "Scout", kind: FilterKind::Number },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +75,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
+    let filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -79,36 +94,27 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             default: &app.intel_overlay.prompt_default,
             input: &app.intel_overlay.prompt_input,
         },
-        IntelOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FILTER_HOTKEYS,
-            default: None,
-            input: "",
-        },
-        IntelOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+        IntelOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Range from ",
+            prompt: "Filter column [?] ",
             default: &app.intel_overlay.prompt_default,
             input: &app.intel_overlay.prompt_input,
         },
-        IntelOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Range radius ",
-            default: &app.intel_overlay.prompt_default,
-            input: &app.intel_overlay.prompt_input,
-        },
-        IntelOverlayPromptMode::FilterEmpireInput => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Empire ",
-            default: &app.intel_overlay.prompt_default,
-            input: &app.intel_overlay.prompt_input,
-        },
-        IntelOverlayPromptMode::FilterMaxProductionInput => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Max production at least ",
-            default: &app.intel_overlay.prompt_default,
-            input: &app.intel_overlay.prompt_input,
-        },
+        IntelOverlayPromptMode::FilterValueInput => {
+            filter_prompt = format!(
+                "Filter {} ",
+                app.intel_overlay
+                    .pending_filter_column
+                    .map(|column| column.code)
+                    .unwrap_or("value")
+            );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.intel_overlay.prompt_default,
+                input: &app.intel_overlay.prompt_input,
+            }
+        }
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let natural_visible_rows = table_cells.len().max(1);
@@ -161,7 +167,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             metrics.bottom_row.saturating_sub(1),
             frame.body_col,
             frame.body_width,
-            "No planet intel is available yet.",
+            if app.intel_overlay.filter_clause.is_some() {
+                "No worlds match current filter."
+            } else {
+                "No planet intel is available yet."
+            },
             theme::dim_style(),
         );
     }
@@ -175,6 +185,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
+    let filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -193,36 +204,27 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             default: &app.intel_overlay.prompt_default,
             input: &app.intel_overlay.prompt_input,
         },
-        IntelOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FILTER_HOTKEYS,
-            default: None,
-            input: "",
-        },
-        IntelOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+        IntelOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Range from ",
+            prompt: "Filter column [?] ",
             default: &app.intel_overlay.prompt_default,
             input: &app.intel_overlay.prompt_input,
         },
-        IntelOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Range radius ",
-            default: &app.intel_overlay.prompt_default,
-            input: &app.intel_overlay.prompt_input,
-        },
-        IntelOverlayPromptMode::FilterEmpireInput => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Empire ",
-            default: &app.intel_overlay.prompt_default,
-            input: &app.intel_overlay.prompt_input,
-        },
-        IntelOverlayPromptMode::FilterMaxProductionInput => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Max production at least ",
-            default: &app.intel_overlay.prompt_default,
-            input: &app.intel_overlay.prompt_input,
-        },
+        IntelOverlayPromptMode::FilterValueInput => {
+            filter_prompt = format!(
+                "Filter {} ",
+                app.intel_overlay
+                    .pending_filter_column
+                    .map(|column| column.code)
+                    .unwrap_or("value")
+            );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.intel_overlay.prompt_default,
+                input: &app.intel_overlay.prompt_input,
+            }
+        }
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let natural_visible_rows = table_cells.len().max(1);
@@ -276,14 +278,11 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<IntelOverlayRow> {
 
     rows.retain(|row| match app.intel_overlay.filter {
         IntelOverlayFilter::All => true,
-        IntelOverlayFilter::Range { anchor, radius } => {
-            distance_sq(anchor, row.coords) <= u32::from(radius) * u32::from(radius)
-        }
         IntelOverlayFilter::Empire(empire_id) => row.known_owner_empire_id == Some(empire_id),
-        IntelOverlayFilter::MaxProduction(min_prod) => row
-            .known_max_production
-            .is_some_and(|value| value >= min_prod),
     });
+    if let Some(clause) = &app.intel_overlay.filter_clause {
+        rows.retain(|row| intel_row_matches_clause(row, clause));
+    }
 
     rows.sort_by(|left, right| match app.intel_overlay.sort {
         IntelOverlaySort::Location => apply_sort_direction(
@@ -430,8 +429,79 @@ fn overlay_title(app: &DashApp) -> String {
         "TOTAL PLANET DATABASE: {} {} {}",
         sort_key_label(app.intel_overlay.sort),
         app.intel_overlay.sort_direction.label(),
-        filter_label(app.intel_overlay.filter)
+        app.intel_overlay
+            .filter_clause
+            .as_ref()
+            .map(|clause| clause.summary.as_str())
+            .unwrap_or(filter_label(app.intel_overlay.filter))
     )
+}
+
+pub(crate) fn filter_columns() -> &'static [TableFilterColumn] {
+    FILTER_COLUMNS
+}
+
+pub(crate) fn filter_default_value(app: &DashApp, column: TableFilterColumn) -> String {
+    let row = table_rows(app).get(app.intel_overlay.selected).cloned();
+    let Some(row) = row else {
+        return String::new();
+    };
+    match column.code {
+        "coo" => format!("{},{}", row.coords[0], row.coords[1]),
+        "pla" => row.cells[1].clone(),
+        "own" => {
+            if row.known_owner_empire_id.is_some() {
+                row.cells[2].clone()
+            } else {
+                "?".to_string()
+            }
+        }
+        "max" => row.cells[3].clone(),
+        "see" => row.cells[4].clone(),
+        "ars" => row.cells[5].clone(),
+        "gbs" => row.cells[6].clone(),
+        "sbs" => row.cells[7].clone(),
+        "cur" => row.cells[8].clone(),
+        "trs" => row.cells[9].clone(),
+        "sco" => row.cells[10].clone(),
+        _ => String::new(),
+    }
+}
+
+fn parse_unknown_i64(label: &str) -> Option<i64> {
+    if label.trim() == "?" {
+        None
+    } else {
+        label.trim().parse::<i64>().ok()
+    }
+}
+
+pub(crate) fn intel_row_matches_clause(
+    row: &IntelOverlayRow,
+    clause: &TableFilterClause,
+) -> bool {
+    match clause.column.code {
+        "coo" => clause.predicate.matches_coord(row.coords),
+        "pla" => clause.predicate.matches_text(Some(&row.cells[1])),
+        "own" => clause.predicate.matches_text(
+            if row.known_owner_empire_id.is_some() {
+                Some(&row.cells[2])
+            } else {
+                None
+            },
+        ),
+        "max" => clause
+            .predicate
+            .matches_number(row.known_max_production.map(i64::from)),
+        "see" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[4])),
+        "ars" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[5])),
+        "gbs" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[6])),
+        "sbs" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[7])),
+        "cur" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[8])),
+        "trs" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[9])),
+        "sco" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[10])),
+        _ => true,
+    }
 }
 
 fn sort_footer_label(app: &DashApp) -> String {
@@ -450,9 +520,7 @@ fn sort_key_label(sort: IntelOverlaySort) -> &'static str {
 fn filter_label(filter: crate::app::state::IntelOverlayFilter) -> &'static str {
     match filter {
         crate::app::state::IntelOverlayFilter::All => "ALL",
-        crate::app::state::IntelOverlayFilter::Range { .. } => "RNG",
         crate::app::state::IntelOverlayFilter::Empire(_) => "EMP",
-        crate::app::state::IntelOverlayFilter::MaxProduction(_) => "MAX",
     }
 }
 

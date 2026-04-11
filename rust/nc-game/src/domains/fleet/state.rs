@@ -1,10 +1,11 @@
 use crate::domains::fleet::screens::fleet::{
-    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetListFilter, FleetListSort,
-    FleetSingleOrderMode, FleetTransferMode,
+    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetListFilter,
+    FleetListFilterPromptMode, FleetListSort, FleetSingleOrderMode, FleetTransferMode,
 };
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{PlanetTransportMode, SortDirection};
 use nc_data::FleetDetachSelection;
+use nc_ui::table_filter::{TableFilterClause, TableFilterColumn};
 use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +55,12 @@ pub struct FleetState {
     pub list_sort: FleetListSort,
     pub list_sort_direction: SortDirection,
     pub list_filter: FleetListFilter,
+    pub list_filter_clause: Option<TableFilterClause>,
+    pub list_filter_prompt_mode: FleetListFilterPromptMode,
+    pub list_filter_prompt_input: String,
+    pub list_filter_prompt_default_value: String,
+    pub list_filter_prompt_status: Option<String>,
+    pub list_filter_pending_column: Option<TableFilterColumn>,
     pub menu_prompt_mode: Option<FleetMenuPromptMode>,
     pub menu_prompt_input: String,
     pub menu_prompt_status: Option<PromptFeedback>,
@@ -120,6 +127,12 @@ impl Default for FleetState {
             list_sort: FleetListSort::Id,
             list_sort_direction: SortDirection::Desc,
             list_filter: FleetListFilter::All,
+            list_filter_clause: None,
+            list_filter_prompt_mode: FleetListFilterPromptMode::Column,
+            list_filter_prompt_input: String::new(),
+            list_filter_prompt_default_value: String::new(),
+            list_filter_prompt_status: None,
+            list_filter_pending_column: None,
             menu_prompt_mode: None,
             menu_prompt_input: String::new(),
             menu_prompt_status: None,

@@ -6,6 +6,7 @@ use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label}
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::format_sector_coords_table;
 use nc_ui::modal::Rect;
+use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_table_window_with_theme_at,
@@ -49,7 +50,6 @@ pub fn order_abbrev(order: Order) -> &'static str {
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S O SPACE <Q>";
-pub(crate) const FILTER_HOTKEYS: &str = "? A H M C <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? I L O E T <Q>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
 
@@ -70,11 +70,25 @@ const COLUMNS: [TableColumn<'static>; 10] = [
     TableColumn::left_flex("Ships / Forces", 24, 1),
 ];
 
+const FILTER_COLUMNS: &[TableFilterColumn] = &[
+    TableFilterColumn { code: "id", label: "Fleet ID", kind: FilterKind::Number },
+    TableFilterColumn { code: "sel", label: "Selected", kind: FilterKind::Bool },
+    TableFilterColumn { code: "loc", label: "Location", kind: FilterKind::Coord },
+    TableFilterColumn { code: "ord", label: "Order", kind: FilterKind::Text },
+    TableFilterColumn { code: "tar", label: "Target", kind: FilterKind::Coord },
+    TableFilterColumn { code: "spd", label: "Speed", kind: FilterKind::Number },
+    TableFilterColumn { code: "eta", label: "ETA", kind: FilterKind::Text },
+    TableFilterColumn { code: "roe", label: "ROE", kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
+    TableFilterColumn { code: "shi", label: "Ships", kind: FilterKind::Text },
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FleetOverlayRow {
     pub key: FleetOverlayRowKey,
     pub id_label: String,
     pub coords: [u8; 2],
+    pub target_coords: [u8; 2],
     pub order: Order,
     pub eta_label: String,
     pub strength_key: (u16, u16, u16, u16, u8, u16, u16),
@@ -111,18 +125,34 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
+    let filter_prompt;
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
             default: selected_default,
             input: &app.fleet_overlay.jump_input,
         },
-        FleetOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FILTER_HOTKEYS,
-            default: None,
-            input: "",
+        FleetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Filter column [?] ",
+            default: &app.fleet_overlay.filter_prompt_default,
+            input: &app.fleet_overlay.filter_prompt_input,
         },
+        FleetOverlayPromptMode::FilterValueInput => {
+            filter_prompt = format!(
+                "Filter {} ",
+                app.fleet_overlay
+                    .pending_filter_column
+                    .map(|column| column.code)
+                    .unwrap_or("value")
+            );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.fleet_overlay.filter_prompt_default,
+                input: &app.fleet_overlay.filter_prompt_input,
+            }
+        }
         FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
             label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
@@ -191,7 +221,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             metrics.bottom_row.saturating_sub(1),
             frame.body_col,
             frame.body_width,
-            "You have no active fleets or starbases.",
+            if app.fleet_overlay.filter_clause.is_some() {
+                "No fleets match current filter."
+            } else {
+                "You have no active fleets or starbases."
+            },
             theme::dim_style(),
         );
     }
@@ -220,18 +254,34 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
+    let filter_prompt;
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
             default: selected_default,
             input: &app.fleet_overlay.jump_input,
         },
-        FleetOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FILTER_HOTKEYS,
-            default: None,
-            input: "",
+        FleetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Filter column [?] ",
+            default: &app.fleet_overlay.filter_prompt_default,
+            input: &app.fleet_overlay.filter_prompt_input,
         },
+        FleetOverlayPromptMode::FilterValueInput => {
+            filter_prompt = format!(
+                "Filter {} ",
+                app.fleet_overlay
+                    .pending_filter_column
+                    .map(|column| column.code)
+                    .unwrap_or("value")
+            );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.fleet_overlay.filter_prompt_default,
+                input: &app.fleet_overlay.filter_prompt_input,
+            }
+        }
         FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
             label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
@@ -973,6 +1023,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
             key: FleetOverlayRowKey::Fleet(idx + 1),
             id_label: fleet.local_slot_word_raw().to_string(),
             coords: fleet.current_location_coords_raw(),
+            target_coords: fleet.standing_order_target_coords_raw(),
             order: fleet.standing_order_kind(),
             eta_label: fleet_list_eta_label(&app.game_data, idx),
             strength_key: fleet_strength_key(fleet),
@@ -1008,6 +1059,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                 key: FleetOverlayRowKey::Starbase(idx + 1),
                 id_label: format!("SB{}", base.base_id_raw()),
                 coords: base.coords_raw(),
+                target_coords: [0, 0],
                 order: Order::GuardStarbase,
                 eta_label: starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
                 strength_key: (0, 0, 0, 0, 0, 0, u16::from(base.base_id_raw())),
@@ -1030,19 +1082,6 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
     rows.retain(|row| match app.fleet_overlay.filter {
         FleetOverlayFilter::All => true,
         FleetOverlayFilter::Holding => row.order == Order::HoldPosition,
-        FleetOverlayFilter::Moving => matches!(
-            row.order,
-            Order::MoveOnly
-                | Order::SeekHome
-                | Order::PatrolSector
-                | Order::ViewWorld
-                | Order::ScoutSector
-                | Order::ScoutSolarSystem
-                | Order::ColonizeWorld
-                | Order::JoinAnotherFleet
-                | Order::RendezvousSector
-                | Order::Salvage
-        ),
         FleetOverlayFilter::Combat => matches!(
             row.order,
             Order::GuardStarbase
@@ -1052,6 +1091,9 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                 | Order::BlitzWorld
         ),
     });
+    if let Some(clause) = &app.fleet_overlay.filter_clause {
+        rows.retain(|row| fleet_row_matches_clause(row, clause));
+    }
 
     rows.sort_by(|left, right| match app.fleet_overlay.sort {
         FleetOverlaySort::Id => apply_sort_direction(
@@ -1166,8 +1208,61 @@ fn overlay_title(app: &DashApp) -> String {
         "FLEET LIST: {} {} {}",
         sort_key_label(app.fleet_overlay.sort),
         app.fleet_overlay.sort_direction.label(),
-        filter_label(app.fleet_overlay.filter)
+        app.fleet_overlay
+            .filter_clause
+            .as_ref()
+            .map(|clause| clause.summary.as_str())
+            .unwrap_or(filter_label(app.fleet_overlay.filter))
     )
+}
+
+pub(crate) fn filter_columns() -> &'static [TableFilterColumn] {
+    FILTER_COLUMNS
+}
+
+pub(crate) fn filter_default_value(app: &DashApp, column: TableFilterColumn) -> String {
+    let row = table_rows(app).get(app.fleet_overlay.selected).cloned();
+    let Some(row) = row else {
+        return String::new();
+    };
+    match column.code {
+        "id" => row.id_label,
+        "sel" => row.cells[1].clone(),
+        "loc" => format!("{},{}", row.coords[0], row.coords[1]),
+        "ord" => String::new(),
+        "tar" => {
+            if row.target_coords[0] == 0 || row.target_coords[1] == 0 {
+                String::new()
+            } else {
+                format!("{},{}", row.target_coords[0], row.target_coords[1])
+            }
+        }
+        "spd" => row.cells[5].clone(),
+        "eta" => row.eta_label,
+        "roe" => row.cells[7].clone(),
+        "ars" => row.cells[8].clone(),
+        "shi" => String::new(),
+        _ => String::new(),
+    }
+}
+
+pub(crate) fn fleet_row_matches_clause(
+    row: &FleetOverlayRow,
+    clause: &TableFilterClause,
+) -> bool {
+    match clause.column.code {
+        "id" => clause.predicate.matches_number(row.id_label.parse::<i64>().ok()),
+        "sel" => clause.predicate.matches_bool(!row.cells[1].trim().is_empty()),
+        "loc" => clause.predicate.matches_coord(row.coords),
+        "ord" => clause.predicate.matches_text(Some(row.cells[3].as_str())),
+        "tar" => clause.predicate.matches_coord(row.target_coords),
+        "spd" => clause.predicate.matches_number(row.cells[5].parse::<i64>().ok()),
+        "eta" => clause.predicate.matches_text(Some(&row.eta_label)),
+        "roe" => clause.predicate.matches_number(row.cells[7].parse::<i64>().ok()),
+        "ars" => clause.predicate.matches_number(row.cells[8].parse::<i64>().ok()),
+        "shi" => clause.predicate.matches_text(Some(&row.cells[9])),
+        _ => true,
+    }
 }
 
 fn sort_footer_label(app: &DashApp) -> String {
@@ -1188,7 +1283,6 @@ fn filter_label(filter: crate::app::state::FleetOverlayFilter) -> &'static str {
     match filter {
         crate::app::state::FleetOverlayFilter::All => "ALL",
         crate::app::state::FleetOverlayFilter::Holding => "HOLD",
-        crate::app::state::FleetOverlayFilter::Moving => "MOVE",
         crate::app::state::FleetOverlayFilter::Combat => "COMBAT",
     }
 }

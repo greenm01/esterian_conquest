@@ -33,6 +33,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::MoveMissionPicker(delta) => app.move_fleet_mission_picker(delta),
         FleetAction::ToggleGroupOrderSelection => app.toggle_fleet_group_order_selection(),
         FleetAction::AppendListChar(ch) => app.append_fleet_list_char(ch),
+        FleetAction::AppendListFilterPromptChar(ch) => app.append_fleet_list_filter_prompt_char(ch),
         FleetAction::AppendMenuPromptChar(ch) => app.append_fleet_menu_prompt_char(ch),
         FleetAction::AppendOrderChar(ch) => app.append_fleet_order_char(ch),
         FleetAction::AppendGroupOrderChar(ch) => app.append_fleet_group_order_char(ch),
@@ -41,6 +42,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::AppendDetachChar(ch) => app.append_fleet_detach_char(ch),
         FleetAction::AppendEtaChar(ch) => app.append_fleet_eta_char(ch),
         FleetAction::BackspaceListInput => app.backspace_fleet_list_input(),
+        FleetAction::BackspaceListFilterPromptInput => app.backspace_fleet_list_filter_prompt_input(),
         FleetAction::BackspaceMenuPromptInput => app.backspace_fleet_menu_prompt_input(),
         FleetAction::BackspaceOrderInput => app.backspace_fleet_order_input(),
         FleetAction::BackspaceGroupOrderInput => app.backspace_fleet_group_order_input(),
@@ -57,6 +59,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::CancelOrder => app.cancel_fleet_order(),
         FleetAction::CancelGroupOrder => app.cancel_fleet_group_order(),
         FleetAction::SubmitListFilter(filter) => app.submit_fleet_list_filter(filter),
+        FleetAction::SubmitListFilterPrompt => app.submit_fleet_list_filter_prompt(),
         FleetAction::SubmitListSort(sort) => app.submit_fleet_list_sort(sort),
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),
         FleetAction::SubmitOrder => {

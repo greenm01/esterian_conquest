@@ -244,7 +244,9 @@ impl App {
                     self.fleet_list.handle_key(key)
                 }
             }
-            ScreenId::FleetListFilterPrompt => self.fleet_list.handle_filter_prompt_key(key),
+            ScreenId::FleetListFilterPrompt => self
+                .fleet_list
+                .handle_filter_prompt_key(key, self.fleet.list_filter_prompt_mode),
             ScreenId::FleetListSortPrompt => self.fleet_list.handle_sort_prompt_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetOrder => self.handle_fleet_order_key(key),

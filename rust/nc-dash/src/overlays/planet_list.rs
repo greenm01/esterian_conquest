@@ -7,6 +7,7 @@ use nc_engine::{BUILD_UNITS, planet_build_view};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
+use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
@@ -30,7 +31,6 @@ use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S B <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? C L M <Q>";
-pub(crate) const FILTER_HOTKEYS: &str = "? A R S T <Q>";
 const TOP_HEADERS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
@@ -48,6 +48,22 @@ const COLUMNS: [TableColumn<'static>; 13] = [
     TableColumn::right("SBs", 3),
     TableColumn::right("ARs", 3),
     TableColumn::right("GBs", 3),
+];
+
+const FILTER_COLUMNS: &[TableFilterColumn] = &[
+    TableFilterColumn { code: "coo", label: "Coord", kind: FilterKind::Coord },
+    TableFilterColumn { code: "pla", label: "Planet", kind: FilterKind::Text },
+    TableFilterColumn { code: "max", label: "Max", kind: FilterKind::Number },
+    TableFilterColumn { code: "cur", label: "Current", kind: FilterKind::Number },
+    TableFilterColumn { code: "trs", label: "Treasury", kind: FilterKind::Number },
+    TableFilterColumn { code: "bdg", label: "Budget", kind: FilterKind::Number },
+    TableFilterColumn { code: "rev", label: "Revenue", kind: FilterKind::Number },
+    TableFilterColumn { code: "gro", label: "Growth", kind: FilterKind::Number },
+    TableFilterColumn { code: "bui", label: "Build", kind: FilterKind::Number },
+    TableFilterColumn { code: "sta", label: "Dock", kind: FilterKind::Number },
+    TableFilterColumn { code: "sbs", label: "Starbase", kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
+    TableFilterColumn { code: "gbs", label: "Batteries", kind: FilterKind::Number },
 ];
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -93,6 +109,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         input: &app.planet_overlay.jump_input,
     };
     let notice_footer_rows;
+    let filter_prompt;
     let footer = match app.planet_overlay.prompt_mode {
         PlanetOverlayPromptMode::None => {
             if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
@@ -117,24 +134,27 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             default: None,
             input: "",
         },
-        PlanetOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FILTER_HOTKEYS,
-            default: None,
-            input: "",
-        },
-        PlanetOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+        PlanetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Range from ",
+            prompt: "Filter column [?] ",
             default: &app.planet_overlay.prompt_default,
             input: &app.planet_overlay.prompt_input,
         },
-        PlanetOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Range radius ",
-            default: &app.planet_overlay.prompt_default,
-            input: &app.planet_overlay.prompt_input,
-        },
+        PlanetOverlayPromptMode::FilterValueInput => {
+            filter_prompt = format!(
+                "Filter {} ",
+                app.planet_overlay
+                    .pending_filter_column
+                    .map(|column| column.code)
+                    .unwrap_or("value")
+            );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.planet_overlay.prompt_default,
+                input: &app.planet_overlay.prompt_input,
+            }
+        }
         PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
             unreachable!("build flows render separately")
         }
@@ -195,7 +215,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             metrics.bottom_row.saturating_sub(1),
             frame.body_col,
             frame.body_width,
-            "You do not currently control any planets.",
+            if app.planet_overlay.filter_clause.is_some() {
+                "No planets match current filter."
+            } else {
+                "You do not currently control any planets."
+            },
             theme::dim_style(),
         );
     }
@@ -227,6 +251,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         input: &app.planet_overlay.jump_input,
     };
     let notice_footer_rows;
+    let filter_prompt;
     let footer = match app.planet_overlay.prompt_mode {
         PlanetOverlayPromptMode::None => {
             if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
@@ -251,24 +276,27 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             default: None,
             input: "",
         },
-        PlanetOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FILTER_HOTKEYS,
-            default: None,
-            input: "",
-        },
-        PlanetOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+        PlanetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Range from ",
+            prompt: "Filter column [?] ",
             default: &app.planet_overlay.prompt_default,
             input: &app.planet_overlay.prompt_input,
         },
-        PlanetOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Range radius ",
-            default: &app.planet_overlay.prompt_default,
-            input: &app.planet_overlay.prompt_input,
-        },
+        PlanetOverlayPromptMode::FilterValueInput => {
+            filter_prompt = format!(
+                "Filter {} ",
+                app.planet_overlay
+                    .pending_filter_column
+                    .map(|column| column.code)
+                    .unwrap_or("value")
+            );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.planet_overlay.prompt_default,
+                input: &app.planet_overlay.prompt_input,
+            }
+        }
         PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
             unreachable!("build flows are not draggable")
         }
@@ -619,8 +647,10 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<PlanetOverlayRow> {
             distance_sq(anchor, row.coords) <= u32::from(radius) * u32::from(radius)
         }
         PlanetOverlayFilter::Starbase => row.has_starbase,
-        PlanetOverlayFilter::Stardock => row.docked > 0,
     });
+    if let Some(clause) = &app.planet_overlay.filter_clause {
+        rows.retain(|row| planet_row_matches_clause(row, clause));
+    }
 
     rows.sort_by(|left, right| match app.planet_overlay.sort {
         PlanetOverlaySort::CurrentProduction => apply_sort_direction(
@@ -729,20 +759,6 @@ fn truncate(value: &str, width: usize) -> String {
     value.chars().take(width).collect()
 }
 
-pub(crate) fn parse_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {
-    if input.trim().is_empty() {
-        return Some(default);
-    }
-    let digits = input
-        .split(|ch: char| !ch.is_ascii_digit())
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>();
-    let [x, y] = digits.as_slice() else {
-        return None;
-    };
-    Some([x.parse().ok()?, y.parse().ok()?])
-}
-
 pub(crate) fn sync_cursor_to_jump_input(app: &mut DashApp) -> bool {
     let rows = selection_rows(app);
     let Some(matched) = table_selection::find_typed_jump(&rows, 0, &app.planet_overlay.jump_input)
@@ -764,8 +780,61 @@ fn overlay_title(app: &DashApp) -> String {
         "PLANET LIST: {} {} {}",
         sort_key_label(app.planet_overlay.sort),
         app.planet_overlay.sort_direction.label(),
-        filter_label(app.planet_overlay.filter)
+        app.planet_overlay
+            .filter_clause
+            .as_ref()
+            .map(|clause| clause.summary.as_str())
+            .unwrap_or(filter_label(app.planet_overlay.filter))
     )
+}
+
+pub(crate) fn filter_columns() -> &'static [TableFilterColumn] {
+    FILTER_COLUMNS
+}
+
+pub(crate) fn filter_default_value(app: &DashApp, column: TableFilterColumn) -> String {
+    let row = table_rows(app).get(app.planet_overlay.selected).cloned();
+    let Some(row) = row else {
+        return String::new();
+    };
+    match column.code {
+        "coo" => format!("{},{}", row.coords[0], row.coords[1]),
+        "pla" => row.cells[1].clone(),
+        "max" => row.cells[2].clone(),
+        "cur" => row.cells[3].clone(),
+        "trs" => row.cells[4].clone(),
+        "bdg" => row.cells[5].clone(),
+        "rev" => row.cells[6].clone(),
+        "gro" => row.cells[7].clone(),
+        "bui" => row.cells[8].clone(),
+        "sta" => row.cells[9].clone(),
+        "sbs" => row.cells[10].clone(),
+        "ars" => row.cells[11].clone(),
+        "gbs" => row.cells[12].clone(),
+        _ => String::new(),
+    }
+}
+
+pub(crate) fn planet_row_matches_clause(
+    row: &PlanetOverlayRow,
+    clause: &TableFilterClause,
+) -> bool {
+    match clause.column.code {
+        "coo" => clause.predicate.matches_coord(row.coords),
+        "pla" => clause.predicate.matches_text(Some(&row.cells[1])),
+        "max" => clause.predicate.matches_number(row.cells[2].parse::<i64>().ok()),
+        "cur" => clause.predicate.matches_number(row.cells[3].parse::<i64>().ok()),
+        "trs" => clause.predicate.matches_number(row.cells[4].parse::<i64>().ok()),
+        "bdg" => clause.predicate.matches_number(row.cells[5].parse::<i64>().ok()),
+        "rev" => clause.predicate.matches_number(row.cells[6].parse::<i64>().ok()),
+        "gro" => clause.predicate.matches_number(row.cells[7].parse::<i64>().ok()),
+        "bui" => clause.predicate.matches_number(row.cells[8].parse::<i64>().ok()),
+        "sta" => clause.predicate.matches_number(row.cells[9].parse::<i64>().ok()),
+        "sbs" => clause.predicate.matches_number(row.cells[10].parse::<i64>().ok()),
+        "ars" => clause.predicate.matches_number(row.cells[11].parse::<i64>().ok()),
+        "gbs" => clause.predicate.matches_number(row.cells[12].parse::<i64>().ok()),
+        _ => true,
+    }
 }
 
 fn sort_footer_label(app: &DashApp) -> String {
@@ -785,7 +854,6 @@ fn filter_label(filter: crate::app::state::PlanetOverlayFilter) -> &'static str 
         crate::app::state::PlanetOverlayFilter::All => "ALL",
         crate::app::state::PlanetOverlayFilter::Range { .. } => "RNG",
         crate::app::state::PlanetOverlayFilter::Starbase => "SB",
-        crate::app::state::PlanetOverlayFilter::Stardock => "DOCK",
     }
 }
 

@@ -6,6 +6,7 @@ use nc_data::{
 };
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
+use nc_ui::table_filter::{TableFilterClause, TableFilterColumn};
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::client_settings::DashClientSettings;
@@ -202,7 +203,6 @@ pub enum PlanetOverlayFilter {
     All,
     Range { anchor: [u8; 2], radius: u8 },
     Starbase,
-    Stardock,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -210,8 +210,7 @@ pub enum PlanetOverlayPromptMode {
     None,
     SortMenu,
     FilterMenu,
-    FilterRangeCoords,
-    FilterRangeDistance,
+    FilterValueInput,
     BuildSpecify,
     BuildQuantity,
 }
@@ -233,6 +232,8 @@ pub struct PlanetOverlayState {
     pub sort: PlanetOverlaySort,
     pub sort_direction: SortDirection,
     pub filter: PlanetOverlayFilter,
+    pub filter_clause: Option<TableFilterClause>,
+    pub pending_filter_column: Option<TableFilterColumn>,
     pub prompt_mode: PlanetOverlayPromptMode,
     pub prompt_input: String,
     pub prompt_default: String,
@@ -258,6 +259,8 @@ impl Default for PlanetOverlayState {
                 PlanetOverlaySort::CurrentProduction,
             ),
             filter: PlanetOverlayFilter::All,
+            filter_clause: None,
+            pending_filter_column: None,
             prompt_mode: PlanetOverlayPromptMode::None,
             prompt_input: String::new(),
             prompt_default: String::new(),
@@ -302,6 +305,7 @@ impl PlanetOverlayState {
         self.prompt_input.clear();
         self.prompt_default.clear();
         self.pending_range_anchor = None;
+        self.pending_filter_column = None;
         self.prompt_stack.clear();
     }
 }
@@ -334,7 +338,6 @@ pub const fn default_fleet_overlay_sort_direction(sort: FleetOverlaySort) -> Sor
 pub enum FleetOverlayFilter {
     All,
     Holding,
-    Moving,
     Combat,
 }
 
@@ -343,6 +346,7 @@ pub enum FleetOverlayPromptMode {
     None,
     SortMenu,
     FilterMenu,
+    FilterValueInput,
     MissionPicker,
     OrderTarget,
     OrderTargetX,
@@ -369,6 +373,11 @@ pub struct FleetOverlayState {
     pub sort: FleetOverlaySort,
     pub sort_direction: SortDirection,
     pub filter: FleetOverlayFilter,
+    pub filter_clause: Option<TableFilterClause>,
+    pub pending_filter_column: Option<TableFilterColumn>,
+    pub filter_prompt_input: String,
+    pub filter_prompt_default: String,
+    pub filter_prompt_status: Option<String>,
     pub location_filter: Option<[u8; 2]>,
     pub selected_fleet_record_indexes: BTreeSet<usize>,
     pub prompt_mode: FleetOverlayPromptMode,
@@ -397,6 +406,11 @@ impl Default for FleetOverlayState {
             sort: FleetOverlaySort::Id,
             sort_direction: default_fleet_overlay_sort_direction(FleetOverlaySort::Id),
             filter: FleetOverlayFilter::All,
+            filter_clause: None,
+            pending_filter_column: None,
+            filter_prompt_input: String::new(),
+            filter_prompt_default: String::new(),
+            filter_prompt_status: None,
             location_filter: None,
             selected_fleet_record_indexes: BTreeSet::new(),
             prompt_mode: FleetOverlayPromptMode::None,
@@ -435,6 +449,10 @@ impl FleetOverlayState {
 
     pub fn clear_prompt(&mut self) {
         self.prompt_mode = FleetOverlayPromptMode::None;
+        self.pending_filter_column = None;
+        self.filter_prompt_input.clear();
+        self.filter_prompt_default.clear();
+        self.filter_prompt_status = None;
         self.prompt_stack.clear();
     }
 
@@ -467,9 +485,7 @@ pub const fn default_intel_overlay_sort_direction(sort: IntelOverlaySort) -> Sor
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntelOverlayFilter {
     All,
-    Range { anchor: [u8; 2], radius: u8 },
     Empire(u8),
-    MaxProduction(u16),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -478,10 +494,7 @@ pub enum IntelOverlayPromptMode {
     SortMenu,
     SortRangeInput,
     FilterMenu,
-    FilterRangeCoords,
-    FilterRangeDistance,
-    FilterEmpireInput,
-    FilterMaxProductionInput,
+    FilterValueInput,
 }
 
 #[derive(Debug, Clone)]
@@ -500,6 +513,8 @@ pub struct IntelOverlayState {
     pub sort: IntelOverlaySort,
     pub sort_direction: SortDirection,
     pub filter: IntelOverlayFilter,
+    pub filter_clause: Option<TableFilterClause>,
+    pub pending_filter_column: Option<TableFilterColumn>,
     pub prompt_mode: IntelOverlayPromptMode,
     pub prompt_input: String,
     pub prompt_default: String,
@@ -516,6 +531,8 @@ impl Default for IntelOverlayState {
             sort: IntelOverlaySort::Location,
             sort_direction: default_intel_overlay_sort_direction(IntelOverlaySort::Location),
             filter: IntelOverlayFilter::All,
+            filter_clause: None,
+            pending_filter_column: None,
             prompt_mode: IntelOverlayPromptMode::None,
             prompt_input: String::new(),
             prompt_default: String::new(),
@@ -554,6 +571,7 @@ impl IntelOverlayState {
         self.prompt_input.clear();
         self.prompt_default.clear();
         self.pending_range_anchor = None;
+        self.pending_filter_column = None;
         self.prompt_stack.clear();
     }
 }

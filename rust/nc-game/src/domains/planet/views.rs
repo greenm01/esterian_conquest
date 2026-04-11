@@ -265,27 +265,36 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.brief_input,
             app.planet.list_prompt_status.as_deref(),
         ),
-        ScreenId::PlanetListFilterPrompt(mode) => app.planet_list.render_filter_prompt(
+        ScreenId::PlanetListFilterPrompt(mode) => app
+            .planet_list
+            .render_filter_prompt_with_filter_clause(
             &frame,
             mode,
             &app.planet_list_rows(mode, app.planet.list_sort),
             app.planet.list_sort,
             app.planet.list_sort_direction,
             app.planet.list_filter,
+            app.planet.list_filter_clause.as_ref(),
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
             app.planet.list_filter_prompt_mode,
             &app.planet.list_prompt_default_value,
             &app.planet.list_prompt_input,
             app.planet.list_prompt_status.as_deref(),
+            app.planet
+                .list_filter_pending_column
+                .map(|column| column.code),
         ),
-        ScreenId::PlanetList(mode, sort) => app.planet_list.render_brief_list(
+        ScreenId::PlanetList(mode, sort) => app
+            .planet_list
+            .render_brief_list_with_filter_clause(
             &frame,
             mode,
             &app.planet_list_rows(mode, sort),
             sort,
             app.planet.list_sort_direction,
             app.planet.list_filter,
+            app.planet.list_filter_clause.as_ref(),
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
             &app.planet.brief_input,
@@ -307,12 +316,13 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             },
             inline_list_scorch_summary.as_deref(),
         ),
-        ScreenId::PlanetDatabaseList => app.planet_database.render_list(
+        ScreenId::PlanetDatabaseList => app.planet_database.render_list_with_filter_clause(
             frame.geometry,
             &app.planet_database_rows(),
             app.planet.database_sort,
             app.planet.database_sort_direction,
             app.planet.database_filter,
+            app.planet.database_filter_clause.as_ref(),
             app.planet.database_scroll_offset,
             app.planet.database_cursor,
             app.default_planet_prompt_coords(),
@@ -321,12 +331,13 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.command_return_menu,
         ),
         ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => {
-            app.planet_database.render_filter_prompt(
+            app.planet_database.render_filter_prompt_with_filter_clause(
                 frame.geometry,
                 &app.planet_database_rows(),
                 app.planet.database_sort,
                 app.planet.database_sort_direction,
                 app.planet.database_filter,
+                app.planet.database_filter_clause.as_ref(),
                 app.planet.database_scroll_offset,
                 app.planet.database_cursor,
                 app.planet.database_prompt_mode,
@@ -334,6 +345,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 &app.planet.database_input,
                 app.planet.database_status.as_deref(),
                 app.command_return_menu,
+                app.planet.database_pending_column.map(|column| column.code),
             )
         }
         ScreenId::PlanetInfoDetail => app.planet_info.render_detail(

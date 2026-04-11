@@ -228,7 +228,9 @@ impl DashApp {
                     self.help_context = HelpContext::StarbaseMove;
                 }
             }
-            FleetOverlayPromptMode::FilterMenu | FleetOverlayPromptMode::SortMenu => {
+            FleetOverlayPromptMode::FilterMenu
+            | FleetOverlayPromptMode::FilterValueInput
+            | FleetOverlayPromptMode::SortMenu => {
                 self.fleet_overlay.close_prompt();
             }
             FleetOverlayPromptMode::None => {}
@@ -271,6 +273,7 @@ impl DashApp {
             | FleetOverlayPromptMode::StarbaseHaltConfirm
             | FleetOverlayPromptMode::MissionPicker
             | FleetOverlayPromptMode::FilterMenu
+            | FleetOverlayPromptMode::FilterValueInput
             | FleetOverlayPromptMode::SortMenu
             | FleetOverlayPromptMode::None => {}
         }

@@ -514,11 +514,11 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
         )
         .expect("render database filter prompt");
     let border_col = filter.plain_line(1).find('┌').expect("table col");
-    let prompt_row = line_index_containing(&filter, "FILTER <- ? A R E M <Q> ->");
+    let prompt_row = line_index_containing(&filter, "COMMAND <- Filter column [?] ");
     assert_eq!(
         filter
             .plain_line(prompt_row)
-            .find("FILTER")
+            .find("COMMAND")
             .expect("prompt col"),
         border_col + 1
     );
@@ -642,7 +642,7 @@ fn fleet_list_sort_and_filter_prompts_use_browse_footer_row() {
         )
         .expect("render fleet filter prompt");
     assert_eq!(
-        line_index_containing(&filter, "FILTER <- ? A H M C <Q> ->"),
+        line_index_containing(&filter, "COMMAND <- Filter column [?] "),
         browse_row
     );
 }
@@ -1017,7 +1017,7 @@ fn planet_brief_list_sort_and_filter_prompts_use_browse_footer_row() {
         )
         .expect("render planet filter prompt");
     assert_eq!(
-        line_index_containing(&filter, "FILTER <- ? A R S T <Q> ->"),
+        line_index_containing(&filter, "COMMAND <- Filter column [?] "),
         browse_row
     );
 }

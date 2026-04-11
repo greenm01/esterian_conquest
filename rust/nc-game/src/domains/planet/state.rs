@@ -6,6 +6,7 @@ use crate::screen::{
 };
 use crossterm::event::KeyCode;
 use nc_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
+use nc_ui::table_filter::{TableFilterClause, TableFilterColumn};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +39,8 @@ pub struct PlanetState {
     pub list_sort: PlanetListSort,
     pub list_sort_direction: SortDirection,
     pub list_filter: PlanetListFilter,
+    pub list_filter_clause: Option<TableFilterClause>,
+    pub list_filter_pending_column: Option<TableFilterColumn>,
     pub list_filter_prompt_mode: PlanetListFilterPromptMode,
     pub list_prompt_input: String,
     pub list_prompt_default_value: String,
@@ -50,6 +53,8 @@ pub struct PlanetState {
     pub database_status: Option<String>,
     pub database_prompt_mode: PlanetDatabasePromptMode,
     pub database_filter: PlanetDatabaseFilter,
+    pub database_filter_clause: Option<TableFilterClause>,
+    pub database_pending_column: Option<TableFilterColumn>,
     pub database_sort: PlanetDatabaseSort,
     pub database_sort_direction: SortDirection,
     pub commission_index: usize,
@@ -136,6 +141,8 @@ impl PlanetState {
             list_sort: PlanetListSort::CurrentProduction,
             list_sort_direction: SortDirection::Desc,
             list_filter: PlanetListFilter::All,
+            list_filter_clause: None,
+            list_filter_pending_column: None,
             list_filter_prompt_mode: PlanetListFilterPromptMode::FilterMenu,
             list_prompt_input: String::new(),
             list_prompt_default_value: String::new(),
@@ -148,6 +155,8 @@ impl PlanetState {
             database_status: None,
             database_prompt_mode: PlanetDatabasePromptMode::FilterMenu,
             database_filter: PlanetDatabaseFilter::All,
+            database_filter_clause: None,
+            database_pending_column: None,
             database_sort: PlanetDatabaseSort::Location,
             database_sort_direction: SortDirection::Asc,
             commission_index: 0,

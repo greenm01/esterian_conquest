@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 9),
+  date: datetime(year: 2026, month: 4, day: 10),
 )
 
 #set page(
@@ -73,7 +73,7 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 9, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 10, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
 ]
@@ -1030,7 +1030,134 @@ see the *Sysop Manual* for host setup details.
 === This Manual
 
 This manual combines and polishes the original documentation with the current
-engine reference tables in @appendix-economy, @appendix-combat, and
-@appendix-orders. The body text stays strategy-first; the appendices collect
-the exact formulas and lookup tables for readers who want the
-implementation-level reference.
+engine reference tables in @appendix-economy, @appendix-combat,
+@appendix-orders, and @appendix-table-ui. The body text stays strategy-first;
+the appendices collect the exact formulas and lookup tables for readers who
+want the implementation-level reference.
+
+#pagebreak()
+
+// ─── Appendix E. Table Filtering and Sorting ───────────────────────────
+
+= Appendix E: Table Filtering and Sorting <appendix-table-ui>
+
+The main list screens all use the same command-line filter system. This lets
+you cut a long table down to the exact rows you want instead of paging
+through dead weight.
+
+One filter is active at a time on each table. If you choose a new filter, it
+replaces the old one. If a filter matches nothing, the table stays filtered
+and tells you no rows match.
+
+=== Filtering Procedure
+
+1. Open the table you want.
+2. Press `F`.
+3. Type the column code and press `Enter`.
+4. Type the value for that column and press `Enter`.
+5. Type `all` at the column prompt to clear the current filter.
+
+NOTE: `Q` or `Esc` cancels the current filter prompt without changing the
+active filter.
+
+=== Value Rules
+
+- *Text columns:* Enter plain text. Matching is case-insensitive and looks for
+  that text anywhere in the cell.
+- *Number columns:* Enter a bare number for an exact match, or use
+  `>`, `>=`, `<`, `<=`, `=`, or `!=`.
+- *Coordinate columns:* Enter `xx,yy` for one exact sector, or `xx,yy/r` for
+  a radius filter.
+- *Database unknown values:* Enter `?` to match worlds where that value is
+  still unknown.
+
+Examples:
+
+- Fleet list, `ord`: `holding`
+- Fleet list, `roe`: `>=4`
+- Planet list, `coo`: `12,7/3`
+- Total planet database, `own`: `#3`
+- Total planet database, `max`: `>=100`
+- Dashboard fleet list, `sel`: `yes`
+
+=== Sorting Procedure
+
+1. Open the table you want.
+2. Press `S`.
+3. Press the sort key shown on the command line.
+4. Press the same sort key again to flip `ASC`/`DESC`.
+
+The active sort and active filter both appear in the table title.
+
+=== Fleet List Codes
+
+#figure(
+  table(
+    columns: (auto, auto, 1fr),
+    align: (left, left, left),
+    inset: 6pt,
+    table.header(
+      [Code], [Column], [Notes],
+    ),
+    [`id`],  [Fleet ID], [Fleet number],
+    [`loc`], [Location], [Current sector],
+    [`ord`], [Order], [Also accepts `holding`, `moving`, and `combat`],
+    [`tar`], [Target], [Mission target sector],
+    [`spd`], [Speed], [Current speed],
+    [`eta`], [ETA], [Text match on the ETA column],
+    [`roe`], [ROE], [Rules of engagement value],
+    [`ars`], [Armies], [Loaded armies],
+    [`shi`], [Ships], [Ship and force summary text],
+    [`sel`], [Selected], [Dashboard only; use `yes` or `no`],
+  ),
+)
+
+=== Planet List Codes
+
+#figure(
+  table(
+    columns: (auto, auto, 1fr),
+    align: (left, left, left),
+    inset: 6pt,
+    table.header(
+      [Code], [Column], [Notes],
+    ),
+    [`coo`], [Coord], [Planet coordinates],
+    [`pla`], [Planet], [Planet name],
+    [`max`], [Max], [Maximum production],
+    [`cur`], [Curr], [Current production],
+    [`trs`], [Points], [Stored treasury points],
+    [`bdg`], [Bdgt], [Build budget],
+    [`rev`], [Rev], [Revenue],
+    [`gro`], [Grow], [Growth],
+    [`bui`], [Queue], [Build queue size],
+    [`sta`], [Dock], [Docked ships],
+    [`sbs`], [SBs], [Friendly starbases],
+    [`ars`], [ARs], [Planet armies],
+    [`gbs`], [GBs], [Ground batteries],
+  ),
+)
+
+=== Total Planet Database Codes
+
+#figure(
+  table(
+    columns: (auto, auto, 1fr),
+    align: (left, left, left),
+    inset: 6pt,
+    table.header(
+      [Code], [Column], [Notes],
+    ),
+    [`coo`], [Coord], [World coordinates],
+    [`pla`], [Planet], [Known planet name],
+    [`own`], [Owner], [Known owner text such as `#3` or `Unowned`],
+    [`max`], [Max], [Known maximum production],
+    [`see`], [Seen], [Last year seen],
+    [`ars`], [ARs], [Known armies],
+    [`gbs`], [GBs], [Known ground batteries],
+    [`sbs`], [SBs], [Known starbase count],
+    [`cur`], [Curr], [Known current production],
+    [`trs`], [Points], [Known stored points],
+    [`sco`], [Scout], [Last scout year],
+  ),
+)

@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use nc_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use nc_engine::planet_build_view;
+use nc_ui::table_filter::{TableFilterClause, is_filter_column_char};
 
 use crate::app::Action;
 use crate::app::helpers::is_coordinate_input_char;
@@ -54,8 +55,7 @@ pub enum PlanetListFilter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetListFilterPromptMode {
     FilterMenu,
-    RangeCoords,
-    RangeDistance,
+    ValueInput,
 }
 
 pub struct PlanetListScreen;
@@ -105,6 +105,7 @@ fn planet_list_title(
     sort: PlanetListSort,
     direction: SortDirection,
     filter: PlanetListFilter,
+    filter_clause: Option<&TableFilterClause>,
 ) -> String {
     match mode {
         PlanetListMode::Brief => {
@@ -116,7 +117,9 @@ fn planet_list_title(
             format!(
                 "PLANET LIST: {key} {} {}",
                 direction.label(),
-                filter_label(filter)
+                filter_clause
+                    .map(|clause| clause.summary.as_str())
+                    .unwrap_or(filter_label(filter))
             )
         }
         PlanetListMode::BuildSelect => "CHANGE CURRENT PLANET:".to_string(),
@@ -150,6 +153,7 @@ impl PlanetListScreen {
         sort: PlanetListSort,
         direction: SortDirection,
         filter: PlanetListFilter,
+        filter_clause: Option<&TableFilterClause>,
         scroll_offset: usize,
         cursor: usize,
         footer: TableFooter<'_>,
@@ -162,7 +166,7 @@ impl PlanetListScreen {
             .len()
             .saturating_sub(scroll_offset)
             .min(visible_rows);
-        let title = planet_list_title(mode, sort, direction, filter);
+        let title = planet_list_title(mode, sort, direction, filter, filter_clause);
         let columns = resolve_table_columns_for_widget_with_footer_floor(
             &BRIEF_COLUMNS,
             &table_rows,
@@ -254,6 +258,7 @@ impl PlanetListScreen {
                 sort,
                 direction,
                 filter,
+                None,
                 scroll_offset,
                 cursor,
                 footer,
@@ -277,27 +282,74 @@ impl PlanetListScreen {
         input: &str,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let footer = match prompt_mode {
-            PlanetListFilterPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-                label: "FILTER",
-                hotkeys_markup: BRIEF_FILTER_HOTKEYS,
-                default: None,
-                input: "",
-            },
-            PlanetListFilterPromptMode::RangeCoords => TableFooter::CommandInput {
+        self.render_filter_prompt_with_filter_clause(
+            frame,
+            mode,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+            prompt_mode,
+            prompt_default,
+            input,
+            status,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_filter_prompt_with_filter_clause(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
+        rows: &[EmpirePlanetEconomyRow],
+        sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+        prompt_mode: PlanetListFilterPromptMode,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+        pending_column_code: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let dynamic_prompt;
+        let input_footer = match prompt_mode {
+            PlanetListFilterPromptMode::FilterMenu => TableFooter::CommandInput {
                 label: "COMMAND",
-                prompt: "Range from ",
+                prompt: "Filter column [?] ",
                 default: prompt_default,
                 input,
             },
-            PlanetListFilterPromptMode::RangeDistance => TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: "Range radius ",
-                default: prompt_default,
-                input,
-            },
+            PlanetListFilterPromptMode::ValueInput => {
+                dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: dynamic_prompt.as_str(),
+                    default: prompt_default,
+                    input,
+                }
+            }
         };
-        let _ = status;
+        let footer = if let Some(status) = status {
+            TableFooter::Stacked {
+                rows: &[
+                    input_footer,
+                    TableFooter::CommandText {
+                        label: "COMMAND",
+                        text: status,
+                    },
+                ],
+                active_row: 0,
+            }
+        } else {
+            input_footer
+        };
         Ok(self
             .render_table(
                 frame,
@@ -306,6 +358,7 @@ impl PlanetListScreen {
                 sort,
                 direction,
                 filter,
+                filter_clause,
                 scroll_offset,
                 cursor,
                 footer,
@@ -330,6 +383,50 @@ impl PlanetListScreen {
         transport_prompt_label: Option<&str>,
         transport_prompt_default: &str,
         transport_prompt_input: &str,
+        transport_summary: Option<&str>,
+        scorch_prompt_label: Option<&str>,
+        scorch_summary: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_brief_list_with_filter_clause(
+            frame,
+            mode,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+            input,
+            status,
+            auto_commission_prompt,
+            transport_prompt_label,
+            transport_prompt_default,
+            transport_prompt_input,
+            transport_summary,
+            scorch_prompt_label,
+            scorch_summary,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_brief_list_with_filter_clause(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
+        rows: &[EmpirePlanetEconomyRow],
+        sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+        input: &str,
+        status: Option<&str>,
+        auto_commission_prompt: bool,
+        transport_prompt_label: Option<&str>,
+        transport_prompt_default: &str,
+        transport_prompt_input: &str,
         _transport_summary: Option<&str>,
         scorch_prompt_label: Option<&str>,
         _scorch_summary: Option<&str>,
@@ -338,7 +435,16 @@ impl PlanetListScreen {
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
             .unwrap_or_else(|| "00,00".to_string());
-        let footer = if auto_commission_prompt {
+        let footer = if rows.is_empty() {
+            TableFooter::CommandText {
+                label: "COMMAND",
+                text: if filter_clause.is_some() {
+                    "No planets match current filter."
+                } else {
+                    "You do not currently control any planets."
+                },
+            }
+        } else if auto_commission_prompt {
             TableFooter::CommandPrompt {
                 label: "COMMAND",
                 prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
@@ -378,6 +484,7 @@ impl PlanetListScreen {
                 sort,
                 direction,
                 filter,
+                filter_clause,
                 scroll_offset,
                 cursor,
                 footer,
@@ -413,40 +520,26 @@ impl PlanetListScreen {
         match prompt_mode {
             PlanetListFilterPromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Enter => Action::Planet(
-                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::All),
-                ),
-                KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
-                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Range),
-                ),
-                KeyCode::Char('s') | KeyCode::Char('S') => Action::Planet(
-                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Starbase),
-                ),
-                KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(
-                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Stardock),
-                ),
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilterPrompt(mode)),
+                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
+                KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                    Action::Planet(PlanetAction::AppendListPromptChar(ch))
+                }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
                 }
                 _ => Action::Noop,
             },
-            PlanetListFilterPromptMode::RangeCoords | PlanetListFilterPromptMode::RangeDistance => {
+            PlanetListFilterPromptMode::ValueInput => {
                 match key.code {
                     KeyCode::Char('?') => Action::OpenPopupHelp,
-                    KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilter(
-                        mode,
-                        PlanetListFilterMode::Range,
-                    )),
+                    KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilterPrompt(mode)),
                     KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
                     KeyCode::Char(ch)
-                        if matches!(prompt_mode, PlanetListFilterPromptMode::RangeCoords)
-                            && is_coordinate_input_char(ch) =>
-                    {
-                        Action::Planet(PlanetAction::AppendListPromptChar(ch))
-                    }
-                    KeyCode::Char(ch)
-                        if matches!(prompt_mode, PlanetListFilterPromptMode::RangeDistance)
-                            && ch.is_ascii_digit() =>
+                        if matches!(
+                            ch,
+                            ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
+                        ) || ch.is_ascii_alphanumeric() =>
                     {
                         Action::Planet(PlanetAction::AppendListPromptChar(ch))
                     }

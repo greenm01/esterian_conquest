@@ -53,12 +53,13 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
         ),
-        ScreenId::FleetList => app.fleet_list.render(
+        ScreenId::FleetList => app.fleet_list.render_with_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),
             app.fleet.list_sort,
             app.fleet.list_sort_direction,
             app.fleet.list_filter,
+            app.fleet.list_filter_clause.as_ref(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
             &app.fleet.list_input,
@@ -69,21 +70,32 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet.menu_prompt_input,
             app.fleet.menu_prompt_status.as_ref(),
         ),
-        ScreenId::FleetListFilterPrompt => app.fleet_list.render_filter_prompt(
+        ScreenId::FleetListFilterPrompt => app.fleet_list.render_filter_prompt_with_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),
             app.fleet.list_sort,
             app.fleet.list_sort_direction,
             app.fleet.list_filter,
+            app.fleet.list_filter_clause.as_ref(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
+            app.fleet.list_filter_prompt_mode,
+            &app.fleet.list_filter_prompt_default_value,
+            &app.fleet.list_filter_prompt_input,
+            app.fleet.list_filter_prompt_status.as_deref(),
+            app.fleet
+                .list_filter_pending_column
+                .map(|column| column.code),
         ),
-        ScreenId::FleetListSortPrompt => app.fleet_list.render_sort_prompt(
+        ScreenId::FleetListSortPrompt => app
+            .fleet_list
+            .render_sort_prompt_with_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),
             app.fleet.list_sort,
             app.fleet.list_sort_direction,
             app.fleet.list_filter,
+            app.fleet.list_filter_clause.as_ref(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
         ),

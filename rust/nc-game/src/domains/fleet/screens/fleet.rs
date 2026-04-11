@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
+use nc_ui::table_filter::{TableFilterClause, is_filter_column_char};
 use std::collections::BTreeSet;
 
 use crate::app::Action;
@@ -242,13 +243,19 @@ const ROW_4: [MenuEntry<'static>; 4] = [
 ];
 
 const FLEET_LIST_BROWSE_HOTKEYS: &str = "? F S O C E D M T L U <Q>";
-const FLEET_LIST_FILTER_HOTKEYS: &str = "? A H M C <Q>";
 const FLEET_LIST_SORT_HOTKEYS: &str = "? I L O E T <Q>";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetListFilterPromptMode {
+    Column,
+    Value,
+}
 
 fn fleet_list_title(
     sort: FleetListSort,
     direction: SortDirection,
     filter: FleetListFilter,
+    filter_clause: Option<&TableFilterClause>,
 ) -> String {
     let key = match sort {
         FleetListSort::Id => "ID",
@@ -260,7 +267,9 @@ fn fleet_list_title(
     format!(
         "FLEET LIST: {key} {} {}",
         direction.label(),
-        filter_label(filter)
+        filter_clause
+            .map(|clause| clause.summary.as_str())
+            .unwrap_or(filter_label(filter))
     )
 }
 
@@ -499,13 +508,14 @@ impl FleetListScreen {
         sort: FleetListSort,
         direction: SortDirection,
         filter: FleetListFilter,
+        filter_clause: Option<&TableFilterClause>,
         scroll_offset: usize,
         cursor: usize,
         footer: TableFooter<'_>,
         prompt_feedback_inline: Option<&PromptFeedback>,
     ) -> Result<RenderedFleetList, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
-        let title = fleet_list_title(sort, direction, filter);
+        let title = fleet_list_title(sort, direction, filter, filter_clause);
         let max_fleet_number = max_fleet_number(rows);
         let columns = full_columns(max_fleet_number);
         let ships_width = columns
@@ -588,6 +598,44 @@ impl FleetListScreen {
         prompt_input: &str,
         prompt_status: Option<&PromptFeedback>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_with_filter_clause(
+            geometry,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+            input,
+            status,
+            dismiss_message,
+            prompt_label,
+            prompt_default,
+            prompt_input,
+            prompt_status,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_with_filter_clause(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+        input: &str,
+        status: Option<&str>,
+        dismiss_message: Option<&str>,
+        prompt_label: Option<&str>,
+        prompt_default: &str,
+        prompt_input: &str,
+        prompt_status: Option<&PromptFeedback>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let max_fleet_number = max_fleet_number(rows);
         let default_fleet_number = rows
             .get(cursor)
@@ -604,7 +652,11 @@ impl FleetListScreen {
         let footer = if rows.is_empty() {
             TableFooter::CommandText {
                 label: COMMAND_LABEL,
-                text: "You have no active fleets.",
+                text: if filter_clause.is_some() {
+                    "No fleets match current filter."
+                } else {
+                    "You have no active fleets."
+                },
             }
         } else if let Some(prompt) = dismiss_prompt.as_deref() {
             TableFooter::CommandPrompt {
@@ -639,6 +691,7 @@ impl FleetListScreen {
             sort,
             direction,
             filter,
+            filter_clause,
             scroll_offset,
             cursor,
             footer,
@@ -683,6 +736,29 @@ impl FleetListScreen {
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_sort_prompt_with_filter_clause(
+            geometry,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+        )
+    }
+
+    pub fn render_sort_prompt_with_filter_clause(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let footer_label = sort_footer_label(direction);
         let footer = TableFooter::LabeledCommandBar {
             label: &footer_label,
@@ -697,6 +773,7 @@ impl FleetListScreen {
                 sort,
                 direction,
                 filter,
+                filter_clause,
                 scroll_offset,
                 cursor,
                 footer,
@@ -705,6 +782,7 @@ impl FleetListScreen {
             .buffer)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render_filter_prompt(
         &mut self,
         geometry: ScreenGeometry,
@@ -715,11 +793,67 @@ impl FleetListScreen {
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let footer = TableFooter::LabeledCommandBar {
-            label: "FILTER",
-            hotkeys_markup: FLEET_LIST_FILTER_HOTKEYS,
-            default: None,
-            input: "",
+        self.render_filter_prompt_with_filter_clause(
+            geometry,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+            FleetListFilterPromptMode::Column,
+            "all",
+            "",
+            None,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_filter_prompt_with_filter_clause(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+        prompt_mode: FleetListFilterPromptMode,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+        pending_column_code: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let dynamic_prompt;
+        let prompt = match prompt_mode {
+            FleetListFilterPromptMode::Column => "Filter column [?] ",
+            FleetListFilterPromptMode::Value => {
+                dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                dynamic_prompt.as_str()
+            }
+        };
+        let input_footer = TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt,
+            default: prompt_default,
+            input,
+        };
+        let footer = if let Some(status) = status {
+            TableFooter::Stacked {
+                rows: &[
+                    input_footer,
+                    TableFooter::CommandText {
+                        label: "COMMAND",
+                        text: status,
+                    },
+                ],
+                active_row: 0,
+            }
+        } else {
+            input_footer
         };
         Ok(self
             .render_table(
@@ -728,6 +862,7 @@ impl FleetListScreen {
                 sort,
                 direction,
                 filter,
+                filter_clause,
                 scroll_offset,
                 cursor,
                 footer,
@@ -801,20 +936,29 @@ impl FleetListScreen {
         }
     }
 
-    pub fn handle_filter_prompt_key(&self, key: KeyEvent) -> Action {
+    pub fn handle_filter_prompt_key(
+        &self,
+        key: KeyEvent,
+        prompt_mode: FleetListFilterPromptMode,
+    ) -> Action {
         match key.code {
             KeyCode::Char('?') => Action::OpenPopupHelp,
-            KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
-                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::All))
+            KeyCode::Enter => Action::Fleet(FleetAction::SubmitListFilterPrompt),
+            KeyCode::Backspace => Action::Fleet(FleetAction::BackspaceListFilterPromptInput),
+            KeyCode::Char(ch)
+                if matches!(prompt_mode, FleetListFilterPromptMode::Column)
+                    && is_filter_column_char(ch) =>
+            {
+                Action::Fleet(FleetAction::AppendListFilterPromptChar(ch))
             }
-            KeyCode::Char('h') | KeyCode::Char('H') => {
-                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::Holding))
-            }
-            KeyCode::Char('m') | KeyCode::Char('M') => {
-                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::Moving))
-            }
-            KeyCode::Char('c') | KeyCode::Char('C') => {
-                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::Combat))
+            KeyCode::Char(ch)
+                if matches!(prompt_mode, FleetListFilterPromptMode::Value)
+                    && (matches!(
+                        ch,
+                        ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
+                    ) || ch.is_ascii_alphanumeric()) =>
+            {
+                Action::Fleet(FleetAction::AppendListFilterPromptChar(ch))
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::CloseListPrompt)

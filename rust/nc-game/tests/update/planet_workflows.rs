@@ -1750,17 +1750,16 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     );
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
-        line_containing(&terminal, "FILTER <- ? A R E M <Q> ->").trim(),
-        "FILTER <- ? A R E M <Q> ->"
-    );
-    assert_eq!(
         terminal
             .lines
             .iter()
-            .position(|line| line.contains("FILTER <- ? A R E M <Q> ->"))
+            .position(|line| line.contains("COMMAND <- Filter column [?] "))
             .expect("filter prompt row"),
         browse_prompt_row
     );
+    let prompt = line_containing(&terminal, "COMMAND <- Filter column [?] ").trim();
+    assert!(prompt.starts_with("COMMAND <- Filter column [?] ["));
+    assert!(prompt.ends_with("] <Q> ->"));
 
     assert_eq!(
         apply_action(
@@ -1773,14 +1772,14 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     );
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
-    let prompt = line_containing(&terminal, "COMMAND <- Range from").trim();
-    assert!(prompt.starts_with("COMMAND <- Range from ["));
+    let prompt = line_containing(&terminal, "COMMAND <- Filter coo ").trim();
+    assert!(prompt.starts_with("COMMAND <- Filter coo ["));
     assert!(prompt.ends_with("] <Q> ->"));
     assert_eq!(
         terminal
             .lines
             .iter()
-            .position(|line| line.contains("COMMAND <- Range from"))
+            .position(|line| line.contains("COMMAND <- Filter coo "))
             .expect("range prompt row"),
         browse_prompt_row
     );
@@ -1886,22 +1885,30 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         ),
         AppOutcome::Continue
     );
+    for ch in ['m', 'a', 'x'] {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendDatabaseChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::MaxProduction,
-            ))
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
+    for ch in ['>', '=', '1', '0', '0'] {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendDatabaseChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::MaxProduction,
-            ))
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
 
@@ -1928,20 +1935,17 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         ),
         AppOutcome::Continue
     );
+    for ch in ['o', 'w', 'n'] {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendDatabaseChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::Empire,
-            ))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::BackspaceDatabaseInput)
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -1952,30 +1956,25 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::Empire,
-            ))
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
 
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
     assert!(
-        terminal.lines.iter().any(|line| line.contains(&format!(
-            "({:02},{:02})",
-            sample_worlds[0].1[0], sample_worlds[0].1[1]
-        ))),
-        "empire 3 world should remain after empire filter"
-    );
-    assert!(
         !terminal.lines.iter().any(|line| line.contains(&format!(
             "({:02},{:02})",
             sample_worlds[1].1[0], sample_worlds[1].1[1]
         ))),
         "non-matching empire worlds should be filtered out"
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("TOTAL PLANET DATABASE:") && line.contains("OWN~3")),
+        "database title should reflect the active owner filter"
     );
 
     let range_anchor = sample_worlds[0].1;
@@ -1986,13 +1985,17 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         ),
         AppOutcome::Continue
     );
+    for ch in ['c', 'o', 'o'] {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendDatabaseChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::Range,
-            ))
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
     for ch in format!("{},{}", range_anchor[0], range_anchor[1]).chars() {
@@ -2004,36 +2007,17 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
             AppOutcome::Continue
         );
     }
+    for ch in "/0".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendDatabaseChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::Range,
-            ))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::BackspaceDatabaseInput)
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::AppendDatabaseChar('0'))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::Range,
-            ))
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
 
@@ -2062,12 +2046,7 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                nc_game::screen::PlanetDatabaseFilterMode::All,
-            ))
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(

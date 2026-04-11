@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
+use nc_ui::table_filter::{TableFilterClause, is_filter_column_char};
 
 use crate::app::Action;
 use crate::app::helpers::is_coordinate_input_char;
@@ -15,7 +16,6 @@ use crate::screen::{
 };
 use crate::theme::classic;
 
-const DATABASE_FILTER_HOTKEYS: &str = "? A R E M <Q>";
 const DATABASE_SORT_HOTKEYS: &str = "? L R E M <Q>";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,10 +29,7 @@ pub enum PlanetDatabaseFilterMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetDatabasePromptMode {
     FilterMenu,
-    FilterRangeCoords,
-    FilterRangeDistance,
-    FilterEmpireInput,
-    FilterMaxProductionInput,
+    FilterValueInput,
     SortMenu,
     SortRangeInput,
 }
@@ -107,6 +104,7 @@ fn database_title(
     sort: PlanetDatabaseSort,
     direction: SortDirection,
     filter: PlanetDatabaseFilter,
+    filter_clause: Option<&TableFilterClause>,
 ) -> String {
     let key = match sort {
         PlanetDatabaseSort::Location => "LOC",
@@ -117,7 +115,9 @@ fn database_title(
     format!(
         "TOTAL PLANET DATABASE: {key} {} {}",
         direction.label(),
-        filter_label(filter)
+        filter_clause
+            .map(|clause| clause.summary.as_str())
+            .unwrap_or(filter_label(filter))
     )
 }
 
@@ -146,13 +146,14 @@ impl PlanetDatabaseScreen {
         sort: PlanetDatabaseSort,
         direction: SortDirection,
         filter: PlanetDatabaseFilter,
+        filter_clause: Option<&TableFilterClause>,
         scroll_offset: usize,
         cursor: usize,
         footer: TableFooter<'_>,
     ) -> Result<RenderedPlanetDatabase, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         let visible_rows = stacked_table_visible_rows_for(geometry, 1);
-        let title = database_title(sort, direction, filter);
+        let title = database_title(sort, direction, filter, filter_clause);
 
         let table_rows = database_table_rows(rows);
         let displayed_rows = table_rows
@@ -221,6 +222,38 @@ impl PlanetDatabaseScreen {
         filter: PlanetDatabaseFilter,
         scroll_offset: usize,
         cursor: usize,
+        default_coords: [u8; 2],
+        input: &str,
+        status: Option<&str>,
+        menu: CommandMenu,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_list_with_filter_clause(
+            geometry,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+            default_coords,
+            input,
+            status,
+            menu,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_list_with_filter_clause(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[PlanetDatabaseRow],
+        sort: PlanetDatabaseSort,
+        direction: SortDirection,
+        filter: PlanetDatabaseFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
         _default_coords: [u8; 2],
         input: &str,
         _status: Option<&str>,
@@ -233,7 +266,11 @@ impl PlanetDatabaseScreen {
         let footer = if rows.is_empty() {
             TableFooter::CommandText {
                 label: COMMAND_LABEL,
-                text: "No planets are in your database. Q quits.",
+                text: if filter_clause.is_some() {
+                    "No worlds match current filter."
+                } else {
+                    "No planets are in your database. Q quits."
+                },
             }
         } else {
             TableFooter::CommandBar {
@@ -249,6 +286,7 @@ impl PlanetDatabaseScreen {
                 sort,
                 direction,
                 filter,
+                filter_clause,
                 scroll_offset,
                 cursor,
                 footer,
@@ -256,6 +294,7 @@ impl PlanetDatabaseScreen {
             .buffer)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render_filter_prompt(
         &mut self,
         geometry: ScreenGeometry,
@@ -271,38 +310,60 @@ impl PlanetDatabaseScreen {
         status: Option<&str>,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_filter_prompt_with_filter_clause(
+            geometry,
+            rows,
+            sort,
+            direction,
+            filter,
+            None,
+            scroll_offset,
+            cursor,
+            prompt_mode,
+            prompt_default,
+            input,
+            status,
+            menu,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_filter_prompt_with_filter_clause(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[PlanetDatabaseRow],
+        sort: PlanetDatabaseSort,
+        direction: SortDirection,
+        filter: PlanetDatabaseFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+        prompt_mode: PlanetDatabasePromptMode,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+        menu: CommandMenu,
+        pending_column_code: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let footer_label = sort_footer_label(direction);
-        let footer = match prompt_mode {
-            PlanetDatabasePromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-                label: "FILTER",
-                hotkeys_markup: DATABASE_FILTER_HOTKEYS,
-                default: None,
-                input: "",
-            },
-            PlanetDatabasePromptMode::FilterRangeCoords => TableFooter::CommandInput {
+        let dynamic_prompt;
+        let input_footer = match prompt_mode {
+            PlanetDatabasePromptMode::FilterMenu => TableFooter::CommandInput {
                 label: COMMAND_LABEL,
-                prompt: "Range from ",
+                prompt: "Filter column [?] ",
                 default: prompt_default,
                 input,
             },
-            PlanetDatabasePromptMode::FilterRangeDistance => TableFooter::CommandInput {
-                label: COMMAND_LABEL,
-                prompt: "Range radius ",
-                default: prompt_default,
-                input,
-            },
-            PlanetDatabasePromptMode::FilterEmpireInput => TableFooter::CommandInput {
-                label: COMMAND_LABEL,
-                prompt: "Empire ",
-                default: prompt_default,
-                input,
-            },
-            PlanetDatabasePromptMode::FilterMaxProductionInput => TableFooter::CommandInput {
-                label: COMMAND_LABEL,
-                prompt: "Max production at least ",
-                default: prompt_default,
-                input,
-            },
+            PlanetDatabasePromptMode::FilterValueInput => {
+                dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                TableFooter::CommandInput {
+                    label: COMMAND_LABEL,
+                    prompt: dynamic_prompt.as_str(),
+                    default: prompt_default,
+                    input,
+                }
+            }
             PlanetDatabasePromptMode::SortMenu => TableFooter::LabeledCommandBar {
                 label: &footer_label,
                 hotkeys_markup: DATABASE_SORT_HOTKEYS,
@@ -316,7 +377,20 @@ impl PlanetDatabaseScreen {
                 input,
             },
         };
-        let _ = status;
+        let footer = if let Some(status) = status {
+            TableFooter::Stacked {
+                rows: &[
+                    input_footer,
+                    TableFooter::CommandText {
+                        label: COMMAND_LABEL,
+                        text: status,
+                    },
+                ],
+                active_row: 0,
+            }
+        } else {
+            input_footer
+        };
         let _ = menu;
         Ok(self
             .render_table(
@@ -325,6 +399,7 @@ impl PlanetDatabaseScreen {
                 sort,
                 direction,
                 filter,
+                filter_clause,
                 scroll_offset,
                 cursor,
                 footer,
@@ -370,75 +445,29 @@ impl PlanetDatabaseScreen {
         match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => Action::Planet(
-                    PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::All),
-                ),
-                KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
-                    PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Range),
-                ),
-                KeyCode::Char('e') | KeyCode::Char('E') => Action::Planet(
-                    PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Empire),
-                ),
-                KeyCode::Char('m') | KeyCode::Char('M') => Action::Planet(
-                    PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::MaxProduction),
-                ),
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::OpenDatabase)
-                }
-                _ => Action::Noop,
-            },
-            PlanetDatabasePromptMode::FilterRangeCoords => match key.code {
-                KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::OpenDatabase)
-                }
-                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                    PlanetDatabaseFilterMode::Range,
-                )),
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
-                KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
+                KeyCode::Char(ch) if is_filter_column_char(ch) => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
                 }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::OpenDatabase)
+                }
                 _ => Action::Noop,
             },
-            PlanetDatabasePromptMode::FilterRangeDistance => match key.code {
+            PlanetDatabasePromptMode::FilterValueInput => match key.code {
                 KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
-                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                    PlanetDatabaseFilterMode::Range,
-                )),
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
-                KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    Action::Planet(PlanetAction::AppendDatabaseChar(ch))
-                }
-                _ => Action::Noop,
-            },
-            PlanetDatabasePromptMode::FilterEmpireInput => match key.code {
-                KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::OpenDatabase)
-                }
-                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                    PlanetDatabaseFilterMode::Empire,
-                )),
-                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
-                KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    Action::Planet(PlanetAction::AppendDatabaseChar(ch))
-                }
-                _ => Action::Noop,
-            },
-            PlanetDatabasePromptMode::FilterMaxProductionInput => match key.code {
-                KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::OpenDatabase)
-                }
-                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                    PlanetDatabaseFilterMode::MaxProduction,
-                )),
-                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
-                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                KeyCode::Char(ch)
+                    if matches!(
+                        ch,
+                        ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
+                    ) || ch.is_ascii_alphanumeric() =>
+                {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
                 }
                 _ => Action::Noop,
