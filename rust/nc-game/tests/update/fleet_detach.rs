@@ -51,8 +51,9 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
     assert!(
         terminal
             .line(10)
-            .contains("Ships: SC=1 CA=1 DD=4 TT=4 AR=4")
+            .contains("Ships: SC CA 4DD 4TT*")
     );
+    assert!(!terminal.line(10).contains("AR="));
     assert_eq!(terminal.line(12).trim_end(), "<C>ommission, <X> Cancel");
     assert!(
         line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X>")

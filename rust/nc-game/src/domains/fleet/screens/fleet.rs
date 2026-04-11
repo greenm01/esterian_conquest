@@ -2042,7 +2042,7 @@ impl FleetDetachScreen {
             &mut buffer,
             SHIPS_ROW,
             "Ships: ",
-            &donor_row.composition_label,
+            &donor_row.table_ships_label,
         );
         buffer.write_spans(
             ACTION_ROW,
