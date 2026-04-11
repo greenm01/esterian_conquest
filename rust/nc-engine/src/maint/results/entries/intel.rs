@@ -235,14 +235,7 @@ pub fn push_intel_entries(
                     ),
                 },
             ];
-            let mut outcome_rows = vec![StructuredBodyItem::Text(format!(
-                "{}",
-                if assault.kind == Mission::BlitzWorld {
-                    format!("Planet seized in a blitz assault by {invader}.")
-                } else {
-                    format!("Planet captured by {invader}.")
-                }
-            ))];
+            let mut outcome_rows = Vec::new();
             if assault.defender_batteries_initial > 0 || assault.defender_armies_initial > 0 {
                 outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
                     assault.defender_batteries_initial,

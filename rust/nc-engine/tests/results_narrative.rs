@@ -613,7 +613,7 @@ fn ownership_change_report_uses_assault_context_for_defender() {
     let rows = build_results_report_blocks(&game_data, &events);
     let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
     assert!(text.contains("ALERT: Planet lost to enemy blitz!"));
-    assert!(text.contains("Planet seized in a blitz assault by"));
+    assert!(!text.contains("Planet seized in a blitz assault by"));
     assert!(!text.contains("captured by \"Player1\", (Empire #1) from"));
     assert!(text.contains("Attacking force:"));
     assert!(text.contains("1CA"));

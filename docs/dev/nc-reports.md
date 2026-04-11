@@ -198,7 +198,6 @@ Attacking force:   11 battleships, 28 cruisers, 8 destroyers and 106 troop
                    transport ships
 Our defenses:      12 ground batteries and 40 armies
 
-Planet captured by "Player1", (Empire #1).
 All planetary defenses were destroyed.
 Enemy losses:      no ship losses
 Orbital softening losses: 20 armies
