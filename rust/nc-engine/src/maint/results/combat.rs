@@ -50,6 +50,14 @@ pub fn battle_outcome_sentence(
     }
 }
 
+pub fn enemy_starbase_outcome_line(starbases_destroyed: u32) -> Option<String> {
+    match starbases_destroyed {
+        0 => None,
+        1 => Some("Enemy starbase destroyed.".to_string()),
+        count => Some(format!("Enemy starbases destroyed: {count}.")),
+    }
+}
+
 pub fn fleet_command_last_contact_value(
     enemy: &str,
     coords: [u8; 2],

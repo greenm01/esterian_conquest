@@ -29,6 +29,8 @@ pub struct BombardEvent {
     pub defender_empire_raw: u8,
     /// Initial attacking fleet composition observed by both sides.
     pub attacker_initial: ShipLosses,
+    /// Initial loaded armies aboard the attacking force.
+    pub attacker_loaded_armies_initial: u32,
     /// Initial defender ground batteries.
     pub defender_batteries_initial: u8,
     /// Initial defender armies.
@@ -237,6 +239,8 @@ pub struct StarbaseDestroyedEvent {
     pub coords: [u8; 2],
     /// Initial observed hostile composition.
     pub enemy_initial: ShipLosses,
+    /// Loaded armies aboard the hostile force at contact.
+    pub enemy_loaded_armies_initial: u32,
     /// Observed hostile losses before contact was lost.
     pub enemy_losses: ShipLosses,
     /// Hostile empire if a primary enemy can be named.

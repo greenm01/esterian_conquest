@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nc_data::{
+    apply_maintenance_events_to_player_war_stats, default_player_activity_states,
     AssaultReportEvent, BombardEvent, CampaignStore, EmpireUnitSummary, FleetBattleEvent,
     GameStateBuilder, MaintenanceEvents, Mission, MissionOutcome, PlayerWarStatsState, ShipLosses,
-    apply_maintenance_events_to_player_war_stats, default_player_activity_states,
 };
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -56,6 +56,7 @@ fn maintenance_events_accumulate_lifetime_war_stats() {
         attacker_fleet_number: Some(1),
         defender_empire_raw: 2,
         attacker_initial: ShipLosses::default(),
+        attacker_loaded_armies_initial: 0,
         defender_batteries_initial: 3,
         defender_armies_initial: 4,
         attacker_losses: ShipLosses {

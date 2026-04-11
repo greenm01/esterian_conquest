@@ -4,14 +4,15 @@ use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionOutcome};
 
 use crate::maint::results::combat::*;
 use crate::maint::results::compose::{
-    AbortDisposition, fleet_abort_disposition, fleet_abort_disposition_text,
-    matching_roe_abort_disposition_index, mission_event_has_assault_report,
-    mission_event_has_fleet_destroyed,
+    fleet_abort_disposition, fleet_abort_disposition_text, matching_roe_abort_disposition_index,
+    mission_event_has_assault_report, mission_event_has_fleet_destroyed, AbortDisposition,
 };
 use crate::maint::results::entries::intel::{
     matching_planet_intel_event, owner_clause_from_snapshot, stardock_scan_summary_from_snapshot,
 };
-use crate::maint::results::entries::{NarrativePhase, ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::entries::{
+    narrative_phase_for_report_text, NarrativePhase, ReportEntry, ReportTarget,
+};
 use crate::maint::results::format::*;
 use crate::maint::results::mod_constants::*;
 use crate::maint::results::structured::*;
@@ -478,7 +479,12 @@ pub fn push_mission_entries(
                             StructuredBodyItem::Label {
                                 label: LABEL_OUR_FORCES.to_string(),
                                 value: bombard_event
-                                    .map(|e| fleet_force_summary(e.attacker_initial, 0))
+                                    .map(|e| {
+                                        fleet_force_summary(
+                                            e.attacker_initial,
+                                            e.attacker_loaded_armies_initial,
+                                        )
+                                    })
                                     .unwrap_or_else(|| "unknown force levels".to_string()),
                             },
                             StructuredBodyItem::Label {

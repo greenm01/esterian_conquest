@@ -179,6 +179,7 @@ fn results_reports_battle_before_bombard_aftermath() {
             destroyers: 1,
             ..ShipLosses::default()
         },
+        attacker_loaded_armies_initial: 0,
         defender_batteries_initial: 4,
         defender_armies_initial: 10,
         attacker_losses: ShipLosses::default(),
@@ -287,6 +288,7 @@ fn bombardment_defender_report_uses_first_person_loss_wording() {
             destroyers: 1,
             ..ShipLosses::default()
         },
+        attacker_loaded_armies_initial: 0,
         defender_batteries_initial: 0,
         defender_armies_initial: 9,
         attacker_losses: ShipLosses::default(),
@@ -571,6 +573,114 @@ fn invasion_report_lists_ship_and_ground_army_losses() {
 }
 
 #[test]
+fn defender_receives_repulsed_invasion_report() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3017)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [6, 7];
+    seed_target_world(&mut game_data, coords, "red");
+    game_data.planets.records[0].set_owner_empire_slot_raw(2);
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::InvadeWorld,
+        attacker_fleet_number: Some(8),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 2,
+        attacker_initial: ShipLosses {
+            battleships: 2,
+            transports: 12,
+            ..ShipLosses::default()
+        },
+        attacker_loaded_armies_initial: 12,
+        defender_batteries_initial: 4,
+        defender_armies_initial: 16,
+        attacker_ship_losses: ShipLosses {
+            cruisers: 1,
+            ..ShipLosses::default()
+        },
+        attacker_army_losses: 5,
+        transport_army_losses: 0,
+        defender_battery_losses: 4,
+        defender_army_losses_softening: 8,
+        defender_army_losses: 13,
+        outcome: MissionOutcome::Failed,
+        stardate_week: Some(3),
+    });
+
+    let invasion = viewer_report_texts(2, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+
+    assert!(invasion.contains("ALERT: Enemy invasion repulsed!"));
+    assert!(invasion.contains("Attacking force:"));
+    assert!(invasion.contains("2BB, 12TT*"));
+    assert!(invasion.contains("Our defenses:"));
+    assert!(invasion.contains("4 ground batteries and 16 armies"));
+    assert!(invasion.contains("The invaders were thrown back."));
+    assert!(invasion.contains("Defensive losses: 4 ground batteries and 13 armies."));
+    assert!(invasion.contains("Enemy losses:"));
+    assert!(invasion.contains("1CA and 5 armies"));
+    assert!(invasion.contains("Our orbital softening losses: 8 armies"));
+    assert!(invasion.contains("Our ground battle losses: 5 armies"));
+}
+
+#[test]
+fn defender_receives_blocked_invasion_report() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3017)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [6, 7];
+    seed_target_world(&mut game_data, coords, "red");
+    game_data.planets.records[0].set_owner_empire_slot_raw(2);
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::InvadeWorld,
+        attacker_fleet_number: Some(8),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 2,
+        attacker_initial: ShipLosses {
+            destroyers: 4,
+            transports: 8,
+            ..ShipLosses::default()
+        },
+        attacker_loaded_armies_initial: 8,
+        defender_batteries_initial: 6,
+        defender_armies_initial: 20,
+        attacker_ship_losses: ShipLosses {
+            destroyers: 1,
+            ..ShipLosses::default()
+        },
+        attacker_army_losses: 8,
+        transport_army_losses: 0,
+        defender_battery_losses: 3,
+        defender_army_losses_softening: 0,
+        defender_army_losses: 0,
+        outcome: MissionOutcome::Aborted,
+        stardate_week: Some(3),
+    });
+
+    let invasion = viewer_report_texts(2, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+
+    assert!(invasion.contains("ALERT: Enemy invasion blocked!"));
+    assert!(invasion.contains("Our batteries prevented an enemy landing."));
+    assert!(invasion.contains("Defensive losses: 3 ground batteries."));
+    assert!(invasion.contains("Enemy losses:"));
+    assert!(invasion.contains("1DD and 8 armies"));
+    assert!(!invasion.contains("Our orbital softening losses:"));
+    assert!(!invasion.contains("Our ground battle losses:"));
+}
+
+#[test]
 fn ownership_change_report_uses_assault_context_for_defender() {
     let mut game_data = GameStateBuilder::new()
         .with_player_count(4)
@@ -633,6 +743,58 @@ fn ownership_change_report_uses_assault_context_for_defender() {
 }
 
 #[test]
+fn defender_receives_repulsed_blitz_report() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3014)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [8, 2];
+    seed_target_world(&mut game_data, coords, "half");
+    game_data.planets.records[0].set_owner_empire_slot_raw(2);
+    game_data.planets.records[0].set_ground_batteries_raw(2);
+    game_data.planets.records[0].set_army_count_raw(5);
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::BlitzWorld,
+        attacker_fleet_number: Some(4),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 2,
+        attacker_initial: ShipLosses {
+            cruisers: 1,
+            transports: 6,
+            ..ShipLosses::default()
+        },
+        attacker_loaded_armies_initial: 6,
+        defender_batteries_initial: 2,
+        defender_armies_initial: 5,
+        attacker_ship_losses: ShipLosses::default(),
+        attacker_army_losses: 4,
+        transport_army_losses: 2,
+        defender_battery_losses: 1,
+        defender_army_losses_softening: 0,
+        defender_army_losses: 2,
+        outcome: MissionOutcome::Failed,
+        stardate_week: Some(3),
+    });
+
+    let text = viewer_report_texts(2, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("ALERT: Enemy blitz repulsed!"));
+    assert!(text.contains("Attacking force:"));
+    assert!(text.contains("1CA, 6TT*"));
+    assert!(text.contains("Cover fire:"));
+    assert!(text.contains("briefly suppressed"));
+    assert!(text.contains("The blitz assault was repulsed."));
+    assert!(text.contains("Defensive losses: 1 ground battery and 2 armies."));
+    assert!(text.contains("Enemy losses:"));
+    assert!(text.contains("6 armies"));
+}
+
+#[test]
 fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() {
     let mut game_data = GameStateBuilder::new()
         .with_player_count(4)
@@ -654,6 +816,7 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
             transports: 21,
             ..ShipLosses::default()
         },
+        attacker_loaded_armies_initial: 14,
         defender_batteries_initial: 0,
         defender_armies_initial: 0,
         attacker_losses: ShipLosses::default(),
@@ -681,16 +844,14 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("ALERT: Orbital bombardment underway!"));
-    assert!(text.contains("Our forces: 10BB, 11CA, 21TT"));
+    assert!(text.contains("Our forces: 10BB, 11CA, 14TT*, 7TT"));
     assert!(text.contains("World defenses: undefended"));
     assert!(text.contains("Bombing damage: 336 points of industry destroyed."));
     assert!(text.contains("Bombing damage: 25 stored production destroyed."));
     assert!(!text.contains("336 factories"));
     assert!(!text.contains("We were unable to inflict any ground losses."));
-    assert!(
-        !text
-            .contains("We broke through planetary defenses and struck the world's infrastructure.")
-    );
+    assert!(!text
+        .contains("We broke through planetary defenses and struck the world's infrastructure."));
     assert!(!text.contains("0 ground battery(ies)"));
     assert!(!text.contains("0 armies"));
 }
@@ -717,6 +878,7 @@ fn bombardment_defender_report_uses_no_defenses_for_zero_counts() {
             transports: 21,
             ..ShipLosses::default()
         },
+        attacker_loaded_armies_initial: 14,
         defender_batteries_initial: 0,
         defender_armies_initial: 0,
         attacker_losses: ShipLosses::default(),
@@ -734,7 +896,7 @@ fn bombardment_defender_report_uses_no_defenses_for_zero_counts() {
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("Attacking force:"));
-    assert!(text.contains("10BB, 11CA, 21TT"));
+    assert!(text.contains("10BB, 11CA, 14TT*, 7TT"));
     assert!(text.contains("Our defenses:"));
     assert!(text.contains("none"));
     assert!(text.contains("Local damage: 336 points of industry destroyed."));
@@ -924,9 +1086,7 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
         "expected one merged invasion abort report: {texts:?}"
     );
     assert!(joined.contains("In accordance with our ROE, we withdrew"));
-    assert!(
-        joined.contains("This forced us to abort the invasion before the landing could begin.")
-    );
+    assert!(joined.contains("This forced us to abort the invasion before the landing could begin."));
     assert!(joined.contains("We had 1CA, 2TT*."));
     assert!(joined.contains("The alien force contained 2CA, 3TT."));
     assert!(!joined.contains("Hostile action stripped us of our invasion capability"));
@@ -1263,11 +1423,8 @@ fn victorious_fleet_report_uses_total_destruction_phrase() {
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("The aliens were completely destroyed."));
-    assert!(
-        !text.contains(
-            "We inflicted losses of 1 battleship, 3 cruisers and 2 troop transport ships."
-        )
-    );
+    assert!(!text
+        .contains("We inflicted losses of 1 battleship, 3 cruisers and 2 troop transport ships."));
 }
 
 #[test]
@@ -1380,6 +1537,7 @@ fn destroyed_starbase_only_defender_emits_only_telemetry_report() {
                 transports: 14,
                 ..ShipLosses::default()
             },
+            enemy_loaded_armies_initial: 11,
             enemy_losses: ShipLosses::default(),
             primary_enemy_empire_raw: Some(1),
             primary_enemy_fleet_number: Some(12),
@@ -1400,6 +1558,50 @@ fn destroyed_starbase_only_defender_emits_only_telemetry_report() {
     assert!(before_forces.ends_with("\n\n"), "{:?}", texts[0]);
     assert!(texts[0].contains("Last contact: destroyed by"));
     assert!(texts[0].contains("ALERT: Starbase contact lost!"));
+    assert!(texts[0].contains("Alien forces: 1BB, 3CA, 11TT*, 3TT"));
+}
+
+#[test]
+fn attacker_battle_report_explicitly_mentions_enemy_starbase_destruction() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 1,
+        reporting_fleet_number: Some(12),
+        reporting_mission: Some(Mission::MoveOnly),
+        perspective: FleetBattlePerspective::Attacked,
+        coords: [9, 6],
+        enemy_empires_raw: vec![2],
+        primary_enemy_fleet_number: None,
+        held_field: true,
+        friendly_initial: ShipLosses {
+            battleships: 1,
+            cruisers: 3,
+            transports: 14,
+            ..ShipLosses::default()
+        },
+        friendly_initial_starbases: 0,
+        friendly_loaded_armies_initial: 11,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses::default(),
+        enemy_initial_starbases: 1,
+        enemy_loaded_armies_initial: 0,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 1,
+        stardate_week: Some(2),
+    });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Enemy starbase destroyed."));
+    assert!(text.contains("The aliens were completely destroyed."));
 }
 
 #[test]
@@ -1441,6 +1643,7 @@ fn results_reports_starbase_contact_before_destroyed_starbase_notice() {
                 transports: 25,
                 ..ShipLosses::default()
             },
+            enemy_loaded_armies_initial: 9,
             enemy_losses: ShipLosses::default(),
             primary_enemy_empire_raw: Some(2),
             primary_enemy_fleet_number: Some(7),
@@ -1498,14 +1701,12 @@ fn results_projection_is_pure_until_reviewable_flags_are_applied() {
 
     apply_results_reviewable_flags(&mut game_data, &rows);
     assert!(game_data.player.records[0].has_classic_results_review_state());
-    assert!(
-        game_data
-            .player
-            .records
-            .iter()
-            .skip(1)
-            .all(|player| !player.has_classic_results_review_state())
-    );
+    assert!(game_data
+        .player
+        .records
+        .iter()
+        .skip(1)
+        .all(|player| !player.has_classic_results_review_state()));
 }
 
 #[test]

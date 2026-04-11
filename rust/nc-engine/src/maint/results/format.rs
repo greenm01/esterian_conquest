@@ -135,7 +135,11 @@ pub fn classic_enemy_reference_titlecase(
     fleet_number: Option<u8>,
     empire_raw: u8,
 ) -> String {
-    capitalize_leading_ascii(&classic_enemy_reference(game_data, fleet_number, empire_raw))
+    capitalize_leading_ascii(&classic_enemy_reference(
+        game_data,
+        fleet_number,
+        empire_raw,
+    ))
 }
 
 pub fn mission_short_label(kind: Mission) -> &'static str {
@@ -308,9 +312,7 @@ pub fn structured_assault_alert(kind: Mission, outcome: MissionOutcome) -> &'sta
         (Mission::InvadeWorld, MissionOutcome::Succeeded) => {
             "ALERT: Planetary invasion successful!"
         }
-        (Mission::InvadeWorld, MissionOutcome::Failed) => {
-            "ALERT: Planetary invasion repulsed!"
-        }
+        (Mission::InvadeWorld, MissionOutcome::Failed) => "ALERT: Planetary invasion repulsed!",
         (Mission::InvadeWorld, MissionOutcome::Aborted) => "ALERT: Planetary invasion blocked!",
         (Mission::BlitzWorld, MissionOutcome::Succeeded) => "ALERT: Blitz assault successful!",
         (Mission::BlitzWorld, MissionOutcome::Failed) => "ALERT: Blitz assault failed!",
@@ -323,6 +325,16 @@ pub fn structured_capture_alert(kind: Mission) -> &'static str {
     match kind {
         Mission::BlitzWorld => "ALERT: Planet lost to enemy blitz!",
         _ => "ALERT: Planet lost to enemy invasion!",
+    }
+}
+
+pub fn structured_repulsed_assault_alert(kind: Mission, outcome: MissionOutcome) -> &'static str {
+    match (kind, outcome) {
+        (Mission::InvadeWorld, MissionOutcome::Failed) => "ALERT: Enemy invasion repulsed!",
+        (Mission::InvadeWorld, MissionOutcome::Aborted) => "ALERT: Enemy invasion blocked!",
+        (Mission::BlitzWorld, MissionOutcome::Failed) => "ALERT: Enemy blitz repulsed!",
+        (Mission::BlitzWorld, MissionOutcome::Aborted) => "ALERT: Enemy blitz blocked!",
+        _ => "ALERT: Hostile assault repulsed!",
     }
 }
 

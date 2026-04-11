@@ -1295,27 +1295,21 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
         .into_iter()
         .map(|(_, lines)| lines.join(" "))
         .collect::<Vec<_>>();
-    assert!(
-        report_texts
-            .iter()
-            .any(|report| report.contains("From your 1st Fleet, located in System(11,11):"))
-    );
+    assert!(report_texts
+        .iter()
+        .any(|report| report.contains("From your 1st Fleet, located in System(11,11):")));
     assert!(
         report_texts
             .iter()
             .any(|report| report.contains("Our forces: 3DD, 2TT*")),
         "expected friendly force summary with loaded armies, got: {report_texts:?}"
     );
-    assert!(
-        report_texts
-            .iter()
-            .any(|report| { report.contains("Alien forces: 1DD, 2TT") })
-    );
-    assert!(
-        !report_texts
-            .iter()
-            .any(|report| report.contains("carrying 0 armies"))
-    );
+    assert!(report_texts
+        .iter()
+        .any(|report| { report.contains("Alien forces: 1DD, 2TT") }));
+    assert!(!report_texts
+        .iter()
+        .any(|report| report.contains("carrying 0 armies")));
     cleanup_dir(&target);
 }
 
@@ -1354,14 +1348,51 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
+    assert!(game_data
+        .bases
+        .records
+        .iter()
+        .all(|base| !(base.coords_raw() == starbase_coords
+            && base.owner_empire_raw() == 1
+            && base.active_flag_raw() != 0)));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_attacker_battle_report_mentions_destroyed_starbase() {
+    let target = unique_temp_dir("nc-cli-maint-rust-attacker-starbase-report");
+    copy_fixture_dir("fixtures/ecmaint-starbase-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let starbase_coords = game_data.bases.records[0].coords_raw();
+    let attacker = &mut game_data.fleets.records[4];
+    attacker.set_current_location_coords_raw(starbase_coords);
+    attacker.set_standing_order_kind(Order::MoveOnly);
+    attacker.set_standing_order_target_coords_raw(starbase_coords);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x81;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_destroyer_count(20);
+    attacker.set_cruiser_count(10);
+    attacker.set_battleship_count(5);
+    attacker.set_scout_count(0);
+    attacker.set_troop_transport_count(0);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 2);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let report = joined_report_containing(&results, "Enemy starbase destroyed.");
+    assert!(report.contains("ALERT: Enemy fleet contact!"), "{report}");
+    assert!(report.contains("Enemy starbase destroyed."), "{report}");
     assert!(
-        game_data
-            .bases
-            .records
-            .iter()
-            .all(|base| !(base.coords_raw() == starbase_coords
-                && base.owner_empire_raw() == 1
-                && base.active_flag_raw() != 0))
+        report.contains("The aliens were completely destroyed."),
+        "{report}"
     );
 
     cleanup_dir(&target);
@@ -2020,7 +2051,10 @@ fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
         u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
         65
     );
-    assert_eq!(viewer_record.raw[0x23], reloaded.planets.records[13].army_count_raw());
+    assert_eq!(
+        viewer_record.raw[0x23],
+        reloaded.planets.records[13].army_count_raw()
+    );
     assert_eq!(viewer_record.raw[0x24], 0x00);
     assert_eq!(viewer_record.raw[0x25], 0);
     assert_eq!(viewer_record.raw[0x26], 0x00);
@@ -2270,8 +2304,7 @@ fn maint_rust_blitz_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
 
-    let defender_report =
-        joined_report_containing(&results, "ALERT: Planet lost to enemy blitz!");
+    let defender_report = joined_report_containing(&results, "ALERT: Planet lost to enemy blitz!");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"
@@ -3173,11 +3206,9 @@ fn maint_rust_destroyed_fleet_report_separates_last_contact_from_force_rows() {
         .expect("expected fleet contact lost report");
     let report = report_lines.join("\n");
 
-    assert!(
-        report_lines
-            .iter()
-            .any(|line| line.starts_with("Last contact:"))
-    );
+    assert!(report_lines
+        .iter()
+        .any(|line| line.starts_with("Last contact:")));
     assert!(
         report.contains("destroyed by") || report.contains("destroyed while intercepting"),
         "{report}"
@@ -3473,10 +3504,19 @@ fn maint_rust_join_host_absorbed_into_other_fleet_retargets_joiners() {
     let text = decode_chunked_report(&results);
     assert!(text.contains("From your Fleet Command Center:"), "{text}");
     assert!(text.contains("Join mission summary"), "{text}");
-    assert!(text.contains("Completed joins: Fleet 2 merged into Fleet 1."), "{text}");
-    assert!(text.contains("Retargeted to follow host: Fleet 3."), "{text}");
+    assert!(
+        text.contains("Completed joins: Fleet 2 merged into Fleet 1."),
+        "{text}"
+    );
+    assert!(
+        text.contains("Retargeted to follow host: Fleet 3."),
+        "{text}"
+    );
     assert!(!text.contains("target fleet no longer exists"), "{text}");
-    assert!(!text.contains("holding position and awaiting orders"), "{text}");
+    assert!(
+        !text.contains("holding position and awaiting orders"),
+        "{text}"
+    );
 
     cleanup_dir(&target);
 }
@@ -4050,7 +4090,9 @@ fn maint_rust_bombard_destruction_emits_lost_contact_telemetry() {
     attacker.set_troop_transport_count(0);
     attacker.set_army_count(0);
     attacker.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
@@ -4058,8 +4100,14 @@ fn maint_rust_bombard_destruction_emits_lost_contact_telemetry() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("ALERT: Fleet contact lost!"), "{text}");
-    assert!(text.contains("Alien forces: 15 ground batteries and 25 armies"), "{text}");
-    assert!(text.contains("ALERT: Orbital bombardment underway!"), "{text}");
+    assert!(
+        text.contains("Alien forces: 15 ground batteries and 25 armies"),
+        "{text}"
+    );
+    assert!(
+        text.contains("ALERT: Orbital bombardment underway!"),
+        "{text}"
+    );
     assert!(
         text.contains("Hostile return fire destroyed the bombardment force."),
         "{text}"
@@ -4106,7 +4154,9 @@ fn maint_rust_invasion_destruction_emits_lost_contact_telemetry() {
     attacker.set_troop_transport_count(5);
     attacker.set_army_count(5);
     attacker.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
@@ -4114,12 +4164,70 @@ fn maint_rust_invasion_destruction_emits_lost_contact_telemetry() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("ALERT: Fleet contact lost!"), "{text}");
-    assert!(text.contains("Alien forces: 15 ground batteries and 25 armies"), "{text}");
+    assert!(
+        text.contains("Alien forces: 15 ground batteries and 25 armies"),
+        "{text}"
+    );
     assert!(
         text.contains("ALERT: Planetary invasion blocked!")
             || text.contains("ALERT: Planetary invasion repulsed!"),
         "{text}"
     );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_invasion_failure_generates_defender_side_report() {
+    let target = unique_temp_dir("nc-cli-maint-rust-invade-failure-defender-report");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        25,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(5);
+    attacker.set_army_count(5);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 2);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(
+        text.contains("ALERT: Enemy invasion blocked!")
+            || text.contains("ALERT: Enemy invasion repulsed!"),
+        "{text}"
+    );
+    assert!(text.contains("Attacking force:"), "{text}");
+    assert!(text.contains("Our defenses:"), "{text}");
+    assert!(text.contains("Enemy losses:"), "{text}");
 
     cleanup_dir(&target);
 }
@@ -4158,7 +4266,9 @@ fn maint_rust_blitz_destruction_emits_lost_contact_telemetry() {
     attacker.set_troop_transport_count(5);
     attacker.set_army_count(5);
     attacker.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
@@ -4166,12 +4276,70 @@ fn maint_rust_blitz_destruction_emits_lost_contact_telemetry() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("ALERT: Fleet contact lost!"), "{text}");
-    assert!(text.contains("Alien forces: 15 ground batteries and 25 armies"), "{text}");
+    assert!(
+        text.contains("Alien forces: 15 ground batteries and 25 armies"),
+        "{text}"
+    );
     assert!(
         text.contains("ALERT: Blitz assault blocked!")
             || text.contains("ALERT: Blitz assault failed!"),
         "{text}"
     );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_blitz_failure_generates_defender_side_report() {
+    let target = unique_temp_dir("nc-cli-maint-rust-blitz-failure-defender-report");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        25,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(5);
+    attacker.set_army_count(5);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 2);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(
+        text.contains("ALERT: Enemy blitz blocked!")
+            || text.contains("ALERT: Enemy blitz repulsed!"),
+        "{text}"
+    );
+    assert!(text.contains("Attacking force:"), "{text}");
+    assert!(text.contains("Our defenses:"), "{text}");
+    assert!(text.contains("Enemy losses:"), "{text}");
 
     cleanup_dir(&target);
 }

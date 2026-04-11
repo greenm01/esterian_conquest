@@ -1,10 +1,10 @@
 use nc_data::{FleetRecord, PlanetRecord, ReportBlockRow};
 use nc_engine::{
+    build_results_report_blocks, build_seeded_initialized_game, maint::FleetBattlePerspective,
     AssaultReportEvent, BombardEvent, ContactReportSource, EncounterDispositionEvent,
     EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, GameRng, MaintenanceEvents,
     Mission, MissionEvent, MissionOutcome, Order, PlanetOwnershipChangeEvent, ScoutContactEvent,
-    ShipLosses, build_results_report_blocks, build_seeded_initialized_game,
-    maint::FleetBattlePerspective,
+    ShipLosses,
 };
 
 use crate::error::HarnessError;
@@ -467,6 +467,7 @@ fn build_bombard_preview(seed: u64, sample_index: usize) -> Result<PreviewScenar
         attacker_fleet_number: Some(ATTACKER_FLEET_NUMBER),
         defender_empire_raw: DEFENDER_EMPIRE,
         attacker_initial: attacker_force.to_ship_losses(),
+        attacker_loaded_armies_initial: attacker_force.loaded_armies(),
         defender_batteries_initial: defense_batteries,
         defender_armies_initial: defense_armies,
         attacker_losses,

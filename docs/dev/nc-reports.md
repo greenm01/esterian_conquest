@@ -22,6 +22,8 @@ The Rust engine uses a hybrid report surface:
 - movement, logistics, intel, and administrative flow stay narrative by default
 - repeated join logistics should collapse into one compact Fleet Command summary
 - the shell stays consistent across both styles
+- hostile contact and combat reports are viewer-targeted, not broadcast; each
+  directly involved empire must receive at least one report for the event
 
 The report surface is no longer governed by classic EC prose templates. Classic
 behavior still matters at the file/export boundary, but Rust report wording is
@@ -87,6 +89,8 @@ Rules:
   or `destroyed while intercepting ...` over `was attacked by ...`
 - emit the same lost-contact telemetry family when a bombardment, invasion, or
   blitz assault force is completely destroyed
+- keep starbase-loss telemetry defender-side; the attacker learns about a
+  destroyed starbase from the ordinary battle report
 - when all initial planetary defenses are eliminated, prefer
   `All planetary defenses were destroyed.`
 
@@ -147,6 +151,14 @@ These should optimize for scanability. A player should be able to find:
 - outcome
 - friendly losses
 - enemy losses
+
+Coverage rules:
+
+- if one empire loses a fleet or starbase, that empire may receive telemetry
+  instead of a generic battle report
+- if a planet repels or blocks an invasion or blitz, the defender should still
+  receive a structured aftermath report; failed assaults must not be attacker-
+  only
 
 Prefer one short outcome sentence plus labeled loss rows over paragraph-style
 battle narration.

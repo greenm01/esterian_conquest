@@ -3,23 +3,23 @@ use std::collections::{BTreeMap, HashSet};
 use crate::{
     AssaultReportEvent, BombardEvent, CoreGameData, FleetDestroyedEvent, Mission, MissionEvent,
     MissionOutcome, Order, PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent,
-    ProductionItemKind, STARDOCK_SLOT_COUNT, ShipLosses,
+    ProductionItemKind, ShipLosses, STARDOCK_SLOT_COUNT,
 };
 
 use super::super::hostile_order_ready_for_execution;
 use super::exchange::{
-    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND,
-    COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND, COMBAT_KIND_INVASION_SOFTEN,
-    COMBAT_KIND_INVASION_SUPPRESSION, ExchangeResolution, GROUND_AS_BATTERY,
-    apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange, scalar_hits_with_critical,
+    apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange,
+    scalar_hits_with_critical, ExchangeResolution, COMBAT_GUARDRAIL_MAX_ROUNDS,
+    COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND, COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND,
+    COMBAT_KIND_INVASION_SOFTEN, COMBAT_KIND_INVASION_SUPPRESSION, GROUND_AS_BATTERY,
 };
 use super::reporting::{
     mission_kind_for_fleet, preferred_reporting_fleet_number, push_planet_intel,
 };
 use super::retreat::set_fleet_to_hold_current_position;
 use super::state::{
-    FleetCombatState, IDX_BB, IDX_CA, IDX_DD, fleet_state_from_records, planet_idx_at_coords,
-    ship_counts_from_state, ship_losses_from_states, starbase_count_at,
+    fleet_state_from_records, planet_idx_at_coords, ship_counts_from_state,
+    ship_losses_from_states, starbase_count_at, FleetCombatState, IDX_BB, IDX_CA, IDX_DD,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -97,7 +97,8 @@ fn push_assault_destroyed_fleet_event(
         enemy_starbases_destroyed: 0,
         enemy_ground_battery_losses,
         enemy_ground_army_losses,
-        primary_enemy_empire_raw: (primary_enemy_empire_raw != 0).then_some(primary_enemy_empire_raw),
+        primary_enemy_empire_raw: (primary_enemy_empire_raw != 0)
+            .then_some(primary_enemy_empire_raw),
         primary_enemy_fleet_number: None,
         stardate_week: None,
     });
@@ -592,6 +593,10 @@ pub(crate) fn process_planetary_assaults(
                 let pre_docked_summary = stardock_summary(&game_data.planets.records[planet_idx]);
 
                 let before = fleet_state_from_records(game_data, &winner_fleets, 0);
+                let initial_attacking_armies: u32 = winner_fleets
+                    .iter()
+                    .map(|idx| game_data.fleets.records[*idx].army_count() as u32)
+                    .sum();
                 let mut fleet_state = before.clone();
                 let mut breakthrough = false;
 
@@ -681,6 +686,7 @@ pub(crate) fn process_planetary_assaults(
                     ),
                     defender_empire_raw: post_planet.owner_empire_slot_raw(),
                     attacker_initial: ship_counts_from_state(&before),
+                    attacker_loaded_armies_initial: initial_attacking_armies,
                     defender_batteries_initial: pre_batteries,
                     defender_armies_initial: pre_armies,
                     attacker_losses: ship_losses_from_states(&before, &fleet_state),

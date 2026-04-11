@@ -40,7 +40,10 @@ pub fn push_combat_entries(
         let force_rows = vec![
             StructuredBodyItem::Label {
                 label: LABEL_ATTACKING_FORCE.to_string(),
-                value: fleet_force_summary(event.attacker_initial, 0),
+                value: fleet_force_summary(
+                    event.attacker_initial,
+                    event.attacker_loaded_armies_initial,
+                ),
             },
             StructuredBodyItem::Label {
                 label: LABEL_OUR_DEFENSES.to_string(),
@@ -174,9 +177,9 @@ pub fn push_combat_entries(
                 },
             ];
             let outcome_rows = vec![StructuredBodyItem::Label {
-                    label: LABEL_ENEMY_LOSSES.to_string(),
-                    value: combat_losses_value(event.enemy_losses, event.enemy_starbases_destroyed),
-                }];
+                label: LABEL_ENEMY_LOSSES.to_string(),
+                value: combat_losses_value(event.enemy_losses, event.enemy_starbases_destroyed),
+            }];
             let items = structured_combat_body(
                 structured_fleet_destroyed_alert(),
                 context_rows,
@@ -234,6 +237,9 @@ pub fn push_combat_entries(
             ));
         }
         outcome_rows.push(StructuredBodyItem::Text(outcome_text.clone()));
+        if let Some(starbase_line) = enemy_starbase_outcome_line(event.enemy_starbases_destroyed) {
+            outcome_rows.push(StructuredBodyItem::Text(starbase_line));
+        }
         outcome_rows.push(StructuredBodyItem::Label {
             label: LABEL_OUR_LOSSES.to_string(),
             value: combat_losses_value(event.friendly_losses, event.friendly_starbases_lost),
@@ -347,7 +353,7 @@ pub fn push_combat_entries(
         ];
         let force_rows = vec![StructuredBodyItem::Label {
             label: LABEL_ALIEN_FORCES.to_string(),
-            value: ship_loss_summary(event.enemy_initial),
+            value: fleet_force_summary(event.enemy_initial, event.enemy_loaded_armies_initial),
         }];
         let outcome_rows = vec![StructuredBodyItem::Label {
             label: LABEL_ENEMY_LOSSES.to_string(),
@@ -391,12 +397,10 @@ pub fn push_combat_entries(
             (Mission::InvadeWorld, MissionOutcome::Aborted) => {
                 Some("Enemy ground batteries prevented a landing.".to_string())
             }
-            (Mission::BlitzWorld, MissionOutcome::Succeeded) => {
-                Some(format!(
-                    "We have seized planet \"{}\" in a fast assault.",
-                    planet.planet_name()
-                ))
-            }
+            (Mission::BlitzWorld, MissionOutcome::Succeeded) => Some(format!(
+                "We have seized planet \"{}\" in a fast assault.",
+                planet.planet_name()
+            )),
             (Mission::BlitzWorld, MissionOutcome::Failed) => {
                 Some("The blitz attack failed.".to_string())
             }
@@ -482,6 +486,110 @@ pub fn push_combat_entries(
             repeat_next_pointer: false,
             stardate_week: event.stardate_week,
             narrative_phase: NarrativePhase::AttackerAftermath,
+        });
+
+        if event.defender_empire_raw == 0 || event.outcome == MissionOutcome::Succeeded {
+            continue;
+        }
+
+        let defender_source = format!(
+            "From planet \"{}\" in System({x},{y}):",
+            planet.planet_name()
+        );
+        let defender_header = report_header(&defender_source, event.stardate_week, year);
+        let attacker = classic_enemy_reference_titlecase(
+            game_data,
+            event.attacker_fleet_number,
+            event.attacker_empire_raw,
+        );
+        let context_rows = vec![StructuredBodyItem::Label {
+            label: LABEL_ATTACKER.to_string(),
+            value: attacker,
+        }];
+        let mut force_rows = vec![
+            StructuredBodyItem::Label {
+                label: LABEL_ATTACKING_FORCE.to_string(),
+                value: assault_attacker_force_summary(event),
+            },
+            StructuredBodyItem::Label {
+                label: LABEL_OUR_DEFENSES.to_string(),
+                value: ground_force_value(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                    "undefended",
+                ),
+            },
+        ];
+        if event.kind == Mission::BlitzWorld {
+            if let Some(cover_fire) = blitz_cover_value(event) {
+                force_rows.push(StructuredBodyItem::Label {
+                    label: "Cover fire:".to_string(),
+                    value: cover_fire,
+                });
+            }
+        }
+        let mut outcome_rows = vec![StructuredBodyItem::Text(
+            match (event.kind, event.outcome) {
+                (Mission::InvadeWorld, MissionOutcome::Failed) => {
+                    "The invaders were thrown back.".to_string()
+                }
+                (Mission::InvadeWorld, MissionOutcome::Aborted) => {
+                    "Our batteries prevented an enemy landing.".to_string()
+                }
+                (Mission::BlitzWorld, MissionOutcome::Failed) => {
+                    "The blitz assault was repulsed.".to_string()
+                }
+                (Mission::BlitzWorld, MissionOutcome::Aborted) => {
+                    "The blitz assault never reached the surface.".to_string()
+                }
+                _ => unreachable!("only failed or aborted defender assault reports reach here"),
+            },
+        )];
+        if event.defender_batteries_initial > 0 || event.defender_armies_initial > 0 {
+            outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
+                event.defender_batteries_initial,
+                event.defender_armies_initial,
+                event.defender_battery_losses,
+                event.defender_army_losses,
+            )));
+        }
+        outcome_rows.push(StructuredBodyItem::Label {
+            label: LABEL_ENEMY_LOSSES.to_string(),
+            value: assault_friendly_losses_summary(
+                event.attacker_ship_losses,
+                event.attacker_army_losses,
+                event.transport_army_losses,
+            ),
+        });
+        if let Some(softening_losses) = invasion_softening_losses_summary(event) {
+            outcome_rows.push(StructuredBodyItem::Label {
+                label: format!("{} ", invasion_softening_losses_label(false)),
+                value: softening_losses,
+            });
+        }
+        if let Some(ground_battle_losses) = invasion_ground_battle_losses_summary(event) {
+            outcome_rows.push(StructuredBodyItem::Label {
+                label: format!("{} ", invasion_ground_battle_losses_label(false)),
+                value: ground_battle_losses,
+            });
+        }
+        let items = structured_combat_body(
+            structured_repulsed_assault_alert(event.kind, event.outcome),
+            context_rows,
+            force_rows,
+            outcome_rows,
+        );
+        let text = structured_report_text(&defender_header, items);
+        entries.push(ReportEntry {
+            text,
+            kind: 0x0c,
+            tail: RESULTS_TAIL_INVASION,
+            target: ReportTarget::Both {
+                recipient: event.defender_empire_raw,
+            },
+            repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: NarrativePhase::DefenderAftermath,
         });
     }
 }

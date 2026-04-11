@@ -8,9 +8,9 @@ use crate::{
 };
 
 use super::exchange::{
-    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_FLEET, RoundAction, RoundActionKind,
     apply_hits_to_fleet, fleet_state_changed, has_starbase_column_bonus, resolve_space_exchange,
-    resolve_withdrawal_exchange, rule_threshold_satisfied,
+    resolve_withdrawal_exchange, rule_threshold_satisfied, RoundAction, RoundActionKind,
+    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_FLEET,
 };
 use super::reporting::{
     loaded_armies_for_fleet_indices, mission_kind_for_order, preferred_reporting_fleet_index,
@@ -22,9 +22,9 @@ use super::retreat::{
     retreat_task_force,
 };
 use super::state::{
-    BattleRole, EncounterContext, FleetCombatState, IDX_SB, TaskForce,
     build_task_forces_at_location, has_anchored_guard_order, planet_idx_at_coords,
-    ship_counts_from_state, ship_losses_from_states, tf_has_any_units,
+    ship_counts_from_state, ship_losses_from_states, tf_has_any_units, BattleRole,
+    EncounterContext, FleetCombatState, TaskForce, IDX_SB,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1351,6 +1351,7 @@ pub(crate) fn process_fleet_battles(
                                 starbase_id,
                                 coords,
                                 enemy_initial: ship_counts_from_state(&enemy_before),
+                                enemy_loaded_armies_initial,
                                 enemy_losses,
                                 primary_enemy_empire_raw,
                                 primary_enemy_fleet_number,
