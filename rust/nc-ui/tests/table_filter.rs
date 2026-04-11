@@ -1,6 +1,6 @@
 use nc_ui::table_filter::{
-    FilterKind, NumberOp, TableFilterColumn, TableFilterPredicate, is_filter_column_char,
-    is_filter_value_char, parse_column_code, parse_filter_clause,
+    ColumnCodeParseError, FilterKind, NumberOp, TableFilterColumn, TableFilterPredicate,
+    is_filter_column_char, is_filter_value_char, parse_column_code, parse_filter_clause,
 };
 
 const COLUMNS: &[TableFilterColumn] = &[
@@ -26,11 +26,52 @@ const COLUMNS: &[TableFilterColumn] = &[
     },
 ];
 
+const PREFIX_COLUMNS: &[TableFilterColumn] = &[
+    TableFilterColumn {
+        code: "ord",
+        label: "Order",
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "max",
+        label: "Max",
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "coo",
+        label: "Coord",
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "sel",
+        label: "Selected",
+        kind: FilterKind::Bool,
+    },
+    TableFilterColumn {
+        code: "sco",
+        label: "Scout",
+        kind: FilterKind::Number,
+    },
+];
+
 #[test]
 fn resolves_column_codes_case_insensitively() {
     assert_eq!(
         parse_column_code(COLUMNS, "ORD").expect("column").code,
         "ord"
+    );
+    assert_eq!(parse_column_code(COLUMNS, "or").expect("prefix").code, "ord");
+}
+
+#[test]
+fn reports_ambiguous_and_unknown_column_codes() {
+    assert_eq!(
+        parse_column_code(PREFIX_COLUMNS, "s").expect_err("ambiguous"),
+        ColumnCodeParseError::Ambiguous(vec!["sel", "sco"])
+    );
+    assert_eq!(
+        parse_column_code(PREFIX_COLUMNS, "zzz").expect_err("unknown"),
+        ColumnCodeParseError::Unknown
     );
 }
 

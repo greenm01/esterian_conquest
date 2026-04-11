@@ -125,7 +125,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
-    let filter_prompt;
+    let mut filter_prompt;
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -134,7 +134,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         },
         FleetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Filter column [?] ",
+            prompt: {
+                filter_prompt = "Filter column [?] ".to_string();
+                if let Some(status) = app.fleet_overlay.filter_prompt_status.as_deref() {
+                    filter_prompt.push_str(status);
+                }
+                filter_prompt.as_str()
+            },
             default: &app.fleet_overlay.filter_prompt_default,
             input: &app.fleet_overlay.filter_prompt_input,
         },
@@ -146,6 +152,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            if let Some(status) = app.fleet_overlay.filter_prompt_status.as_deref() {
+                filter_prompt.push_str(status);
+            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -254,7 +263,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
-    let filter_prompt;
+    let mut filter_prompt;
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -263,7 +272,13 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         },
         FleetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Filter column [?] ",
+            prompt: {
+                filter_prompt = "Filter column [?] ".to_string();
+                if let Some(status) = app.fleet_overlay.filter_prompt_status.as_deref() {
+                    filter_prompt.push_str(status);
+                }
+                filter_prompt.as_str()
+            },
             default: &app.fleet_overlay.filter_prompt_default,
             input: &app.fleet_overlay.filter_prompt_input,
         },
@@ -275,6 +290,9 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            if let Some(status) = app.fleet_overlay.filter_prompt_status.as_deref() {
+                filter_prompt.push_str(status);
+            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),

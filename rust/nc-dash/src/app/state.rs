@@ -220,6 +220,7 @@ pub struct PlanetOverlayPromptFrame {
     pub mode: PlanetOverlayPromptMode,
     pub prompt_input: String,
     pub prompt_default: String,
+    pub prompt_status: Option<String>,
     pub pending_range_anchor: Option<[u8; 2]>,
 }
 
@@ -237,6 +238,7 @@ pub struct PlanetOverlayState {
     pub prompt_mode: PlanetOverlayPromptMode,
     pub prompt_input: String,
     pub prompt_default: String,
+    pub prompt_status: Option<String>,
     pub pending_range_anchor: Option<[u8; 2]>,
     pub prompt_stack: Vec<PlanetOverlayPromptFrame>,
     pub build_planet_record_index_1_based: Option<usize>,
@@ -264,6 +266,7 @@ impl Default for PlanetOverlayState {
             prompt_mode: PlanetOverlayPromptMode::None,
             prompt_input: String::new(),
             prompt_default: String::new(),
+            prompt_status: None,
             pending_range_anchor: None,
             prompt_stack: Vec::new(),
             build_planet_record_index_1_based: None,
@@ -283,6 +286,7 @@ impl PlanetOverlayState {
                 mode: self.prompt_mode,
                 prompt_input: self.prompt_input.clone(),
                 prompt_default: self.prompt_default.clone(),
+                prompt_status: self.prompt_status.clone(),
                 pending_range_anchor: self.pending_range_anchor,
             });
         }
@@ -294,6 +298,7 @@ impl PlanetOverlayState {
             self.prompt_mode = frame.mode;
             self.prompt_input = frame.prompt_input;
             self.prompt_default = frame.prompt_default;
+            self.prompt_status = frame.prompt_status;
             self.pending_range_anchor = frame.pending_range_anchor;
             return;
         }
@@ -304,6 +309,7 @@ impl PlanetOverlayState {
         self.prompt_mode = PlanetOverlayPromptMode::None;
         self.prompt_input.clear();
         self.prompt_default.clear();
+        self.prompt_status = None;
         self.pending_range_anchor = None;
         self.pending_filter_column = None;
         self.prompt_stack.clear();
@@ -502,6 +508,7 @@ pub struct IntelOverlayPromptFrame {
     pub mode: IntelOverlayPromptMode,
     pub prompt_input: String,
     pub prompt_default: String,
+    pub prompt_status: Option<String>,
     pub pending_range_anchor: Option<[u8; 2]>,
 }
 
@@ -518,6 +525,7 @@ pub struct IntelOverlayState {
     pub prompt_mode: IntelOverlayPromptMode,
     pub prompt_input: String,
     pub prompt_default: String,
+    pub prompt_status: Option<String>,
     pub pending_range_anchor: Option<[u8; 2]>,
     pub prompt_stack: Vec<IntelOverlayPromptFrame>,
 }
@@ -536,6 +544,7 @@ impl Default for IntelOverlayState {
             prompt_mode: IntelOverlayPromptMode::None,
             prompt_input: String::new(),
             prompt_default: String::new(),
+            prompt_status: None,
             pending_range_anchor: None,
             prompt_stack: Vec::new(),
         }
@@ -549,6 +558,7 @@ impl IntelOverlayState {
                 mode: self.prompt_mode,
                 prompt_input: self.prompt_input.clone(),
                 prompt_default: self.prompt_default.clone(),
+                prompt_status: self.prompt_status.clone(),
                 pending_range_anchor: self.pending_range_anchor,
             });
         }
@@ -560,6 +570,7 @@ impl IntelOverlayState {
             self.prompt_mode = frame.mode;
             self.prompt_input = frame.prompt_input;
             self.prompt_default = frame.prompt_default;
+            self.prompt_status = frame.prompt_status;
             self.pending_range_anchor = frame.pending_range_anchor;
             return;
         }
@@ -570,6 +581,7 @@ impl IntelOverlayState {
         self.prompt_mode = IntelOverlayPromptMode::None;
         self.prompt_input.clear();
         self.prompt_default.clear();
+        self.prompt_status = None;
         self.pending_range_anchor = None;
         self.pending_filter_column = None;
         self.prompt_stack.clear();

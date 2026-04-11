@@ -109,7 +109,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         input: &app.planet_overlay.jump_input,
     };
     let notice_footer_rows;
-    let filter_prompt;
+    let mut filter_prompt;
     let footer = match app.planet_overlay.prompt_mode {
         PlanetOverlayPromptMode::None => {
             if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
@@ -136,7 +136,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         },
         PlanetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Filter column [?] ",
+            prompt: {
+                filter_prompt = "Filter column [?] ".to_string();
+                if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
+                    filter_prompt.push_str(status);
+                }
+                filter_prompt.as_str()
+            },
             default: &app.planet_overlay.prompt_default,
             input: &app.planet_overlay.prompt_input,
         },
@@ -148,6 +154,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
+                filter_prompt.push_str(status);
+            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -251,7 +260,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         input: &app.planet_overlay.jump_input,
     };
     let notice_footer_rows;
-    let filter_prompt;
+    let mut filter_prompt;
     let footer = match app.planet_overlay.prompt_mode {
         PlanetOverlayPromptMode::None => {
             if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
@@ -278,7 +287,13 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         },
         PlanetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Filter column [?] ",
+            prompt: {
+                filter_prompt = "Filter column [?] ".to_string();
+                if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
+                    filter_prompt.push_str(status);
+                }
+                filter_prompt.as_str()
+            },
             default: &app.planet_overlay.prompt_default,
             input: &app.planet_overlay.prompt_input,
         },
@@ -290,6 +305,9 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
+                filter_prompt.push_str(status);
+            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),

@@ -12,7 +12,7 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 use input::{Action, key_to_action};
 use nc_ui::modal::Rect;
 use nc_ui::table_selection;
-use nc_ui::table_filter::{parse_column_code, parse_filter_clause};
+use nc_ui::table_filter::{format_column_code_error, parse_column_code, parse_filter_clause};
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
@@ -721,21 +721,31 @@ impl DashApp {
                     };
                     if raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("all") {
                         self.apply_planet_overlay_filter_clause(None);
-                    } else if let Ok(column) =
-                        parse_column_code(planet_list::filter_columns(), raw)
-                    {
-                        self.planet_overlay.pending_filter_column = Some(column);
-                        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::FilterValueInput;
-                        self.planet_overlay.prompt_input.clear();
-                        self.planet_overlay.prompt_default =
-                            planet_list::filter_default_value(self, column);
+                    } else {
+                        match parse_column_code(planet_list::filter_columns(), raw) {
+                            Ok(column) => {
+                                self.planet_overlay.pending_filter_column = Some(column);
+                                self.planet_overlay.prompt_mode =
+                                    PlanetOverlayPromptMode::FilterValueInput;
+                                self.planet_overlay.prompt_input.clear();
+                                self.planet_overlay.prompt_default =
+                                    planet_list::filter_default_value(self, column);
+                                self.planet_overlay.prompt_status = None;
+                            }
+                            Err(err) => {
+                                self.planet_overlay.prompt_status =
+                                    Some(format!(" {}", format_column_code_error(&err)));
+                            }
+                        }
                     }
                 }
                 KeyCode::Backspace => {
                     self.planet_overlay.prompt_input.pop();
+                    self.planet_overlay.prompt_status = None;
                 }
                 KeyCode::Char(ch) if ch.is_ascii_alphabetic() => {
                     self.planet_overlay.prompt_input.push(ch);
+                    self.planet_overlay.prompt_status = None;
                 }
                 _ => {}
             },
@@ -753,12 +763,14 @@ impl DashApp {
                     } else {
                         self.planet_overlay.prompt_input.trim()
                     };
-                    if let Ok(clause) = parse_filter_clause(column, raw) {
-                        self.apply_planet_overlay_filter_clause(Some(clause));
+                    match parse_filter_clause(column, raw) {
+                        Ok(clause) => self.apply_planet_overlay_filter_clause(Some(clause)),
+                        Err(err) => self.planet_overlay.prompt_status = Some(format!(" {err}")),
                     }
                 }
                 KeyCode::Backspace => {
                     self.planet_overlay.prompt_input.pop();
+                    self.planet_overlay.prompt_status = None;
                 }
                 KeyCode::Char(ch)
                     if matches!(
@@ -767,6 +779,7 @@ impl DashApp {
                     ) || ch.is_ascii_alphanumeric() =>
                 {
                     self.planet_overlay.prompt_input.push(ch);
+                    self.planet_overlay.prompt_status = None;
                 }
                 _ => {}
             },
@@ -783,6 +796,7 @@ impl DashApp {
                 self.planet_overlay.open_prompt(PlanetOverlayPromptMode::FilterMenu);
                 self.planet_overlay.prompt_input.clear();
                 self.planet_overlay.prompt_default = "all".to_string();
+                self.planet_overlay.prompt_status = None;
                 self.planet_overlay.pending_filter_column = None;
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
@@ -980,20 +994,31 @@ impl DashApp {
                     };
                     if raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("all") {
                         self.apply_fleet_overlay_filter_clause(None);
-                    } else if let Ok(column) = parse_column_code(fleet_list::filter_columns(), raw)
-                    {
-                        self.fleet_overlay.pending_filter_column = Some(column);
-                        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::FilterValueInput;
-                        self.fleet_overlay.filter_prompt_input.clear();
-                        self.fleet_overlay.filter_prompt_default =
-                            fleet_list::filter_default_value(self, column);
+                    } else {
+                        match parse_column_code(fleet_list::filter_columns(), raw) {
+                            Ok(column) => {
+                                self.fleet_overlay.pending_filter_column = Some(column);
+                                self.fleet_overlay.prompt_mode =
+                                    FleetOverlayPromptMode::FilterValueInput;
+                                self.fleet_overlay.filter_prompt_input.clear();
+                                self.fleet_overlay.filter_prompt_default =
+                                    fleet_list::filter_default_value(self, column);
+                                self.fleet_overlay.filter_prompt_status = None;
+                            }
+                            Err(err) => {
+                                self.fleet_overlay.filter_prompt_status =
+                                    Some(format!(" {}", format_column_code_error(&err)));
+                            }
+                        }
                     }
                 }
                 KeyCode::Backspace => {
                     self.fleet_overlay.filter_prompt_input.pop();
+                    self.fleet_overlay.filter_prompt_status = None;
                 }
                 KeyCode::Char(ch) if ch.is_ascii_alphabetic() => {
                     self.fleet_overlay.filter_prompt_input.push(ch);
+                    self.fleet_overlay.filter_prompt_status = None;
                 }
                 _ => {}
             },
@@ -1011,12 +1036,16 @@ impl DashApp {
                     } else {
                         self.fleet_overlay.filter_prompt_input.trim()
                     };
-                    if let Ok(clause) = parse_filter_clause(column, raw) {
-                        self.apply_fleet_overlay_filter_clause(Some(clause));
+                    match parse_filter_clause(column, raw) {
+                        Ok(clause) => self.apply_fleet_overlay_filter_clause(Some(clause)),
+                        Err(err) => {
+                            self.fleet_overlay.filter_prompt_status = Some(format!(" {err}"))
+                        }
                     }
                 }
                 KeyCode::Backspace => {
                     self.fleet_overlay.filter_prompt_input.pop();
+                    self.fleet_overlay.filter_prompt_status = None;
                 }
                 KeyCode::Char(ch)
                     if matches!(
@@ -1025,6 +1054,7 @@ impl DashApp {
                     ) || ch.is_ascii_alphanumeric() =>
                 {
                     self.fleet_overlay.filter_prompt_input.push(ch);
+                    self.fleet_overlay.filter_prompt_status = None;
                 }
                 _ => {}
             },
@@ -1040,6 +1070,7 @@ impl DashApp {
                 self.fleet_overlay.open_prompt(FleetOverlayPromptMode::FilterMenu);
                 self.fleet_overlay.filter_prompt_input.clear();
                 self.fleet_overlay.filter_prompt_default = "all".to_string();
+                self.fleet_overlay.filter_prompt_status = None;
                 self.fleet_overlay.pending_filter_column = None;
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
@@ -1143,21 +1174,31 @@ impl DashApp {
                     };
                     if raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("all") {
                         self.apply_intel_overlay_filter_clause(None);
-                    } else if let Ok(column) =
-                        parse_column_code(intel_database::filter_columns(), raw)
-                    {
-                        self.intel_overlay.pending_filter_column = Some(column);
-                        self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterValueInput;
-                        self.intel_overlay.prompt_input.clear();
-                        self.intel_overlay.prompt_default =
-                            intel_database::filter_default_value(self, column);
+                    } else {
+                        match parse_column_code(intel_database::filter_columns(), raw) {
+                            Ok(column) => {
+                                self.intel_overlay.pending_filter_column = Some(column);
+                                self.intel_overlay.prompt_mode =
+                                    IntelOverlayPromptMode::FilterValueInput;
+                                self.intel_overlay.prompt_input.clear();
+                                self.intel_overlay.prompt_default =
+                                    intel_database::filter_default_value(self, column);
+                                self.intel_overlay.prompt_status = None;
+                            }
+                            Err(err) => {
+                                self.intel_overlay.prompt_status =
+                                    Some(format!(" {}", format_column_code_error(&err)));
+                            }
+                        }
                     }
                 }
                 KeyCode::Backspace => {
                     self.intel_overlay.prompt_input.pop();
+                    self.intel_overlay.prompt_status = None;
                 }
                 KeyCode::Char(ch) if ch.is_ascii_alphabetic() => {
                     self.intel_overlay.prompt_input.push(ch);
+                    self.intel_overlay.prompt_status = None;
                 }
                 _ => {}
             },
@@ -1175,12 +1216,14 @@ impl DashApp {
                     } else {
                         self.intel_overlay.prompt_input.trim()
                     };
-                    if let Ok(clause) = parse_filter_clause(column, raw) {
-                        self.apply_intel_overlay_filter_clause(Some(clause));
+                    match parse_filter_clause(column, raw) {
+                        Ok(clause) => self.apply_intel_overlay_filter_clause(Some(clause)),
+                        Err(err) => self.intel_overlay.prompt_status = Some(format!(" {err}")),
                     }
                 }
                 KeyCode::Backspace => {
                     self.intel_overlay.prompt_input.pop();
+                    self.intel_overlay.prompt_status = None;
                 }
                 KeyCode::Char(ch)
                     if matches!(
@@ -1189,6 +1232,7 @@ impl DashApp {
                     ) || ch.is_ascii_alphanumeric() =>
                 {
                     self.intel_overlay.prompt_input.push(ch);
+                    self.intel_overlay.prompt_status = None;
                 }
                 _ => {}
             },
@@ -1205,6 +1249,7 @@ impl DashApp {
                     .open_prompt(IntelOverlayPromptMode::FilterMenu);
                 self.intel_overlay.prompt_input.clear();
                 self.intel_overlay.prompt_default = "all".to_string();
+                self.intel_overlay.prompt_status = None;
                 self.intel_overlay.pending_filter_column = None;
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
@@ -2102,6 +2147,45 @@ mod tests {
     }
 
     #[test]
+    fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        app.handle_key(key(KeyCode::Char('s')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::FilterMenu
+        );
+        assert_eq!(
+            app.planet_overlay.prompt_status.as_deref(),
+            Some(" Ambiguous: sta/sbs")
+        );
+        assert!(
+            render_planet_footer_line(&app, "COMMAND <- Filter column [?] ")
+                .contains("Ambiguous: sta/sbs")
+        );
+
+        app.handle_key(key(KeyCode::Char('t')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::FilterValueInput
+        );
+        assert_eq!(
+            app.planet_overlay
+                .pending_filter_column
+                .expect("pending column")
+                .code,
+            "sta"
+        );
+    }
+
+    #[test]
     fn closing_fleet_order_modal_returns_to_fleet_list_overlay() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::FleetList;
@@ -2703,6 +2787,84 @@ mod tests {
         app.handle_key(key(KeyCode::Char('q')));
         assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
         assert_eq!(app.intel_overlay.prompt_mode, IntelOverlayPromptMode::None);
+    }
+
+    #[test]
+    fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        app.handle_key(key(KeyCode::Char('s')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::FilterMenu
+        );
+        assert_eq!(
+            app.fleet_overlay.filter_prompt_status.as_deref(),
+            Some(" Ambiguous: sel/spd/shi")
+        );
+        assert!(
+            render_fleet_footer_line(&app, "COMMAND <- Filter column [?] ")
+                .contains("Ambiguous: sel/spd/shi")
+        );
+
+        app.handle_key(key(KeyCode::Char('p')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::FilterValueInput
+        );
+        assert_eq!(
+            app.fleet_overlay
+                .pending_filter_column
+                .expect("pending column")
+                .code,
+            "spd"
+        );
+    }
+
+    #[test]
+    fn intel_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::IntelDatabase;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        app.handle_key(key(KeyCode::Char('s')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+        assert_eq!(
+            app.intel_overlay.prompt_mode,
+            IntelOverlayPromptMode::FilterMenu
+        );
+        assert_eq!(
+            app.intel_overlay.prompt_status.as_deref(),
+            Some(" Ambiguous: see/sbs/sco")
+        );
+        assert!(
+            render_intel_footer_line(&app, "COMMAND <- Filter column [?] ")
+                .contains("Ambiguous: see/sbs/sco")
+        );
+
+        app.handle_key(key(KeyCode::Char('c')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.intel_overlay.prompt_mode,
+            IntelOverlayPromptMode::FilterValueInput
+        );
+        assert_eq!(
+            app.intel_overlay
+                .pending_filter_column
+                .expect("pending column")
+                .code,
+            "sco"
+        );
     }
 
     #[test]
@@ -3499,6 +3661,34 @@ mod tests {
             .map(|row| buffer.plain_line(row))
             .find(|line| line.contains(needle))
             .expect("fleet footer")
+    }
+
+    fn render_planet_footer_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        planet_list::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("planet footer")
+    }
+
+    fn render_intel_footer_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        intel_database::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("intel footer")
     }
 
     fn key(code: KeyCode) -> KeyEvent {

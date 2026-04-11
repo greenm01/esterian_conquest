@@ -53,16 +53,41 @@ pub struct TableFilterClause {
     pub summary: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ColumnCodeParseError {
+    Unknown,
+    Ambiguous(Vec<&'static str>),
+}
+
 pub fn parse_column_code(
     columns: &'static [TableFilterColumn],
     input: &str,
-) -> Result<TableFilterColumn, String> {
+) -> Result<TableFilterColumn, ColumnCodeParseError> {
     let raw = input.trim().to_ascii_lowercase();
-    columns
+    if let Some(column) = columns.iter().copied().find(|column| column.code == raw) {
+        return Ok(column);
+    }
+    let matches = columns
         .iter()
         .copied()
-        .find(|column| column.code == raw)
-        .ok_or_else(|| format!("Unknown filter column: {}", input.trim()))
+        .filter(|column| column.code.starts_with(&raw))
+        .collect::<Vec<_>>();
+    match matches.as_slice() {
+        [] => Err(ColumnCodeParseError::Unknown),
+        [column] => Ok(*column),
+        _ => Err(ColumnCodeParseError::Ambiguous(
+            matches.iter().map(|column| column.code).collect(),
+        )),
+    }
+}
+
+pub fn format_column_code_error(error: &ColumnCodeParseError) -> String {
+    match error {
+        ColumnCodeParseError::Unknown => "Enter a valid column code or ALL.".to_string(),
+        ColumnCodeParseError::Ambiguous(codes) => {
+            format!("Ambiguous: {}", codes.join("/"))
+        }
+    }
 }
 
 pub fn parse_filter_clause(

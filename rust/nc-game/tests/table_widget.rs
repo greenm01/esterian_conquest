@@ -14,9 +14,10 @@ use nc_game::screen::table::{
 };
 use nc_game::screen::{
     CommandMenu, EmpireProfileScreen, EnemiesScreen, FleetListFilter, FleetListScreen,
-    FleetListSort, FleetRow, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetBuildScreen, PlanetDatabasePromptMode, PlanetDatabaseRow, PlanetDatabaseScreen,
-    PlanetDatabaseSort, PlanetListFilter, PlanetListFilterPromptMode, PlanetListMode,
+    FleetListSort, FleetRow, MessageComposeScreen,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabasePromptMode,
+    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetDatabaseSort, PlanetListFilter,
+    PlanetListFilterPromptMode, PlanetListMode,
     PlanetListScreen, PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use nc_game::theme::classic;
@@ -1019,6 +1020,182 @@ fn planet_brief_list_sort_and_filter_prompts_use_browse_footer_row() {
     assert_eq!(
         line_index_containing(&filter, "COMMAND <- Filter column [?] "),
         browse_row
+    );
+}
+
+#[test]
+fn filter_prompt_inline_status_stays_on_browse_footer_row_for_all_tables() {
+    let mut fleet_screen = FleetListScreen::new();
+    let fleet_rows = sample_fleet_rows();
+    let fleet_browse = fleet_screen
+        .render(
+            ScreenGeometry::local_default(),
+            &fleet_rows,
+            FleetListSort::Id,
+            nc_game::screen::SortDirection::Asc,
+            FleetListFilter::All,
+            0,
+            0,
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )
+        .expect("render fleet browse");
+    let fleet_browse_row = line_index_containing(&fleet_browse, "COMMAND <- ");
+    let fleet_filter = fleet_screen
+        .render_filter_prompt_with_filter_clause(
+            ScreenGeometry::local_default(),
+            &fleet_rows,
+            FleetListSort::Id,
+            nc_game::screen::SortDirection::Asc,
+            FleetListFilter::All,
+            None,
+            0,
+            0,
+            nc_game::screen::FleetListFilterPromptMode::Column,
+            "all",
+            "",
+            Some(" Ambiguous: spd/shi"),
+            None,
+        )
+        .expect("render fleet filter prompt");
+    assert_eq!(
+        line_index_containing(&fleet_filter, "COMMAND <- Filter column [?]  Ambiguous: spd/shi"),
+        fleet_browse_row
+    );
+
+    let mut planet_screen = PlanetListScreen::new();
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
+        geometry: ScreenGeometry::local_default(),
+    };
+    let planet_rows = vec![EmpirePlanetEconomyRow {
+        planet_record_index_1_based: 1,
+        coords: [3, 3],
+        planet_name: "Player 1 HW".to_string(),
+        present_production: 100,
+        potential_production: 100,
+        stored_production_points: 165,
+        yearly_tax_revenue: 65,
+        yearly_growth_delta: 0,
+        build_capacity: 100,
+        has_friendly_starbase: false,
+        armies: 10,
+        ground_batteries: 4,
+        is_homeworld_seed: true,
+    }];
+    let planet_browse = planet_screen
+        .render_brief_list(
+            &frame,
+            PlanetListMode::Brief,
+            &planet_rows,
+            PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            PlanetListFilter::All,
+            0,
+            0,
+            "",
+            None,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )
+        .expect("render planet browse");
+    let planet_browse_row = line_index_containing(&planet_browse, "COMMAND <- ");
+    let planet_filter = planet_screen
+        .render_filter_prompt(
+            &frame,
+            PlanetListMode::Brief,
+            &planet_rows,
+            PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            PlanetListFilter::All,
+            0,
+            0,
+            PlanetListFilterPromptMode::FilterMenu,
+            "",
+            "",
+            Some(" Ambiguous: sta/sbs"),
+        )
+        .expect("render planet filter prompt");
+    assert_eq!(
+        line_index_containing(&planet_filter, "COMMAND <- Filter column [?]  Ambiguous: sta/sbs"),
+        planet_browse_row
+    );
+
+    let mut database_screen = PlanetDatabaseScreen::new();
+    let database_rows = vec![PlanetDatabaseRow {
+        planet_record_index_1_based: 1,
+        coords: [3, 3],
+        known_owner_empire_id: Some(1),
+        known_max_production: Some(120),
+        name_label: "Aurora".to_string(),
+        owner_label: "01".to_string(),
+        max_prod_label: "120".to_string(),
+        year_seen_label: "3001".to_string(),
+        armies_label: "10".to_string(),
+        batteries_label: "4".to_string(),
+        starbase_count_label: "1".to_string(),
+        current_prod_label: "80".to_string(),
+        stored_points_label: "25".to_string(),
+        year_scout_label: "3001".to_string(),
+    }];
+    let database_browse = database_screen
+        .render_list(
+            ScreenGeometry::local_default(),
+            &database_rows,
+            PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
+            0,
+            0,
+            [0, 0],
+            "",
+            None,
+            nc_game::screen::CommandMenu::Planet,
+        )
+        .expect("render database browse");
+    let database_browse_row = line_index_containing(&database_browse, "COMMAND <- ");
+    let database_filter = database_screen
+        .render_filter_prompt(
+            ScreenGeometry::local_default(),
+            &database_rows,
+            PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
+            0,
+            0,
+            PlanetDatabasePromptMode::FilterMenu,
+            "",
+            "",
+            Some(" Ambiguous: see/sbs/sco"),
+            nc_game::screen::CommandMenu::Planet,
+        )
+        .expect("render database filter prompt");
+    assert_eq!(
+        line_index_containing(
+            &database_filter,
+            "COMMAND <- Filter column [?]  Ambiguous: see/sbs/sco"
+        ),
+        database_browse_row
     );
 }
 

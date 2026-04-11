@@ -1053,12 +1053,15 @@ and tells you no rows match.
 
 1. Open the table you want.
 2. Press `F`.
-3. Type the column code and press `Enter`.
+3. Type the column code, or the shortest unique prefix, and press `Enter`.
 4. Type the value for that column and press `Enter`.
 5. Type `all` at the column prompt to clear the current filter.
 
 NOTE: `Q` or `Esc` cancels the current filter prompt without changing the
 active filter.
+
+If your prefix matches more than one code, the command line stays open and
+shows the matching codes so you can narrow the entry.
 
 === Value Rules
 

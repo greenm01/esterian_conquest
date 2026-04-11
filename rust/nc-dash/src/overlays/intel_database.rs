@@ -75,7 +75,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
-    let filter_prompt;
+    let mut filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -96,7 +96,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         },
         IntelOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Filter column [?] ",
+            prompt: {
+                filter_prompt = "Filter column [?] ".to_string();
+                if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
+                    filter_prompt.push_str(status);
+                }
+                filter_prompt.as_str()
+            },
             default: &app.intel_overlay.prompt_default,
             input: &app.intel_overlay.prompt_input,
         },
@@ -108,6 +114,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
+                filter_prompt.push_str(status);
+            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -185,7 +194,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
     let sort_footer_label = sort_footer_label(app);
-    let filter_prompt;
+    let mut filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -206,7 +215,13 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         },
         IntelOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Filter column [?] ",
+            prompt: {
+                filter_prompt = "Filter column [?] ".to_string();
+                if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
+                    filter_prompt.push_str(status);
+                }
+                filter_prompt.as_str()
+            },
             default: &app.intel_overlay.prompt_default,
             input: &app.intel_overlay.prompt_input,
         },
@@ -218,6 +233,9 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
+                filter_prompt.push_str(status);
+            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),

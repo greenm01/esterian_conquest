@@ -14,7 +14,7 @@ use nc_data::build_player_starmap_projection_from_snapshots;
 use nc_engine::planet_build_view;
 use nc_ui::table_filter::{
     FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
-    is_filter_column_char, parse_column_code, parse_filter_clause,
+    format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
 
 const PLANET_LIST_FILTER_COLUMNS: &[TableFilterColumn] = &[
@@ -532,9 +532,9 @@ impl App {
                             self.planet_list_filter_default_value(mode, column);
                         self.planet.list_prompt_status = None;
                     }
-                    Err(_) => {
+                    Err(err) => {
                         self.planet.list_prompt_status =
-                            Some("Enter a column code or ALL.".to_string());
+                            Some(format!(" {}", format_column_code_error(&err)));
                     }
                 }
             }
@@ -920,9 +920,9 @@ impl App {
                             self.planet_database_filter_default_value(column);
                         self.planet.database_status = None;
                     }
-                    Err(_) => {
+                    Err(err) => {
                         self.planet.database_status =
-                            Some("Enter a column code or ALL.".to_string());
+                            Some(format!(" {}", format_column_code_error(&err)));
                     }
                 }
             }

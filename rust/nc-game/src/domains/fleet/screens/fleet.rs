@@ -827,33 +827,28 @@ impl FleetListScreen {
         status: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let dynamic_prompt;
+        let mut dynamic_prompt;
         let prompt = match prompt_mode {
             FleetListFilterPromptMode::Column => "Filter column [?] ",
             FleetListFilterPromptMode::Value => {
                 dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                if let Some(status) = status {
+                    dynamic_prompt.push_str(status);
+                }
                 dynamic_prompt.as_str()
             }
         };
-        let input_footer = TableFooter::CommandInput {
+        let mut prompt = prompt.to_string();
+        if matches!(prompt_mode, FleetListFilterPromptMode::Column) {
+            if let Some(status) = status {
+                prompt.push_str(status);
+            }
+        }
+        let footer = TableFooter::CommandInput {
             label: "COMMAND",
-            prompt,
+            prompt: &prompt,
             default: prompt_default,
             input,
-        };
-        let footer = if let Some(status) = status {
-            TableFooter::Stacked {
-                rows: &[
-                    input_footer,
-                    TableFooter::CommandText {
-                        label: "COMMAND",
-                        text: status,
-                    },
-                ],
-                active_row: 0,
-            }
-        } else {
-            input_footer
         };
         Ok(self
             .render_table(

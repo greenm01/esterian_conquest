@@ -347,19 +347,34 @@ impl PlanetDatabaseScreen {
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let footer_label = sort_footer_label(direction);
-        let dynamic_prompt;
-        let input_footer = match prompt_mode {
-            PlanetDatabasePromptMode::FilterMenu => TableFooter::CommandInput {
-                label: COMMAND_LABEL,
-                prompt: "Filter column [?] ",
-                default: prompt_default,
-                input,
-            },
-            PlanetDatabasePromptMode::FilterValueInput => {
-                dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+        let prompt_text;
+        let footer = match prompt_mode {
+            PlanetDatabasePromptMode::FilterMenu => {
+                prompt_text = {
+                    let mut prompt = "Filter column [?] ".to_string();
+                    if let Some(status) = status {
+                        prompt.push_str(status);
+                    }
+                    prompt
+                };
                 TableFooter::CommandInput {
                     label: COMMAND_LABEL,
-                    prompt: dynamic_prompt.as_str(),
+                    prompt: &prompt_text,
+                    default: prompt_default,
+                    input,
+                }
+            }
+            PlanetDatabasePromptMode::FilterValueInput => {
+                prompt_text = {
+                    let mut prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                    if let Some(status) = status {
+                        prompt.push_str(status);
+                    }
+                    prompt
+                };
+                TableFooter::CommandInput {
+                    label: COMMAND_LABEL,
+                    prompt: &prompt_text,
                     default: prompt_default,
                     input,
                 }
@@ -376,20 +391,6 @@ impl PlanetDatabaseScreen {
                 default: prompt_default,
                 input,
             },
-        };
-        let footer = if let Some(status) = status {
-            TableFooter::Stacked {
-                rows: &[
-                    input_footer,
-                    TableFooter::CommandText {
-                        label: COMMAND_LABEL,
-                        text: status,
-                    },
-                ],
-                active_row: 0,
-            }
-        } else {
-            input_footer
         };
         let _ = menu;
         Ok(self

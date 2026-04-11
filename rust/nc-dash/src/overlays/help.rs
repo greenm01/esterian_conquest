@@ -110,8 +110,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetListFilter => vec![
-            ("Type", "Enter a column code, then press Enter"),
+            ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
+            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
             ("Coords", "coo accepts xx,yy or xx,yy/r"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),
             ("all", "Clear the current filter"),
@@ -166,8 +167,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::FleetListFilter => vec![
-            ("Type", "Enter a column code, then press Enter"),
+            ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "id sel loc ord tar spd eta roe ars shi"),
+            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
             ("Order", "ord also accepts holding, moving, and combat"),
             ("Selected", "sel accepts yes/no, selected, unselected, or x"),
             ("all", "Clear the current filter"),
@@ -222,8 +224,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabaseFilter => vec![
-            ("Type", "Enter a column code, then press Enter"),
+            ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
+            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
             ("Coords", "coo accepts xx,yy or xx,yy/r"),
             ("Unknown", "Use ? for unknown database values"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),

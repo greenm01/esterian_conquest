@@ -318,37 +318,20 @@ impl PlanetListScreen {
         status: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let dynamic_prompt;
-        let input_footer = match prompt_mode {
-            PlanetListFilterPromptMode::FilterMenu => TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: "Filter column [?] ",
-                default: prompt_default,
-                input,
-            },
+        let mut prompt = match prompt_mode {
+            PlanetListFilterPromptMode::FilterMenu => "Filter column [?] ".to_string(),
             PlanetListFilterPromptMode::ValueInput => {
-                dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
-                TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt: dynamic_prompt.as_str(),
-                    default: prompt_default,
-                    input,
-                }
+                format!("Filter {} ", pending_column_code.unwrap_or("value"))
             }
         };
-        let footer = if let Some(status) = status {
-            TableFooter::Stacked {
-                rows: &[
-                    input_footer,
-                    TableFooter::CommandText {
-                        label: "COMMAND",
-                        text: status,
-                    },
-                ],
-                active_row: 0,
-            }
-        } else {
-            input_footer
+        if let Some(status) = status {
+            prompt.push_str(status);
+        }
+        let footer = TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: &prompt,
+            default: prompt_default,
+            input,
         };
         Ok(self
             .render_table(

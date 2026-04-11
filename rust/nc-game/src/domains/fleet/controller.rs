@@ -14,8 +14,8 @@ use crate::screen::{
 use nc_data::{FleetRecord, Order};
 use nc_engine::{FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line};
 use nc_ui::table_filter::{
-    FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate, is_filter_value_char,
-    parse_column_code, parse_filter_clause,
+    FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
+    format_column_code_error, is_filter_value_char, parse_column_code, parse_filter_clause,
 };
 use std::cmp::{Ordering, Reverse};
 
@@ -708,17 +708,20 @@ impl App {
                     self.apply_fleet_filter_clause(None);
                     return;
                 }
-                let Ok(column) = parse_column_code(FLEET_FILTER_COLUMNS, raw) else {
-                    self.fleet.list_filter_prompt_status =
-                        Some("Enter a column code or ALL.".to_string());
-                    return;
-                };
-                self.fleet.list_filter_pending_column = Some(column);
-                self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Value;
-                self.fleet.list_filter_prompt_input.clear();
-                self.fleet.list_filter_prompt_default_value =
-                    self.fleet_filter_default_value_for(column);
-                self.fleet.list_filter_prompt_status = None;
+                match parse_column_code(FLEET_FILTER_COLUMNS, raw) {
+                    Ok(column) => {
+                        self.fleet.list_filter_pending_column = Some(column);
+                        self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Value;
+                        self.fleet.list_filter_prompt_input.clear();
+                        self.fleet.list_filter_prompt_default_value =
+                            self.fleet_filter_default_value_for(column);
+                        self.fleet.list_filter_prompt_status = None;
+                    }
+                    Err(err) => {
+                        self.fleet.list_filter_prompt_status =
+                            Some(format!(" {}", format_column_code_error(&err)));
+                    }
+                }
             }
             FleetListFilterPromptMode::Value => {
                 let Some(column) = self.fleet.list_filter_pending_column else {

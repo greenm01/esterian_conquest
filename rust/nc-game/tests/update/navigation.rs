@@ -259,6 +259,187 @@ fn fleet_list_typed_jump_accepts_leading_zero_fleet_ids() {
 }
 
 #[test]
+fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_fleet_list();
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar('s'))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.fleet.list_filter_prompt_mode,
+        nc_game::screen::FleetListFilterPromptMode::Column
+    );
+    assert_eq!(
+        app.fleet.list_filter_prompt_status.as_deref(),
+        Some(" Ambiguous: spd/shi")
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("Ambiguous: spd/shi")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar('p'))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.fleet.list_filter_prompt_mode,
+        nc_game::screen::FleetListFilterPromptMode::Value
+    );
+    assert_eq!(
+        app.fleet
+            .list_filter_pending_column
+            .expect("pending column")
+            .code,
+        "spd"
+    );
+}
+
+#[test]
+fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenListFilterPrompt(PlanetListMode::Brief))
+        ),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('s')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.planet.list_filter_prompt_mode,
+        nc_game::screen::PlanetListFilterPromptMode::FilterMenu
+    );
+    assert_eq!(
+        app.planet.list_prompt_status.as_deref(),
+        Some(" Ambiguous: sta/sbs")
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet list should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("Ambiguous: sta/sbs")
+    );
+
+    let action = app.handle_key(key(KeyCode::Char('t')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.planet.list_filter_prompt_mode,
+        nc_game::screen::PlanetListFilterPromptMode::ValueInput
+    );
+    assert_eq!(
+        app.planet
+            .list_filter_pending_column
+            .expect("pending column")
+            .code,
+        "sta"
+    );
+}
+
+#[test]
+fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_database();
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('s')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.planet.database_prompt_mode,
+        nc_game::screen::PlanetDatabasePromptMode::FilterMenu
+    );
+    assert_eq!(
+        app.planet.database_status.as_deref(),
+        Some(" Ambiguous: see/sbs/sco")
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet database should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("Ambiguous: see/sbs/sco")
+    );
+
+    let action = app.handle_key(key(KeyCode::Char('c')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.planet.database_prompt_mode,
+        nc_game::screen::PlanetDatabasePromptMode::FilterValueInput
+    );
+    assert_eq!(
+        app.planet.database_pending_column.expect("pending column").code,
+        "sco"
+    );
+}
+
+#[test]
 fn auto_commission_prompt_enter_defaults_to_yes() {
     let root = temp_game_with_auto_commission_copy();
     let config = AppConfig {
