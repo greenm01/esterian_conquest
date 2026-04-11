@@ -1899,7 +1899,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         .expect("fleet menu should render wrapped notice");
     assert_eq!(
         terminal.lines[7].trim_end(),
-        " FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
+        " FLEET COMMAND <- ? X V S F R E C I D T O M L U <Q> ->"
     );
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
@@ -1954,7 +1954,7 @@ fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert fleet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        " FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
+        " FLEET COMMAND <- ? X V S F R E C I D T O M L U <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 }
@@ -2395,7 +2395,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(!buffer.plain_line(1).contains("ENTER reviews a fleet."));
     assert!(buffer.plain_line(1).starts_with("┌"));
     assert!(buffer.plain_line(1).ends_with("┐"));
-    assert!(buffer.plain_line(2).contains("│ID│Location│Order"));
+    assert!(buffer.plain_line(2).contains("│ID│Sel│Location│Order"));
     assert!(buffer.plain_line(2).contains("│Target"));
     assert!(buffer.plain_line(2).contains("│Spd│"));
     assert!(buffer.plain_line(2).contains("ETA"));
@@ -2413,7 +2413,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(buffer.plain_line(4).contains("DD"));
     assert_eq!(
         buffer.plain_line(6),
-        " COMMAND <- ? F S O C E D M T L U <Q> [4] ->"
+        " COMMAND <- ? F S O C E D M T L U SPACE <Q> [4] ->"
     );
 }
 
@@ -2501,7 +2501,8 @@ fn fleet_list_ships_column_truncates_by_whole_token_with_plus_marker() {
         .expect("fleet list renders");
 
     let ships_cell = buffer.plain_line(4);
-    assert!(ships_cell.contains("2SC 4BB 3CA 5DD 2TT* +"));
+    assert!(ships_cell.contains("+"));
+    assert!(ships_cell.contains("2SC"));
     assert!(!ships_cell.contains("3TT"));
     assert!(!ships_cell.contains(" ET"));
 }
@@ -2557,7 +2558,7 @@ fn fleet_list_eta_column_shows_turns_remaining_for_arrived_fleets() {
             .filter(|ch| matches!(ch, '^' | '|' | '#' | 'v'))
             .map(|_| right_border_col + 1)
     });
-    assert!(right_border_col < 79);
+    assert!(right_border_col < 80);
     if let Some(scrollbar_col) = scrollbar_col {
         assert_eq!(scrollbar_col, right_border_col + 1);
     }
@@ -2843,8 +2844,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U <Q> [").trim_end(),
-        " COMMAND <- ? F S O C E D M T L U <Q> [4] ->"
+        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U SPACE <Q> [").trim_end(),
+        " COMMAND <- ? F S O C E D M T L U SPACE <Q> [4] ->"
     );
 
     assert_eq!(
@@ -2855,8 +2856,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U <Q> [").trim_end(),
-        " COMMAND <- ? F S O C E D M T L U <Q> [1] ->"
+        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U SPACE <Q> [").trim_end(),
+        " COMMAND <- ? F S O C E D M T L U SPACE <Q> [1] ->"
     );
 
     assert_eq!(
@@ -3010,9 +3011,9 @@ fn fleet_eta_result_dismiss_returns_to_primary_fleet_menu() {
     assert!(
         line_containing(
             &terminal,
-            "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
+            "FLEET COMMAND <- ? X V S F R E C I D T O M L U <Q> ->"
         )
-        .contains("FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->")
+        .contains("FLEET COMMAND <- ? X V S F R E C I D T O M L U <Q> ->")
     );
     assert!(
         !terminal

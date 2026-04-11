@@ -56,6 +56,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FleetList => app.fleet_list.render_with_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),
+            &app.fleet.group_selected_fleets,
             app.fleet.list_sort,
             app.fleet.list_sort_direction,
             app.fleet.list_filter,
@@ -70,9 +71,12 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet.menu_prompt_input,
             app.fleet.menu_prompt_status.as_ref(),
         ),
-        ScreenId::FleetListFilterPrompt => app.fleet_list.render_filter_prompt_with_filter_clause(
+        ScreenId::FleetListFilterPrompt => app
+            .fleet_list
+            .render_filter_prompt_with_selected_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),
+            &app.fleet.group_selected_fleets,
             app.fleet.list_sort,
             app.fleet.list_sort_direction,
             app.fleet.list_filter,
@@ -88,11 +92,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .list_filter_pending_column
                 .map(|column| column.code),
         ),
-        ScreenId::FleetListSortPrompt => app
-            .fleet_list
-            .render_sort_prompt_with_filter_clause(
+        ScreenId::FleetListSortPrompt => app.fleet_list.render_sort_prompt_with_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),
+            &app.fleet.group_selected_fleets,
             app.fleet.list_sort,
             app.fleet.list_sort_direction,
             app.fleet.list_filter,

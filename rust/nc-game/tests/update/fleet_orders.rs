@@ -18,21 +18,17 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         AppOutcome::Continue
     );
     assert_eq!(
-        app.handle_key(key(KeyCode::Char('g'))),
-        Action::Fleet(FleetAction::OpenGroupOrder)
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet group order screen should render");
+        .expect("fleet list should render");
     let top_border_line = line_containing(&terminal, "┌");
     let header_line = line_containing(&terminal, "│ID");
-    let command_line = line_containing(&terminal, "COMMAND <- ? SPACE <Q>");
+    let command_line = line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U SPACE <Q>");
     let table_left = top_border_line
         .chars()
         .position(|ch| ch == '┌')

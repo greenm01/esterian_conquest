@@ -7,11 +7,56 @@ use crate::screen::{
 };
 use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord};
 use nc_engine::{
+    resolve_checked_fleet_merge_plan, resolve_checked_fleet_transfer_plan,
     fleet_eta_label as engine_fleet_eta_label, fleet_list_eta_label as engine_fleet_list_eta_label,
     fleet_record_supports_mission_code, fleet_target_eta_message,
 };
 
 impl App {
+    pub(crate) fn checked_merge_plan(&self) -> Result<nc_engine::CheckedFleetMergePlan, String> {
+        resolve_checked_fleet_merge_plan(&self.checked_fleet_refs())
+            .map_err(|err| err.to_string())
+    }
+
+    fn checked_transfer_plan(&self) -> Result<nc_engine::CheckedFleetTransferPlan, String> {
+        let highlighted = self
+            .fleet_list_rows()
+            .get(self.fleet.cursor)
+            .map(|row| row.fleet_record_index_1_based);
+        resolve_checked_fleet_transfer_plan(&self.checked_fleet_refs(), highlighted)
+            .map_err(|err| err.to_string())
+    }
+
+    pub(crate) fn submit_checked_fleet_merge(
+        &mut self,
+        plan: nc_engine::CheckedFleetMergePlan,
+    ) -> Result<(), String> {
+        let checked_rows = self.checked_fleet_rows();
+        for source in checked_rows
+            .iter()
+            .filter(|row| row.fleet_record_index_1_based != plan.host_record_index_1_based)
+        {
+            self.game_data
+                .set_join_fleet_order(
+                    self.player.record_index_1_based,
+                    source.fleet_record_index_1_based,
+                    plan.host_record_index_1_based,
+                )
+                .map_err(|err| err.to_string())?;
+        }
+        self.save_game_data().map_err(|err| err.to_string())?;
+        self.clear_checked_fleet_selection();
+        self.show_fleet_context_success(
+            format!(
+                "{} fleets ordered to merge into Fleet #{}.",
+                checked_rows.len().saturating_sub(1),
+                plan.host_fleet_number
+            ),
+            true,
+        );
+        Ok(())
+    }
+
     pub(crate) fn submit_inline_fleet_merge(
         &mut self,
         host_fleet_record_index_1_based: usize,
@@ -76,6 +121,25 @@ impl App {
 
     pub fn open_fleet_merge(&mut self) {
         if self.current_screen == ScreenId::FleetList {
+            if self.fleet_list_has_checked_selection() {
+                match self.checked_merge_plan() {
+                    Ok(_plan) => {
+                        self.fleet.command_context = FleetCommandContext::List;
+                        self.clear_command_menu_notice();
+                        self.fleet.list_input.clear();
+                        self.clear_fleet_list_dismiss_message();
+                        self.fleet.menu_prompt_mode = Some(FleetMenuPromptMode::MergeCheckedConfirm);
+                        self.fleet.menu_prompt_input.clear();
+                        self.fleet.menu_prompt_status = None;
+                        self.fleet.menu_prompt_default_value = "Y".to_string();
+                        return;
+                    }
+                    Err(err) => {
+                        self.show_fleet_list_dismiss_message(err);
+                        return;
+                    }
+                }
+            }
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     if let Err(err) = self.validate_merge_source_row(&row) {
@@ -124,6 +188,28 @@ impl App {
 
     pub fn open_fleet_transfer(&mut self) {
         if self.current_screen == ScreenId::FleetList {
+            if self.fleet_list_has_checked_selection() {
+                match self.checked_transfer_plan() {
+                    Ok(plan) => {
+                        self.fleet.command_context = FleetCommandContext::List;
+                        self.fleet.transfer_status = None;
+                        self.fleet.transfer_input.clear();
+                        self.fleet.transfer_donor_record_index_1_based =
+                            Some(plan.donor_record_index_1_based);
+                        self.fleet.transfer_host_record_index_1_based =
+                            Some(plan.host_record_index_1_based);
+                        self.fleet.transfer_selection = FleetDetachSelection::default();
+                        self.clear_command_menu_notice();
+                        self.clear_fleet_menu_prompt();
+                        self.current_screen = ScreenId::FleetTransfer;
+                        return;
+                    }
+                    Err(err) => {
+                        self.show_fleet_list_dismiss_message(err);
+                        return;
+                    }
+                }
+            }
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     if let Err(err) = self.validate_transfer_donor_row(&row) {
@@ -1084,6 +1170,8 @@ impl App {
     }
 
     fn finish_fleet_transfer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let used_checked_selection = self.fleet.command_context == FleetCommandContext::List
+            && !self.fleet.group_selected_fleets.is_empty();
         let Some(donor_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based
         else {
             self.fleet.transfer_status = Some("Select two fleets for transfer.".to_string());
@@ -1111,6 +1199,9 @@ impl App {
         self.fleet.transfer_host_record_index_1_based = None;
         self.fleet.transfer_input.clear();
         self.fleet.transfer_selection = FleetDetachSelection::default();
+        if used_checked_selection {
+            self.clear_checked_fleet_selection();
+        }
         self.show_fleet_context_success(
             format!(
                 "Transferred ships from Fleet #{} to Fleet #{}.",

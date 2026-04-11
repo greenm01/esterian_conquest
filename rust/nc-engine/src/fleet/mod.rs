@@ -1,10 +1,15 @@
 pub mod eta;
+pub mod selection;
 pub mod starbase;
 pub mod targeting;
 
 pub use eta::{
     fleet_eta_estimate_sort_key, fleet_eta_label, fleet_list_eta_label,
     fleet_target_eta_confirmation_message, fleet_target_eta_estimate, fleet_target_eta_message,
+};
+pub use selection::{
+    CheckedFleetMergePlan, CheckedFleetTransferPlan, SelectedFleetRef,
+    resolve_checked_fleet_merge_plan, resolve_checked_fleet_transfer_plan,
 };
 pub use starbase::{
     format_guard_fleet_clause, format_starbase_list_guard_label,

@@ -207,7 +207,10 @@ fn fleet_list_keeps_selector_input_numeric_only() {
     );
     assert_eq!(app.handle_key(key(KeyCode::Char('{'))), Action::Noop);
     assert_eq!(app.handle_key(key(KeyCode::Char(','))), Action::Noop);
-    assert_eq!(app.handle_key(key(KeyCode::Char(' '))), Action::Noop);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char(' '))),
+        Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+    );
 }
 
 #[test]
@@ -253,8 +256,8 @@ fn fleet_list_typed_jump_accepts_leading_zero_fleet_ids() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list should render");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U <Q>").trim(),
-        "COMMAND <- ? F S O C E D M T L U <Q> [02] ->"
+        line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U SPACE <Q>").trim(),
+        "COMMAND <- ? F S O C E D M T L U SPACE <Q> [02] ->"
     );
 }
 
@@ -291,14 +294,14 @@ fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     );
     assert_eq!(
         app.fleet.list_filter_prompt_status.as_deref(),
-        Some(" Ambiguous: spd/shi")
+        Some(" Ambiguous: spd/shi/sel")
     );
     assert!(app.fleet.list_filter_prompt_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Ambiguous: spd/shi")
+        line_containing(&terminal, "COMMAND <- Ambiguous: spd/shi/sel")
             .contains("[all] <Q> ->")
     );
 
@@ -1757,11 +1760,11 @@ fn fleet_menu_matches_verified_v15_command_layout() {
     app.render(&mut terminal).expect("fleet menu should render");
     assert_eq!(
         terminal.line(1).trim_end(),
-        " FLEET COMMAND CENTER:                                       O>rder a Fleet"
+        " FLEET COMMAND CENTER:"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
-        "  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER"
+        "  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   O>rder a Fleet"
     );
     assert_eq!(
         terminal.line(3).trim_end(),
@@ -1769,7 +1772,7 @@ fn fleet_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(4).trim_end(),
-        "  X>pert Mode        F>leet List         D>etach Ships       L>oad TTs w/Armies"
+        "  X>pert Mode        F>LEET LIST         D>etach Ships       L>oad TTs w/Armies"
     );
     assert_eq!(
         terminal.line(5).trim_end(),
@@ -2257,7 +2260,7 @@ fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
         "fleet list helper should advertise O for orders"
     );
     assert!(
-        line_containing(&terminal, "ROE, ID number, or speed").contains("C"),
+        line_containing(&terminal, "change checked fleets").contains("C"),
         "fleet list helper should advertise C for change"
     );
     assert!(
@@ -2265,7 +2268,7 @@ fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
         "fleet list helper should advertise E for ETA"
     );
     assert!(
-        line_containing(&terminal, "merge selected").contains("M"),
+        line_containing(&terminal, "merge checked fleets").contains("M"),
         "fleet list helper should advertise M for merge"
     );
     assert!(

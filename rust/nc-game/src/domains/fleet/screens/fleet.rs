@@ -216,13 +216,13 @@ const FLEET_COL_2: usize = 21;
 const FLEET_COL_3: usize = 41;
 const FLEET_COL_4: usize = 61;
 
-const TOP_ROW: [MenuEntry<'static>; 1] = [MenuEntry::new(FLEET_COL_4, "O", "rder a Fleet")];
+const TOP_ROW: [MenuEntry<'static>; 0] = [];
 
 const ROW_1: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_1, "H", "elp on Options"),
     MenuEntry::new(FLEET_COL_2, "S", "TARBASE MENU..."),
     MenuEntry::new(FLEET_COL_3, "C", "hg ROE,ID,Speed"),
-    MenuEntry::new(FLEET_COL_4, "G", "ROUP FLEET ORDER"),
+    MenuEntry::new(FLEET_COL_4, "O", "rder a Fleet"),
 ];
 
 const ROW_2: [MenuEntry<'static>; 4] = [
@@ -234,7 +234,7 @@ const ROW_2: [MenuEntry<'static>; 4] = [
 
 const ROW_3: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_1, "X", "pert Mode"),
-    MenuEntry::featured(FLEET_COL_2, "F", "leet List"),
+    MenuEntry::featured(FLEET_COL_2, "F", "LEET LIST"),
     MenuEntry::new(FLEET_COL_3, "D", "etach Ships"),
     MenuEntry::new(FLEET_COL_4, "L", "oad TTs w/Armies"),
 ];
@@ -246,7 +246,7 @@ const ROW_4: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_4, "U", "nload TT Armies"),
 ];
 
-const FLEET_LIST_BROWSE_HOTKEYS: &str = "? F S O C E D M T L U <Q>";
+const FLEET_LIST_BROWSE_HOTKEYS: &str = "? F S O C E D M T L U SPACE <Q>";
 const FLEET_LIST_SORT_HOTKEYS: &str = "? I L O E T <Q>";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -357,7 +357,7 @@ impl FleetMenuScreen {
                 draw_expert_menu_padded(
                     &mut buffer,
                     "FLEET COMMAND",
-                    "? X V S F R E C I D T O G M L U <Q>",
+                    "? X V S F R E C I D T O M L U <Q>",
                     notice,
                 );
             }
@@ -439,7 +439,7 @@ impl FleetMenuScreen {
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
-                "? X V S F R E C I D T O G M L U <Q>",
+                "? X V S F R E C I D T O M L U <Q>",
             );
         }
         Ok(buffer)
@@ -493,7 +493,6 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('i') | KeyCode::Char('I') => Action::Planet(
                 PlanetAction::OpenInfoPrompt(crate::screen::CommandMenu::Fleet),
             ),
-            KeyCode::Char('g') | KeyCode::Char('G') => Action::Fleet(FleetAction::OpenGroupOrder),
             KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             _ => Action::Noop,
         }
@@ -509,6 +508,7 @@ impl FleetListScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
+        selected_fleet_record_indexes: &BTreeSet<usize>,
         sort: FleetListSort,
         direction: SortDirection,
         filter: FleetListFilter,
@@ -531,6 +531,11 @@ impl FleetListScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
+                    if selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based) {
+                        "X".to_string()
+                    } else {
+                        "".to_string()
+                    },
                     format_sector_coords_table(row.coords),
                     fleet_table_order_label(row.order_code).to_string(),
                     fleet_row_target_label(row),
@@ -605,6 +610,7 @@ impl FleetListScreen {
         self.render_with_filter_clause(
             geometry,
             rows,
+            &BTreeSet::new(),
             sort,
             direction,
             filter,
@@ -626,6 +632,7 @@ impl FleetListScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
+        selected_fleet_record_indexes: &BTreeSet<usize>,
         sort: FleetListSort,
         direction: SortDirection,
         filter: FleetListFilter,
@@ -692,6 +699,7 @@ impl FleetListScreen {
         } = self.render_table(
             geometry,
             rows,
+            selected_fleet_record_indexes,
             sort,
             direction,
             filter,
@@ -743,6 +751,7 @@ impl FleetListScreen {
         self.render_sort_prompt_with_filter_clause(
             geometry,
             rows,
+            &BTreeSet::new(),
             sort,
             direction,
             filter,
@@ -756,6 +765,7 @@ impl FleetListScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
+        selected_fleet_record_indexes: &BTreeSet<usize>,
         sort: FleetListSort,
         direction: SortDirection,
         filter: FleetListFilter,
@@ -774,6 +784,7 @@ impl FleetListScreen {
             .render_table(
                 geometry,
                 rows,
+                selected_fleet_record_indexes,
                 sort,
                 direction,
                 filter,
@@ -833,6 +844,44 @@ impl FleetListScreen {
         dismiss_message: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_filter_prompt_with_selected_filter_clause(
+            geometry,
+            rows,
+            &BTreeSet::new(),
+            sort,
+            direction,
+            filter,
+            filter_clause,
+            scroll_offset,
+            cursor,
+            prompt_mode,
+            prompt_default,
+            input,
+            status,
+            dismiss_message,
+            pending_column_code,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_filter_prompt_with_selected_filter_clause(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        selected_fleet_record_indexes: &BTreeSet<usize>,
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
+        filter_clause: Option<&TableFilterClause>,
+        scroll_offset: usize,
+        cursor: usize,
+        prompt_mode: FleetListFilterPromptMode,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+        dismiss_message: Option<&str>,
+        pending_column_code: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let prompt;
         let footer = if let Some(message) = dismiss_message {
             prompt = filter_prompt_dismiss_prompt(message);
@@ -865,6 +914,7 @@ impl FleetListScreen {
             .render_table(
                 geometry,
                 rows,
+                selected_fleet_record_indexes,
                 sort,
                 direction,
                 filter,
@@ -900,6 +950,7 @@ impl FleetListScreen {
             KeyCode::Char('d') | KeyCode::Char('D') => Action::Fleet(FleetAction::OpenDetach),
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Fleet(FleetAction::OpenMerge),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Fleet(FleetAction::OpenTransfer),
+            KeyCode::Char(' ') => Action::Fleet(FleetAction::ToggleGroupOrderSelection),
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::Fleet(FleetAction::OpenTransportLoad)
             }
@@ -2077,11 +2128,12 @@ fn format_selected_fleet_numbers(
         .join(", ")
 }
 
-fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
+fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 10] {
     let id_width = fleet_id_column_width(max_fleet_number);
-    let ships_width = 69usize.saturating_sub(id_width + 8 + 15 + 8 + 3 + 4 + 3 + 3);
+    let ships_width = 67usize.saturating_sub(id_width + 3 + 8 + 15 + 8 + 3 + 4 + 3 + 3);
     [
         TableColumn::right("ID", id_width),
+        TableColumn::center("Sel", 3),
         TableColumn::left("Location", 8),
         TableColumn::left("Order", 15),
         TableColumn::left("Target", 8),

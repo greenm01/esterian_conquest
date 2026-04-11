@@ -147,6 +147,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("S", "Open the fleet-list sort menu"),
             ("SPACE", "Toggle the checked state of the current fleet row"),
             ("O", "Order checked fleets, or the selected fleet/starbase"),
+            ("C", "Change checked fleets, or the selected fleet"),
+            ("M", "Merge checked fleets, or the selected fleet"),
+            ("T", "Transfer ships between checked fleets, or the selected fleet"),
             (
                 "Fleet / SB ID",
                 "Typed jump; exact match clears the footer input",

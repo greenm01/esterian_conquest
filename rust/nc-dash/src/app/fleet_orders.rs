@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use nc_data::{Order, PlanetIntelSnapshot, map_size_for_player_count};
+use nc_data::{FleetDetachSelection, Order, PlanetIntelSnapshot, map_size_for_player_count};
 use nc_engine::{
     FLEET_MISSION_OPTIONS, default_host_fleet_target, default_starbase_target,
     fleet_mission_option, fleet_order_target_rejects_owned_planet,
@@ -9,13 +9,15 @@ use nc_engine::{
     fleet_target_input_kind, fleet_target_status_line, format_guard_fleet_clause,
     guard_fleet_numbers_for_starbase, owned_fleet_targets, owned_starbase_targets,
     recommended_coordinate_target, recommended_coordinate_target_y_for_entered_x,
-    target_available_for_mission,
+    resolve_checked_fleet_merge_plan, resolve_checked_fleet_transfer_plan, target_available_for_mission,
+    SelectedFleetRef,
 };
 
 use crate::overlays::fleet_list;
 
 use super::state::{
-    DashApp, FleetOrderScope, FleetOverlayPromptMode, FleetOverlayRowKey, HelpContext,
+    DashApp, FleetOrderScope, FleetOverlayChangeField, FleetOverlayPromptMode,
+    FleetOverlayRowKey, FleetOverlayTransferClass, FleetOverlayTransferMode, HelpContext,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +40,17 @@ pub(crate) struct OrderStarbaseRow {
 }
 
 impl DashApp {
+    fn selected_checked_fleet_refs(&self) -> Vec<SelectedFleetRef> {
+        self.selected_group_order_rows()
+            .into_iter()
+            .map(|row| SelectedFleetRef {
+                fleet_record_index_1_based: row.fleet_record_index_1_based,
+                fleet_number: row.fleet_number,
+                coords: row.coords,
+            })
+            .collect()
+    }
+
     fn order_intel_snapshots(&self) -> BTreeMap<usize, PlanetIntelSnapshot> {
         self.planet_intel_snapshots
             .iter()
@@ -98,6 +111,101 @@ impl DashApp {
                 self.help_context = HelpContext::StarbaseMove;
             }
         }
+    }
+
+    pub(crate) fn open_selected_fleet_change_flow(&mut self) {
+        self.normalize_selected_fleet_order_selection();
+        self.fleet_overlay.aux_input.clear();
+        self.fleet_overlay.aux_status = None;
+        self.fleet_overlay.change_field = None;
+        self.fleet_overlay.open_prompt(FleetOverlayPromptMode::ChangeField);
+        self.help_context = HelpContext::FleetOrderInput;
+    }
+
+    pub(crate) fn open_selected_fleet_merge_flow(&mut self) {
+        self.normalize_selected_fleet_order_selection();
+        if !self.fleet_overlay.selected_fleet_record_indexes.is_empty() {
+            match resolve_checked_fleet_merge_plan(&self.selected_checked_fleet_refs()) {
+                Ok(_) => {
+                    self.fleet_overlay.aux_input.clear();
+                    self.fleet_overlay.aux_default = "Y".to_string();
+                    self.fleet_overlay.aux_status = None;
+                    self.fleet_overlay.open_prompt(FleetOverlayPromptMode::MergeConfirm);
+                    self.help_context = HelpContext::FleetOrderInput;
+                }
+                Err(err) => self.fleet_overlay.aux_status = Some(err.to_string()),
+            }
+            return;
+        }
+        let Some(selected_row) = self.selected_fleet_order_row_from_table() else {
+            return;
+        };
+        let mut hosts = self.owned_fleet_rows_for_orders();
+        hosts.retain(|row| {
+            row.fleet_record_index_1_based != selected_row.fleet_record_index_1_based
+                && row.coords == selected_row.coords
+                && row.fleet_number < selected_row.fleet_number
+        });
+        if hosts.is_empty() {
+            self.fleet_overlay.aux_status = Some(
+                "Selected fleet must share a sector with a lower-numbered host.".to_string(),
+            );
+            return;
+        }
+        self.fleet_overlay.active_row_key =
+            Some(FleetOverlayRowKey::Fleet(selected_row.fleet_record_index_1_based));
+        self.fleet_overlay.aux_input.clear();
+        self.fleet_overlay.aux_default = hosts[0].fleet_number.to_string();
+        self.fleet_overlay.aux_status = None;
+        self.fleet_overlay.open_prompt(FleetOverlayPromptMode::MergeHost);
+        self.help_context = HelpContext::FleetOrderInput;
+    }
+
+    pub(crate) fn open_selected_fleet_transfer_flow(&mut self) {
+        self.normalize_selected_fleet_order_selection();
+        self.fleet_overlay.transfer_selection = FleetDetachSelection::default();
+        self.fleet_overlay.transfer_mode = FleetOverlayTransferMode::ChoosingClass;
+        self.fleet_overlay.aux_input.clear();
+        self.fleet_overlay.aux_status = None;
+        if !self.fleet_overlay.selected_fleet_record_indexes.is_empty() {
+            match resolve_checked_fleet_transfer_plan(
+                &self.selected_checked_fleet_refs(),
+                self.selected_fleet_order_row_from_table()
+                    .map(|row| row.fleet_record_index_1_based),
+            ) {
+                Ok(plan) => {
+                    self.fleet_overlay.transfer_donor_record_index_1_based =
+                        Some(plan.donor_record_index_1_based);
+                    self.fleet_overlay.transfer_host_record_index_1_based =
+                        Some(plan.host_record_index_1_based);
+                    self.fleet_overlay.open_prompt(FleetOverlayPromptMode::TransferStage);
+                }
+                Err(err) => self.fleet_overlay.aux_status = Some(err.to_string()),
+            }
+            self.help_context = HelpContext::FleetOrderInput;
+            return;
+        }
+        let Some(selected_row) = self.selected_fleet_order_row_from_table() else {
+            return;
+        };
+        let mut hosts = self.owned_fleet_rows_for_orders();
+        hosts.retain(|row| {
+            row.fleet_record_index_1_based != selected_row.fleet_record_index_1_based
+                && row.coords == selected_row.coords
+        });
+        if hosts.is_empty() {
+            self.fleet_overlay.aux_status = Some(
+                "Selected fleet must share a sector with another fleet.".to_string(),
+            );
+            return;
+        }
+        self.fleet_overlay.transfer_donor_record_index_1_based =
+            Some(selected_row.fleet_record_index_1_based);
+        self.fleet_overlay.transfer_host_record_index_1_based = None;
+        self.fleet_overlay.aux_input.clear();
+        self.fleet_overlay.aux_default = hosts[0].fleet_number.to_string();
+        self.fleet_overlay.open_prompt(FleetOverlayPromptMode::TransferHost);
+        self.help_context = HelpContext::FleetOrderInput;
     }
 
     pub(crate) fn append_fleet_mission_picker_char(&mut self, ch: char) {
@@ -230,7 +338,13 @@ impl DashApp {
             }
             FleetOverlayPromptMode::FilterMenu
             | FleetOverlayPromptMode::FilterValueInput
-            | FleetOverlayPromptMode::SortMenu => {
+            | FleetOverlayPromptMode::SortMenu
+            | FleetOverlayPromptMode::ChangeField
+            | FleetOverlayPromptMode::ChangeValue
+            | FleetOverlayPromptMode::MergeHost
+            | FleetOverlayPromptMode::MergeConfirm
+            | FleetOverlayPromptMode::TransferHost
+            | FleetOverlayPromptMode::TransferStage => {
                 self.fleet_overlay.close_prompt();
             }
             FleetOverlayPromptMode::None => {}
@@ -274,6 +388,12 @@ impl DashApp {
             | FleetOverlayPromptMode::MissionPicker
             | FleetOverlayPromptMode::FilterMenu
             | FleetOverlayPromptMode::FilterValueInput
+            | FleetOverlayPromptMode::ChangeField
+            | FleetOverlayPromptMode::ChangeValue
+            | FleetOverlayPromptMode::MergeHost
+            | FleetOverlayPromptMode::MergeConfirm
+            | FleetOverlayPromptMode::TransferHost
+            | FleetOverlayPromptMode::TransferStage
             | FleetOverlayPromptMode::SortMenu
             | FleetOverlayPromptMode::None => {}
         }
@@ -534,6 +654,308 @@ impl DashApp {
         self.help_context = HelpContext::FleetList;
     }
 
+    pub(crate) fn cancel_fleet_aux_prompt(&mut self) {
+        self.fleet_overlay.clear_prompt();
+        self.help_context = HelpContext::FleetList;
+    }
+
+    pub(crate) fn submit_fleet_change_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::ChangeField => {
+                let raw = if self.fleet_overlay.aux_input.trim().is_empty() {
+                    self.fleet_overlay.aux_default.trim()
+                } else {
+                    self.fleet_overlay.aux_input.trim()
+                };
+                let field = match raw.chars().next().map(|ch| ch.to_ascii_uppercase()) {
+                    Some('R') => FleetOverlayChangeField::Roe,
+                    Some('S') => FleetOverlayChangeField::Speed,
+                    Some('I') if self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
+                        FleetOverlayChangeField::Id
+                    }
+                    _ if self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
+                        self.fleet_overlay.aux_status = Some("Enter R, I, or S.".to_string());
+                        return Ok(());
+                    }
+                    _ => {
+                        self.fleet_overlay.aux_status = Some("Enter R or S.".to_string());
+                        return Ok(());
+                    }
+                };
+                self.fleet_overlay.change_field = Some(field);
+                self.fleet_overlay.aux_input.clear();
+                self.fleet_overlay.aux_status = None;
+                self.fleet_overlay.aux_default = self.fleet_change_value_default(field);
+                self.fleet_overlay.open_prompt(FleetOverlayPromptMode::ChangeValue);
+                Ok(())
+            }
+            FleetOverlayPromptMode::ChangeValue => {
+                let Some(field) = self.fleet_overlay.change_field else {
+                    self.fleet_overlay.aux_status = Some("Choose a field first.".to_string());
+                    return Ok(());
+                };
+                let raw = if self.fleet_overlay.aux_input.trim().is_empty() {
+                    self.fleet_overlay.aux_default.trim().to_string()
+                } else {
+                    self.fleet_overlay.aux_input.trim().to_string()
+                };
+                let rows = self.change_target_rows();
+                if rows.is_empty() {
+                    self.fleet_overlay.aux_status =
+                        Some("Selected fleet is no longer available.".to_string());
+                    return Ok(());
+                }
+                match field {
+                    FleetOverlayChangeField::Roe => {
+                        let roe = raw
+                            .parse::<u8>()
+                            .map_err(|_| "Enter an ROE from 0 to 10.".to_string())?;
+                        for row in &rows {
+                            self.game_data
+                                .set_fleet_rules_of_engagement(
+                                    self.player_record_index_1_based,
+                                    row.fleet_record_index_1_based,
+                                    roe,
+                                )
+                                .map_err(|err| err.to_string())?;
+                        }
+                    }
+                    FleetOverlayChangeField::Id => {
+                        let row = rows[0];
+                        let id = raw
+                            .parse::<u16>()
+                            .map_err(|_| "Enter a fleet ID from 1 up.".to_string())?;
+                        self.game_data
+                            .set_fleet_local_slot(
+                                self.player_record_index_1_based,
+                                row.fleet_record_index_1_based,
+                                id,
+                            )
+                            .map_err(|err| err.to_string())?;
+                    }
+                    FleetOverlayChangeField::Speed => {
+                        let speed = raw
+                            .parse::<u8>()
+                            .map_err(|_| "Enter a speed from 0 up.".to_string())?;
+                        for row in &rows {
+                            let fleet = self
+                                .game_data
+                                .fleets
+                                .records
+                                .get(row.fleet_record_index_1_based - 1)
+                                .ok_or_else(|| "Selected fleet is no longer available.".to_string())?
+                                .clone();
+                            let aux = fleet.mission_aux_bytes();
+                            self.game_data
+                                .set_fleet_order(
+                                    row.fleet_record_index_1_based,
+                                    speed,
+                                    fleet.standing_order_code_raw(),
+                                    fleet.standing_order_target_coords_raw(),
+                                    Some(aux[0]),
+                                    Some(aux[1]),
+                                )
+                                .map_err(|err| err.to_string())?;
+                        }
+                    }
+                }
+                self.save_and_refresh_runtime()?;
+                let had_checked = !self.fleet_overlay.selected_fleet_record_indexes.is_empty();
+                if had_checked {
+                    self.fleet_overlay.clear_group_selection();
+                }
+                self.cancel_fleet_aux_prompt();
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    pub(crate) fn submit_fleet_merge_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::MergeConfirm => {
+                if !resolve_yes_no_input(&self.fleet_overlay.aux_input, true) {
+                    self.cancel_fleet_aux_prompt();
+                    return Ok(());
+                }
+                let plan = resolve_checked_fleet_merge_plan(&self.selected_checked_fleet_refs())
+                    .map_err(|err| err.to_string())?;
+                for row in self
+                    .selected_group_order_rows()
+                    .into_iter()
+                    .filter(|row| row.fleet_record_index_1_based != plan.host_record_index_1_based)
+                {
+                    self.game_data.set_join_fleet_order(
+                        self.player_record_index_1_based,
+                        row.fleet_record_index_1_based,
+                        plan.host_record_index_1_based,
+                    )?;
+                }
+                self.save_and_refresh_runtime()?;
+                self.fleet_overlay.clear_group_selection();
+                self.cancel_fleet_aux_prompt();
+                Ok(())
+            }
+            FleetOverlayPromptMode::MergeHost => {
+                let Some(source) = self.selected_fleet_order_row() else {
+                    self.fleet_overlay.aux_status =
+                        Some("Selected fleet is no longer available.".to_string());
+                    return Ok(());
+                };
+                let raw = if self.fleet_overlay.aux_input.trim().is_empty() {
+                    self.fleet_overlay.aux_default.trim().to_string()
+                } else {
+                    self.fleet_overlay.aux_input.trim().to_string()
+                };
+                let host_number = raw
+                    .parse::<u16>()
+                    .map_err(|_| "Enter one of your fleet numbers.".to_string())?;
+                let host = self
+                    .owned_fleet_rows_for_orders()
+                    .into_iter()
+                    .find(|row| row.fleet_number == host_number)
+                    .ok_or_else(|| "Enter one of your fleet numbers.".to_string())?;
+                self.game_data.set_join_fleet_order(
+                    self.player_record_index_1_based,
+                    source.fleet_record_index_1_based,
+                    host.fleet_record_index_1_based,
+                )?;
+                self.save_and_refresh_runtime()?;
+                self.cancel_fleet_aux_prompt();
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    pub(crate) fn submit_fleet_transfer_prompt(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        match self.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::TransferHost => {
+                let Some(donor_index) = self.fleet_overlay.transfer_donor_record_index_1_based else {
+                    self.fleet_overlay.aux_status = Some("Select a donor fleet first.".to_string());
+                    return Ok(());
+                };
+                let raw = if self.fleet_overlay.aux_input.trim().is_empty() {
+                    self.fleet_overlay.aux_default.trim().to_string()
+                } else {
+                    self.fleet_overlay.aux_input.trim().to_string()
+                };
+                let host_number = raw
+                    .parse::<u16>()
+                    .map_err(|_| "Enter one of your fleet numbers.".to_string())?;
+                let host = self
+                    .owned_fleet_rows_for_orders()
+                    .into_iter()
+                    .find(|row| row.fleet_number == host_number)
+                    .ok_or_else(|| "Enter one of your fleet numbers.".to_string())?;
+                if host.fleet_record_index_1_based == donor_index {
+                    return Err("Choose a different destination fleet.".into());
+                }
+                self.fleet_overlay.transfer_host_record_index_1_based =
+                    Some(host.fleet_record_index_1_based);
+                self.fleet_overlay.transfer_mode = FleetOverlayTransferMode::ChoosingClass;
+                self.fleet_overlay.aux_input.clear();
+                self.fleet_overlay.aux_status = None;
+                self.fleet_overlay.open_prompt(FleetOverlayPromptMode::TransferStage);
+                Ok(())
+            }
+            FleetOverlayPromptMode::TransferStage => match self.fleet_overlay.transfer_mode {
+                FleetOverlayTransferMode::ChoosingClass => {
+                    let raw = self.fleet_overlay.aux_input.trim().to_ascii_uppercase();
+                    if raw.is_empty() {
+                        self.fleet_overlay.aux_status =
+                            Some("Use BB, CA, DD, TT*, TT, SC, ET, C, X, or Q.".to_string());
+                        return Ok(());
+                    }
+                    match raw.as_str() {
+                        "C" => self.finish_fleet_transfer_prompt(),
+                        "X" => {
+                            self.fleet_overlay.transfer_selection = FleetDetachSelection::default();
+                            self.fleet_overlay.aux_input.clear();
+                            self.fleet_overlay.aux_status = None;
+                            Ok(())
+                        }
+                        "Q" => {
+                            self.cancel_fleet_aux_prompt();
+                            Ok(())
+                        }
+                        _ => {
+                            let Some(class) = self.parse_fleet_transfer_class_code(&raw) else {
+                                self.fleet_overlay.aux_status = Some(
+                                    "Use BB, CA, DD, TT*, TT, SC, ET, C, X, or Q.".to_string(),
+                                );
+                                return Ok(());
+                            };
+                            let available = self.fleet_transfer_available_for_class(class);
+                            if available == 0 {
+                                self.fleet_overlay.aux_status =
+                                    Some("That class is not available for transfer.".to_string());
+                                return Ok(());
+                            }
+                            self.fleet_overlay.transfer_mode =
+                                FleetOverlayTransferMode::EnteringQuantity(class);
+                            self.fleet_overlay.aux_default = "1".to_string();
+                            self.fleet_overlay.aux_input.clear();
+                            self.fleet_overlay.aux_status = None;
+                            Ok(())
+                        }
+                    }
+                }
+                FleetOverlayTransferMode::EnteringQuantity(class) => {
+                    let available = self.fleet_transfer_available_for_class(class);
+                    let raw = if self.fleet_overlay.aux_input.trim().is_empty() {
+                        self.fleet_overlay.aux_default.trim().to_string()
+                    } else {
+                        self.fleet_overlay.aux_input.trim().to_string()
+                    };
+                    let qty = raw
+                        .parse::<u16>()
+                        .map_err(|_| "Enter an integer value.".to_string())?;
+                    if qty == 0 || qty > available {
+                        self.fleet_overlay.aux_status =
+                            Some(format!("Enter a quantity from 1 to {available}."));
+                        return Ok(());
+                    }
+                    match class {
+                        FleetOverlayTransferClass::Battleships => {
+                            self.fleet_overlay.transfer_selection.battleships += qty
+                        }
+                        FleetOverlayTransferClass::Cruisers => {
+                            self.fleet_overlay.transfer_selection.cruisers += qty
+                        }
+                        FleetOverlayTransferClass::Destroyers => {
+                            self.fleet_overlay.transfer_selection.destroyers += qty
+                        }
+                        FleetOverlayTransferClass::FullTransports => {
+                            self.fleet_overlay.transfer_selection.full_transports += qty
+                        }
+                        FleetOverlayTransferClass::EmptyTransports => {
+                            self.fleet_overlay.transfer_selection.empty_transports += qty
+                        }
+                        FleetOverlayTransferClass::Scouts => {
+                            self.fleet_overlay.transfer_selection.scouts = self
+                                .fleet_overlay
+                                .transfer_selection
+                                .scouts
+                                .saturating_add(qty.min(u16::from(u8::MAX)) as u8)
+                        }
+                        FleetOverlayTransferClass::Etacs => {
+                            self.fleet_overlay.transfer_selection.etacs += qty
+                        }
+                    }
+                    self.fleet_overlay.transfer_mode = FleetOverlayTransferMode::ChoosingClass;
+                    self.fleet_overlay.aux_default.clear();
+                    self.fleet_overlay.aux_input.clear();
+                    self.fleet_overlay.aux_status = None;
+                    Ok(())
+                }
+            },
+            _ => Ok(()),
+        }
+    }
+
     pub(crate) fn fleet_mission_picker_enabled_flags(&self) -> Vec<bool> {
         match self.fleet_overlay.order_scope {
             FleetOrderScope::Group => {
@@ -666,6 +1088,22 @@ impl DashApp {
                 .into_iter()
                 .find(|row| row.fleet_record_index_1_based == record_index),
             _ => None,
+        }
+    }
+
+    pub(crate) fn selected_fleet_order_row_from_table(&self) -> Option<OrderFleetRow> {
+        let rows = fleet_list::table_rows(self);
+        let selected = self
+            .fleet_overlay
+            .selected
+            .min(rows.len().saturating_sub(1));
+        let row = rows.get(selected)?;
+        match row.key {
+            FleetOverlayRowKey::Fleet(record_index) => self
+                .owned_fleet_rows_for_orders()
+                .into_iter()
+                .find(|candidate| candidate.fleet_record_index_1_based == record_index),
+            FleetOverlayRowKey::Starbase(_) => None,
         }
     }
 
@@ -1176,8 +1614,203 @@ impl DashApp {
             .join(", ")
     }
 
+    fn change_target_rows(&self) -> Vec<OrderFleetRow> {
+        if self.fleet_overlay.selected_fleet_record_indexes.is_empty() {
+            self.selected_fleet_order_row_from_table()
+                .into_iter()
+                .collect()
+        } else {
+            self.selected_group_order_rows()
+        }
+    }
+
+    fn fleet_change_value_default(&self, field: FleetOverlayChangeField) -> String {
+        let rows = self.change_target_rows();
+        if rows.is_empty() {
+            return String::new();
+        }
+        match field {
+            FleetOverlayChangeField::Roe => rows
+                .first()
+                .map(|row| {
+                    self.game_data
+                        .fleets
+                        .records
+                        .get(row.fleet_record_index_1_based - 1)
+                        .map(|fleet| fleet.rules_of_engagement())
+                        .unwrap_or(0)
+                })
+                .filter(|roe| {
+                    rows.iter().all(|row| {
+                        self.game_data
+                            .fleets
+                            .records
+                            .get(row.fleet_record_index_1_based - 1)
+                            .map(|fleet| fleet.rules_of_engagement() == *roe)
+                            .unwrap_or(false)
+                    })
+                })
+                .map(|roe| roe.to_string())
+                .unwrap_or_default(),
+            FleetOverlayChangeField::Id => rows[0].fleet_number.to_string(),
+            FleetOverlayChangeField::Speed => rows
+                .first()
+                .map(|row| row.current_speed)
+                .filter(|speed| rows.iter().all(|row| row.current_speed == *speed))
+                .map(|speed| speed.to_string())
+                .unwrap_or_default(),
+        }
+    }
+
     pub(crate) fn fleet_order_is_group_scope(&self) -> bool {
         self.fleet_overlay.order_scope == FleetOrderScope::Group
+    }
+
+    fn parse_fleet_transfer_class_code(&self, raw: &str) -> Option<FleetOverlayTransferClass> {
+        match raw {
+            "BB" => Some(FleetOverlayTransferClass::Battleships),
+            "CA" => Some(FleetOverlayTransferClass::Cruisers),
+            "DD" => Some(FleetOverlayTransferClass::Destroyers),
+            "TT*" => Some(FleetOverlayTransferClass::FullTransports),
+            "TT" => Some(FleetOverlayTransferClass::EmptyTransports),
+            "SC" => Some(FleetOverlayTransferClass::Scouts),
+            "ET" => Some(FleetOverlayTransferClass::Etacs),
+            _ => None,
+        }
+    }
+
+    fn fleet_transfer_class_label(&self, class: FleetOverlayTransferClass) -> &'static str {
+        match class {
+            FleetOverlayTransferClass::Battleships => "BB",
+            FleetOverlayTransferClass::Cruisers => "CA",
+            FleetOverlayTransferClass::Destroyers => "DD",
+            FleetOverlayTransferClass::FullTransports => "TT*",
+            FleetOverlayTransferClass::EmptyTransports => "TT",
+            FleetOverlayTransferClass::Scouts => "SC",
+            FleetOverlayTransferClass::Etacs => "ET",
+        }
+    }
+
+    fn fleet_transfer_available_for_class(&self, class: FleetOverlayTransferClass) -> u16 {
+        let Some(donor_index) = self.fleet_overlay.transfer_donor_record_index_1_based else {
+            return 0;
+        };
+        let Some(fleet) = self.game_data.fleets.records.get(donor_index - 1) else {
+            return 0;
+        };
+        match class {
+            FleetOverlayTransferClass::Battleships => fleet
+                .battleship_count()
+                .saturating_sub(self.fleet_overlay.transfer_selection.battleships),
+            FleetOverlayTransferClass::Cruisers => fleet
+                .cruiser_count()
+                .saturating_sub(self.fleet_overlay.transfer_selection.cruisers),
+            FleetOverlayTransferClass::Destroyers => fleet
+                .destroyer_count()
+                .saturating_sub(self.fleet_overlay.transfer_selection.destroyers),
+            FleetOverlayTransferClass::FullTransports => fleet
+                .army_count()
+                .saturating_sub(self.fleet_overlay.transfer_selection.full_transports),
+            FleetOverlayTransferClass::EmptyTransports => fleet
+                .troop_transport_count()
+                .saturating_sub(fleet.army_count())
+                .saturating_sub(self.fleet_overlay.transfer_selection.empty_transports),
+            FleetOverlayTransferClass::Scouts => u16::from(
+                fleet
+                    .scout_count()
+                    .saturating_sub(self.fleet_overlay.transfer_selection.scouts),
+            ),
+            FleetOverlayTransferClass::Etacs => fleet
+                .etac_count()
+                .saturating_sub(self.fleet_overlay.transfer_selection.etacs),
+        }
+    }
+
+    pub(crate) fn fleet_transfer_prompt_and_default(&self) -> (String, String) {
+        match self.fleet_overlay.transfer_mode {
+            FleetOverlayTransferMode::ChoosingClass => (
+                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X> ".to_string(),
+                String::new(),
+            ),
+            FleetOverlayTransferMode::EnteringQuantity(class) => (
+                format!(
+                    "{} to stage (max {}) ",
+                    self.fleet_transfer_class_label(class),
+                    self.fleet_transfer_available_for_class(class)
+                ),
+                "1".to_string(),
+            ),
+        }
+    }
+
+    pub(crate) fn fleet_transfer_donor_row(&self) -> Option<OrderFleetRow> {
+        self.fleet_overlay
+            .transfer_donor_record_index_1_based
+            .and_then(|idx| {
+                self.owned_fleet_rows_for_orders()
+                    .into_iter()
+                    .find(|row| row.fleet_record_index_1_based == idx)
+            })
+    }
+
+    pub(crate) fn fleet_transfer_host_row(&self) -> Option<OrderFleetRow> {
+        self.fleet_overlay
+            .transfer_host_record_index_1_based
+            .and_then(|idx| {
+                self.owned_fleet_rows_for_orders()
+                    .into_iter()
+                    .find(|row| row.fleet_record_index_1_based == idx)
+            })
+    }
+
+    fn format_transfer_summary_from_selection(&self, selection: FleetDetachSelection) -> String {
+        let mut parts = Vec::new();
+        for (label, count) in [
+            ("SC", u16::from(selection.scouts)),
+            ("BB", selection.battleships),
+            ("CA", selection.cruisers),
+            ("DD", selection.destroyers),
+            ("TT*", selection.full_transports),
+            ("TT", selection.empty_transports),
+            ("ET", selection.etacs),
+        ] {
+            if count > 0 {
+                parts.push(format!("{label}={count}"));
+            }
+        }
+        if parts.is_empty() {
+            "none".to_string()
+        } else {
+            parts.join(" ")
+        }
+    }
+
+    pub(crate) fn fleet_transfer_staged_summary(&self) -> String {
+        self.format_transfer_summary_from_selection(self.fleet_overlay.transfer_selection.clone())
+    }
+
+    fn finish_fleet_transfer_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(donor) = self.fleet_overlay.transfer_donor_record_index_1_based else {
+            return Err("Select two fleets for transfer.".into());
+        };
+        let Some(host) = self.fleet_overlay.transfer_host_record_index_1_based else {
+            return Err("Select two fleets for transfer.".into());
+        };
+        if self.fleet_overlay.transfer_selection.total_ships() == 0 {
+            self.fleet_overlay.aux_status =
+                Some("Stage at least one ship before committing.".to_string());
+            return Ok(());
+        }
+        self.game_data.transfer_ships_between_fleets(
+            self.player_record_index_1_based,
+            donor,
+            host,
+            self.fleet_overlay.transfer_selection.clone(),
+        )?;
+        self.save_and_refresh_runtime()?;
+        self.fleet_overlay.clear_group_selection();
+        self.cancel_fleet_aux_prompt();
+        Ok(())
     }
 
     fn selected_fleet_order_record_indexes(&self) -> BTreeSet<usize> {

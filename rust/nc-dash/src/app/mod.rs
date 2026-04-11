@@ -835,6 +835,65 @@ impl DashApp {
     fn handle_fleet_overlay_key(&mut self, key: KeyEvent) {
         let prompt_mode = self.fleet_overlay.prompt_mode;
         match prompt_mode {
+            FleetOverlayPromptMode::ChangeField
+            | FleetOverlayPromptMode::ChangeValue
+            | FleetOverlayPromptMode::MergeHost
+            | FleetOverlayPromptMode::MergeConfirm
+            | FleetOverlayPromptMode::TransferHost
+            | FleetOverlayPromptMode::TransferStage => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
+                KeyCode::Enter => {
+                    let result = match prompt_mode {
+                        FleetOverlayPromptMode::ChangeField
+                        | FleetOverlayPromptMode::ChangeValue => {
+                            self.submit_fleet_change_prompt()
+                        }
+                        FleetOverlayPromptMode::MergeHost
+                        | FleetOverlayPromptMode::MergeConfirm => {
+                            self.submit_fleet_merge_prompt()
+                        }
+                        FleetOverlayPromptMode::TransferHost
+                        | FleetOverlayPromptMode::TransferStage => {
+                            self.submit_fleet_transfer_prompt()
+                        }
+                        _ => Ok(()),
+                    };
+                    if let Err(err) = result {
+                        self.fleet_overlay.aux_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.fleet_overlay.aux_input.pop();
+                    self.fleet_overlay.aux_status = None;
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_aux_prompt();
+                }
+                KeyCode::Char(ch)
+                    if match prompt_mode {
+                        FleetOverlayPromptMode::ChangeField => ch.is_ascii_alphabetic(),
+                        FleetOverlayPromptMode::ChangeValue
+                        | FleetOverlayPromptMode::TransferHost
+                        | FleetOverlayPromptMode::MergeHost => ch.is_ascii_alphanumeric(),
+                        FleetOverlayPromptMode::MergeConfirm => matches!(ch, 'y' | 'Y' | 'n' | 'N'),
+                        FleetOverlayPromptMode::TransferStage => {
+                            match self.fleet_overlay.transfer_mode {
+                                crate::app::state::FleetOverlayTransferMode::ChoosingClass => {
+                                    ch.is_ascii_alphanumeric() || ch == '*'
+                                }
+                                crate::app::state::FleetOverlayTransferMode::EnteringQuantity(_) => {
+                                    ch.is_ascii_digit()
+                                }
+                            }
+                        }
+                        _ => false,
+                    } =>
+                {
+                    self.fleet_overlay.aux_input.push(ch.to_ascii_uppercase());
+                    self.fleet_overlay.aux_status = None;
+                }
+                _ => {}
+            },
             FleetOverlayPromptMode::MissionPicker => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetMissionPicker),
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -1078,6 +1137,9 @@ impl DashApp {
                     .open_prompt(FleetOverlayPromptMode::SortMenu);
             }
             KeyCode::Char('o') | KeyCode::Char('O') => self.open_selected_fleet_order_flow(),
+            KeyCode::Char('c') | KeyCode::Char('C') => self.open_selected_fleet_change_flow(),
+            KeyCode::Char('m') | KeyCode::Char('M') => self.open_selected_fleet_merge_flow(),
+            KeyCode::Char('t') | KeyCode::Char('T') => self.open_selected_fleet_transfer_flow(),
             KeyCode::Char(' ') => self.toggle_selected_fleet_row_for_group_order(),
             KeyCode::Char(ch)
                 if self.fleet_overlay.jump_input.len() < 8 && ch.is_ascii_alphanumeric() =>
@@ -2709,6 +2771,105 @@ mod tests {
         assert_eq!(
             app.fleet_overlay.selected_fleet_record_indexes,
             selected_records.into_iter().collect()
+        );
+    }
+
+    #[test]
+    fn checked_change_applies_roe_to_all_checked_fleets() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::FleetList;
+        let selected_records = select_first_two_fleet_rows(&mut app);
+
+        app.handle_key(key(KeyCode::Char('c')));
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::ChangeField
+        );
+
+        app.handle_key(key(KeyCode::Char('r')));
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::ChangeValue
+        );
+
+        app.handle_key(key(KeyCode::Char('4')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+        for record_index in selected_records {
+            let fleet = &app.game_data.fleets.records[record_index - 1];
+            assert_eq!(fleet.rules_of_engagement(), 4);
+        }
+    }
+
+    #[test]
+    fn checked_merge_uses_lowest_numbered_host() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::FleetList;
+        let selected_records = select_first_two_fleet_rows(&mut app);
+        let mut selected_fleets = selected_records
+            .iter()
+            .map(|record_index| {
+                let fleet = &app.game_data.fleets.records[*record_index - 1];
+                (
+                    *record_index,
+                    fleet.local_slot_word_raw(),
+                    fleet.current_location_coords_raw(),
+                )
+            })
+            .collect::<Vec<_>>();
+        selected_fleets.sort_by_key(|(_, fleet_number, _)| *fleet_number);
+        let host_record_index = selected_fleets[0].0;
+        let host_coords = selected_fleets[0].2;
+
+        app.handle_key(key(KeyCode::Char('m')));
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::MergeConfirm
+        );
+
+        app.handle_key(key(KeyCode::Char('y')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+        for (record_index, _, _) in selected_fleets.into_iter().skip(1) {
+            let fleet = &app.game_data.fleets.records[record_index - 1];
+            assert_eq!(fleet.standing_order_kind(), Order::JoinAnotherFleet);
+            assert_eq!(fleet.standing_order_target_coords_raw(), host_coords);
+        }
+        let host = &app.game_data.fleets.records[host_record_index - 1];
+        assert_ne!(host.standing_order_kind(), Order::JoinAnotherFleet);
+    }
+
+    #[test]
+    fn checked_transfer_uses_highlighted_checked_fleet_as_donor() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        let selected_records = select_first_two_fleet_rows(&mut app);
+        let donor_record_index = selected_records[1];
+        app.fleet_overlay.selected = fleet_list::table_rows(&app)
+            .iter()
+            .position(|row| {
+                row.key == FleetOverlayRowKey::Fleet(donor_record_index)
+            })
+            .expect("selected donor row");
+
+        app.handle_key(key(KeyCode::Char('t')));
+
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::TransferStage
+        );
+        assert_eq!(
+            app.fleet_overlay.transfer_donor_record_index_1_based,
+            Some(donor_record_index)
+        );
+        assert_eq!(
+            app.fleet_overlay.transfer_host_record_index_1_based,
+            Some(selected_records[0])
         );
     }
 

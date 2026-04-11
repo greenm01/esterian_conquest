@@ -40,6 +40,23 @@ impl App {
 
     pub fn open_fleet_order(&mut self) {
         if self.current_screen == ScreenId::FleetList {
+            if self.fleet_list_has_checked_selection() {
+                self.fleet.command_context = FleetCommandContext::List;
+                self.fleet.order_status = None;
+                self.fleet.order_mission_code = None;
+                self.fleet.order_return_to_menu = false;
+                self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
+                self.clear_fleet_order_target_inputs();
+                self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                self.fleet.group_status = None;
+                self.fleet.mission_picker_status = None;
+                self.fleet.mission_picker_input.clear();
+                self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
+                self.fleet.mission_picker_cursor =
+                    self.first_enabled_fleet_mission_index().unwrap_or(1);
+                self.current_screen = ScreenId::FleetMissionPicker;
+                return;
+            }
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     self.fleet.command_context = FleetCommandContext::List;
@@ -153,11 +170,16 @@ impl App {
             }
             ScreenId::FleetMissionPicker => match self.fleet.mission_picker_caller {
                 Some(FleetMissionPickerCaller::GroupOrder) => {
-                    self.current_screen = ScreenId::FleetGroupOrder;
-                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
                     self.fleet.mission_picker_input.clear();
                     self.fleet.mission_picker_status = None;
                     self.fleet.mission_picker_caller = None;
+                    self.current_screen = if self.fleet.command_context == FleetCommandContext::List
+                    {
+                        ScreenId::FleetList
+                    } else {
+                        ScreenId::FleetGroupOrder
+                    };
+                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
                     return;
                 }
                 Some(FleetMissionPickerCaller::SingleOrderReturnToOrder) => {
@@ -312,14 +334,15 @@ impl App {
     }
 
     pub fn toggle_fleet_group_order_selection(&mut self) {
-        if self.current_screen != ScreenId::FleetGroupOrder {
-            return;
-        }
-        if self.fleet.group_mode != FleetGroupOrderMode::SelectingFleets {
-            return;
-        }
-        let rows = self.fleet_rows();
-        let Some(row) = rows.get(self.fleet.group_cursor) else {
+        let row = match self.current_screen {
+            ScreenId::FleetGroupOrder if self.fleet.group_mode == FleetGroupOrderMode::SelectingFleets => {
+                let rows = self.fleet_rows();
+                rows.get(self.fleet.group_cursor).cloned()
+            }
+            ScreenId::FleetList => self.fleet_selected_list_row().ok(),
+            _ => None,
+        };
+        let Some(row) = row else {
             return;
         };
         if !self
@@ -792,8 +815,12 @@ impl App {
                     self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
                     self.fleet.group_mission_code = None;
                     self.clear_fleet_group_target_inputs();
-                    self.fleet.group_selected_fleets.clear();
-                    self.open_fleet_menu();
+                    if self.fleet.command_context == FleetCommandContext::List {
+                        self.current_screen = ScreenId::FleetList;
+                    } else {
+                        self.fleet.group_selected_fleets.clear();
+                        self.open_fleet_menu();
+                    }
                     return;
                 }
                 let Some(mission_code) = self.fleet.group_mission_code else {
@@ -1679,7 +1706,11 @@ impl App {
         self.fleet.group_mission_code = None;
         self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
-        self.current_screen = ScreenId::FleetGroupOrder;
+        self.current_screen = if self.fleet.command_context == FleetCommandContext::List {
+            ScreenId::FleetList
+        } else {
+            ScreenId::FleetGroupOrder
+        };
         self.fleet.group_status = None;
         Ok(())
     }
@@ -1706,7 +1737,11 @@ impl App {
         self.fleet.group_mission_code = None;
         self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
-        self.current_screen = ScreenId::FleetGroupOrder;
+        self.current_screen = if self.fleet.command_context == FleetCommandContext::List {
+            ScreenId::FleetList
+        } else {
+            ScreenId::FleetGroupOrder
+        };
         self.fleet.group_status = None;
         Ok(())
     }

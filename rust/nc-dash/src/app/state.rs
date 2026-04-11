@@ -7,6 +7,7 @@ use nc_data::{
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 use nc_ui::table_filter::{TableFilterClause, TableFilterColumn};
+use nc_data::FleetDetachSelection;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::client_settings::DashClientSettings;
@@ -348,11 +349,41 @@ pub enum FleetOverlayFilter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlayChangeField {
+    Roe,
+    Id,
+    Speed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlayTransferClass {
+    Battleships,
+    Cruisers,
+    Destroyers,
+    FullTransports,
+    EmptyTransports,
+    Scouts,
+    Etacs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlayTransferMode {
+    ChoosingClass,
+    EnteringQuantity(FleetOverlayTransferClass),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetOverlayPromptMode {
     None,
     SortMenu,
     FilterMenu,
     FilterValueInput,
+    ChangeField,
+    ChangeValue,
+    MergeHost,
+    MergeConfirm,
+    TransferHost,
+    TransferStage,
     MissionPicker,
     OrderTarget,
     OrderTargetX,
@@ -387,6 +418,14 @@ pub struct FleetOverlayState {
     pub location_filter: Option<[u8; 2]>,
     pub selected_fleet_record_indexes: BTreeSet<usize>,
     pub prompt_mode: FleetOverlayPromptMode,
+    pub aux_input: String,
+    pub aux_default: String,
+    pub aux_status: Option<String>,
+    pub change_field: Option<FleetOverlayChangeField>,
+    pub transfer_mode: FleetOverlayTransferMode,
+    pub transfer_donor_record_index_1_based: Option<usize>,
+    pub transfer_host_record_index_1_based: Option<usize>,
+    pub transfer_selection: FleetDetachSelection,
     pub order_scope: FleetOrderScope,
     pub active_row_key: Option<FleetOverlayRowKey>,
     pub mission_picker_input: String,
@@ -420,6 +459,14 @@ impl Default for FleetOverlayState {
             location_filter: None,
             selected_fleet_record_indexes: BTreeSet::new(),
             prompt_mode: FleetOverlayPromptMode::None,
+            aux_input: String::new(),
+            aux_default: String::new(),
+            aux_status: None,
+            change_field: None,
+            transfer_mode: FleetOverlayTransferMode::ChoosingClass,
+            transfer_donor_record_index_1_based: None,
+            transfer_host_record_index_1_based: None,
+            transfer_selection: FleetDetachSelection::default(),
             order_scope: FleetOrderScope::None,
             active_row_key: None,
             mission_picker_input: String::new(),
@@ -459,6 +506,14 @@ impl FleetOverlayState {
         self.filter_prompt_input.clear();
         self.filter_prompt_default.clear();
         self.filter_prompt_status = None;
+        self.aux_input.clear();
+        self.aux_default.clear();
+        self.aux_status = None;
+        self.change_field = None;
+        self.transfer_mode = FleetOverlayTransferMode::ChoosingClass;
+        self.transfer_donor_record_index_1_based = None;
+        self.transfer_host_record_index_1_based = None;
+        self.transfer_selection = FleetDetachSelection::default();
         self.prompt_stack.clear();
     }
 

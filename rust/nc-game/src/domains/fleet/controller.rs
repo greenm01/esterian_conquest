@@ -12,7 +12,9 @@ use crate::screen::{
     FleetRow, PlanetTransportMode, ScreenId, SortDirection,
 };
 use nc_data::{FleetRecord, Order};
-use nc_engine::{FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line};
+use nc_engine::{
+    FleetTargetInputKind, SelectedFleetRef, fleet_target_input_kind, fleet_target_status_line,
+};
 use nc_ui::table_filter::{
     ColumnCodeParseError, FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
     format_column_code_error, is_filter_value_char, parse_column_code, parse_filter_clause,
@@ -125,9 +127,18 @@ const FLEET_FILTER_COLUMNS: &[TableFilterColumn] = &[
         label: "Ships",
         kind: FilterKind::Text,
     },
+    TableFilterColumn {
+        code: "sel",
+        label: "Selected",
+        kind: FilterKind::Bool,
+    },
 ];
 
-fn fleet_matches_clause(row: &FleetRow, clause: &TableFilterClause) -> bool {
+fn fleet_matches_clause(
+    row: &FleetRow,
+    clause: &TableFilterClause,
+    selected_fleet_record_indexes: &std::collections::BTreeSet<usize>,
+) -> bool {
     match clause.column.code {
         "id" => clause.predicate.matches_number(Some(i64::from(row.fleet_number))),
         "loc" => clause.predicate.matches_coord(row.coords),
@@ -155,6 +166,9 @@ fn fleet_matches_clause(row: &FleetRow, clause: &TableFilterClause) -> bool {
             .predicate
             .matches_number(Some(i64::from(row.loaded_armies))),
         "shi" => clause.predicate.matches_text(Some(&row.composition_label)),
+        "sel" => clause
+            .predicate
+            .matches_bool(selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based)),
         _ => true,
     }
 }
@@ -216,6 +230,7 @@ impl App {
     pub fn open_fleet_menu(&mut self) {
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.clear_checked_fleet_selection();
         self.fleet.command_context = FleetCommandContext::Menu;
         self.fleet.order_return_to_menu = false;
         self.fleet.list_dismiss_message = None;
@@ -235,6 +250,36 @@ impl App {
     fn clear_fleet_list_input(&mut self) {
         self.fleet.list_input.clear();
         self.fleet.list_status = None;
+    }
+
+    pub(crate) fn clear_checked_fleet_selection(&mut self) {
+        self.fleet.group_selected_fleets.clear();
+    }
+
+    pub(crate) fn checked_fleet_rows(&self) -> Vec<FleetRow> {
+        self.fleet_rows()
+            .into_iter()
+            .filter(|row| {
+                self.fleet
+                    .group_selected_fleets
+                    .contains(&row.fleet_record_index_1_based)
+            })
+            .collect()
+    }
+
+    pub(crate) fn checked_fleet_refs(&self) -> Vec<SelectedFleetRef> {
+        self.checked_fleet_rows()
+            .into_iter()
+            .map(|row| SelectedFleetRef {
+                fleet_record_index_1_based: row.fleet_record_index_1_based,
+                fleet_number: row.fleet_number,
+                coords: row.coords,
+            })
+            .collect()
+    }
+
+    pub(crate) fn fleet_list_has_checked_selection(&self) -> bool {
+        self.current_screen == ScreenId::FleetList && !self.fleet.group_selected_fleets.is_empty()
     }
 
     pub(crate) fn clear_fleet_list_dismiss_message(&mut self) {
@@ -478,7 +523,13 @@ impl App {
             FleetMenuPromptMode::Review => "Review Fleet # ".to_string(),
             FleetMenuPromptMode::Order => "Order Fleet # ".to_string(),
             FleetMenuPromptMode::ChangeFleet => "Change Fleet # ".to_string(),
-            FleetMenuPromptMode::ChangeField => "Change <R>OE, <I>D, or <S>peed ".to_string(),
+            FleetMenuPromptMode::ChangeField => {
+                if self.fleet_list_has_checked_selection() {
+                    "Change checked fleets <R>OE or <S>peed ".to_string()
+                } else {
+                    "Change <R>OE, <I>D, or <S>peed ".to_string()
+                }
+            }
             FleetMenuPromptMode::ChangeValue => match self.fleet.menu_prompt_change_field {
                 Some(FleetChangeField::Roe) => "New ROE ".to_string(),
                 Some(FleetChangeField::Id) => "New Fleet ID ".to_string(),
@@ -489,6 +540,7 @@ impl App {
             FleetMenuPromptMode::DetachFleet => "Detach Fleet # ".to_string(),
             FleetMenuPromptMode::MergeSource => "Merge Fleet # ".to_string(),
             FleetMenuPromptMode::MergeHost => "Into Fleet # ".to_string(),
+            FleetMenuPromptMode::MergeCheckedConfirm => "Merge checked fleets? [Y]/N ".to_string(),
             FleetMenuPromptMode::TransferDonor => "Transfer From Fleet # ".to_string(),
             FleetMenuPromptMode::TransferHost => "Transfer To Fleet # ".to_string(),
             FleetMenuPromptMode::TransportFleet(PlanetTransportMode::Load) => {
@@ -546,9 +598,23 @@ impl App {
 
     pub fn open_fleet_change_prompt(&mut self) {
         if self.current_screen == ScreenId::FleetList {
+            if self.fleet_list_has_checked_selection() {
+                self.fleet.command_context = FleetCommandContext::List;
+                self.clear_command_menu_notice();
+                self.clear_fleet_list_input();
+                self.clear_fleet_list_dismiss_message();
+                self.fleet.menu_prompt_context_fleet_record_index_1_based = None;
+                self.fleet.menu_prompt_change_field = None;
+                self.fleet.menu_prompt_mode = Some(FleetMenuPromptMode::ChangeField);
+                self.fleet.menu_prompt_input.clear();
+                self.fleet.menu_prompt_status = None;
+                self.fleet.menu_prompt_default_value = "R".to_string();
+                return;
+            }
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     self.fleet.command_context = FleetCommandContext::List;
+                    self.clear_checked_fleet_selection();
                     self.clear_command_menu_notice();
                     self.clear_fleet_list_input();
                     self.clear_fleet_list_dismiss_message();
@@ -606,6 +672,7 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.clear_checked_fleet_selection();
         self.fleet.command_context = FleetCommandContext::List;
         self.fleet.dismiss_message = None;
         self.fleet.list_dismiss_message = None;
@@ -622,6 +689,7 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.clear_checked_fleet_selection();
         self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
         self.fleet.list_filter_prompt_input.clear();
         self.fleet.list_filter_prompt_default_value = "all".to_string();
@@ -654,6 +722,7 @@ impl App {
 
     pub fn submit_fleet_list_filter(&mut self, filter: FleetListFilter) {
         self.fleet.list_filter_clause = None;
+        self.clear_checked_fleet_selection();
         let selected_record = self
             .fleet_list_rows()
             .get(self.fleet.cursor)
@@ -958,7 +1027,6 @@ impl App {
     }
 
     fn submit_inline_fleet_change(&mut self) -> Result<(), String> {
-        let row = self.prompt_context_fleet_row()?;
         let raw = if self.fleet.menu_prompt_input.trim().is_empty() {
             self.fleet.menu_prompt_default_value.trim().to_string()
         } else {
@@ -973,34 +1041,72 @@ impl App {
                 let roe = raw
                     .parse::<u8>()
                     .map_err(|_| "Enter an ROE from 0 to 10.".to_string())?;
-                self.game_data
-                    .set_fleet_rules_of_engagement(
-                        self.player.record_index_1_based,
-                        row.fleet_record_index_1_based,
-                        roe,
-                    )
-                    .map_err(|err| match err {
-                        nc_data::GameStateMutationError::InvalidFleetPlayerInput {
-                            reason:
-                                nc_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                let checked_rows = self.checked_fleet_rows();
+                if self.fleet_list_has_checked_selection() {
+                    for row in &checked_rows {
+                        self.game_data
+                            .set_fleet_rules_of_engagement(
+                                self.player.record_index_1_based,
+                                row.fleet_record_index_1_based,
+                                roe,
+                            )
+                            .map_err(|err| match err {
+                                nc_data::GameStateMutationError::InvalidFleetPlayerInput {
+                                    reason:
+                                        nc_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                                            ..
+                                        },
                                     ..
-                                },
-                            ..
-                        } => "Support-only fleets must use ROE 0.".to_string(),
-                        nc_data::GameStateMutationError::InvalidFleetPlayerInput {
-                            reason:
-                                nc_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },
-                            ..
-                        } => "Enter an ROE from 0 to 10.".to_string(),
-                        other => other.to_string(),
-                    })?;
+                                } => "Support-only fleets must use ROE 0.".to_string(),
+                                nc_data::GameStateMutationError::InvalidFleetPlayerInput {
+                                    reason:
+                                        nc_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },
+                                    ..
+                                } => "Enter an ROE from 0 to 10.".to_string(),
+                                other => other.to_string(),
+                            })?;
+                    }
+                } else {
+                    let row = self.prompt_context_fleet_row()?;
+                    self.game_data
+                        .set_fleet_rules_of_engagement(
+                            self.player.record_index_1_based,
+                            row.fleet_record_index_1_based,
+                            roe,
+                        )
+                        .map_err(|err| match err {
+                            nc_data::GameStateMutationError::InvalidFleetPlayerInput {
+                                reason:
+                                    nc_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                                        ..
+                                    },
+                                ..
+                            } => "Support-only fleets must use ROE 0.".to_string(),
+                            nc_data::GameStateMutationError::InvalidFleetPlayerInput {
+                                reason:
+                                    nc_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },
+                                ..
+                            } => "Enter an ROE from 0 to 10.".to_string(),
+                            other => other.to_string(),
+                        })?;
+                }
                 self.save_game_data().map_err(|err| err.to_string())?;
-                self.show_fleet_context_success(
-                    format!("Fleet #{} ROE set to {}.", row.fleet_number, roe),
-                    true,
-                );
+                if self.fleet_list_has_checked_selection() {
+                    self.clear_checked_fleet_selection();
+                    self.show_fleet_context_success(
+                        format!("Set ROE {} for {} checked fleets.", roe, checked_rows.len()),
+                        true,
+                    );
+                } else {
+                    let row = self.prompt_context_fleet_row()?;
+                    self.show_fleet_context_success(
+                        format!("Fleet #{} ROE set to {}.", row.fleet_number, roe),
+                        true,
+                    );
+                }
             }
             FleetChangeField::Id => {
+                let row = self.prompt_context_fleet_row()?;
                 let local_slot = raw
                     .parse::<u16>()
                     .map_err(|_| "Enter a fleet ID from 1 up.".to_string())?;
@@ -1029,34 +1135,73 @@ impl App {
                 let speed = raw
                     .parse::<u8>()
                     .map_err(|_| "Enter a speed from 0 up.".to_string())?;
-                let fleet = self
-                    .game_data
-                    .fleets
-                    .records
-                    .get(row.fleet_record_index_1_based - 1)
-                    .ok_or_else(|| "Selected fleet is no longer available.".to_string())?
-                    .clone();
-                let aux = fleet.mission_aux_bytes();
-                self.game_data
-                    .set_fleet_order(
-                        row.fleet_record_index_1_based,
-                        speed,
-                        fleet.standing_order_code_raw(),
-                        fleet.standing_order_target_coords_raw(),
-                        Some(aux[0]),
-                        Some(aux[1]),
-                    )
-                    .map_err(|err| match err {
-                        nc_data::GameStateMutationError::InvalidFleetSpeed { max, .. } => {
-                            format!("Enter a speed from 0 to {max}.")
-                        }
-                        other => other.to_string(),
-                    })?;
+                let checked_rows = self.checked_fleet_rows();
+                if self.fleet_list_has_checked_selection() {
+                    for row in &checked_rows {
+                        let fleet = self
+                            .game_data
+                            .fleets
+                            .records
+                            .get(row.fleet_record_index_1_based - 1)
+                            .ok_or_else(|| "Selected fleet is no longer available.".to_string())?
+                            .clone();
+                        let aux = fleet.mission_aux_bytes();
+                        self.game_data
+                            .set_fleet_order(
+                                row.fleet_record_index_1_based,
+                                speed,
+                                fleet.standing_order_code_raw(),
+                                fleet.standing_order_target_coords_raw(),
+                                Some(aux[0]),
+                                Some(aux[1]),
+                            )
+                            .map_err(|err| match err {
+                                nc_data::GameStateMutationError::InvalidFleetSpeed { max, .. } => {
+                                    format!("Enter a speed from 0 to {max}.")
+                                }
+                                other => other.to_string(),
+                            })?;
+                    }
+                } else {
+                    let row = self.prompt_context_fleet_row()?;
+                    let fleet = self
+                        .game_data
+                        .fleets
+                        .records
+                        .get(row.fleet_record_index_1_based - 1)
+                        .ok_or_else(|| "Selected fleet is no longer available.".to_string())?
+                        .clone();
+                    let aux = fleet.mission_aux_bytes();
+                    self.game_data
+                        .set_fleet_order(
+                            row.fleet_record_index_1_based,
+                            speed,
+                            fleet.standing_order_code_raw(),
+                            fleet.standing_order_target_coords_raw(),
+                            Some(aux[0]),
+                            Some(aux[1]),
+                        )
+                        .map_err(|err| match err {
+                            nc_data::GameStateMutationError::InvalidFleetSpeed { max, .. } => {
+                                format!("Enter a speed from 0 to {max}.")
+                            }
+                            other => other.to_string(),
+                        })?;
+                }
                 self.save_game_data().map_err(|err| err.to_string())?;
-                self.show_fleet_context_success(
-                    format!("Fleet #{} speed set to {}.", row.fleet_number, speed),
-                    true,
-                );
+                if self.fleet_list_has_checked_selection() {
+                    self.clear_checked_fleet_selection();
+                    self.show_fleet_context_success(
+                        format!("Set speed {} for {} checked fleets.", speed, checked_rows.len()),
+                        true,
+                    );
+                } else {
+                    let row = self.prompt_context_fleet_row()?;
+                    self.show_fleet_context_success(
+                        format!("Fleet #{} speed set to {}.", row.fleet_number, speed),
+                        true,
+                    );
+                }
             }
         }
         Ok(())
@@ -1174,6 +1319,9 @@ impl App {
         };
         let (allowed, max_len) = match mode {
             FleetMenuPromptMode::ChangeField => (ch.is_ascii_alphabetic(), 1),
+            FleetMenuPromptMode::MergeCheckedConfirm => {
+                (matches!(ch, 'y' | 'Y' | 'n' | 'N'), 1)
+            }
             FleetMenuPromptMode::ChangeValue => {
                 let max_len = match self.fleet.menu_prompt_change_field {
                     Some(FleetChangeField::Roe) | Some(FleetChangeField::Speed) => 2,
@@ -1191,7 +1339,10 @@ impl App {
             _ => ch,
         });
         self.fleet.menu_prompt_status = None;
-        if mode == FleetMenuPromptMode::ChangeField {
+        if matches!(
+            mode,
+            FleetMenuPromptMode::ChangeField | FleetMenuPromptMode::MergeCheckedConfirm
+        ) {
             self.submit_fleet_menu_prompt();
         }
     }
@@ -1320,7 +1471,9 @@ impl App {
         let mut rows = self.fleet_rows();
         rows.retain(|row| fleet_matches_filter(row, self.fleet.list_filter));
         if let Some(clause) = &self.fleet.list_filter_clause {
-            rows.retain(|row| fleet_matches_clause(row, clause));
+            rows.retain(|row| {
+                fleet_matches_clause(row, clause, &self.fleet.group_selected_fleets)
+            });
         }
         rows.sort_by(|left, right| match self.fleet.list_sort {
             FleetListSort::Id => apply_sort_direction(
@@ -1389,6 +1542,17 @@ impl App {
             "roe" => row.rules_of_engagement.to_string(),
             "ars" => row.loaded_armies.to_string(),
             "shi" => String::new(),
+            "sel" => {
+                if self
+                    .fleet
+                    .group_selected_fleets
+                    .contains(&row.fleet_record_index_1_based)
+                {
+                    "yes".to_string()
+                } else {
+                    "no".to_string()
+                }
+            }
             _ => String::new(),
         }
     }
@@ -1568,6 +1732,24 @@ impl App {
     }
 
     fn fleet_change_value_default(&self) -> Result<String, String> {
+        if self.fleet_list_has_checked_selection() {
+            let rows = self.checked_fleet_rows();
+            return Ok(match self.fleet.menu_prompt_change_field {
+                Some(FleetChangeField::Roe) => rows
+                    .first()
+                    .map(|row| row.rules_of_engagement)
+                    .filter(|roe| rows.iter().all(|row| row.rules_of_engagement == *roe))
+                    .map(|roe| roe.to_string())
+                    .unwrap_or_default(),
+                Some(FleetChangeField::Speed) => rows
+                    .first()
+                    .map(|row| row.current_speed)
+                    .filter(|speed| rows.iter().all(|row| row.current_speed == *speed))
+                    .map(|speed| speed.to_string())
+                    .unwrap_or_default(),
+                Some(FleetChangeField::Id) | None => String::new(),
+            });
+        }
         let row = self.prompt_context_fleet_row()?;
         Ok(match self.fleet.menu_prompt_change_field {
             Some(FleetChangeField::Roe) => row.rules_of_engagement.to_string(),
@@ -1585,9 +1767,23 @@ impl App {
         };
         match raw.chars().next().map(|ch| ch.to_ascii_uppercase()) {
             Some('R') => Ok(FleetChangeField::Roe),
-            Some('I') => Ok(FleetChangeField::Id),
+            Some('I') if !self.fleet_list_has_checked_selection() => Ok(FleetChangeField::Id),
             Some('S') => Ok(FleetChangeField::Speed),
+            _ if self.fleet_list_has_checked_selection() => Err("Enter R or S.".to_string()),
             _ => Err("Enter R, I, or S.".to_string()),
+        }
+    }
+
+    fn resolve_checked_merge_confirm(&self) -> Result<bool, String> {
+        let raw = if self.fleet.menu_prompt_input.trim().is_empty() {
+            self.fleet.menu_prompt_default_value.trim()
+        } else {
+            self.fleet.menu_prompt_input.trim()
+        };
+        match raw.chars().next().map(|ch| ch.to_ascii_uppercase()) {
+            Some('Y') => Ok(true),
+            Some('N') => Ok(false),
+            _ => Err("Enter Y or N.".to_string()),
         }
     }
 
@@ -1962,6 +2158,30 @@ impl App {
                 Ok(row) => {
                     if let Err(err) = self.submit_inline_fleet_merge(row.fleet_record_index_1_based)
                     {
+                        self.fleet.menu_prompt_status =
+                            self.show_fleet_prompt_feedback(PromptFeedback::error(err));
+                    }
+                }
+                Err(err) => {
+                    self.fleet.menu_prompt_status =
+                        self.show_fleet_prompt_feedback(PromptFeedback::error(err))
+                }
+            },
+            FleetMenuPromptMode::MergeCheckedConfirm => match self.resolve_checked_merge_confirm() {
+                Ok(false) => {
+                    self.clear_fleet_menu_prompt();
+                    self.current_screen = ScreenId::FleetList;
+                }
+                Ok(true) => {
+                    let plan = match self.checked_merge_plan() {
+                        Ok(plan) => plan,
+                        Err(err) => {
+                            self.fleet.menu_prompt_status =
+                                self.show_fleet_prompt_feedback(PromptFeedback::error(err));
+                            return;
+                        }
+                    };
+                    if let Err(err) = self.submit_checked_fleet_merge(plan) {
                         self.fleet.menu_prompt_status =
                             self.show_fleet_prompt_feedback(PromptFeedback::error(err));
                     }

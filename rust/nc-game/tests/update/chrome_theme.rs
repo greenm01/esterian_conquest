@@ -1010,7 +1010,7 @@ fn planet_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(3).trim_end(),
-        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet List         L>oad TTs w/Armies"
+        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>LANET LIST         L>oad TTs w/Armies"
     );
     assert_eq!(
         terminal.line(4).trim_end(),

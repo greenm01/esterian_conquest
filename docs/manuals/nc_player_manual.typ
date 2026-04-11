@@ -621,6 +621,14 @@ The *Planet List* is the fast row-centric operations screen for owned worlds. On
 
 Fleet Command controls your ships in space. Mission (*O*) assigns missions 0--15. ROE (*C*) changes a fleet's rules of engagement. Merge (*M*) combines fleets that are in the same sector. Transfer (*T*) moves individual ships between fleets.
 
+The *Fleet List* is also the bulk-fleet work screen. It now includes a *Sel*
+column. Press *Space* on a fleet row to check or uncheck it. When one or more
+fleets are checked, *O* assigns one mission to the checked set, *C* changes
+their shared ROE or speed, *M* merges the checked fleets using the lowest
+Fleet ID as the host, and *T* opens ship transfer for a checked pair. Row-based
+commands such as *Review*, *ETA*, *Detach*, *Load*, and *Unload* still use the
+highlighted fleet.
+
 === Building and Commissioning
 
 Each planet has a *10-slot build queue*. During maintenance, a planet processes as many queued build points as its current per-turn build capacity allows. Small orders may finish in one maintenance turn, while larger ones can stay queued across multiple years until the remaining cost reaches zero. As enough points are applied to complete individual units, ships and starbases move to *Stardock* --- a holding area on the planet where they sit idle and vulnerable until commissioned --- even if other units from the same order remain queued. Ships are commissioned into numbered fleets, while starbases are commissioned individually and managed through their own Starbase Command submenu. Armies and ground batteries, by contrast, deploy directly to the planet surface and do not pass through stardock.
@@ -1077,11 +1085,11 @@ shows the matching codes so you can narrow the entry.
 Examples:
 
 - Fleet list, `ord`: `holding`
+- Fleet list, `sel`: `yes`
 - Fleet list, `roe`: `>=4`
 - Planet list, `coo`: `12,7/3`
 - Total planet database, `own`: `#3`
 - Total planet database, `max`: `>=100`
-- Dashboard fleet list, `sel`: `yes`
 
 === Sorting Procedure
 
@@ -1111,7 +1119,7 @@ The active sort and active filter both appear in the table title.
     [`roe`], [ROE], [Rules of engagement value],
     [`ars`], [Armies], [Loaded armies],
     [`shi`], [Ships], [Ship and force summary text],
-    [`sel`], [Selected], [Dashboard only; use `yes` or `no`],
+    [`sel`], [Selected], [Use `yes` or `no`],
   ),
 )
 

@@ -26,6 +26,7 @@ pub enum FleetMenuPromptMode {
     DetachFleet,
     MergeSource,
     MergeHost,
+    MergeCheckedConfirm,
     TransferDonor,
     TransferHost,
     TransportFleet(PlanetTransportMode),

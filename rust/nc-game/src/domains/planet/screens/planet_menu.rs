@@ -38,7 +38,7 @@ const ROW_1: [MenuEntry<'static>; 4] = [
 const ROW_2: [MenuEntry<'static>; 4] = [
     MenuEntry::new(PLANET_COL_1, "Q", "uit: Main Menu"),
     MenuEntry::new(PLANET_COL_2, "A", "UTO-COMMISSION"),
-    MenuEntry::featured(PLANET_COL_3, "P", "lanet List"),
+    MenuEntry::featured(PLANET_COL_3, "P", "LANET LIST"),
     MenuEntry::new(PLANET_COL_4, "L", "oad TTs w/Armies"),
 ];
 

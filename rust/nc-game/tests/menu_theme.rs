@@ -51,7 +51,7 @@ fn featured_menu_label_cells_are_used_for_planet_and_fleet_lists() {
         )
         .expect("planet menu should render");
     let planet_line = planet_buffer.plain_line(3);
-    let planet_col = planet_line.find("P>lanet List").expect("planet list entry");
+    let planet_col = planet_line.find("P>LANET LIST").expect("planet list entry");
     assert_eq!(planet_buffer.row(3)[planet_col].style, normal_style);
     assert_eq!(planet_buffer.row(3)[planet_col + 2].style, featured_style);
     let auto_col = planet_line
@@ -82,7 +82,7 @@ fn featured_menu_label_cells_are_used_for_planet_and_fleet_lists() {
         )
         .expect("fleet menu should render");
     let fleet_line = fleet_buffer.plain_line(4);
-    let fleet_col = fleet_line.find("F>leet List").expect("fleet list entry");
+    let fleet_col = fleet_line.find("F>LEET LIST").expect("fleet list entry");
     assert_eq!(fleet_buffer.row(4)[fleet_col].style, normal_style);
     assert_eq!(fleet_buffer.row(4)[fleet_col + 2].style, featured_style);
     let detach_col = fleet_line.find("D>etach Ships").expect("detach entry");

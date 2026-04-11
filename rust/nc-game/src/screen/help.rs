@@ -72,7 +72,7 @@ const FLEET_LINES: [&str; 17] = [
     "<D> - detach one or more starships from a fleet to form a new fleet",
     "<E> - calculate any fleet's travel time to any potential destination",
     "<F> - display a longer but detailed list of your fleets",
-    "<G> - order a group of fleets; ex: g 1 2 3 4 m 0 orders fleets 1-4 on m0",
+    "Fleet List - use SPACE on the Sel column to check fleets for O/C/M/T bulk work",
     "<?> - show Fleet Command Center help",
     "<I> - show Intelligence on what you know about any planet",
     "<L> - load one or more armies from a planet onto the transports of a fleet",
