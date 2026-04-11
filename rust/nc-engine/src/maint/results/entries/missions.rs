@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionOutcome};
+use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionAbortReason, MissionOutcome};
 
 use crate::maint::results::combat::*;
 use crate::maint::results::compose::{
@@ -47,6 +47,34 @@ fn roe_abort_outcome_text(kind: Mission) -> &'static str {
         Mission::JoinAnotherFleet => "This forced us to abandon our join mission.",
         Mission::RendezvousSector => "This forced us to abandon our rendezvous assignment.",
         _ => "This forced us to abandon our mission.",
+    }
+}
+
+fn hostile_assault_abort_text(
+    kind: Mission,
+    reason: Option<MissionAbortReason>,
+    follow_on: &str,
+) -> String {
+    match (kind, reason) {
+        (Mission::BombardWorld, Some(MissionAbortReason::OrbitBlocked)) => format!(
+            " Bombardment mission report: Hostile forces denied us bombardment position around the target world. We are aborting the mission and {follow_on}."
+        ),
+        (Mission::InvadeWorld, Some(MissionAbortReason::OrbitBlocked)) => format!(
+            " Invasion mission report: We could not secure orbit for the landing. We are aborting the mission and {follow_on}."
+        ),
+        (Mission::BlitzWorld, Some(MissionAbortReason::OrbitBlocked)) => format!(
+            " Blitz mission report: We could not secure orbit for the landing. We are aborting the mission and {follow_on}."
+        ),
+        (Mission::BombardWorld, _) => format!(
+            " Bombardment mission report: Hostile action stripped us of our bombardment capability. We are aborting the mission and {follow_on}."
+        ),
+        (Mission::InvadeWorld, _) => format!(
+            " Invasion mission report: Hostile action stripped us of our invasion capability before the landing could begin. We are aborting the mission and {follow_on}."
+        ),
+        (Mission::BlitzWorld, _) => format!(
+            " Blitz mission report: Hostile action stripped us of our assault capability before the landing could begin. We are aborting the mission and {follow_on}."
+        ),
+        _ => unreachable!("hostile assault abort text only applies to bombard/invade/blitz"),
     }
 }
 
@@ -569,27 +597,30 @@ pub fn push_mission_entries(
                 0x08,
                 RESULTS_TAIL_BOMBARD,
                 source_clause.clone(),
-                MissionReportBody::Narrative(format!(
-                    " Bombardment mission report: Hostile action stripped us of our bombardment capability. We are aborting the mission and {}.",
-                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                MissionReportBody::Narrative(hostile_assault_abort_text(
+                    Mission::BombardWorld,
+                    event.abort_reason,
+                    &aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw),
                 )),
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => (
                 0x0c,
                 RESULTS_TAIL_INVASION,
                 source_clause.clone(),
-                MissionReportBody::Narrative(format!(
-                    " Invasion mission report: Hostile action stripped us of our invasion capability before the landing could begin. We are aborting the mission and {}.",
-                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                MissionReportBody::Narrative(hostile_assault_abort_text(
+                    Mission::InvadeWorld,
+                    event.abort_reason,
+                    &aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw),
                 )),
             ),
             (Mission::BlitzWorld, MissionOutcome::Aborted) => (
                 0x0c,
                 RESULTS_TAIL_INVASION,
                 source_clause.clone(),
-                MissionReportBody::Narrative(format!(
-                    " Blitz mission report: Hostile action stripped us of our assault capability before the landing could begin. We are aborting the mission and {}.",
-                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                MissionReportBody::Narrative(hostile_assault_abort_text(
+                    Mission::BlitzWorld,
+                    event.abort_reason,
+                    &aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw),
                 )),
             ),
             (Mission::InvadeWorld, _) | (Mission::BlitzWorld, _) => continue,

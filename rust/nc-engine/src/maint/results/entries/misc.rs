@@ -139,14 +139,14 @@ pub fn push_misc_entries(
                 None => " Our last world has been lost, and no recovery force remains able to restore our empire.".to_string(),
             },
             nc_data::EmpireEliminationCause::LastRecoveryForceDestroyed => {
-                " Our final remaining recovery force has been destroyed while we are planetless. The empire can no longer continue the campaign.".to_string()
+                " Our final remaining recovery force has been destroyed while we are planetless. We can no longer continue the campaign.".to_string()
             }
             nc_data::EmpireEliminationCause::RecoveryWindowExpired => {
-                " We failed to reclaim a world before the recovery window expired. The empire can no longer continue the campaign.".to_string()
+                " We failed to reclaim a world before our recovery window expired. We can no longer continue the campaign.".to_string()
             }
         };
         let loser_body = format!(
-            " ALERT: Empire defeated! {defeated} has been defeated.{cause_clause} Remaining scattered forces are no longer under player command."
+            " ALERT: Empire defeated! We have been defeated.{cause_clause} Remaining scattered forces are no longer under player command."
         );
         entries.push(ReportEntry {
             text: format!("{header}{loser_body}"),
@@ -198,7 +198,7 @@ pub fn push_misc_entries(
         let winner = empire_label(game_data, event.winner_empire_raw);
         let body = if event.recipient_empire_raw == event.winner_empire_raw {
             format!(
-                " ALERT: Victory declared! {winner} has been recognized as Emperor. The campaign is over. You may continue to review the final game state in survey mode, but no further orders will be accepted."
+                " ALERT: Victory declared! We have been recognized as Emperor. The campaign is over. You may continue to review the final game state in survey mode, but no further orders will be accepted."
             )
         } else {
             format!(

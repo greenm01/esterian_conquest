@@ -159,6 +159,9 @@ Coverage rules:
 - if a planet repels or blocks an invasion or blitz, the defender should still
   receive a structured aftermath report; failed assaults must not be attacker-
   only
+- blocked hostile-world reports should distinguish "orbit denied / landing
+  blocked" from "assault capability destroyed"; do not reuse capability-loss
+  wording when the fleet still has valid loaded transports
 
 Prefer one short outcome sentence plus labeled loss rows over paragraph-style
 battle narration.
@@ -274,9 +277,9 @@ Lost hosts: Fleets 10 and 12 lost host Fleet 14 and are holding position.
 
 ```text
 From your Fleet Command Center:                        Stardate: 04/3059
-ALERT: Victory declared! "Player1", (Empire #1) has been recognized as
-Emperor. The campaign is over. You may continue to review the final game state
-in survey mode, but no further orders will be accepted.
+ALERT: Victory declared! We have been recognized as Emperor. The campaign is
+over. You may continue to review the final game state in survey mode, but no
+further orders will be accepted.
 <end of transmission>
 ```
 

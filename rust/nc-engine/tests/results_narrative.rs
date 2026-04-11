@@ -1,7 +1,8 @@
 use nc_data::{
-    AssaultReportEvent, BombardEvent, ContactReportSource, EncounterDispositionEvent,
-    EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError,
-    GameStateBuilder, InvalidPlayerStateEvent, MaintenanceEvents, Mission, MissionEvent,
+    AssaultReportEvent, BombardEvent, ContactReportSource, EmpireEliminationCause,
+    EmpireEliminationEvent, EncounterDispositionEvent, EncounterDispositionReason,
+    FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError, GameStateBuilder,
+    GameVictoryNoticeEvent, InvalidPlayerStateEvent, MaintenanceEvents, Mission, MissionEvent,
     MissionOutcome, PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, PlanetRecord,
     ScoutContactEvent, ShipLosses,
 };
@@ -834,6 +835,7 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
         owner_empire_raw: 1,
         kind: Mission::BombardWorld,
         outcome: MissionOutcome::Succeeded,
+        abort_reason: None,
         planet_idx: Some(0),
         location_coords: Some(coords),
         target_coords: Some(coords),
@@ -942,6 +944,7 @@ fn scout_system_report_uses_estimated_production_not_present_production() {
         owner_empire_raw: 1,
         kind: Mission::ScoutSolarSystem,
         outcome: MissionOutcome::Succeeded,
+        abort_reason: None,
         planet_idx: Some(0),
         location_coords: Some(coords),
         target_coords: Some(coords),
@@ -1038,6 +1041,7 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
         owner_empire_raw: 1,
         kind: Mission::InvadeWorld,
         outcome: MissionOutcome::Aborted,
+        abort_reason: None,
         planet_idx: Some(0),
         location_coords: Some([15, 13]),
         target_coords: Some([15, 13]),
@@ -1733,4 +1737,54 @@ fn invalid_fleet_mission_report_tolerates_removed_fleet_index() {
         .replace('\n', " ");
     assert!(text.contains("Hostile action forced us to abort the invade world mission"));
     assert!(text.contains("holding position and awaiting orders"));
+}
+
+#[test]
+fn defeated_empire_report_uses_first_person_voice() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3063)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.empire_elimination_events.push(EmpireEliminationEvent {
+        defeated_empire_raw: 2,
+        victor_empire_raw: Some(1),
+        cause: EmpireEliminationCause::LastPlanetLost,
+        planet_idx: None,
+        coords: Some([7, 5]),
+        stardate_week: Some(52),
+    });
+
+    let text = viewer_report_texts(2, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("ALERT: Empire defeated! We have been defeated."));
+    assert!(text.contains(
+        "Our last world has been lost at System(7,5), and no recovery force remains able to restore our empire."
+    ));
+    assert!(!text.contains("\"Player2\" has been defeated."));
+}
+
+#[test]
+fn victory_declared_report_uses_first_person_for_winner() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3063)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.game_victory_notice_events.push(GameVictoryNoticeEvent {
+        recipient_empire_raw: 1,
+        winner_empire_raw: 1,
+        stardate_week: Some(52),
+    });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("ALERT: Victory declared! We have been recognized as Emperor."));
+    assert!(!text.contains("\"Player1\", (Empire #1) has been recognized as Emperor."));
 }

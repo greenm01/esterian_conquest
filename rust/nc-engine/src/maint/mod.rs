@@ -521,6 +521,7 @@ pub fn run_maintenance_turn_with_context_seed_and_lifecycle(
                 owner_empire_raw: colonizer_empire_raw,
                 kind: Mission::ColonizeWorld,
                 outcome: MissionOutcome::Succeeded,
+                abort_reason: None,
                 planet_idx: Some(planet_idx),
                 location_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
                 target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
@@ -536,6 +537,7 @@ pub fn run_maintenance_turn_with_context_seed_and_lifecycle(
                 owner_empire_raw: colonizer_empire_raw,
                 kind: Mission::ColonizeWorld,
                 outcome: MissionOutcome::Failed,
+                abort_reason: None,
                 planet_idx: Some(planet_idx),
                 location_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
                 target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
@@ -551,6 +553,7 @@ pub fn run_maintenance_turn_with_context_seed_and_lifecycle(
                 owner_empire_raw: colonizer_empire_raw,
                 kind: Mission::ColonizeWorld,
                 outcome: MissionOutcome::Aborted,
+                abort_reason: None,
                 planet_idx: game_data
                     .planets
                     .records
@@ -706,6 +709,7 @@ fn restore_scout_orders_and_generate_on_station_observations(
                     owner_empire_raw,
                     kind: Mission::ScoutSector,
                     outcome: MissionOutcome::Succeeded,
+                    abort_reason: None,
                     planet_idx: None,
                     location_coords: Some(coords),
                     target_coords: Some(coords),
@@ -739,6 +743,7 @@ fn restore_scout_orders_and_generate_on_station_observations(
                     owner_empire_raw,
                     kind: Mission::ScoutSolarSystem,
                     outcome: MissionOutcome::Succeeded,
+                    abort_reason: None,
                     planet_idx,
                     location_coords: Some(coords),
                     target_coords: Some(coords),
@@ -776,6 +781,7 @@ fn restore_scout_orders_and_generate_on_station_observations(
                     } else {
                         MissionOutcome::Failed
                     },
+                    abort_reason: None,
                     planet_idx,
                     location_coords: Some(coords),
                     target_coords: Some(coords),
@@ -827,6 +833,7 @@ fn finalize_pending_observation_events(
             owner_empire_raw: pending.owner_empire_raw,
             kind: pending.kind,
             outcome: pending.outcome,
+            abort_reason: None,
             planet_idx: pending.planet_idx,
             location_coords: Some(pending.location_coords),
             target_coords: Some(pending.target_coords),

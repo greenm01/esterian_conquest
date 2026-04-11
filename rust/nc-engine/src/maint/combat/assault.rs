@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     AssaultReportEvent, BombardEvent, CoreGameData, FleetDestroyedEvent, Mission, MissionEvent,
-    MissionOutcome, Order, PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent,
-    ProductionItemKind, ShipLosses, STARDOCK_SLOT_COUNT,
+    MissionAbortReason, MissionOutcome, Order, PlanetIntelEvent, PlanetIntelSource,
+    PlanetOwnershipChangeEvent, ProductionItemKind, ShipLosses, STARDOCK_SLOT_COUNT,
 };
 
 use super::super::hostile_order_ready_for_execution;
@@ -28,6 +28,12 @@ enum MissionClass {
     Invade,
     Blitz,
     Other,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AssaultActorSelection {
+    Winner(u8),
+    Blocked,
 }
 
 #[derive(Debug, Default)]
@@ -115,6 +121,35 @@ fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, ord
     game_data
         .validate_fleet_order_payload(fleet_idx + 1, order.to_raw(), target_coords, None, None)
         .is_ok()
+}
+
+fn fleet_group_is_retreating(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
+    fleet_indices.iter().all(|&idx| {
+        game_data.fleets.records[idx].standing_order_kind() == Order::SeekHome
+            && game_data.fleets.records[idx].current_speed() > 0
+    })
+}
+
+fn empire_has_tt_only_blitz_presence(
+    game_data: &CoreGameData,
+    fleet_indices: &[usize],
+    blitz_set: &HashSet<usize>,
+) -> bool {
+    if fleet_group_is_retreating(game_data, fleet_indices) {
+        return false;
+    }
+
+    let state = fleet_state_from_records(game_data, fleet_indices, 0);
+    if state.total_combat_as() > 0 {
+        return false;
+    }
+
+    fleet_indices.iter().any(|&idx| {
+        blitz_set.contains(&idx) && {
+            let fleet = &game_data.fleets.records[idx];
+            fleet.troop_transport_count() > 0 && fleet.army_count() > 0
+        }
+    })
 }
 
 fn reduce_stardock(planet: &mut nc_data::PlanetRecord, mut hits: u32) -> u32 {
@@ -411,7 +446,8 @@ fn select_orbital_supremacy_empire(
     game_data: &CoreGameData,
     planet_idx: usize,
     entrants: &BTreeMap<u8, Vec<usize>>,
-) -> Option<u8> {
+    blitz_set: &HashSet<usize>,
+) -> AssaultActorSelection {
     let coords = game_data.planets.records[planet_idx].coords_raw();
     let owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
 
@@ -424,17 +460,29 @@ fn select_orbital_supremacy_empire(
                 0
             };
             let state = fleet_state_from_records(game_data, fleet_indices, starbases);
-            let retreating = fleet_indices.iter().all(|&idx| {
-                game_data.fleets.records[idx].standing_order_kind() == Order::SeekHome
-                    && game_data.fleets.records[idx].current_speed() > 0
-            });
+            let retreating = fleet_group_is_retreating(game_data, fleet_indices);
             (empire, state.total_combat_as(), retreating)
         })
         .filter(|(_, as_total, retreating)| *as_total > 0 && !*retreating)
         .collect();
 
     if contenders.is_empty() {
-        return None;
+        if starbase_count_at(game_data, coords, owner) > 0 {
+            return AssaultActorSelection::Blocked;
+        }
+
+        let tt_blitz_candidates: Vec<u8> = entrants
+            .iter()
+            .filter_map(|(&empire, fleet_indices)| {
+                empire_has_tt_only_blitz_presence(game_data, fleet_indices, blitz_set)
+                    .then_some(empire)
+            })
+            .collect();
+
+        return match tt_blitz_candidates.as_slice() {
+            [empire] => AssaultActorSelection::Winner(*empire),
+            _ => AssaultActorSelection::Blocked,
+        };
     }
     contenders.sort_by_key(|(empire, as_total, _)| {
         (
@@ -448,11 +496,11 @@ fn select_orbital_supremacy_empire(
             .iter()
             .any(|(emp, as_total, _)| *emp == owner && *as_total == contenders[0].1)
         {
-            return Some(owner);
+            return AssaultActorSelection::Winner(owner);
         }
-        return None;
+        return AssaultActorSelection::Blocked;
     }
-    Some(contenders[0].0)
+    AssaultActorSelection::Winner(contenders[0].0)
 }
 
 fn mission_priority(class: MissionClass) -> u8 {
@@ -535,9 +583,11 @@ pub(crate) fn process_planetary_assaults(
     let mut events = AssaultEvents::default();
 
     for (planet_idx, entrants) in by_planet {
-        let Some(winner_empire) = select_orbital_supremacy_empire(game_data, planet_idx, &entrants)
+        let AssaultActorSelection::Winner(winner_empire) =
+            select_orbital_supremacy_empire(game_data, planet_idx, &entrants, &blitz_set)
         else {
             for (empire, fleets) in &entrants {
+                clear_arrival_and_hold(game_data, fleets);
                 for &fleet_idx in fleets {
                     if let Some(kind) =
                         mission_kind_for_fleet(fleet_idx, &bombard_set, &invade_set, &blitz_set)
@@ -547,6 +597,7 @@ pub(crate) fn process_planetary_assaults(
                             owner_empire_raw: *empire,
                             kind,
                             outcome: MissionOutcome::Aborted,
+                            abort_reason: Some(MissionAbortReason::OrbitBlocked),
                             planet_idx: Some(planet_idx),
                             location_coords: Some(
                                 game_data.planets.records[planet_idx].coords_raw(),
@@ -728,6 +779,7 @@ pub(crate) fn process_planetary_assaults(
                             owner_empire_raw: winner_empire,
                             kind: Mission::BombardWorld,
                             outcome: MissionOutcome::Succeeded,
+                            abort_reason: None,
                             planet_idx: Some(planet_idx),
                             location_coords: Some(
                                 game_data.planets.records[planet_idx].coords_raw(),
@@ -876,6 +928,7 @@ pub(crate) fn process_planetary_assaults(
                                     owner_empire_raw: winner_empire,
                                     kind: Mission::InvadeWorld,
                                     outcome: MissionOutcome::Succeeded,
+                                    abort_reason: None,
                                     planet_idx: Some(planet_idx),
                                     location_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
@@ -935,6 +988,7 @@ pub(crate) fn process_planetary_assaults(
                                     owner_empire_raw: winner_empire,
                                     kind: Mission::InvadeWorld,
                                     outcome: MissionOutcome::Failed,
+                                    abort_reason: None,
                                     planet_idx: Some(planet_idx),
                                     location_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
@@ -995,6 +1049,7 @@ pub(crate) fn process_planetary_assaults(
                                 owner_empire_raw: winner_empire,
                                 kind: Mission::InvadeWorld,
                                 outcome: MissionOutcome::Aborted,
+                                abort_reason: None,
                                 planet_idx: Some(planet_idx),
                                 location_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
@@ -1156,6 +1211,7 @@ pub(crate) fn process_planetary_assaults(
                                 owner_empire_raw: winner_empire,
                                 kind: Mission::BlitzWorld,
                                 outcome: MissionOutcome::Succeeded,
+                                abort_reason: None,
                                 planet_idx: Some(planet_idx),
                                 location_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
@@ -1215,6 +1271,7 @@ pub(crate) fn process_planetary_assaults(
                                 owner_empire_raw: winner_empire,
                                 kind: Mission::BlitzWorld,
                                 outcome: MissionOutcome::Failed,
+                                abort_reason: None,
                                 planet_idx: Some(planet_idx),
                                 location_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),

@@ -211,6 +211,12 @@ orbital supremacy. If multiple hostile empires arrive at once, they must
 contest the orbit before attacking the world. A planet can change ownership at
 most once per turn.
 
+Blitz has one narrow exception: a fleet of loaded `TT*` may still execute a
+Blitz without escorting combat ships. That transport-only force does not
+generate orbital firepower and may proceed only if no enemy combat force or
+defending starbase holds orbit. Enemy non-combat support fleets alone do not
+block the attempt.
+
 ## Summary
 
 This model provides a clear, auditable alternative to the 1992 engine's opaque

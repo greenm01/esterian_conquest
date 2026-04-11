@@ -375,6 +375,13 @@ pub enum MissionOutcome {
     Aborted,
 }
 
+/// Refines why a mission ended in the generic `Aborted` outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MissionAbortReason {
+    CapabilityLost,
+    OrbitBlocked,
+}
+
 /// Mission kinds that currently participate in typed maintenance reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mission {
@@ -406,6 +413,8 @@ pub struct MissionEvent {
     pub kind: Mission,
     /// Resolved outcome class.
     pub outcome: MissionOutcome,
+    /// More specific abort reason when the mission was aborted.
+    pub abort_reason: Option<MissionAbortReason>,
     /// Target planet index when the mission is planet-directed.
     pub planet_idx: Option<usize>,
     /// Coordinates where the mission resolved, if known.

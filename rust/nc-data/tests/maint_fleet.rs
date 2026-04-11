@@ -7,8 +7,8 @@ use nc_data::{
     fleet_motion_state::{reset_motion_state_for_new_orders, store_exact_position},
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
     DiplomaticRelation, FleetOrderValidationError, GameStateBuilder, JoinMissionHostEvent, Mission,
-    MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason,
-    SalvageResolvedEvent,
+    MissionAbortReason, MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource,
+    SalvageFailureReason, SalvageResolvedEvent,
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
 use std::path::Path;
@@ -75,6 +75,19 @@ fn mutual_enemy_overrides(left: u8, right: u8) -> [DiplomacyOverride; 2] {
             relation: DiplomaticRelation::Enemy,
         },
     ]
+}
+
+fn add_active_starbase(game_data: &mut CoreGameData, owner: u8, coords: [u8; 2]) {
+    let mut base = BaseRecord::new_zeroed();
+    base.set_local_slot_raw(1);
+    base.set_active_flag_raw(1);
+    base.set_base_id_raw(1);
+    base.set_link_word_raw(0);
+    base.set_chain_word_raw(1);
+    base.set_coords_raw(coords);
+    base.set_trailing_coords_raw(coords);
+    base.set_owner_empire_raw(owner);
+    game_data.bases.records.push(base);
 }
 
 #[test]
@@ -2270,6 +2283,108 @@ fn test_blitz_world_executes_on_second_turn() {
                 && e.planet_idx == target_idx
                 && e.attacker_empire_raw == 1),
         "AssaultReportEvent must reference BlitzWorld, the target planet, and attacker empire"
+    );
+}
+
+#[test]
+fn test_tt_only_blitz_executes_without_combat_ships() {
+    let (mut game_data, target_idx, target_coords) =
+        hostile_on_station_ready(Order::BlitzWorld, (0, 0, 0, 12, 12, 0));
+    game_data.planets.records[target_idx].set_ground_batteries_raw(0);
+    game_data.planets.records[target_idx].set_army_count_raw(3);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        events.assault_report_events.iter().any(|event| {
+            event.kind == Mission::BlitzWorld
+                && event.planet_idx == target_idx
+                && event.attacker_empire_raw == 1
+                && event.outcome != MissionOutcome::Aborted
+        }),
+        "loaded TT*-only blitz should resolve as a real assault"
+    );
+    assert!(
+        !events.mission_events.iter().any(|event| {
+            event.kind == Mission::BlitzWorld && event.outcome == MissionOutcome::Aborted
+        }),
+        "TT*-only blitz should not be aborted just because it has no combat ships"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "resolved blitz should clear back to HoldPosition"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].current_location_coords_raw(),
+        target_coords,
+        "fleet should stay on station after the blitz resolves"
+    );
+}
+
+#[test]
+fn test_tt_only_blitz_ignores_enemy_support_only_orbit() {
+    let (mut game_data, target_idx, _) =
+        hostile_on_station_ready(Order::BlitzWorld, (0, 0, 0, 12, 12, 0));
+    game_data.planets.records[target_idx].set_ground_batteries_raw(0);
+    game_data.planets.records[target_idx].set_army_count_raw(3);
+
+    let enemy = &mut game_data.fleets.records[1];
+    enemy.set_owner_empire_raw(2);
+    enemy.set_current_location_coords_raw(game_data.planets.records[target_idx].coords_raw());
+    enemy.set_standing_order_kind(Order::HoldPosition);
+    enemy.set_current_speed(0);
+    enemy.set_troop_transport_count(2);
+    enemy.set_army_count(0);
+    enemy.set_destroyer_count(0);
+    enemy.set_cruiser_count(0);
+    enemy.set_battleship_count(0);
+    enemy.set_scout_count(0);
+    enemy.set_etac_count(0);
+    enemy.set_rules_of_engagement(0);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        events.assault_report_events.iter().any(|event| {
+            event.kind == Mission::BlitzWorld
+                && event.planet_idx == target_idx
+                && event.outcome != MissionOutcome::Aborted
+        }),
+        "support-only enemy orbit should not block a TT*-only blitz"
+    );
+}
+
+#[test]
+fn test_tt_only_blitz_blocked_by_starbase_clears_order() {
+    let (mut game_data, target_idx, target_coords) =
+        hostile_on_station_ready(Order::BlitzWorld, (0, 0, 0, 12, 12, 0));
+    game_data.planets.records[target_idx].set_ground_batteries_raw(0);
+    game_data.planets.records[target_idx].set_army_count_raw(3);
+    add_active_starbase(&mut game_data, 2, target_coords);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+    let abort = events
+        .mission_events
+        .iter()
+        .find(|event| event.kind == Mission::BlitzWorld && event.outcome == MissionOutcome::Aborted)
+        .expect("blocked TT*-only blitz should emit an aborted mission event");
+
+    assert!(
+        matches!(
+            abort.abort_reason,
+            None | Some(MissionAbortReason::OrbitBlocked)
+        ),
+        "blocked TT*-only blitz should abort cleanly whether the block happens in fleet combat or assault resolution"
+    );
+    assert!(
+        events.assault_report_events.is_empty(),
+        "blocked TT*-only blitz should not resolve a ground assault"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "blocked blitz should clear the hostile order"
     );
 }
 
