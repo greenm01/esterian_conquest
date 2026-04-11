@@ -278,7 +278,33 @@ def sign_checksum_manifest(gpg_key: str) -> str:
     return resolve_fingerprint(gpg_key)
 
 
-def write_release_note(fingerprint: str) -> None:
+def rust_release_coverage_line(assets: list[Path]) -> str:
+    has_nc_connect = any(EC_CONNECT_ARCHIVE_RE.match(asset.name) for asset in assets)
+    has_sysop = any(SYSOP_ARCHIVE_RE.match(asset.name) for asset in assets)
+    if has_nc_connect and has_sysop:
+        return (
+            "The signed manifest covers the public Rust download archives on this "
+            "page, including `nc-connect` player packages and `nc-sysop` "
+            "BBS/sysop packages, but not the DOS compatibility bundles."
+        )
+    if has_nc_connect:
+        return (
+            "The signed manifest covers the `nc-connect` player packages on this "
+            "page, but not the DOS compatibility bundles."
+        )
+    if has_sysop:
+        return (
+            "The signed manifest covers the `nc-sysop` BBS/sysop packages on this "
+            "page, but not the DOS compatibility bundles."
+        )
+    return (
+        "The signed manifest covers the public Rust download archives on this "
+        "page, but not the DOS compatibility bundles."
+    )
+
+
+def write_release_note(fingerprint: str, assets: list[Path]) -> None:
+    coverage_line = rust_release_coverage_line(assets)
     body = f"""<!-- NC-RUST-VERIFY:START -->
 ## Verify Rust downloads
 
@@ -290,7 +316,7 @@ The Rust-built public downloads in this release can be verified with the signed 
 Full instructions and public key: {RELEASE_NOTE_URL}
 Signing key fingerprint: `{fingerprint}`
 
-The signed manifest covers the public Rust download archives on this page, including `nc-connect` player packages and `nc-sysop` BBS/sysop packages, but not the DOS compatibility bundles.
+{coverage_line}
 <!-- NC-RUST-VERIFY:END -->
 """
     RELEASE_NOTE_PATH.write_text(body, encoding="utf-8")
@@ -353,7 +379,7 @@ def main() -> None:
             )
             write_checksum_manifest(CHECKSUM_PATH, manifest_assets)
             fingerprint = sign_checksum_manifest(args.gpg_key)
-            write_release_note(fingerprint)
+            write_release_note(fingerprint, manifest_assets)
             assets.extend([CHECKSUM_PATH, SIGNATURE_PATH])
 
         upload_assets(args.tag, assets)

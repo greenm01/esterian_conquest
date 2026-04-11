@@ -169,9 +169,12 @@ def run(
     *,
     cwd: Path | None = None,
     capture_output: bool = False,
+    extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["RUSTC_WRAPPER"] = ""
+    if extra_env:
+        env.update(extra_env)
     return subprocess.run(
         argv,
         cwd=cwd or REPO_ROOT,
@@ -254,6 +257,27 @@ def build_command(spec: BundleSpec, packages: tuple[str, ...]) -> list[str]:
     return command
 
 
+def cargo_home() -> Path:
+    if "CARGO_HOME" in os.environ:
+        return Path(os.environ["CARGO_HOME"])
+    return Path.home() / ".cargo"
+
+
+def find_win7_windows_i686_link_dir() -> Path:
+    registry_src = cargo_home() / "registry" / "src"
+    candidates = sorted(
+        path
+        for path in registry_src.glob("*/*")
+        if path.name.startswith("windows_i686_msvc-") and (path / "lib").is_dir()
+    )
+    if not candidates:
+        raise SystemExit(
+            "i686-win7-windows-msvc packaging requires the windows_i686_msvc crate "
+            "to be present in the local Cargo registry cache."
+        )
+    return candidates[-1] / "lib"
+
+
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
     validate_artifact_platform(spec)
     binaries = artifact_binaries(spec)
@@ -265,7 +289,13 @@ def build_binaries(spec: BundleSpec) -> dict[str, Path]:
             "host. GNU and non-Windows cross-builds are "
             "not supported for release packaging."
         )
-    run(build_command(spec, packages), cwd=RUST_ROOT)
+    extra_env: dict[str, str] = {}
+    if spec.is_win7_windows:
+        link_dir = find_win7_windows_i686_link_dir()
+        rustflags = os.environ.get("RUSTFLAGS", "").strip()
+        link_flag = f"-Lnative={link_dir}"
+        extra_env["RUSTFLAGS"] = f"{rustflags} {link_flag}".strip()
+    run(build_command(spec, packages), cwd=RUST_ROOT, extra_env=extra_env)
 
     target_dir = RUST_ROOT / "target" / spec.platform.target_triple / "release"
     ext = ".exe" if spec.is_windows else ""
