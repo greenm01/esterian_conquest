@@ -105,20 +105,14 @@ fn filter_prompt_dismiss_prompt(message: &str) -> String {
 }
 
 fn database_title(
-    sort: PlanetDatabaseSort,
+    _sort: PlanetDatabaseSort,
     direction: SortDirection,
     filter: PlanetDatabaseFilter,
     filter_clause: Option<&TableFilterClause>,
 ) -> String {
-    let key = match sort {
-        PlanetDatabaseSort::Location => "LOC",
-        PlanetDatabaseSort::Range(_) => "RNG",
-        PlanetDatabaseSort::Empire => "EMP",
-        PlanetDatabaseSort::MaxProduction => "MAX",
-    };
     format!(
-        "TOTAL PLANET DATABASE: {key} {} {}",
-        direction.label(),
+        "TOTAL PLANET DATABASE: {} {}",
+        direction.title_label(),
         filter_clause
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(filter))

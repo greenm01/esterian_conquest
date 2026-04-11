@@ -28,7 +28,8 @@ fn fleet_list_repeated_sort_toggles_direction_and_updates_title() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list renders");
     assert!(
-        line_containing(&terminal, "FLEET LIST: ID DESC ALL").contains("FLEET LIST: ID DESC ALL")
+        line_containing(&terminal, "FLEET LIST: DESCENDING ALL")
+            .contains("FLEET LIST: DESCENDING ALL")
     );
 
     assert_eq!(
@@ -55,7 +56,8 @@ fn fleet_list_repeated_sort_toggles_direction_and_updates_title() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list rerenders");
     assert!(
-        line_containing(&terminal, "FLEET LIST: ID ASC ALL").contains("FLEET LIST: ID ASC ALL")
+        line_containing(&terminal, "FLEET LIST: ASCENDING ALL")
+            .contains("FLEET LIST: ASCENDING ALL")
     );
 }
 
@@ -108,8 +110,8 @@ fn planet_list_repeated_sort_toggles_direction_and_updates_title() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("planet list renders");
     assert!(
-        line_containing(&terminal, "PLANET LIST: CURR ASC ALL")
-            .contains("PLANET LIST: CURR ASC ALL")
+        line_containing(&terminal, "PLANET LIST: ASCENDING ALL")
+            .contains("PLANET LIST: ASCENDING ALL")
     );
 
     assert_eq!(
@@ -194,8 +196,8 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("database list renders");
     assert!(
-        line_containing(&terminal, "TOTAL PLANET DATABASE: RNG ASC ALL")
-            .contains("TOTAL PLANET DATABASE: RNG ASC ALL")
+        line_containing(&terminal, "TOTAL PLANET DATABASE: ASCENDING ALL")
+            .contains("TOTAL PLANET DATABASE: ASCENDING ALL")
     );
 
     assert_eq!(
@@ -228,8 +230,8 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("database list rerenders");
     assert!(
-        line_containing(&terminal, "TOTAL PLANET DATABASE: RNG DESC ALL")
-            .contains("TOTAL PLANET DATABASE: RNG DESC ALL")
+        line_containing(&terminal, "TOTAL PLANET DATABASE: DESCENDING ALL")
+            .contains("TOTAL PLANET DATABASE: DESCENDING ALL")
     );
 
     assert_eq!(

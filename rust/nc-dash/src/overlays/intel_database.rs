@@ -444,9 +444,8 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
 
 fn overlay_title(app: &DashApp) -> String {
     format!(
-        "TOTAL PLANET DATABASE: {} {} {}",
-        sort_key_label(app.intel_overlay.sort),
-        app.intel_overlay.sort_direction.label(),
+        "TOTAL PLANET DATABASE: {} {}",
+        app.intel_overlay.sort_direction.title_label(),
         app.intel_overlay
             .filter_clause
             .as_ref()
@@ -526,15 +525,6 @@ fn sort_footer_label(app: &DashApp) -> String {
     format!("SORT {}", app.intel_overlay.sort_direction.label())
 }
 
-fn sort_key_label(sort: IntelOverlaySort) -> &'static str {
-    match sort {
-        IntelOverlaySort::Location => "LOC",
-        IntelOverlaySort::Range(_) => "RNG",
-        IntelOverlaySort::Empire => "EMP",
-        IntelOverlaySort::MaxProduction => "MAX",
-    }
-}
-
 fn filter_label(filter: crate::app::state::IntelOverlayFilter) -> &'static str {
     match filter {
         crate::app::state::IntelOverlayFilter::All => "ALL",
@@ -587,7 +577,7 @@ mod tests {
         );
         app.intel_overlay.sort_direction = SortDirection::Desc;
 
-        assert_eq!(overlay_title(&app), "TOTAL PLANET DATABASE: LOC DESC ALL");
+        assert_eq!(overlay_title(&app), "TOTAL PLANET DATABASE: DESCENDING ALL");
         assert_eq!(sort_footer_label(&app), "SORT DESC");
     }
 }

@@ -173,6 +173,13 @@ impl SortDirection {
             Self::Desc => "DESC",
         }
     }
+
+    pub const fn title_label(self) -> &'static str {
+        match self {
+            Self::Asc => "ASCENDING",
+            Self::Desc => "DESCENDING",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

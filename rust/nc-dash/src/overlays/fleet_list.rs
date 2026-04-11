@@ -1595,9 +1595,8 @@ fn fleet_strength_key(fleet: &nc_data::FleetRecord) -> (u16, u16, u16, u16, u8, 
 
 fn overlay_title(app: &DashApp) -> String {
     format!(
-        "FLEET LIST: {} {} {}",
-        sort_key_label(app.fleet_overlay.sort),
-        app.fleet_overlay.sort_direction.label(),
+        "FLEET LIST: {} {}",
+        app.fleet_overlay.sort_direction.title_label(),
         app.fleet_overlay
             .filter_clause
             .as_ref()
@@ -1657,16 +1656,6 @@ pub(crate) fn fleet_row_matches_clause(
 
 fn sort_footer_label(app: &DashApp) -> String {
     format!("SORT {}", app.fleet_overlay.sort_direction.label())
-}
-
-fn sort_key_label(sort: FleetOverlaySort) -> &'static str {
-    match sort {
-        FleetOverlaySort::Id => "ID",
-        FleetOverlaySort::Location => "LOC",
-        FleetOverlaySort::Order => "ORD",
-        FleetOverlaySort::Eta => "ETA",
-        FleetOverlaySort::Strength => "STR",
-    }
 }
 
 fn filter_label(filter: crate::app::state::FleetOverlayFilter) -> &'static str {
@@ -1847,7 +1836,7 @@ mod tests {
         let mut app = dash_app();
         app.fleet_overlay.sort_direction = SortDirection::Asc;
 
-        assert_eq!(overlay_title(&app), "FLEET LIST: ID ASC ALL");
+        assert_eq!(overlay_title(&app), "FLEET LIST: ASCENDING ALL");
         assert_eq!(sort_footer_label(&app), "SORT ASC");
     }
 
@@ -1928,7 +1917,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("FLEET LIST: ID DESC HOLD"))
+                .any(|line| line.contains("FLEET LIST: DESCENDING HOLD"))
         );
         assert!(
             lines

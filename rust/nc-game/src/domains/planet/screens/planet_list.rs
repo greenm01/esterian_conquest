@@ -106,21 +106,16 @@ fn filter_prompt_dismiss_prompt(message: &str) -> String {
 
 fn planet_list_title(
     mode: PlanetListMode,
-    sort: PlanetListSort,
+    _sort: PlanetListSort,
     direction: SortDirection,
     filter: PlanetListFilter,
     filter_clause: Option<&TableFilterClause>,
 ) -> String {
     match mode {
         PlanetListMode::Brief => {
-            let key = match sort {
-                PlanetListSort::CurrentProduction => "CURR",
-                PlanetListSort::Location => "LOC",
-                PlanetListSort::PotentialProduction => "MAX",
-            };
             format!(
-                "PLANET LIST: {key} {} {}",
-                direction.label(),
+                "PLANET LIST: {} {}",
+                direction.title_label(),
                 filter_clause
                     .map(|clause| clause.summary.as_str())
                     .unwrap_or(filter_label(filter))

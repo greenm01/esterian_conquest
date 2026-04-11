@@ -256,21 +256,14 @@ pub enum FleetListFilterPromptMode {
 }
 
 fn fleet_list_title(
-    sort: FleetListSort,
+    _sort: FleetListSort,
     direction: SortDirection,
     filter: FleetListFilter,
     filter_clause: Option<&TableFilterClause>,
 ) -> String {
-    let key = match sort {
-        FleetListSort::Id => "ID",
-        FleetListSort::Location => "LOC",
-        FleetListSort::Order => "ORD",
-        FleetListSort::Eta => "ETA",
-        FleetListSort::Strength => "STR",
-    };
     format!(
-        "FLEET LIST: {key} {} {}",
-        direction.label(),
+        "FLEET LIST: {} {}",
+        direction.title_label(),
         filter_clause
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(filter))

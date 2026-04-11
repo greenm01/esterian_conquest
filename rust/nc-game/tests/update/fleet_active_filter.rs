@@ -268,7 +268,7 @@ fn fleet_list_action_clamps_stale_cursor_before_using_visible_hold_row() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("FLEET LIST: ID DESC HOLD"))
+            .any(|line| line.contains("FLEET LIST: DESCENDING HOLD"))
     );
     assert!(
         terminal

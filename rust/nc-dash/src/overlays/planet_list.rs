@@ -795,9 +795,8 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
 
 fn overlay_title(app: &DashApp) -> String {
     format!(
-        "PLANET LIST: {} {} {}",
-        sort_key_label(app.planet_overlay.sort),
-        app.planet_overlay.sort_direction.label(),
+        "PLANET LIST: {} {}",
+        app.planet_overlay.sort_direction.title_label(),
         app.planet_overlay
             .filter_clause
             .as_ref()
@@ -859,14 +858,6 @@ fn sort_footer_label(app: &DashApp) -> String {
     format!("SORT {}", app.planet_overlay.sort_direction.label())
 }
 
-fn sort_key_label(sort: PlanetOverlaySort) -> &'static str {
-    match sort {
-        PlanetOverlaySort::CurrentProduction => "CURR",
-        PlanetOverlaySort::Location => "LOC",
-        PlanetOverlaySort::MaxProduction => "MAX",
-    }
-}
-
 fn filter_label(filter: crate::app::state::PlanetOverlayFilter) -> &'static str {
     match filter {
         crate::app::state::PlanetOverlayFilter::All => "ALL",
@@ -914,7 +905,7 @@ mod tests {
         );
         app.planet_overlay.sort_direction = SortDirection::Asc;
 
-        assert_eq!(overlay_title(&app), "PLANET LIST: CURR ASC ALL");
+        assert_eq!(overlay_title(&app), "PLANET LIST: ASCENDING ALL");
         assert_eq!(sort_footer_label(&app), "SORT ASC");
     }
 
