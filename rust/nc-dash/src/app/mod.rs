@@ -3832,6 +3832,9 @@ mod tests {
         let player_activity_states = store
             .latest_player_activity_states(game_data.conquest.player_count())
             .expect("default player activity");
+        let player_lifecycle_states = store
+            .latest_player_lifecycle_states(game_data.conquest.player_count())
+            .expect("default player lifecycle");
         store
             .save_runtime_state_structured_with_intel_and_activity(
                 &game_data,
@@ -3853,6 +3856,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             player_activity_states,
+            player_lifecycle_states,
+            nc_data::WinnerState::default(),
             nc_ui::ScreenGeometry::new(160, 40),
             nc_ui::ScreenGeometry::new(108, 26),
             1,
@@ -3880,6 +3885,9 @@ mod tests {
         let player_activity_states = store
             .latest_player_activity_states(game_data.conquest.player_count())
             .expect("default player activity");
+        let player_lifecycle_states = store
+            .latest_player_lifecycle_states(game_data.conquest.player_count())
+            .expect("default player lifecycle");
         store
             .save_runtime_state_structured_with_intel_and_activity(
                 &game_data,
@@ -3901,6 +3909,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             player_activity_states,
+            player_lifecycle_states,
+            nc_data::WinnerState::default(),
             nc_ui::ScreenGeometry::new(160, 40),
             nc_ui::ScreenGeometry::new(108, 26),
             1,

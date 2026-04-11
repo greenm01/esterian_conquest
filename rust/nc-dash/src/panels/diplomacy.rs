@@ -1,7 +1,7 @@
 //! Right panel: compact 2-line diplomacy blocks.
 
 use crate::app::state::DashApp;
-use crate::diplomacy_view::{display_name, relation_label_and_style};
+use crate::diplomacy_view::{display_name, relation_label_and_style, state_label_and_style};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 use nc_data::EmpireProductionRankingSort;
@@ -17,6 +17,7 @@ pub(crate) struct DiplomacyPanelRow {
     pub empire_slot: u8,
     pub name: String,
     pub production: u16,
+    pub state: &'static str,
     pub relation: &'static str,
     pub relation_style: CellStyle,
 }
@@ -83,12 +84,26 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<DiplomacyPanelRow> {
                 .player
                 .records
                 .get(empire_slot.saturating_sub(1) as usize)?;
+            let (state_label, _) = state_label_and_style(
+                &app.game_data,
+                player,
+                &app.player_activity_states,
+                &app.player_lifecycle_states,
+                viewer_slot,
+                empire_slot,
+            );
+            let state = match state_label {
+                "Active" => "Act",
+                "Defeated" => "Def",
+                other => other,
+            };
             let (relation, relation_style) =
                 relation_label_and_style(Some(viewer), viewer_slot, empire_slot);
             Some(DiplomacyPanelRow {
                 empire_slot,
                 name: display_name(player, empire_slot),
                 production: ranking.current_production,
+                state,
                 relation,
                 relation_style,
             })
@@ -99,7 +114,7 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<DiplomacyPanelRow> {
 pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
     let rows = body_rows(app);
     let metrics = column_metrics(&rows, usize::MAX / 2);
-    top_line_width(metrics.slot_width, PREFERRED_NAME_WIDTH).max(bottom_line_width(
+    top_line_width(metrics.slot_width, PREFERRED_NAME_WIDTH, metrics.state_width).max(bottom_line_width(
         metrics.slot_width,
         metrics.cp_width,
         metrics.relation_width,
@@ -110,7 +125,7 @@ pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
 pub(crate) fn minimum_body_width(app: &DashApp) -> usize {
     let rows = body_rows(app);
     let metrics = column_metrics(&rows, usize::MAX / 2);
-    top_line_width(metrics.slot_width, MIN_NAME_WIDTH).max(bottom_line_width(
+    top_line_width(metrics.slot_width, MIN_NAME_WIDTH, metrics.state_width).max(bottom_line_width(
         metrics.slot_width,
         metrics.cp_width,
         metrics.relation_width,
@@ -121,6 +136,7 @@ pub(crate) fn minimum_body_width(app: &DashApp) -> usize {
 struct ColumnMetrics {
     slot_width: usize,
     name_width: usize,
+    state_width: usize,
     cp_width: usize,
     relation_width: usize,
 }
@@ -137,12 +153,18 @@ fn column_metrics(rows: &[DiplomacyPanelRow], available_width: usize) -> ColumnM
         .map(|row| cp_label(row.production).chars().count())
         .max()
         .unwrap_or("CP 0".chars().count());
+    let state_width = rows
+        .iter()
+        .map(|row| row.state.chars().count())
+        .max()
+        .unwrap_or("Active".chars().count());
     let relation_width = rows
         .iter()
         .map(|row| row.relation.chars().count())
         .max()
         .unwrap_or("Neutral".chars().count());
-    let available_name = available_width.saturating_sub(top_line_width(slot_width, 0));
+    let available_name =
+        available_width.saturating_sub(top_line_width(slot_width, 0, state_width));
     let preferred_name = rows
         .iter()
         .map(|row| row.name.chars().count().min(PREFERRED_NAME_WIDTH))
@@ -154,6 +176,7 @@ fn column_metrics(rows: &[DiplomacyPanelRow], available_width: usize) -> ColumnM
     ColumnMetrics {
         slot_width,
         name_width,
+        state_width,
         cp_width,
         relation_width,
     }
@@ -167,8 +190,8 @@ fn cp_label(production: u16) -> String {
     format!("CP {production}")
 }
 
-fn top_line_width(slot_width: usize, name_width: usize) -> usize {
-    slot_width + 3 + name_width
+fn top_line_width(slot_width: usize, name_width: usize, state_width: usize) -> usize {
+    slot_width + 3 + name_width + 3 + state_width
 }
 
 fn bottom_line_width(slot_width: usize, cp_width: usize, relation_width: usize) -> usize {
@@ -177,10 +200,15 @@ fn bottom_line_width(slot_width: usize, cp_width: usize, relation_width: usize) 
 
 fn format_top_line(row: &DiplomacyPanelRow, metrics: &ColumnMetrics, body_width: usize) -> String {
     let slot = empire_slot_label(row.empire_slot);
-    let available_name = body_width.saturating_sub(top_line_width(metrics.slot_width, 0));
+    let available_name =
+        body_width.saturating_sub(top_line_width(metrics.slot_width, 0, metrics.state_width));
     let name_width = metrics.name_width.min(available_name.max(MIN_NAME_WIDTH));
     let name = ellipsize(&row.name, name_width);
-    format!("{slot:<width$} | {name}", width = metrics.slot_width)
+    format!(
+        "{slot:<width$} | {name} | {}",
+        row.state,
+        width = metrics.slot_width
+    )
 }
 
 fn format_bottom_line(row: &DiplomacyPanelRow, metrics: &ColumnMetrics) -> String {
@@ -267,6 +295,16 @@ mod tests {
 
         assert_eq!(top.find('|'), bottom.find('|'));
         assert!(bottom.contains("| CP "));
+    }
+
+    #[test]
+    fn top_line_includes_public_state_label() {
+        let app = dash_app();
+        let rows = body_rows(&app);
+        let metrics = column_metrics(&rows, 30);
+        let top = format_top_line(&rows[0], &metrics, 30);
+
+        assert!(top.contains("| Act"), "{top}");
     }
 
     #[test]

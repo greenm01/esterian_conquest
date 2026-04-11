@@ -3,9 +3,10 @@ use std::path::Path;
 
 use crate::{
     CampaignRuntimeState, CampaignStore, CampaignStoreError, CoreGameData,
-    DEFAULT_CAMPAIGN_DB_NAME, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
-    TurnSubmission, TurnSubmissionError, TurnSubmissionReport, derive_campaign_seed_from_runtime,
-    load_mail_queue, merge_player_intel_from_runtime, record_submitted_turn_participation,
+    DEFAULT_CAMPAIGN_DB_NAME, PlanetIntelSnapshot, PlayerAccessMode, QueuedPlayerMail,
+    ReportBlockRow, TurnSubmission, TurnSubmissionError, TurnSubmissionReport,
+    derive_campaign_seed_from_runtime, load_mail_queue, merge_player_intel_from_runtime,
+    player_access_mode, record_submitted_turn_participation,
 };
 
 pub(super) fn submit_turn_kdl_file(
@@ -29,6 +30,27 @@ pub(super) fn submit_turn_kdl_file(
 
     let store = CampaignStore::open_default_in_dir(dir)?;
     let mut state = load_or_seed_runtime_state(dir, &store)?;
+    let player_lifecycle_states =
+        store.latest_player_lifecycle_states(state.game_data.conquest.player_count())?;
+    let access_mode = player_access_mode(
+        player_record_index_1_based,
+        &player_lifecycle_states,
+        state.winner_state,
+    );
+    if !matches!(access_mode, PlayerAccessMode::Normal) {
+        return Err(TurnSubmissionError::Validation(match access_mode {
+            PlayerAccessMode::ReviewOnly => {
+                "this empire is in review-only mode and cannot submit turns".to_string()
+            }
+            PlayerAccessMode::SurveyOnly => {
+                "the campaign has ended; survey-only access cannot submit turns".to_string()
+            }
+            PlayerAccessMode::LockedOut => {
+                "this empire is locked out and cannot submit turns".to_string()
+            }
+            PlayerAccessMode::Normal => unreachable!(),
+        }));
+    }
     let report = submission.apply_to(&mut state.game_data, &mut state.queued_mail)?;
     let planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
     let mut player_activity_states =

@@ -46,6 +46,12 @@ pub(super) fn sort_events(events: &mut MaintenanceEvents) {
         .campaign_outcome_events
         .sort_by_key(|e| e.stardate_week.unwrap_or(52));
     events
+        .game_victory_notice_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(52));
+    events
+        .empire_elimination_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(52));
+    events
         .fleet_defection_events
         .sort_by_key(|e| e.stardate_week.unwrap_or(52));
     events

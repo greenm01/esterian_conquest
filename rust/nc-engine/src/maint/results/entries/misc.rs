@@ -126,6 +126,98 @@ pub fn push_misc_entries(
         });
     }
 
+    // ----- Empire elimination events -----
+    for event in &events.empire_elimination_events {
+        let source = "From your Fleet Command Center:";
+        let header = report_header(source, event.stardate_week, year);
+        let defeated = empire_label(game_data, event.defeated_empire_raw);
+        let cause_clause = match event.cause {
+            nc_data::EmpireEliminationCause::LastPlanetLost => match event.coords {
+                Some([x, y]) => format!(
+                    " Our last world has been lost at System({x},{y}), and no recovery force remains able to restore our empire."
+                ),
+                None => " Our last world has been lost, and no recovery force remains able to restore our empire.".to_string(),
+            },
+            nc_data::EmpireEliminationCause::LastRecoveryForceDestroyed => {
+                " Our final remaining recovery force has been destroyed while we are planetless. The empire can no longer continue the campaign.".to_string()
+            }
+            nc_data::EmpireEliminationCause::RecoveryWindowExpired => {
+                " We failed to reclaim a world before the recovery window expired. The empire can no longer continue the campaign.".to_string()
+            }
+        };
+        let loser_body = format!(
+            " ALERT: Empire defeated! {defeated} has been defeated.{cause_clause} Remaining scattered forces are no longer under player command."
+        );
+        entries.push(ReportEntry {
+            text: format!("{header}{loser_body}"),
+            kind: 0x06,
+            tail: RESULTS_TAIL_FLEET,
+            target: ReportTarget::Both {
+                recipient: event.defeated_empire_raw,
+            },
+            repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&loser_body),
+        });
+
+        if let Some(victor_empire_raw) = event.victor_empire_raw {
+            let victor_body = match event.cause {
+                nc_data::EmpireEliminationCause::LastPlanetLost => match event.coords {
+                    Some([x, y]) => format!(
+                        " ALERT: Enemy empire defeated! Our attack at System({x},{y}) has delivered the final blow against {defeated}. That empire has now been eliminated from the campaign."
+                    ),
+                    None => format!(
+                        " ALERT: Enemy empire defeated! We have delivered the final blow against {defeated}. That empire has now been eliminated from the campaign."
+                    ),
+                },
+                nc_data::EmpireEliminationCause::LastRecoveryForceDestroyed => format!(
+                    " ALERT: Enemy empire defeated! By destroying the last remaining recovery force of {defeated}, we have eliminated that empire from the campaign."
+                ),
+                nc_data::EmpireEliminationCause::RecoveryWindowExpired => format!(
+                    " ALERT: Enemy empire defeated! {defeated} has failed to recover before its final window expired and is now eliminated from the campaign."
+                ),
+            };
+            entries.push(ReportEntry {
+                text: format!("{header}{victor_body}"),
+                kind: 0x06,
+                tail: RESULTS_TAIL_FLEET,
+                target: ReportTarget::Both {
+                    recipient: victor_empire_raw,
+                },
+                repeat_next_pointer: false,
+                stardate_week: event.stardate_week,
+                narrative_phase: narrative_phase_for_report_text(&victor_body),
+            });
+        }
+    }
+
+    // ----- Winner declaration notices -----
+    for event in &events.game_victory_notice_events {
+        let source = "From your Fleet Command Center:";
+        let header = report_header(source, event.stardate_week, year);
+        let winner = empire_label(game_data, event.winner_empire_raw);
+        let body = if event.recipient_empire_raw == event.winner_empire_raw {
+            format!(
+                " ALERT: Victory declared! {winner} has been recognized as Emperor. The campaign is over. You may continue to review the final game state in survey mode, but no further orders will be accepted."
+            )
+        } else {
+            format!(
+                " ALERT: Campaign ended! {winner} has been recognized as Emperor and the game is over. You may review the final results one last time, but your command access is now closed."
+            )
+        };
+        entries.push(ReportEntry {
+            text: format!("{header}{body}"),
+            kind: 0x06,
+            tail: RESULTS_TAIL_FLEET,
+            target: ReportTarget::Both {
+                recipient: event.recipient_empire_raw,
+            },
+            repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
+        });
+    }
+
     // ----- Fleet defection events -----
     for event in &events.fleet_defection_events {
         let source = "From your Fleet Command Center:";

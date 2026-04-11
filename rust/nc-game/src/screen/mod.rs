@@ -147,7 +147,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crossterm::event::KeyEvent;
-use nc_data::{CoreGameData, PlanetIntelSnapshot};
+use nc_data::{
+    CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState, WinnerState,
+};
 
 use crate::app::Action;
 use crate::model::PlayerContext;
@@ -199,6 +201,7 @@ pub enum ScreenId {
     ColonyWorldName,
     ColonyWorldConfirm,
     ThemePicker,
+    TerminalNotice,
     MainMenu,
     GeneralMenu,
     StarbaseMenu,
@@ -303,6 +306,9 @@ pub struct ScreenFrame<'a> {
     pub game_data: &'a CoreGameData,
     pub player: &'a PlayerContext,
     pub campaign_seed: u64,
+    pub player_activity_states: &'a [PlayerActivityState],
+    pub player_lifecycle_states: &'a [PlayerLifecycleState],
+    pub winner_state: WinnerState,
     pub planet_intel_snapshots: &'a BTreeMap<usize, PlanetIntelSnapshot>,
     pub owned_planet_years: &'a BTreeMap<usize, u16>,
     pub geometry: ScreenGeometry,

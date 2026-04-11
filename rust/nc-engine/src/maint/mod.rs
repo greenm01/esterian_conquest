@@ -20,13 +20,16 @@ pub use results::{
 };
 
 use crate::VisibleHazardIntel;
-use nc_data::{CoreGameData, FleetRecord, Order, fleet_motion_state::decode_exact_position};
+use nc_data::{
+    CoreGameData, FleetRecord, Order, PlayerLifecycleState, WinnerState,
+    default_player_lifecycle_states, fleet_motion_state::decode_exact_position,
+};
 use std::fmt;
 
 /// Event produced when a fleet completes a ColonizeWorld order.
 #[derive(Debug)]
 struct ColonizationEvent {
-    /// Fleet index in FLEETS.DAT that arrived.
+    /// Fleet index in the in-memory fleet list that arrived.
     fleet_idx: usize,
     /// Target coordinates where colonization occurred.
     coords: [u8; 2],
@@ -142,21 +145,48 @@ pub fn validate_maintenance_state(
 pub fn run_maintenance_turn(
     game_data: &mut CoreGameData,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context_and_seed(game_data, 0, &[], &[])
+    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut winner_state = WinnerState::default();
+    run_maintenance_turn_with_context_seed_and_lifecycle(
+        game_data,
+        0,
+        &[],
+        &[],
+        &mut player_lifecycle_states,
+        &mut winner_state,
+    )
 }
 
 pub fn run_maintenance_turn_with_visible_hazards(
     game_data: &mut CoreGameData,
     visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context_and_seed(game_data, 0, visible_hazards_by_empire, &[])
+    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut winner_state = WinnerState::default();
+    run_maintenance_turn_with_context_seed_and_lifecycle(
+        game_data,
+        0,
+        visible_hazards_by_empire,
+        &[],
+        &mut player_lifecycle_states,
+        &mut winner_state,
+    )
 }
 
 pub fn run_maintenance_turn_with_seed(
     game_data: &mut CoreGameData,
     campaign_seed: u64,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context_and_seed(game_data, campaign_seed, &[], &[])
+    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut winner_state = WinnerState::default();
+    run_maintenance_turn_with_context_seed_and_lifecycle(
+        game_data,
+        campaign_seed,
+        &[],
+        &[],
+        &mut player_lifecycle_states,
+        &mut winner_state,
+    )
 }
 
 pub fn run_maintenance_turn_with_visible_hazards_and_seed(
@@ -164,11 +194,15 @@ pub fn run_maintenance_turn_with_visible_hazards_and_seed(
     campaign_seed: u64,
     visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context_and_seed(
+    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut winner_state = WinnerState::default();
+    run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
         campaign_seed,
         visible_hazards_by_empire,
         &[],
+        &mut player_lifecycle_states,
+        &mut winner_state,
     )
 }
 
@@ -177,11 +211,15 @@ pub fn run_maintenance_turn_with_context(
     visible_hazards_by_empire: &[VisibleHazardIntel],
     diplomacy_overrides: &[DiplomacyOverride],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context_and_seed(
+    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut winner_state = WinnerState::default();
+    run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
         0,
         visible_hazards_by_empire,
         diplomacy_overrides,
+        &mut player_lifecycle_states,
+        &mut winner_state,
     )
 }
 
@@ -190,6 +228,26 @@ pub fn run_maintenance_turn_with_context_and_seed(
     campaign_seed: u64,
     visible_hazards_by_empire: &[VisibleHazardIntel],
     diplomacy_overrides: &[DiplomacyOverride],
+) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut winner_state = WinnerState::default();
+    run_maintenance_turn_with_context_seed_and_lifecycle(
+        game_data,
+        campaign_seed,
+        visible_hazards_by_empire,
+        diplomacy_overrides,
+        &mut player_lifecycle_states,
+        &mut winner_state,
+    )
+}
+
+pub fn run_maintenance_turn_with_context_seed_and_lifecycle(
+    game_data: &mut CoreGameData,
+    campaign_seed: u64,
+    visible_hazards_by_empire: &[VisibleHazardIntel],
+    diplomacy_overrides: &[DiplomacyOverride],
+    player_lifecycle_states: &mut [PlayerLifecycleState],
+    winner_state: &mut WinnerState,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
     validate_maintenance_state(game_data)
         .map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
@@ -264,8 +322,11 @@ pub fn run_maintenance_turn_with_context_and_seed(
         })
         .collect();
 
-    let initial_campaign_outlook = game_data.campaign_outlook();
-    let initial_campaign_outcome = game_data.campaign_outcome();
+    let initial_campaign_outlook = campaign::campaign_outlook(game_data, player_lifecycle_states);
+    let initial_campaign_outcome =
+        campaign::campaign_outcome(game_data, player_lifecycle_states, *winner_state);
+    let empire_turn_start_states =
+        campaign::capture_empire_turn_start_states(game_data, player_lifecycle_states);
     let fleet_number_by_id: std::collections::HashMap<u8, u8> = game_data
         .fleets
         .records
@@ -376,7 +437,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
     let fleet_battle_phase_events =
         combat::process_fleet_battles(game_data, campaign_seed, diplomacy_overrides)?;
 
-    // Apply colonization results to PLANETS.DAT and PLAYER.DAT
+    // Apply colonization results to the in-memory game state.
     let colonization_events =
         merging::process_colonizations(game_data, &movement_events.colonization_events)?;
     let newly_colonized_planets = colonization_events
@@ -397,28 +458,8 @@ pub fn run_maintenance_turn_with_context_and_seed(
     // Updates factories, armies, and raw[0x0E] for rogue and autopilot-on players.
     economics::process_autopilot_ai(game_data)?;
 
-    // Recompute per-player planet count and production score from PLANETS.DAT.
-    // ECMAINT recalculates these from scratch every turn, not as incremental deltas.
-    economics::recompute_player_planet_stats(game_data);
-
-    // A player who has lost all planets and has no realistic recovery path
-    // falls into civil disorder. This preserves the empire slot and matches
-    // the observed "In Civil Disorder" state already used by classic data.
-    let civil_disorder_events = campaign::apply_campaign_state_transitions(game_data);
-    let fleet_defection_events =
-        campaign::apply_civil_disorder_fleet_defections(game_data, &civil_disorder_events)?;
-    let campaign_outlook_events = campaign::detect_campaign_outlook_events(
-        initial_campaign_outlook,
-        game_data.campaign_outlook(),
-        &civil_disorder_events,
-    );
-    let campaign_outcome_events = campaign::detect_campaign_outcome_events(
-        initial_campaign_outcome,
-        game_data.campaign_outcome(),
-    );
-
-    // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
-    // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.
+    // Update the in-memory player starbase-presence flag (legacy PLAYER offset 0x46).
+    // Confirmed from starbase fixture: player 0 (starbase_count=1) gets the flag after maint.
     campaign::update_player_starbase_flag(game_data);
 
     // Resolve bombardment for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
@@ -432,7 +473,29 @@ pub fn run_maintenance_turn_with_context_and_seed(
         &movement_events.hostile_arrived_fleet_indices,
     )?;
 
-    // Normalize CONQUEST.DAT header fields
+    // Recompute per-player planet count and production score from the in-memory
+    // planet records after hostile action, since assault resolution can change ownership.
+    economics::recompute_player_planet_stats(game_data);
+    let campaign_transition_events = campaign::apply_player_lifecycle_transitions(
+        game_data,
+        &empire_turn_start_states,
+        &assault_events.ownership_change_events,
+        &{
+            let mut combined = fleet_battle_phase_events.fleet_destroyed_events.clone();
+            combined.extend(assault_events.fleet_destroyed_events.iter().cloned());
+            combined
+        },
+        player_lifecycle_states,
+        winner_state,
+        initial_campaign_outlook,
+        initial_campaign_outcome,
+    );
+    let fleet_defection_events = campaign::apply_civil_disorder_fleet_defections(
+        game_data,
+        &campaign_transition_events.empire_elimination_events,
+    )?;
+
+    // Normalize the in-memory conquest header fields.
     campaign::process_conquest_header(game_data, should_accumulate_conquest)?;
 
     finalize_pending_observation_events(
@@ -548,9 +611,11 @@ pub fn run_maintenance_turn_with_context_and_seed(
         mission_events,
         salvage_events: movement_events.salvage_events,
         diplomatic_escalation_events: movement_events.diplomatic_escalation_events,
-        civil_disorder_events,
-        campaign_outlook_events,
-        campaign_outcome_events,
+        civil_disorder_events: campaign_transition_events.civil_disorder_events,
+        campaign_outlook_events: campaign_transition_events.campaign_outlook_events,
+        campaign_outcome_events: campaign_transition_events.campaign_outcome_events,
+        game_victory_notice_events: campaign_transition_events.game_victory_notice_events,
+        empire_elimination_events: campaign_transition_events.empire_elimination_events,
         fleet_defection_events,
     };
 

@@ -163,6 +163,29 @@ Coverage rules:
 Prefer one short outcome sentence plus labeled loss rows over paragraph-style
 battle narration.
 
+### Empire Elimination And Game-End Reports
+
+These should optimize for finality and clarity. A player should immediately
+understand:
+
+- whether one empire was eliminated or the whole campaign has ended
+- who delivered the final blow, if any
+- what access remains after the report
+
+Rules:
+
+- use Fleet Command Center as the source
+- loser-side defeat reports should explicitly say the empire has been defeated
+  and command authority is ending
+- victor-side final-blow reports should identify the defeated empire and
+  distinguish last-planet elimination from destruction of the last recovery
+  force
+- winner-declared reports should explicitly say the campaign is over
+- winner-side wording should mention survey-only access
+- loser-side game-over wording should mention one final review-only pass
+- already defeated and already blocked empires do not receive repeated
+  winner-declared notices
+
 ### Movement And Logistics Reports
 
 These should optimize for event flow. A player should be able to read them as a
@@ -244,6 +267,16 @@ Join mission summary
 Completed joins: Fleets 8 and 11 merged into Fleet 3.
 Retargeted to follow host: Fleets 4, 5, 6 and 7.
 Lost hosts: Fleets 10 and 12 lost host Fleet 14 and are holding position.
+<end of transmission>
+```
+
+### Winner Declaration Report
+
+```text
+From your Fleet Command Center:                        Stardate: 04/3059
+ALERT: Victory declared! "Player1", (Empire #1) has been recognized as
+Emperor. The campaign is over. You may continue to review the final game state
+in survey mode, but no further orders will be accepted.
 <end of transmission>
 ```
 

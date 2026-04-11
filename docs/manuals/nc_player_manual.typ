@@ -611,6 +611,36 @@ General Command handles empire-wide administration. Autopilot (*A*) lets the com
 
 To keep messaging civil, you may send no more than three messages to any single opponent per turn. In a four-player game, for example, that is up to twelve outgoing messages in a turn. Messages and reports are never automatically purged --- they accumulate in your inbox across turns until you remove them yourself. The inbox supports type and year filters to help you find older items, and pressing *D* on a selected item prompts for deletion, defaulting to yes. General Command also offers a bulk delete to clear all messages at once. New reports and messages from the most recent maintenance turn are presented one by one through the scrolling intro review when you log in, giving you another opportunity to read and delete before reaching the main menu.
 
+The empire rankings table shows each joined empire in one of three public
+states: *Active*, *MIA*, or *Defeated*. *MIA* means inactivity autopilot is
+currently running because that player missed three consecutive turns.
+*Defeated* means the empire has been eliminated from active command.
+
+=== Defeat, Recovery, and Victory
+
+Losing your last planet does not always defeat you immediately. If you still
+have a recovery path, you remain *Active* and receive a *three-turn recovery
+window* to reclaim a world. A recovery path means at least one loaded troop
+transport (`TT*`) somewhere in your surviving fleets, or at least one ETAC
+while any unowned planet still exists anywhere on the map. If you retake or
+colonize a world before the window expires, the countdown clears and your
+empire continues normally.
+
+If your last recovery force is destroyed while you are planetless, or if the
+three-turn recovery window expires first, your empire becomes *Defeated*.
+Fleet Command sends you a final defeat report, and you receive one last
+review-only login so you can read the closing reports and messages. After that
+final review, you may no longer enter the campaign.
+
+When you eliminate another empire, Fleet Command reports that you delivered the
+final blow. This is separate from overall game victory. The game ends only
+when one empire is recognized as Emperor and no other serious contender
+remains. At that point every still-playable empire receives a game-over report
+naming the victor. The winner may continue to log in in *survey mode* to
+inspect the final state of the galaxy, but may not issue orders or submit
+turns. All other players receive one final review-only pass and are then
+blocked from further play.
+
 === Planet Command
 
 Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. From the main Planet Command menu, Scorch Earth (*S*) destroys your own industry to deny it to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.

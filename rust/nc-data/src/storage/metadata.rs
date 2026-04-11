@@ -1,6 +1,6 @@
 use rusqlite::{OptionalExtension, params};
 
-use super::{CampaignStoreError, Connection};
+use super::{CampaignStoreError, Connection, WinnerState};
 
 pub(super) fn latest_snapshot_id_and_year(
     conn: &mut Connection,
@@ -50,6 +50,58 @@ pub(super) fn load_campaign_seed_tx(
     .map_err(CampaignStoreError::Sql)
 }
 
+pub(super) fn load_winner_state(conn: &mut Connection) -> Result<WinnerState, CampaignStoreError> {
+    let winner_empire_raw = conn
+        .query_row(
+            "SELECT int_value FROM campaign_metadata WHERE key = 'winner_empire_raw'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map(|value| value.map(|v| v as u8))
+        .map_err(CampaignStoreError::Sql)?;
+    let winner_declared_year = conn
+        .query_row(
+            "SELECT int_value FROM campaign_metadata WHERE key = 'winner_declared_year'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map(|value| value.map(|v| v as u16))
+        .map_err(CampaignStoreError::Sql)?;
+    Ok(WinnerState {
+        winner_empire_raw,
+        winner_declared_year,
+    })
+}
+
+pub(super) fn load_winner_state_tx(
+    tx: &rusqlite::Transaction<'_>,
+) -> Result<WinnerState, CampaignStoreError> {
+    let winner_empire_raw = tx
+        .query_row(
+            "SELECT int_value FROM campaign_metadata WHERE key = 'winner_empire_raw'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map(|value| value.map(|v| v as u8))
+        .map_err(CampaignStoreError::Sql)?;
+    let winner_declared_year = tx
+        .query_row(
+            "SELECT int_value FROM campaign_metadata WHERE key = 'winner_declared_year'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map(|value| value.map(|v| v as u16))
+        .map_err(CampaignStoreError::Sql)?;
+    Ok(WinnerState {
+        winner_empire_raw,
+        winner_declared_year,
+    })
+}
+
 pub(super) fn persist_campaign_seed(
     conn: &mut Connection,
     seed: u64,
@@ -73,6 +125,32 @@ pub(super) fn persist_runtime_schema_version(
          ON CONFLICT(key) DO UPDATE SET int_value = excluded.int_value",
         params![version],
     )?;
+    Ok(())
+}
+
+pub(super) fn persist_winner_state_tx(
+    tx: &rusqlite::Transaction<'_>,
+    winner_state: WinnerState,
+) -> Result<(), CampaignStoreError> {
+    tx.execute(
+        "DELETE FROM campaign_metadata
+         WHERE key IN ('winner_empire_raw', 'winner_declared_year')",
+        [],
+    )?;
+    if let Some(winner_empire_raw) = winner_state.winner_empire_raw {
+        tx.execute(
+            "INSERT INTO campaign_metadata(key, int_value)
+             VALUES ('winner_empire_raw', ?1)",
+            params![i64::from(winner_empire_raw)],
+        )?;
+    }
+    if let Some(winner_declared_year) = winner_state.winner_declared_year {
+        tx.execute(
+            "INSERT INTO campaign_metadata(key, int_value)
+             VALUES ('winner_declared_year', ?1)",
+            params![i64::from(winner_declared_year)],
+        )?;
+    }
     Ok(())
 }
 

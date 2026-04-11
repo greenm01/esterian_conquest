@@ -26,6 +26,7 @@ mod map_dimensions;
 mod map_export;
 mod planet_summary;
 mod player_activity;
+mod player_lifecycle;
 mod player_mail;
 mod player_war_stats;
 mod records;
@@ -61,12 +62,13 @@ pub use intel::{
 pub use maintenance_types::{
     AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
     CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
-    DiplomaticEscalationEvent, EncounterDispositionEvent, EncounterDispositionReason,
-    FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent,
-    InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
-    MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetIntelSource,
-    PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
-    ShipLosses, StarbaseDestroyedEvent,
+    DiplomaticEscalationEvent, EmpireEliminationCause, EmpireEliminationEvent,
+    EncounterDispositionEvent, EncounterDispositionReason, FleetBattleEvent, FleetDefectionEvent,
+    FleetDestroyedEvent, FleetMergeEvent, GameVictoryNoticeEvent, InvalidPlayerStateEvent,
+    JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent, MissionOutcome,
+    MissionRetargetEvent, PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent,
+    SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent, ShipLosses,
+    StarbaseDestroyedEvent,
 };
 pub use map_dimensions::map_size_for_player_count;
 pub use map_export::{
@@ -83,6 +85,10 @@ pub use player_activity::{
     DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, apply_inactivity_autopilot_policy,
     clear_inactivity_autopilot_pending, default_player_activity_states,
     record_interactive_participation, record_submitted_turn_participation,
+};
+pub use player_lifecycle::{
+    PlayerAccessMode, PublicEmpireStatus, default_player_lifecycle_states,
+    empire_has_recovery_path, player_access_mode, player_public_status,
 };
 pub use player_mail::{
     MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, QueuedPlayerMail, append_mail_queue,
@@ -117,7 +123,8 @@ pub use storage::{
     ClaimHostedSeatError, DEFAULT_CAMPAIGN_DB_NAME, DEFAULT_CAMPAIGN_THEME_KEY,
     DEFAULT_MAINTENANCE_INTERVAL_MINUTES, HostedPublishJob, HostedPublishJobKind,
     HostedPublishJobStatus, HostedSeat, HostedSeatStatus, IntelTier, PlanetIntelSnapshot,
-    PlayerActivityState, PlayerWarStatsState, SessionLease, SessionLeaseError, SessionLeaseState,
+    PlayerActivityState, PlayerLifecycleState, PlayerWarStatsState, SessionLease,
+    SessionLeaseError, SessionLeaseState, TerminalOutcome, WinnerState,
 };
 pub use support::{ParseError, decode_real48, encode_real48};
 pub use turns::{

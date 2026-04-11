@@ -9,7 +9,7 @@ use crate::screen::table::{
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
-use nc_data::{DiplomaticRelation, EmpireProductionRankingSort};
+use nc_data::{EmpireProductionRankingSort, PublicEmpireStatus, player_public_status};
 
 pub struct RankingsScreen;
 
@@ -18,7 +18,7 @@ const RANKINGS_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::right("ID", 4),
     TableColumn::right("Planets", 11),
     TableColumn::right("Production", 16),
-    TableColumn::right("Status", 12),
+    TableColumn::right("State", 12),
 ];
 
 impl RankingsScreen {
@@ -32,24 +32,27 @@ impl RankingsScreen {
         sort: EmpireProductionRankingSort,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let viewer_idx = frame.player.record_index_1_based;
-        let viewer = &frame.game_data.player.records[viewer_idx - 1];
         let rows = frame.game_data.empire_production_ranking_rows(sort);
         let table_rows = rows
             .into_iter()
             .take(12)
             .map(|row| {
-                let status = if row.empire_id as usize == viewer_idx {
-                    "*".to_string()
-                } else {
-                    diplomacy_status(viewer.diplomatic_relation_toward(row.empire_id)).to_string()
+                let status = match player_public_status(
+                    frame.game_data,
+                    row.empire_id as usize,
+                    frame.player_activity_states,
+                    frame.player_lifecycle_states,
+                ) {
+                    PublicEmpireStatus::Active => "Active",
+                    PublicEmpireStatus::Mia => "MIA",
+                    PublicEmpireStatus::Defeated => "Defeated",
                 };
                 vec![
                     row.empire_name,
                     format_empire_id(row.empire_id),
                     row.planets_owned.to_string(),
                     row.current_production.to_string(),
-                    status,
+                    status.to_string(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -108,13 +111,5 @@ impl RankingsScreen {
     }
     pub fn handle_key(&self, _key: KeyEvent) -> Action {
         Action::ReturnToCommandMenu
-    }
-}
-
-fn diplomacy_status(relation: Option<DiplomaticRelation>) -> &'static str {
-    match relation {
-        Some(DiplomaticRelation::Enemy) => "ENEMY",
-        Some(DiplomaticRelation::Neutral) => "Neutral",
-        None => "Neutral",
     }
 }

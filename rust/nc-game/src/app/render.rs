@@ -45,6 +45,7 @@ impl App {
             | ScreenId::ColonyWorldName
             | ScreenId::ColonyWorldConfirm
             | ScreenId::ThemePicker
+            | ScreenId::TerminalNotice
             | ScreenId::MainMenu
             | ScreenId::GeneralMenu
             | ScreenId::Reports => domains::startup::views::render(self)?,

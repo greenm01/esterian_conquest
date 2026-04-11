@@ -14,9 +14,9 @@ use nc_data::{
 };
 use nc_engine::{
     DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel, apply_results_reviewable_flags,
-    build_rankings_text, build_results_report_blocks, run_maintenance_turn_with_context_and_seed,
-    run_maintenance_turn_with_seed, run_maintenance_turn_with_visible_hazards_and_seed,
-    validate_maintenance_state, visible_hazard_intel_from_snapshots,
+    build_rankings_text, build_results_report_blocks,
+    run_maintenance_turn_with_context_seed_and_lifecycle, validate_maintenance_state,
+    visible_hazard_intel_from_snapshots,
 };
 
 use crate::commands::runtime::{
@@ -111,11 +111,14 @@ pub fn run_rust_maintenance_with_options(
 
     let mut game_data = runtime_state.game_data;
     let campaign_seed = runtime_state.campaign_seed;
+    let mut winner_state = runtime_state.winner_state;
     let start_year = game_data.conquest.game_year();
     let queued_mail = runtime_state.queued_mail;
     let planet_scorch_orders = runtime_state.planet_scorch_orders;
     let mut player_activity_states =
         campaign_store.latest_player_activity_states(game_data.conquest.player_count())?;
+    let mut player_lifecycle_states =
+        campaign_store.latest_player_lifecycle_states(game_data.conquest.player_count())?;
     let mut player_war_stats =
         campaign_store.latest_player_war_stats(game_data.conquest.player_count())?;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
@@ -131,6 +134,10 @@ pub fn run_rust_maintenance_with_options(
             eprintln!("  - {issue}");
         }
         return Err(Box::new(err));
+    }
+
+    if winner_state.winner_empire_raw.is_some() {
+        return Err("campaign winner has already been declared; maintenance is frozen".into());
     }
 
     // Create .SAV backups before movement phase.
@@ -149,19 +156,31 @@ pub fn run_rust_maintenance_with_options(
         );
         let visible_hazards = visible_hazards_from_snapshots(&game_data, &planet_intel_by_viewer);
         let events = if visible_hazards.is_empty() && diplomacy_overrides.is_empty() {
-            run_maintenance_turn_with_seed(&mut game_data, campaign_seed)?
+            run_maintenance_turn_with_context_seed_and_lifecycle(
+                &mut game_data,
+                campaign_seed,
+                &[],
+                &[],
+                &mut player_lifecycle_states,
+                &mut winner_state,
+            )?
         } else if diplomacy_overrides.is_empty() {
-            run_maintenance_turn_with_visible_hazards_and_seed(
+            run_maintenance_turn_with_context_seed_and_lifecycle(
                 &mut game_data,
                 campaign_seed,
                 &visible_hazards,
+                &[],
+                &mut player_lifecycle_states,
+                &mut winner_state,
             )?
         } else {
-            run_maintenance_turn_with_context_and_seed(
+            run_maintenance_turn_with_context_seed_and_lifecycle(
                 &mut game_data,
                 campaign_seed,
                 &visible_hazards,
                 &diplomacy_overrides,
+                &mut player_lifecycle_states,
+                &mut winner_state,
             )?
         };
         let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
@@ -222,6 +241,12 @@ pub fn run_rust_maintenance_with_options(
             .campaign_outcome_events
             .extend(events.campaign_outcome_events);
         all_events
+            .game_victory_notice_events
+            .extend(events.game_victory_notice_events);
+        all_events
+            .empire_elimination_events
+            .extend(events.empire_elimination_events);
+        all_events
             .fleet_defection_events
             .extend(events.fleet_defection_events);
 
@@ -254,14 +279,16 @@ pub fn run_rust_maintenance_with_options(
     let report_block_rows = build_results_report_blocks(&game_data, &all_events);
     apply_results_reviewable_flags(&mut game_data, &report_block_rows);
     apply_maintenance_events_to_player_war_stats(&mut player_war_stats, &all_events);
-    campaign_store.save_runtime_state_structured_with_intel_activity_and_war_stats(
+    campaign_store.save_runtime_state_structured_with_intel_activity_lifecycle_and_war_stats(
         &game_data,
         &planet_scorch_orders,
         &report_block_rows,
         &queued_mail,
         &planet_intel_by_viewer,
         &player_activity_states,
+        &player_lifecycle_states,
         &player_war_stats,
+        winner_state,
     )?;
 
     let rankings_text = build_rankings_text(&game_data);

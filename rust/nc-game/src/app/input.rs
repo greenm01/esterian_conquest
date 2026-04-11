@@ -121,6 +121,7 @@ impl App {
             }
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
             ScreenId::ThemePicker => self.theme_picker.handle_key(key),
+            ScreenId::TerminalNotice => Action::Quit,
             ScreenId::FleetMessage => {
                 Action::Fleet(crate::domains::fleet::FleetAction::DismissMessage)
             }

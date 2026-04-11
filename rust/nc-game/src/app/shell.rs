@@ -161,6 +161,7 @@ impl App {
             | ScreenId::ColonyWorldName
             | ScreenId::ColonyWorldConfirm
             | ScreenId::ThemePicker
+            | ScreenId::TerminalNotice
             | ScreenId::PartialStarmapView
             | ScreenId::PlanetInfoDetail => self.command_return_menu,
         }

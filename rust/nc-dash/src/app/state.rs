@@ -1,8 +1,8 @@
 //! Dashboard application state.
 
 use nc_data::{
-    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, ProductionItemKind,
-    QueuedPlayerMail, ReportBlockRow,
+    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
+    ProductionItemKind, QueuedPlayerMail, ReportBlockRow, WinnerState,
 };
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
@@ -688,6 +688,8 @@ pub struct DashApp {
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
     pub player_activity_states: Vec<PlayerActivityState>,
+    pub player_lifecycle_states: Vec<PlayerLifecycleState>,
+    pub winner_state: WinnerState,
     pub player_war_stats: nc_data::PlayerWarStatsState,
     /// Full terminal dimensions (canvas).
     pub geometry: ScreenGeometry,
@@ -746,6 +748,8 @@ impl DashApp {
         queued_mail: Vec<QueuedPlayerMail>,
         planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
         player_activity_states: Vec<PlayerActivityState>,
+        player_lifecycle_states: Vec<PlayerLifecycleState>,
+        winner_state: WinnerState,
         geometry: ScreenGeometry,
         frame: ScreenGeometry,
         player_record_index_1_based: usize,
@@ -771,6 +775,8 @@ impl DashApp {
             queued_mail,
             planet_intel_snapshots,
             player_activity_states,
+            player_lifecycle_states,
+            winner_state,
             player_war_stats: nc_data::PlayerWarStatsState::for_player(player_record_index_1_based),
             geometry,
             frame,
@@ -829,6 +835,8 @@ impl DashApp {
             queued_mail,
             planet_intel_snapshots,
             Vec::new(),
+            Vec::new(),
+            WinnerState::default(),
             geometry,
             frame,
             player_record_index_1_based,

@@ -345,6 +345,16 @@ fn assign_campaign_weeks(events: &mut MaintenanceEvents) {
             e.stardate_week = Some(52);
         }
     }
+    for e in &mut events.game_victory_notice_events {
+        if e.stardate_week.is_none() {
+            e.stardate_week = Some(52);
+        }
+    }
+    for e in &mut events.empire_elimination_events {
+        if e.stardate_week.is_none() {
+            e.stardate_week = Some(52);
+        }
+    }
 }
 
 fn assign_diplomatic_escalation_weeks(events: &mut MaintenanceEvents) {

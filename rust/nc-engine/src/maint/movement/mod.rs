@@ -14,7 +14,7 @@ use stepper::{process_single_fleet_movement, set_fleet_to_local_hold};
 /// Based on docs/dev/archive/RE_NOTES.md section "Fleet Movement: Speed and Distance":
 /// - Distance per turn = speed / 1.5 (approximately)
 /// - Any order kind with speed > 0 and target ≠ current position triggers movement
-/// - Coordinates stored at FLEETS.DAT[0x0B..0x0C] (x, y)
+/// - Fleet coordinates live in the classic fleet record layout at offsets 0x0B..0x0C (x, y)
 ///
 /// Returns a list of colonization events for fleets that arrived with ColonizeWorld orders.
 pub(super) fn process_fleet_movement(

@@ -14,6 +14,7 @@ mod metadata;
 mod planet_owned_since;
 mod planet_scorch_orders;
 mod player_activity;
+mod player_lifecycle;
 mod player_war_stats;
 mod report_blocks;
 mod runtime;
@@ -23,6 +24,7 @@ mod snapshot_core;
 pub use hosted_publish_jobs::{HostedPublishJob, HostedPublishJobKind, HostedPublishJobStatus};
 pub use hosted_seats::{ClaimHostedSeatError, HostedSeat, HostedSeatStatus};
 pub use player_activity::PlayerActivityState;
+pub use player_lifecycle::{PlayerLifecycleState, TerminalOutcome, WinnerState};
 pub use player_war_stats::PlayerWarStatsState;
 pub use settings::{
     CampaignSettings, DEFAULT_CAMPAIGN_THEME_KEY, DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
@@ -30,7 +32,7 @@ pub use settings::{
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ncgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 10;
+const RUNTIME_SCHEMA_VERSION: i64 = 11;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -141,6 +143,7 @@ pub struct CampaignRuntimeState {
     pub snapshot_id: i64,
     pub game_year: u16,
     pub campaign_seed: u64,
+    pub winner_state: WinnerState,
     pub game_data: CoreGameData,
     pub planet_scorch_orders: std::collections::BTreeSet<usize>,
     /// Structured report blocks. This is the authoritative runtime review
@@ -408,6 +411,14 @@ impl CampaignStore {
                  inactivity_autopilot_pending_clear INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, player_record_index)
              );
+             CREATE TABLE IF NOT EXISTS player_lifecycle (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 player_record_index INTEGER NOT NULL,
+                 recovery_window_turns_remaining INTEGER NOT NULL DEFAULT 0,
+                 terminal_outcome TEXT NOT NULL DEFAULT 'none',
+                 terminal_review_consumed INTEGER NOT NULL DEFAULT 0,
+                 PRIMARY KEY(snapshot_id, player_record_index)
+             );
              CREATE TABLE IF NOT EXISTS player_war_stats (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  player_record_index INTEGER NOT NULL,
@@ -633,6 +644,9 @@ impl CampaignStore {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(9) => {
+                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
+            }
+            Some(10) => {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(found) => {

@@ -12,6 +12,7 @@ use crate::screen::{
     StartupReviewMode,
 };
 use crate::startup::{StartupPhase, StartupSummary};
+use nc_data::{PlayerAccessMode, TerminalOutcome};
 use nc_session::onboarding::{
     HostedFirstTimeStatus, first_time_onboarding_mode as shared_first_time_onboarding_mode,
     hosted_first_time_status,
@@ -47,7 +48,11 @@ impl App {
             self.player.record_index_1_based,
             &mut self.player_activity_states,
         );
-        self.save_game_data()?;
+        if matches!(self.player_access_mode, PlayerAccessMode::Normal) {
+            self.save_game_data()?;
+        } else {
+            self.save_terminal_access_state()?;
+        }
         Ok(())
     }
 
@@ -205,7 +210,11 @@ impl App {
                 self.report_block_rows[row_idx].recipient_deleted = true;
             }
             self.sync_player_review_flags();
-            self.save_game_data()?;
+            if matches!(self.player_access_mode, PlayerAccessMode::Normal) {
+                self.save_game_data()?;
+            } else {
+                self.save_terminal_access_state()?;
+            }
             self.refresh_review_context()?;
             self.startup_state.results_deleted_any = true;
             self.startup_state.results_page = 0;
@@ -225,7 +234,11 @@ impl App {
                 mail.mark_deleted_by_recipient();
             }
             self.sync_player_review_flags();
-            self.save_game_data()?;
+            if matches!(self.player_access_mode, PlayerAccessMode::Normal) {
+                self.save_game_data()?;
+            } else {
+                self.save_terminal_access_state()?;
+            }
             self.refresh_review_context()?;
             self.startup_state.messages_deleted_any = true;
             self.startup_state.messages_page = 0;
@@ -1600,11 +1613,59 @@ impl App {
                     if let Err(err) = self.record_returning_player_participation_once() {
                         tracing::error!(error = %err, "failed to record returning-player participation");
                     }
-                    self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
+                    match self.player_access_mode {
+                        PlayerAccessMode::Normal => {
+                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
+                        }
+                        PlayerAccessMode::SurveyOnly => {
+                            self.show_command_menu_notice(
+                                CommandMenu::General,
+                                "Survey mode: the campaign is over and no further orders will be accepted.",
+                            );
+                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
+                        }
+                        PlayerAccessMode::ReviewOnly => {
+                            if let Err(err) = self.complete_terminal_review() {
+                                tracing::error!(error = %err, "failed to persist terminal review state");
+                            }
+                            ScreenId::TerminalNotice
+                        }
+                        PlayerAccessMode::LockedOut => ScreenId::TerminalNotice,
+                    }
                 }
             },
             other => ScreenId::Startup(other),
         }
+    }
+
+    fn complete_terminal_review(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let player_idx = self.player.record_index_1_based.saturating_sub(1);
+        let outcome = self
+            .player_lifecycle_states
+            .get(player_idx)
+            .map(|state| state.terminal_outcome)
+            .unwrap_or(TerminalOutcome::None);
+        if let Some(state) = self.player_lifecycle_states.get_mut(player_idx) {
+            state.terminal_review_consumed = true;
+        }
+        self.player_access_mode = PlayerAccessMode::LockedOut;
+        self.terminal_notice_lines = match outcome {
+            TerminalOutcome::Defeated => vec![
+                "Your empire has been defeated.".to_string(),
+                "Command access is now closed.".to_string(),
+                "Press any key to exit.".to_string(),
+            ],
+            TerminalOutcome::LostGame => vec![
+                "The campaign is over.".to_string(),
+                "The victor has been declared and your final review is complete.".to_string(),
+                "Press any key to exit.".to_string(),
+            ],
+            _ => vec![
+                "This session is no longer playable.".to_string(),
+                "Press any key to exit.".to_string(),
+            ],
+        };
+        self.save_terminal_access_state()
     }
 
     fn pending_naming_screen(&self) -> Option<ScreenId> {

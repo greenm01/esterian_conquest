@@ -1,4 +1,7 @@
-use nc_data::{DiplomaticRelation, PlayerRecord};
+use nc_data::{
+    DiplomaticRelation, PlayerActivityState, PlayerLifecycleState, PlayerRecord,
+    PublicEmpireStatus, player_public_status,
+};
 use nc_ui::{CellStyle, GameColor};
 
 use crate::theme;
@@ -16,18 +19,29 @@ pub(crate) fn display_name(player: &PlayerRecord, empire_slot: u8) -> String {
 }
 
 pub(crate) fn state_label_and_style(
+    game_data: &nc_data::CoreGameData,
     player: &PlayerRecord,
+    player_activity_states: &[PlayerActivityState],
+    player_lifecycle_states: &[PlayerLifecycleState],
     viewer_slot: u8,
     empire_slot: u8,
 ) -> (&'static str, CellStyle) {
-    if player.is_civil_disorder_player() {
-        ("Civil Dis", theme::icd_style())
-    } else if player.is_rogue_player() {
+    if player.is_rogue_player() {
         ("Rogue", theme::alert_style())
-    } else if empire_slot == viewer_slot {
-        ("(you)", theme::friendly_style())
     } else {
-        ("Stable", theme::dim_style())
+        match player_public_status(
+            game_data,
+            empire_slot as usize,
+            player_activity_states,
+            player_lifecycle_states,
+        ) {
+            PublicEmpireStatus::Active if empire_slot == viewer_slot => {
+                ("Active", theme::friendly_style())
+            }
+            PublicEmpireStatus::Active => ("Active", theme::dim_style()),
+            PublicEmpireStatus::Mia => ("MIA", theme::alert_style()),
+            PublicEmpireStatus::Defeated => ("Defeated", theme::icd_style()),
+        }
     }
 }
 

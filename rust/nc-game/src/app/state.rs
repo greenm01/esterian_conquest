@@ -3,8 +3,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use nc_data::{
-    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, QueuedPlayerMail,
-    ReportBlockRow,
+    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerAccessMode, PlayerActivityState,
+    PlayerLifecycleState, QueuedPlayerMail, ReportBlockRow, WinnerState, player_access_mode,
 };
 
 use crate::app::help::PopupHelp;
@@ -110,6 +110,10 @@ pub struct App {
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub player_activity_states: Vec<PlayerActivityState>,
+    pub player_lifecycle_states: Vec<PlayerLifecycleState>,
+    pub winner_state: WinnerState,
+    pub player_access_mode: PlayerAccessMode,
+    pub terminal_notice_lines: Vec<String>,
     pub command_menu_notice: Option<String>,
     pub quit_confirm_open: bool,
     pub popup_help: Option<PopupHelp>,
@@ -136,6 +140,7 @@ impl App {
         let report_block_rows = runtime_state.report_block_rows;
         let queued_mail = runtime_state.queued_mail;
         let planet_scorch_orders = runtime_state.planet_scorch_orders;
+        let winner_state = runtime_state.winner_state;
 
         // Apply campaign-setting overrides to game_data. Only save a new
         // snapshot if any field actually changed, to avoid churn on clean
@@ -165,6 +170,16 @@ impl App {
             .collect::<BTreeMap<_, _>>();
         let player_activity_states =
             campaign_store.latest_player_activity_states(game_data.conquest.player_count())?;
+        let player_lifecycle_states =
+            campaign_store.latest_player_lifecycle_states(game_data.conquest.player_count())?;
+        let player_access_mode = player_access_mode(
+            config.player_record_index_1_based,
+            &player_lifecycle_states,
+            winner_state,
+        );
+        if matches!(player_access_mode, PlayerAccessMode::LockedOut) {
+            return Err("This empire has been defeated and is no longer allowed to log in.".into());
+        }
         let owned_planet_years = campaign_store
             .latest_owned_planet_years_for_empire(config.player_record_index_1_based as u8)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
@@ -258,6 +273,10 @@ impl App {
             report_block_rows,
             queued_mail,
             player_activity_states,
+            player_lifecycle_states,
+            winner_state,
+            player_access_mode,
+            terminal_notice_lines: Vec::new(),
             command_menu_notice: None,
             quit_confirm_open: false,
             popup_help: None,

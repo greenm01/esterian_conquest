@@ -16,8 +16,8 @@ use nc_data::{
 };
 use nc_engine::{
     VisibleHazardIntel, apply_results_reviewable_flags, build_results_report_blocks,
-    build_seeded_new_game, run_maintenance_turn_with_seed,
-    run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
+    build_seeded_new_game, run_maintenance_turn_with_context_seed_and_lifecycle,
+    visible_hazard_intel_from_snapshots,
 };
 
 #[derive(Clone)]
@@ -657,6 +657,7 @@ fn run_maintenance_for_dir(
         .ok_or("campaign store has no snapshots; initialize the campaign with nc-sysop first")?;
     let mut game_data = runtime_state.game_data;
     let campaign_seed = runtime_state.campaign_seed;
+    let mut winner_state = runtime_state.winner_state;
     let start_year = game_data.conquest.game_year();
     let mut planet_intel_by_viewer = store.load_snapshot_planet_intel_by_viewer(
         runtime_state.snapshot_id,
@@ -664,8 +665,14 @@ fn run_maintenance_for_dir(
     )?;
     let mut player_activity_states =
         store.latest_player_activity_states(game_data.conquest.player_count())?;
+    let mut player_lifecycle_states =
+        store.latest_player_lifecycle_states(game_data.conquest.player_count())?;
     let mut player_war_stats = store.latest_player_war_stats(game_data.conquest.player_count())?;
     let mut all_events = MaintenanceEvents::default();
+
+    if winner_state.winner_empire_raw.is_some() {
+        return Err("campaign winner has already been declared; maintenance is frozen".into());
+    }
 
     for turn in 1..=turns {
         let inactivity_threshold = game_data.setup.autopilot_inactive_turns_raw();
@@ -676,12 +683,22 @@ fn run_maintenance_for_dir(
         );
         let visible_hazards = visible_hazards_from_snapshots(&game_data, &planet_intel_by_viewer);
         let events = if visible_hazards.is_empty() {
-            run_maintenance_turn_with_seed(&mut game_data, campaign_seed)?
+            run_maintenance_turn_with_context_seed_and_lifecycle(
+                &mut game_data,
+                campaign_seed,
+                &[],
+                &[],
+                &mut player_lifecycle_states,
+                &mut winner_state,
+            )?
         } else {
-            run_maintenance_turn_with_visible_hazards_and_seed(
+            run_maintenance_turn_with_context_seed_and_lifecycle(
                 &mut game_data,
                 campaign_seed,
                 &visible_hazards,
+                &[],
+                &mut player_lifecycle_states,
+                &mut winner_state,
             )?
         };
         let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
@@ -710,14 +727,16 @@ fn run_maintenance_for_dir(
     let report_block_rows = build_results_report_blocks(&game_data, &all_events);
     apply_results_reviewable_flags(&mut game_data, &report_block_rows);
     apply_maintenance_events_to_player_war_stats(&mut player_war_stats, &all_events);
-    store.save_runtime_state_structured_with_intel_activity_and_war_stats(
+    store.save_runtime_state_structured_with_intel_activity_lifecycle_and_war_stats(
         &game_data,
         &runtime_state.planet_scorch_orders,
         &report_block_rows,
         &runtime_state.queued_mail,
         &planet_intel_by_viewer,
         &player_activity_states,
+        &player_lifecycle_states,
         &player_war_stats,
+        winner_state,
     )?;
 
     if update_schedule {
@@ -792,6 +811,12 @@ fn extend_maintenance_events(all_events: &mut MaintenanceEvents, events: Mainten
     all_events
         .campaign_outcome_events
         .extend(events.campaign_outcome_events);
+    all_events
+        .game_victory_notice_events
+        .extend(events.game_victory_notice_events);
+    all_events
+        .empire_elimination_events
+        .extend(events.empire_elimination_events);
     all_events
         .fleet_defection_events
         .extend(events.fleet_defection_events);

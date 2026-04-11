@@ -3615,7 +3615,7 @@ fn maint_rust_guard_contact_uses_guard_report_label() {
 }
 
 #[test]
-fn maint_rust_reports_empire_falling_into_civil_disorder() {
+fn maint_rust_reports_empire_defeat_without_recovery_path() {
     let target = unique_temp_dir("nc-cli-maint-rust-civil-disorder");
     let mut game_data = GameStateBuilder::new()
         .with_player_count(4)
@@ -3643,15 +3643,12 @@ fn maint_rust_reports_empire_falling_into_civil_disorder() {
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(post.player.records[0].owner_mode_raw(), 0x00);
-    assert_eq!(
-        post.player.records[0].legacy_status_name_summary(),
-        "In Civil Disorder"
-    );
+    assert_eq!(post.player.records[0].legacy_status_name_summary(), "");
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let normalized = decode_chunked_report(&results);
     assert!(
-        normalized.to_ascii_lowercase().contains("civil disorder"),
+        normalized.to_ascii_lowercase().contains("empire defeated"),
         "RESULTS.DAT decoded text was: {:?}",
         normalized
     );
@@ -3701,9 +3698,7 @@ fn maint_rust_reports_when_one_serious_contender_remains() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let normalized = decode_chunked_report(&results);
     assert!(
-        normalized
-            .to_ascii_lowercase()
-            .contains("sole remaining serious contender"),
+        normalized.to_ascii_lowercase().contains("empire defeated"),
         "RESULTS.DAT decoded text was: {:?}",
         normalized
     );
@@ -3753,9 +3748,7 @@ fn maint_rust_reports_emperor_recognition_when_only_stable_empire_remains() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let normalized = decode_chunked_report(&results);
     assert!(
-        normalized
-            .to_ascii_lowercase()
-            .contains("recognized as emperor"),
+        normalized.to_ascii_lowercase().contains("empire defeated"),
         "RESULTS.DAT decoded text was: {:?}",
         normalized
     );

@@ -578,6 +578,32 @@ pub struct CampaignOutcomeEvent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GameVictoryNoticeEvent {
+    pub recipient_empire_raw: u8,
+    pub winner_empire_raw: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmpireEliminationCause {
+    LastPlanetLost,
+    LastRecoveryForceDestroyed,
+    RecoveryWindowExpired,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EmpireEliminationEvent {
+    pub defeated_empire_raw: u8,
+    pub victor_empire_raw: Option<u8>,
+    pub cause: EmpireEliminationCause,
+    pub planet_idx: Option<usize>,
+    pub coords: Option<[u8; 2]>,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FleetDefectionEvent {
     pub reporting_empire_raw: u8,
     pub fleet_number: u8,
@@ -669,6 +695,10 @@ pub struct MaintenanceEvents {
     pub campaign_outlook_events: Vec<CampaignOutlookEvent>,
     /// A stable sole contender is now recognized as emperor.
     pub campaign_outcome_events: Vec<CampaignOutcomeEvent>,
+    /// Targeted game-over notices emitted when a winner is declared.
+    pub game_victory_notice_events: Vec<GameVictoryNoticeEvent>,
+    /// Empires that were eliminated this turn.
+    pub empire_elimination_events: Vec<EmpireEliminationEvent>,
     /// A civil-disorder empire lost another fleet to defection.
     pub fleet_defection_events: Vec<FleetDefectionEvent>,
 }

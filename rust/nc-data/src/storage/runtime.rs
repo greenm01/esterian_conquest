@@ -6,10 +6,10 @@ use rusqlite::{OptionalExtension, params};
 
 use super::{
     CampaignRuntimeState, CampaignStore, CampaignStoreError, PlanetIntelSnapshot,
-    PlayerActivityState, PlayerWarStatsState,
+    PlayerActivityState, PlayerLifecycleState, PlayerWarStatsState,
 };
 use crate::{
-    CoreGameData, QueuedPlayerMail, ReportBlockRow, derive_campaign_seed_from_runtime,
+    CoreGameData, QueuedPlayerMail, ReportBlockRow, WinnerState, derive_campaign_seed_from_runtime,
     generate_campaign_seed,
 };
 
@@ -46,6 +46,7 @@ impl CampaignStore {
         let report_block_rows =
             super::report_blocks::load_report_block_rows(&mut conn, snapshot_id)?;
         let queued_mail = super::mail::load_queued_mail_rows(&mut conn, snapshot_id)?;
+        let winner_state = super::metadata::load_winner_state(&mut conn)?;
         let stored_campaign_seed = super::metadata::load_campaign_seed(&mut conn)?;
         let campaign_seed = stored_campaign_seed.unwrap_or_else(|| {
             derive_campaign_seed_from_runtime(&game_data, &report_block_rows, &queued_mail)
@@ -57,6 +58,7 @@ impl CampaignStore {
             snapshot_id,
             game_year,
             campaign_seed,
+            winner_state,
             game_data,
             planet_scorch_orders,
             report_block_rows,
@@ -81,6 +83,8 @@ impl CampaignStore {
             None,
             None,
             None,
+            None,
+            None,
         )
     }
 
@@ -98,6 +102,8 @@ impl CampaignStore {
             planet_scorch_orders,
             report_block_rows,
             queued_mail,
+            None,
+            None,
             None,
             None,
             None,
@@ -143,6 +149,8 @@ impl CampaignStore {
             None,
             None,
             None,
+            None,
+            None,
         )
     }
 
@@ -163,6 +171,8 @@ impl CampaignStore {
             Some(planet_intel_by_viewer),
             None,
             Some(player_activity_states),
+            None,
+            None,
             None,
             None,
         )
@@ -186,7 +196,62 @@ impl CampaignStore {
             Some(planet_intel_by_viewer),
             None,
             Some(player_activity_states),
+            None,
             Some(player_war_stats),
+            None,
+            None,
+        )
+    }
+
+    pub fn save_runtime_state_structured_with_intel_activity_lifecycle_and_war_stats(
+        &self,
+        game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
+        report_block_rows: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+        planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+        player_activity_states: &[PlayerActivityState],
+        player_lifecycle_states: &[PlayerLifecycleState],
+        player_war_stats: &[PlayerWarStatsState],
+        winner_state: WinnerState,
+    ) -> Result<i64, CampaignStoreError> {
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            Some(planet_intel_by_viewer),
+            None,
+            Some(player_activity_states),
+            Some(player_lifecycle_states),
+            Some(player_war_stats),
+            Some(winner_state),
+            None,
+        )
+    }
+
+    pub fn save_runtime_state_structured_with_intel_activity_and_lifecycle(
+        &self,
+        game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
+        report_block_rows: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+        planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+        player_activity_states: &[PlayerActivityState],
+        player_lifecycle_states: &[PlayerLifecycleState],
+        winner_state: WinnerState,
+    ) -> Result<i64, CampaignStoreError> {
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            Some(planet_intel_by_viewer),
+            None,
+            Some(player_activity_states),
+            Some(player_lifecycle_states),
+            None,
+            Some(winner_state),
             None,
         )
     }
@@ -211,6 +276,8 @@ impl CampaignStore {
             None,
             Some(player_activity_states),
             None,
+            None,
+            None,
             Some((player_record_index_1_based, player_npub)),
         )
     }
@@ -224,7 +291,9 @@ impl CampaignStore {
         planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
         campaign_seed_override: Option<u64>,
         player_activity_override: Option<&[PlayerActivityState]>,
+        player_lifecycle_override: Option<&[PlayerLifecycleState]>,
         player_war_stats_override: Option<&[PlayerWarStatsState]>,
+        winner_state_override: Option<WinnerState>,
         hosted_claim: Option<(usize, &str)>,
     ) -> Result<i64, CampaignStoreError> {
         let year = game_data.conquest.game_year();
@@ -240,7 +309,9 @@ impl CampaignStore {
             planet_intel_by_viewer_override,
             campaign_seed_override,
             player_activity_override,
+            player_lifecycle_override,
             player_war_stats_override,
+            winner_state_override,
             hosted_claim,
         )?;
         tx.commit()?;
@@ -258,7 +329,9 @@ pub(super) fn save_runtime_state_internal_tx(
     planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
     campaign_seed_override: Option<u64>,
     player_activity_override: Option<&[PlayerActivityState]>,
+    player_lifecycle_override: Option<&[PlayerLifecycleState]>,
     player_war_stats_override: Option<&[PlayerWarStatsState]>,
+    winner_state_override: Option<WinnerState>,
     hosted_claim: Option<(usize, &str)>,
 ) -> Result<i64, CampaignStoreError> {
     let campaign_seed = super::metadata::load_campaign_seed_tx(&tx)?
@@ -316,6 +389,13 @@ pub(super) fn save_runtime_state_internal_tx(
         previous_snapshot_id,
         player_activity_override,
     )?;
+    super::player_lifecycle::write_player_lifecycle_rows(
+        &tx,
+        snapshot_id,
+        game_data.conquest.player_count(),
+        previous_snapshot_id,
+        player_lifecycle_override,
+    )?;
     super::player_war_stats::write_player_war_stats_rows(
         &tx,
         snapshot_id,
@@ -323,6 +403,8 @@ pub(super) fn save_runtime_state_internal_tx(
         previous_snapshot_id,
         player_war_stats_override,
     )?;
+    let winner_state = winner_state_override.unwrap_or(super::metadata::load_winner_state_tx(&tx)?);
+    super::metadata::persist_winner_state_tx(&tx, winner_state)?;
     if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
         let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(
             &tx,

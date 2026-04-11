@@ -131,6 +131,8 @@ impl CampaignStore {
             None,
             None,
             None,
+            None,
+            None,
         )?;
         let seat =
             super::hosted_seats::load_hosted_seat_by_player_tx(&tx, player_record_index_1_based)?;

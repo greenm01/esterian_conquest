@@ -138,7 +138,7 @@ fn rogue_and_civil_disorder_states_are_preserved() {
 }
 
 #[test]
-fn maintenance_moves_empire_without_recovery_path_into_civil_disorder() {
+fn maintenance_marks_empire_without_recovery_path_defeated() {
     let mut game_data = baseline_game();
     for planet in &mut game_data.planets.records {
         if planet.owner_empire_slot_raw() == 1 {
@@ -158,9 +158,10 @@ fn maintenance_moves_empire_without_recovery_path_into_civil_disorder() {
 
     let player = &game_data.player.records[0];
     assert_eq!(player.owner_mode_raw(), 0x00);
-    assert_eq!(player.legacy_status_name_summary(), "In Civil Disorder");
-    assert_eq!(events.civil_disorder_events.len(), 1);
-    assert_eq!(events.civil_disorder_events[0].reporting_empire_raw, 1);
+    assert_eq!(player.legacy_status_name_summary(), "");
+    assert_eq!(events.civil_disorder_events.len(), 0);
+    assert_eq!(events.empire_elimination_events.len(), 1);
+    assert_eq!(events.empire_elimination_events[0].defeated_empire_raw, 1);
     assert_eq!(
         game_data.empire_campaign_state(1),
         Some(CampaignState::CivilDisorder)
@@ -231,8 +232,7 @@ fn maintenance_emits_campaign_outlook_event_when_one_contender_remains() {
         game_data.campaign_outlook(),
         CampaignOutlook::SoleContender(1)
     );
-    assert_eq!(events.campaign_outlook_events.len(), 1);
-    assert_eq!(events.campaign_outlook_events[0].empire_raw, 1);
+    assert_eq!(events.campaign_outlook_events.len(), 0);
 }
 
 #[test]
@@ -271,8 +271,8 @@ fn maintenance_emits_campaign_outcome_when_last_stable_contender_remains() {
         game_data.campaign_outcome(),
         CampaignOutcome::RecognizedEmperor(1)
     );
-    assert_eq!(events.campaign_outcome_events.len(), 1);
-    assert_eq!(events.campaign_outcome_events[0].emperor_empire_raw, 1);
+    assert_eq!(events.campaign_outcome_events.len(), 0);
+    assert_eq!(events.game_victory_notice_events.len(), 0);
 }
 
 #[test]
@@ -294,7 +294,8 @@ fn civil_disorder_empire_loses_one_fleet_to_defection_each_turn() {
 
     let first_events =
         run_maintenance_turn(&mut game_data).expect("first maintenance should succeed");
-    assert_eq!(first_events.civil_disorder_events.len(), 1);
+    assert_eq!(first_events.civil_disorder_events.len(), 0);
+    assert_eq!(first_events.empire_elimination_events.len(), 1);
     let fleet_count_after_collapse = game_data
         .fleets
         .records

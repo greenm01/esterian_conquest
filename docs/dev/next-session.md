@@ -93,6 +93,13 @@ Keep this file short. Historical detail belongs in
   covers the same encounter — those disposition reports already name the enemy
   and describe the outcome. Full `FleetBattleEvent` encounters are not
   suppressed; the contact remains useful context there.
+- **Joined-player defeat / winner lifecycle is now explicit** (fixed):
+  joined empires now use runtime lifecycle state instead of raw civil-disorder
+  inference for public status and access control. Planetless empires get a
+  three-turn recovery window when they still have a real comeback path, final-
+  blow and winner-declared reports now exist, non-winners get one review-only
+  end state, the winner gets survey-only access, and `nc-game` / `nc-dash`
+  leaderboard surfaces now show `Active`, `MIA`, or `Defeated`.
 
 ## Biggest Blockers
 

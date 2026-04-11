@@ -1,11 +1,13 @@
 use crate::app::state::App;
 use crate::domains::startup::state::FirstTimeOnboardingMode;
 use crate::screen::{
-    PlayfieldBuffer, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
+    CellStyle, GameColor, PlayfieldBuffer, ScreenFrame, ScreenId,
+    render_first_time_homeworld_confirm,
     render_first_time_homeworld_name, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
     render_first_time_join_summary,
 };
+use crate::screen::layout::{PLAYFIELD_HEIGHT, draw_centered_text, new_playfield};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
@@ -13,11 +15,15 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         game_data: &app.game_data,
         player: &app.player,
         campaign_seed: app.campaign_seed,
+        player_activity_states: &app.player_activity_states,
+        player_lifecycle_states: &app.player_lifecycle_states,
+        winner_state: app.winner_state,
         planet_intel_snapshots: &app.planet_intel_snapshots,
         owned_planet_years: &app.owned_planet_years,
         geometry: app.screen_geometry,
     };
     match app.current_screen {
+        ScreenId::TerminalNotice => Ok(render_terminal_notice(&app.terminal_notice_lines)),
         ScreenId::Startup(phase) => app.startup.render_phase(
             &frame,
             phase,
@@ -170,4 +176,14 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         _ => unreachable!("startup views called for non-startup screen"),
     }
+}
+
+fn render_terminal_notice(lines: &[String]) -> PlayfieldBuffer {
+    let mut buffer = new_playfield();
+    let style = CellStyle::new(GameColor::BrightWhite, GameColor::Black, false);
+    let start_row = PLAYFIELD_HEIGHT.saturating_sub(lines.len()) / 2;
+    for (offset, line) in lines.iter().enumerate() {
+        draw_centered_text(&mut buffer, start_row + offset, line, style);
+    }
+    buffer
 }

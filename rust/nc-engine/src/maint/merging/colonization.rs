@@ -1,7 +1,7 @@
 use super::super::{ColonizationEvent, ColonizationResolvedEvent};
 use crate::{CoreGameData, Order};
 
-/// Apply colonization events to PLANETS.DAT and PLAYER.DAT.
+/// Apply colonization events to the in-memory planet and player records.
 ///
 /// When a ColonizeWorld fleet arrives at an unowned planet:
 /// - Planet name set to "Not Named Yet"
@@ -9,8 +9,8 @@ use crate::{CoreGameData, Order};
 /// - Planet owner_empire_slot set to colonizing empire
 /// - Planet army_count set to 1 (colonist armies)
 /// - Planet raw[0x03] set to 0x81 (colonization flag in potential_production high byte)
-/// - PLAYER record planet_count incremented
-/// - PLAYER record raw[0x52] incremented (confirmed from fleet fixture)
+/// - Player planet_count incremented
+/// - Player production_score incremented (legacy PLAYER offset 0x52; confirmed from fixture)
 ///
 /// Confirmed from fleet-scenario fixture: fleet 0 ColonizeWorld arrives at (15,13),
 /// planet 13 colonized by empire 1, player 0 record updated.

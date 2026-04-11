@@ -36,7 +36,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame
                 .chars()
                 .take(17)
                 .collect::<String>();
-            let (state, state_style) = state_label_and_style(player, viewer_slot, slot);
+            let (state, state_style) = state_label_and_style(
+                &app.game_data,
+                player,
+                &app.player_activity_states,
+                &app.player_lifecycle_states,
+                viewer_slot,
+                slot,
+            );
             let (relation, relation_style) = relation_label_and_style(viewer, viewer_slot, slot);
             DiplomacyRow {
                 slot,

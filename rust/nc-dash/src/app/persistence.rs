@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use nc_data::{CampaignStore, PlanetIntelSnapshot, ReportBlockRow};
+use nc_data::{CampaignStore, PlayerAccessMode, PlanetIntelSnapshot, ReportBlockRow, player_access_mode};
 
 use super::state::DashApp;
 
@@ -26,16 +26,26 @@ impl DashApp {
         let Some(store) = self.campaign_store.clone() else {
             return Err("dashboard campaign store unavailable".into());
         };
+        let access_mode = player_access_mode(
+            self.player_record_index_1_based,
+            &self.player_lifecycle_states,
+            self.winner_state,
+        );
+        if !matches!(access_mode, PlayerAccessMode::Normal) {
+            return Err("campaign state is read-only in the current access mode".into());
+        }
 
         let planet_intel_by_viewer =
             planet_intel_by_viewer(&store, self.game_data.conquest.player_count())?;
-        store.save_runtime_state_structured_with_intel_and_activity(
+        store.save_runtime_state_structured_with_intel_activity_and_lifecycle(
             &self.game_data,
             &self.planet_scorch_orders,
             &self.report_block_rows,
             &self.queued_mail,
             &planet_intel_by_viewer,
             &self.player_activity_states,
+            &self.player_lifecycle_states,
+            self.winner_state,
         )?;
 
         let runtime_state = store.load_latest_runtime_state()?.ok_or(
@@ -45,8 +55,11 @@ impl DashApp {
         self.report_block_rows = runtime_state.report_block_rows;
         self.queued_mail = runtime_state.queued_mail;
         self.planet_scorch_orders = runtime_state.planet_scorch_orders;
+        self.winner_state = runtime_state.winner_state;
         self.player_activity_states =
             store.latest_player_activity_states(self.game_data.conquest.player_count())?;
+        self.player_lifecycle_states =
+            store.latest_player_lifecycle_states(self.game_data.conquest.player_count())?;
         self.owned_planet_years =
             store.latest_owned_planet_years_for_empire(self.player_record_index_1_based as u8)?;
         self.planet_intel_snapshots =

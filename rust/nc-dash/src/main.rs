@@ -50,6 +50,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         .unwrap_or_else(|| nc_data::PlayerWarStatsState::for_player(player_record_index_1_based));
     let player_activity_states =
         campaign_store.latest_player_activity_states(state.game_data.conquest.player_count())?;
+    let player_lifecycle_states =
+        campaign_store.latest_player_lifecycle_states(state.game_data.conquest.player_count())?;
 
     let mut app = DashApp::new(
         game_dir,
@@ -61,6 +63,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         state.queued_mail,
         planet_intel_snapshots,
         player_activity_states,
+        player_lifecycle_states,
+        state.winner_state,
         ScreenGeometry::new(1, 1),
         ScreenGeometry::new(0, 0),
         player_record_index_1_based,
