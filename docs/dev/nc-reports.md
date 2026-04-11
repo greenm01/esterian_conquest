@@ -199,7 +199,7 @@ Attacking force:   11 battleships, 28 cruisers, 8 destroyers and 106 troop
 Our defenses:      12 ground batteries and 40 armies
 
 All planetary defenses were destroyed.
-Enemy losses:      no ship losses
+Enemy losses:      no ship losses and 14 armies
 Our orbital softening losses: 20 armies
 Our ground battle losses: 20 armies
 <end of transmission>

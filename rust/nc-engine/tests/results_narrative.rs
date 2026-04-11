@@ -623,7 +623,7 @@ fn ownership_change_report_uses_assault_context_for_defender() {
     assert!(text.contains("2 ground batteries and 5 armies"));
     assert!(text.contains("All planetary defenses were destroyed."));
     assert!(text.contains("Enemy losses:"));
-    assert!(text.contains("no ship losses"));
+    assert!(text.contains("3 armies"));
     assert!(!text.contains("Orbital softening losses:"));
     assert!(!text.contains("Ground battle losses:"));
 }

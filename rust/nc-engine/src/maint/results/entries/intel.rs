@@ -246,7 +246,11 @@ pub fn push_intel_entries(
             }
             outcome_rows.push(StructuredBodyItem::Label {
                 label: LABEL_ENEMY_LOSSES.to_string(),
-                value: ship_loss_summary(assault.attacker_ship_losses),
+                value: assault_friendly_losses_summary(
+                    assault.attacker_ship_losses,
+                    assault.attacker_army_losses,
+                    assault.transport_army_losses,
+                ),
             });
             if let Some(softening_losses) = invasion_softening_losses_summary(assault) {
                 outcome_rows.push(StructuredBodyItem::Label {
