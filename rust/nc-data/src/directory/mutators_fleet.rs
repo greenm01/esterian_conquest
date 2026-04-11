@@ -2,6 +2,13 @@ use std::collections::BTreeSet;
 
 use super::*;
 
+fn arms_on_station_hostile_order(order: Order) -> bool {
+    matches!(
+        order,
+        Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld
+    )
+}
+
 impl CoreGameData {
     pub fn conflicting_friendly_colonize_fleet_record(
         &self,
@@ -129,6 +136,12 @@ impl CoreGameData {
             mission_aux[1] = value;
         }
         record.set_mission_aux_bytes(mission_aux);
+        if arms_on_station_hostile_order(Order::from_raw(order_code))
+            && record.current_location_coords_raw() == target
+        {
+            record.set_current_speed(0);
+            record.set_extended_tuple_c_payload_raw([0x80, 0xb9, 0xff, 0xff, 0xff, 0x7f]);
+        }
         Ok(record.mission_aux_bytes())
     }
 

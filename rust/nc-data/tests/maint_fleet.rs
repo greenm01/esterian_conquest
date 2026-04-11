@@ -4,11 +4,11 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use nc_data::{
-    BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
-    DiplomaticRelation, FleetOrderValidationError, GameStateBuilder, JoinMissionHostEvent,
-    Mission, MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource,
-    SalvageFailureReason, SalvageResolvedEvent,
     fleet_motion_state::{reset_motion_state_for_new_orders, store_exact_position},
+    BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
+    DiplomaticRelation, FleetOrderValidationError, GameStateBuilder, JoinMissionHostEvent, Mission,
+    MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason,
+    SalvageResolvedEvent,
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
 use std::path::Path;
@@ -333,12 +333,10 @@ fn test_blockading_foreign_world_escalates_to_enemy() {
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
-    assert!(
-        events
-            .diplomatic_escalation_events
-            .iter()
-            .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2)
-    );
+    assert!(events
+        .diplomatic_escalation_events
+        .iter()
+        .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2));
     assert_eq!(
         game_data.player.records[0].diplomatic_relation_toward(2),
         Some(DiplomaticRelation::Enemy)
@@ -1400,12 +1398,10 @@ fn test_join_merge_occurs_without_combat_merge_flag() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
-    assert!(
-        events
-            .fleet_merge_events
-            .iter()
-            .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side })
-    );
+    assert!(events
+        .fleet_merge_events
+        .iter()
+        .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side }));
 }
 
 #[test]
@@ -1489,12 +1485,10 @@ fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
-    assert!(
-        events
-            .fleet_merge_events
-            .iter()
-            .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side })
-    );
+    assert!(events
+        .fleet_merge_events
+        .iter()
+        .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side }));
 }
 
 #[test]
@@ -1603,12 +1597,10 @@ fn test_rendezvous_does_not_merge_before_reaching_its_assigned_sector() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before);
-    assert!(
-        events
-            .fleet_merge_events
-            .iter()
-            .all(|event| { event.kind != Mission::RendezvousSector })
-    );
+    assert!(events
+        .fleet_merge_events
+        .iter()
+        .all(|event| { event.kind != Mission::RendezvousSector }));
 }
 
 #[test]
@@ -2279,6 +2271,68 @@ fn test_blitz_world_executes_on_second_turn() {
                 && e.attacker_empire_raw == 1),
         "AssaultReportEvent must reference BlitzWorld, the target planet, and attacker empire"
     );
+}
+
+#[test]
+fn test_on_station_hostile_orders_assigned_via_mutator_execute_next_turn() {
+    let cases = [
+        (Order::BombardWorld, Mission::BombardWorld),
+        (Order::InvadeWorld, Mission::InvadeWorld),
+        (Order::BlitzWorld, Mission::BlitzWorld),
+    ];
+
+    for (order, mission) in cases {
+        let ships = match order {
+            Order::BombardWorld => (0, 0, 1, 0, 0, 0, 0),
+            Order::InvadeWorld => (0, 0, 1, 2, 6, 0, 0),
+            Order::BlitzWorld => (0, 0, 1, 2, 6, 0, 0),
+            _ => unreachable!(),
+        };
+        let (mut game_data, target_idx, target_coords) =
+            configured_delayed_hostile_arrival_state(order, ships);
+
+        {
+            let fleet = &mut game_data.fleets.records[0];
+            fleet.set_current_location_coords_raw(target_coords);
+            fleet.set_current_speed(fleet.max_speed());
+            reset_motion_state_for_new_orders(fleet);
+        }
+        game_data
+            .set_fleet_order(
+                1,
+                game_data.fleets.records[0].max_speed(),
+                order.to_raw(),
+                target_coords,
+                None,
+                None,
+            )
+            .expect("on-station hostile order should arm");
+
+        let fleet = &game_data.fleets.records[0];
+        assert_eq!(fleet.current_speed(), 0);
+        assert_eq!(fleet.transit_ready_flag_raw(), 0x80);
+        assert_eq!(fleet.current_location_coords_raw(), target_coords);
+        assert_eq!(fleet.standing_order_kind(), order);
+
+        let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+        match mission {
+            Mission::BombardWorld => assert!(
+                events
+                    .bombard_events
+                    .iter()
+                    .any(|e| e.planet_idx == target_idx && e.attacker_empire_raw == 1),
+                "BombardWorld should execute on the next maintenance tick"
+            ),
+            Mission::InvadeWorld | Mission::BlitzWorld => assert!(
+                events.assault_report_events.iter().any(|e| {
+                    e.kind == mission && e.planet_idx == target_idx && e.attacker_empire_raw == 1
+                }),
+                "{mission:?} should execute on the next maintenance tick"
+            ),
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[test]

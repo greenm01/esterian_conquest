@@ -4,7 +4,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nc_data::CampaignStore;
+use nc_data::{CampaignStore, CoreGameData, Order};
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -197,4 +197,96 @@ fn root_help_lists_submit_turn_subcommand() {
 
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("nc-game submit-turn"));
+}
+
+#[test]
+fn submit_turn_arms_on_station_hostile_orders_for_next_maintenance_tick() {
+    let target = fixture_copy("nc-game-submit-turn-on-station-hostile-order");
+    let turn_path = target.join("turn.kdl");
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let fleet_record_index_1_based = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, fleet)| fleet.owner_empire_raw() == 1)
+        .map(|(idx, _)| idx + 1)
+        .expect("fixture should contain a player 1 fleet");
+    let target_planet_record_index_1_based = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 2)
+        .map(|(idx, _)| idx + 1)
+        .expect("fixture should contain a player 2 world");
+    let target_coords =
+        game_data.planets.records[target_planet_record_index_1_based - 1].coords_raw();
+    let year = game_data.conquest.game_year();
+
+    {
+        let fleet = &mut game_data.fleets.records[fleet_record_index_1_based - 1];
+        fleet.set_current_location_coords_raw(target_coords);
+        fleet.set_battleship_count(1);
+        fleet.set_cruiser_count(0);
+        fleet.set_destroyer_count(1);
+        fleet.set_troop_transport_count(2);
+        fleet.set_army_count(6);
+        fleet.set_scout_count(0);
+        fleet.set_etac_count(0);
+        fleet.recompute_max_speed_from_composition();
+        fleet.set_current_speed(fleet.max_speed());
+    }
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    fs::write(
+        &turn_path,
+        format!(
+            r#"
+turn player=1 year={year}
+fleet record={fleet_record_index_1_based} {{
+  order speed=4 kind="invade" x={x} y={y}
+}}
+"#,
+            x = target_coords[0],
+            y = target_coords[1],
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_nc-game"))
+        .args([
+            "submit-turn",
+            "--dir",
+            target.to_str().unwrap(),
+            "--player",
+            "1",
+            "--file",
+            turn_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("nc-game submit-turn should run");
+
+    assert!(
+        output.status.success(),
+        "nc-game submit-turn failed: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let store = CampaignStore::open_default_in_dir(&target).unwrap();
+    let state = store.load_latest_runtime_state().unwrap().unwrap();
+    let fleet = &state.game_data.fleets.records[fleet_record_index_1_based - 1];
+
+    assert_eq!(fleet.standing_order_kind(), Order::InvadeWorld);
+    assert_eq!(fleet.current_location_coords_raw(), target_coords);
+    assert_eq!(fleet.standing_order_target_coords_raw(), target_coords);
+    assert_eq!(fleet.current_speed(), 0);
+    assert_eq!(fleet.transit_ready_flag_raw(), 0x80);
+    assert_eq!(fleet.tuple_c_payload_raw(), [0x80, 0xb9, 0xff, 0xff, 0xff]);
+
+    cleanup_dir(&target);
 }
