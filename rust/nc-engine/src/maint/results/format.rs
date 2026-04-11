@@ -321,8 +321,8 @@ pub fn structured_assault_alert(kind: Mission, outcome: MissionOutcome) -> &'sta
 
 pub fn structured_capture_alert(kind: Mission) -> &'static str {
     match kind {
-        Mission::BlitzWorld => "ALERT: Blitz assault successful!",
-        _ => "ALERT: Planetary invasion successful!",
+        Mission::BlitzWorld => "ALERT: Planet lost to enemy blitz!",
+        _ => "ALERT: Planet lost to enemy invasion!",
     }
 }
 

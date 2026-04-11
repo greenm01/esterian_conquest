@@ -2093,7 +2093,8 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
 
-    let defender_report = joined_report_containing(&results, "Planet captured by");
+    let defender_report =
+        joined_report_containing(&results, "ALERT: Planet lost to enemy invasion!");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"
@@ -2266,7 +2267,7 @@ fn maint_rust_blitz_success_reports_armies_for_attacker_and_defender() {
     );
 
     let defender_report =
-        joined_report_containing(&results, "Planet seized in a blitz assault by");
+        joined_report_containing(&results, "ALERT: Planet lost to enemy blitz!");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"

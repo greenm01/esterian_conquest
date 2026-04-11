@@ -191,7 +191,7 @@ Alien losses:      2 cruisers and 1 destroyer
 
 ```text
 From planet "Red" in System(9,6):                      Stardate: 03/3031
-ALERT: Planetary invasion successful!
+ALERT: Planet lost to enemy invasion!
 
 Invader:           "Player1", (Empire #1)
 Attacking force:   11 battleships, 28 cruisers, 8 destroyers and 106 troop
