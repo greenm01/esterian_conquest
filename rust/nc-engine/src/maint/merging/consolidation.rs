@@ -1,6 +1,6 @@
 use super::super::{FleetMergeEvent, Mission};
 use super::helpers::merge_one_fleet_into_host;
-use crate::{CoreGameData, Order};
+use crate::{CoreGameData, Order, maint::FleetRemovalRemapInfo};
 
 /// Merge co-located friendly fleets for players flagged for combat consolidation.
 ///
@@ -24,10 +24,10 @@ use crate::{CoreGameData, Order};
 /// - Fleet ID links and player first/last fleet IDs are remapped afterward.
 pub(super) fn process_fleet_merging(
     game_data: &mut CoreGameData,
-) -> Result<Vec<FleetMergeEvent>, Box<dyn std::error::Error>> {
+) -> Result<(Vec<FleetMergeEvent>, FleetRemovalRemapInfo), Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
     if fleet_count == 0 {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), FleetRemovalRemapInfo::default()));
     }
 
     let mut to_remove = vec![false; fleet_count];
@@ -113,7 +113,7 @@ pub(super) fn process_fleet_merging(
             }
         }
     }
-    super::super::apply_fleet_removal_remap(game_data, &to_remove);
+    let remap_info = super::super::apply_fleet_removal_remap(game_data, &to_remove);
 
     for (player_idx, had_merge) in players_with_merges.into_iter().enumerate() {
         if had_merge && game_data.player.records[player_idx].is_rogue_player() {
@@ -121,5 +121,5 @@ pub(super) fn process_fleet_merging(
         }
     }
 
-    Ok(merge_events)
+    Ok((merge_events, remap_info))
 }

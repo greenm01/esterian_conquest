@@ -107,6 +107,10 @@ Manual-backed merge specifics:
 
 - `JOIN ANOTHER FLEET` persists until the join resolves or the host fleet is
   lost
+- if a join host is itself absorbed into another surviving fleet, joiners
+  retarget to that survivor instead of abandoning the mission
+- a joiner already co-located with the surviving fleet completes the join that
+  same maintenance turn
 - `RENDEZVOUS` persists at the specified sector so additional rendezvous fleets
   can keep merging there
 - when multiple rendezvous fleets merge, the fleet with the lowest fleet ID is

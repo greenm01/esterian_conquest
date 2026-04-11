@@ -1,13 +1,13 @@
 use super::super::{FleetMergeEvent, JoinMissionHostEvent, Mission};
 use super::helpers::merge_one_fleet_into_host;
-use crate::{CoreGameData, Order};
+use crate::{CoreGameData, Order, maint::FleetRemovalRemapInfo};
 
 pub(super) fn process_mission_fleet_merging(
     game_data: &mut CoreGameData,
-) -> Result<Vec<FleetMergeEvent>, Box<dyn std::error::Error>> {
+) -> Result<(Vec<FleetMergeEvent>, FleetRemovalRemapInfo), Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
     if fleet_count == 0 {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), FleetRemovalRemapInfo::default()));
     }
 
     let mut to_remove = vec![false; fleet_count];
@@ -123,11 +123,13 @@ pub(super) fn process_mission_fleet_merging(
         }
     }
 
-    if to_remove.iter().any(|remove| *remove) {
-        super::super::apply_fleet_removal_remap(game_data, &to_remove);
-    }
+    let remap_info = if to_remove.iter().any(|remove| *remove) {
+        super::super::apply_fleet_removal_remap(game_data, &to_remove)
+    } else {
+        FleetRemovalRemapInfo::default()
+    };
 
-    Ok(merge_events)
+    Ok((merge_events, remap_info))
 }
 
 pub(super) fn process_join_host_updates(
@@ -135,6 +137,7 @@ pub(super) fn process_join_host_updates(
     merge_events: &[FleetMergeEvent],
     fleet_number_by_id: &std::collections::HashMap<u8, u8>,
     destroyed_join_host_fleet_numbers: &std::collections::HashMap<u8, u8>,
+    prior_join_host_ids: &std::collections::HashMap<u8, u8>,
 ) -> Vec<JoinMissionHostEvent> {
     let mut absorbed_to_host = std::collections::HashMap::new();
     for event in merge_events {
@@ -187,6 +190,22 @@ pub(super) fn process_join_host_updates(
         // or destroyed in a prior step) and the remap zeroed the reference.
         // Treat it the same as a missing/non-viable host — abandon the mission.
         if host_id == 0 {
+            if let Some(prior_host_id) = prior_join_host_ids.get(&fleet.fleet_id()).copied() {
+                if let Some(&new_host_id) = absorbed_to_host.get(&prior_host_id) {
+                    fleet.set_join_host_fleet_id_raw(new_host_id);
+                    if let Some(coords) = current_fleet_coords.get(&new_host_id).copied() {
+                        fleet.set_standing_order_target_coords_raw(coords);
+                    }
+                    events.push(JoinMissionHostEvent::Retargeted {
+                        fleet_idx,
+                        owner_empire_raw: fleet.owner_empire_raw(),
+                        previous_host_fleet_number: fleet_number_by_id.get(&prior_host_id).copied(),
+                        new_host_fleet_number: fleet_number_by_id.get(&new_host_id).copied(),
+                        coords: fleet.current_location_coords_raw(),
+                    });
+                    continue;
+                }
+            }
             let coords = fleet.current_location_coords_raw();
             fleet.set_standing_order_kind(Order::HoldPosition);
             fleet.set_current_speed(0);

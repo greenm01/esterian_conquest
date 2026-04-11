@@ -3430,6 +3430,54 @@ fn maint_rust_join_summary_uses_compact_oxford_fleet_lists() {
 }
 
 #[test]
+fn maint_rust_join_host_absorbed_into_other_fleet_retargets_joiners() {
+    let target = unique_temp_dir("nc-cli-maint-rust-join-host-absorbed-retarget");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0x00;
+
+    let survivor_coords = [10, 10];
+    let survivor_id = game_data.fleets.records[0].fleet_id();
+    let absorbed_host_id = game_data.fleets.records[1].fleet_id();
+
+    game_data.fleets.records[0].set_current_location_coords_raw(survivor_coords);
+    game_data.fleets.records[0].set_standing_order_kind(Order::HoldPosition);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(survivor_coords);
+    game_data.fleets.records[0].set_current_speed(0);
+
+    game_data.fleets.records[1].set_current_location_coords_raw(survivor_coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::JoinAnotherFleet);
+    game_data.fleets.records[1].set_join_host_fleet_id_raw(survivor_id);
+    game_data.fleets.records[1].set_standing_order_target_coords_raw(survivor_coords);
+    game_data.fleets.records[1].set_current_speed(0);
+
+    game_data.fleets.records[2].set_current_location_coords_raw([5, 10]);
+    game_data.fleets.records[2].set_standing_order_kind(Order::JoinAnotherFleet);
+    game_data.fleets.records[2].set_join_host_fleet_id_raw(absorbed_host_id);
+    game_data.fleets.records[2].set_standing_order_target_coords_raw(survivor_coords);
+    game_data.fleets.records[2].set_current_speed(3);
+
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("From your Fleet Command Center:"), "{text}");
+    assert!(text.contains("Join mission summary"), "{text}");
+    assert!(text.contains("Completed joins: Fleet 2 merged into Fleet 1."), "{text}");
+    assert!(text.contains("Retargeted to follow host: Fleet 3."), "{text}");
+    assert!(!text.contains("target fleet no longer exists"), "{text}");
+    assert!(!text.contains("holding position and awaiting orders"), "{text}");
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_join_summary_emits_single_footer_line() {
     let target = unique_temp_dir("nc-cli-maint-rust-join-single-footer");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

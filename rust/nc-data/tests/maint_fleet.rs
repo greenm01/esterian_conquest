@@ -5,8 +5,9 @@
 
 use nc_data::{
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
-    DiplomaticRelation, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
-    MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
+    DiplomaticRelation, FleetOrderValidationError, GameStateBuilder, JoinMissionHostEvent,
+    Mission, MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource,
+    SalvageFailureReason, SalvageResolvedEvent,
     fleet_motion_state::{reset_motion_state_for_new_orders, store_exact_position},
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
@@ -739,7 +740,8 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
     let fleet_count_before = game_data.fleets.records.len();
     let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
 
-    // The empty host is culled at turn start; the joiner shifts from index 1 → 0.
+    // The empty host is culled at turn start; lost-host join missions now
+    // resolve immediately instead of burning a movement step first.
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
     assert_eq!(
         game_data.fleets.records[0].standing_order_kind(),
@@ -747,7 +749,7 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
     );
     assert_eq!(game_data.fleets.records[0].current_speed(), 0);
     let abandoned_coords = game_data.fleets.records[0].current_location_coords_raw();
-    assert_eq!(abandoned_coords, [9, 10]);
+    assert_eq!(abandoned_coords, joiner_coords);
     assert_eq!(
         game_data.fleets.records[0].standing_order_target_coords_raw(),
         abandoned_coords
@@ -763,6 +765,129 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
                 ..
             } if *fleet_idx == 0
                 && *coords == abandoned_coords
+        )
+    }));
+}
+
+#[test]
+fn test_joiner_retargets_when_host_merges_into_surviving_fleet() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+
+    let survivor_coords = [10, 10];
+    let survivor_id = game_data.fleets.records[0].fleet_id();
+    let absorbed_host_id = game_data.fleets.records[1].fleet_id();
+
+    {
+        let survivor = &mut game_data.fleets.records[0];
+        survivor.set_current_location_coords_raw(survivor_coords);
+        survivor.set_standing_order_kind(Order::HoldPosition);
+        survivor.set_standing_order_target_coords_raw(survivor_coords);
+        survivor.set_current_speed(0);
+    }
+    {
+        let host = &mut game_data.fleets.records[1];
+        host.set_current_location_coords_raw(survivor_coords);
+        host.set_standing_order_kind(Order::JoinAnotherFleet);
+        host.set_join_host_fleet_id_raw(survivor_id);
+        host.set_standing_order_target_coords_raw(survivor_coords);
+        host.set_current_speed(0);
+    }
+    {
+        let joiner = &mut game_data.fleets.records[2];
+        joiner.set_current_location_coords_raw([5, 10]);
+        joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+        joiner.set_join_host_fleet_id_raw(absorbed_host_id);
+        joiner.set_standing_order_target_coords_raw(survivor_coords);
+        joiner.set_current_speed(3);
+    }
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    let joiner = &game_data.fleets.records[1];
+    assert_eq!(joiner.standing_order_kind(), Order::JoinAnotherFleet);
+    assert_eq!(joiner.join_host_fleet_id_raw(), survivor_id);
+    assert_eq!(joiner.standing_order_target_coords_raw(), survivor_coords);
+    assert!(events.join_host_events.iter().any(|event| {
+        matches!(
+            event,
+            JoinMissionHostEvent::Retargeted {
+                fleet_idx,
+                previous_host_fleet_number: Some(2),
+                new_host_fleet_number: Some(1),
+                ..
+            } if *fleet_idx == 1
+        )
+    }));
+    assert!(!events.invalid_player_state_events.iter().any(|event| {
+        matches!(
+            event,
+            nc_data::InvalidPlayerStateEvent::FleetMission {
+                reason: FleetOrderValidationError::InvalidJoinHost,
+                ..
+            }
+        )
+    }));
+}
+
+#[test]
+fn test_joiner_merges_same_turn_after_host_merges_into_surviving_fleet() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+
+    let coords = [10, 10];
+    let survivor_id = game_data.fleets.records[0].fleet_id();
+    let absorbed_host_id = game_data.fleets.records[1].fleet_id();
+
+    {
+        let survivor = &mut game_data.fleets.records[0];
+        survivor.set_current_location_coords_raw(coords);
+        survivor.set_standing_order_kind(Order::HoldPosition);
+        survivor.set_standing_order_target_coords_raw(coords);
+        survivor.set_current_speed(0);
+    }
+    {
+        let host = &mut game_data.fleets.records[1];
+        host.set_current_location_coords_raw(coords);
+        host.set_standing_order_kind(Order::JoinAnotherFleet);
+        host.set_join_host_fleet_id_raw(survivor_id);
+        host.set_standing_order_target_coords_raw(coords);
+        host.set_current_speed(0);
+    }
+    {
+        let joiner = &mut game_data.fleets.records[2];
+        joiner.set_current_location_coords_raw(coords);
+        joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+        joiner.set_join_host_fleet_id_raw(absorbed_host_id);
+        joiner.set_standing_order_target_coords_raw(coords);
+        joiner.set_current_speed(0);
+    }
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 2);
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.kind == Mission::JoinAnotherFleet
+            && !event.survivor_side
+            && event.absorbed_fleet_number == 2
+            && event.host_fleet_number == 1
+    }));
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.kind == Mission::JoinAnotherFleet
+            && !event.survivor_side
+            && event.absorbed_fleet_number == 3
+            && event.host_fleet_number == 1
+    }));
+    assert!(!events.invalid_player_state_events.iter().any(|event| {
+        matches!(
+            event,
+            nc_data::InvalidPlayerStateEvent::FleetMission {
+                reason: FleetOrderValidationError::InvalidJoinHost,
+                ..
+            }
         )
     }));
 }

@@ -45,6 +45,12 @@ struct MovementEvents {
     diplomatic_escalation_events: Vec<DiplomaticEscalationEvent>,
 }
 
+#[derive(Debug, Default, Clone)]
+pub(super) struct FleetRemovalRemapInfo {
+    destroyed_join_host_fleet_numbers: std::collections::HashMap<u8, u8>,
+    prior_join_host_ids: std::collections::HashMap<u8, u8>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PendingObservationEvent {
     fleet_idx: usize,
@@ -317,7 +323,14 @@ pub fn run_maintenance_turn_with_context_and_seed(
     // included in the merge even though it moves to (15,13) this turn.
     // The merge runs before movement resolution, absorbing all same-position
     // fleets for flagged players (PLAYER raw[0x00]==0xff).
-    let mut merge_events = merging::process_fleet_merging(game_data)?;
+    let (mut merge_events, consolidation_remap) = merging::process_fleet_merging(game_data)?;
+    let mut join_host_events = merging::process_join_host_updates(
+        game_data,
+        &merge_events,
+        &fleet_number_by_id,
+        &destroyed_join_host_fleet_numbers,
+        &consolidation_remap.prior_join_host_ids,
+    );
 
     let invalid_player_state_events = sanitize_invalid_player_inputs(game_data);
 
@@ -335,7 +348,27 @@ pub fn run_maintenance_turn_with_context_and_seed(
         visible_hazards_by_empire,
         &mut destroyed_join_host_fleet_numbers,
     )?;
-    merge_events.extend(merging::process_mission_fleet_merging(game_data)?);
+    loop {
+        let (new_merge_events, remap_info) = merging::process_mission_fleet_merging(game_data)?;
+        if new_merge_events.is_empty() {
+            break;
+        }
+        let new_join_host_events = merging::process_join_host_updates(
+            game_data,
+            &new_merge_events,
+            &fleet_number_by_id,
+            &destroyed_join_host_fleet_numbers,
+            &remap_info.prior_join_host_ids,
+        );
+        let had_retargets = new_join_host_events.iter().any(|event| {
+            matches!(event, JoinMissionHostEvent::Retargeted { .. })
+        });
+        merge_events.extend(new_merge_events);
+        join_host_events.extend(new_join_host_events);
+        if !had_retargets {
+            break;
+        }
+    }
 
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
     // surviving fleets get SeekHome orders (confirmed from fleet-battle oracle).
@@ -398,13 +431,6 @@ pub fn run_maintenance_turn_with_context_and_seed(
         &blitz_ready,
         &movement_events.hostile_arrived_fleet_indices,
     )?;
-
-    let join_host_events = merging::process_join_host_updates(
-        game_data,
-        &merge_events,
-        &fleet_number_by_id,
-        &destroyed_join_host_fleet_numbers,
-    );
 
     // Normalize CONQUEST.DAT header fields
     campaign::process_conquest_header(game_data, should_accumulate_conquest)?;
@@ -743,10 +769,10 @@ fn finalize_pending_observation_events(
 fn apply_fleet_removal_remap(
     game_data: &mut CoreGameData,
     to_remove: &[bool],
-) -> std::collections::HashMap<u8, u8> {
+) -> FleetRemovalRemapInfo {
     let fleet_count = game_data.fleets.records.len();
     if fleet_count == 0 || to_remove.len() != fleet_count {
-        return std::collections::HashMap::new();
+        return FleetRemovalRemapInfo::default();
     }
 
     let pre_removal_owner: Vec<u8> = game_data
@@ -799,7 +825,7 @@ fn apply_fleet_removal_remap(
     };
 
     // Surviving local fleet numbers stay unchanged. Only global linkage IDs compress.
-    let mut destroyed_join_host_fleet_numbers = std::collections::HashMap::new();
+    let mut remap_info = FleetRemovalRemapInfo::default();
     let mut remapped_fleets = Vec::new();
     for (idx, fleet) in game_data.fleets.records.iter().enumerate() {
         if to_remove[idx] {
@@ -814,12 +840,17 @@ fn apply_fleet_removal_remap(
             let prior_host_id = fleet.join_host_fleet_id_raw();
             let remapped_host_id = remap_id(u16::from(prior_host_id)) as u8;
             remapped.set_join_host_fleet_id_raw(remapped_host_id);
-            if remapped_host_id == 0 {
+            if remapped_host_id == 0 && prior_host_id != 0 {
+                remap_info
+                    .prior_join_host_ids
+                    .insert(new_fleet_id as u8, prior_host_id);
                 if let Some(host_fleet_number) = removed_fleet_number_by_id
                     .get(&u16::from(prior_host_id))
                     .copied()
                 {
-                    destroyed_join_host_fleet_numbers.insert(new_fleet_id as u8, host_fleet_number);
+                    remap_info
+                        .destroyed_join_host_fleet_numbers
+                        .insert(new_fleet_id as u8, host_fleet_number);
                 }
             }
         }
@@ -853,14 +884,14 @@ fn apply_fleet_removal_remap(
         );
     }
 
-    destroyed_join_host_fleet_numbers
+    remap_info
 }
 
 fn remove_selected_fleets(
     game_data: &mut CoreGameData,
     to_remove: &[bool],
 ) -> std::collections::HashMap<u8, u8> {
-    apply_fleet_removal_remap(game_data, to_remove)
+    apply_fleet_removal_remap(game_data, to_remove).destroyed_join_host_fleet_numbers
 }
 
 fn cull_empty_fleets(game_data: &mut CoreGameData) -> std::collections::HashMap<u8, u8> {
@@ -871,7 +902,7 @@ fn cull_empty_fleets(game_data: &mut CoreGameData) -> std::collections::HashMap<
         .map(|f| !f.has_any_force())
         .collect();
     if to_remove.iter().any(|&r| r) {
-        apply_fleet_removal_remap(game_data, &to_remove)
+        apply_fleet_removal_remap(game_data, &to_remove).destroyed_join_host_fleet_numbers
     } else {
         std::collections::HashMap::new()
     }
