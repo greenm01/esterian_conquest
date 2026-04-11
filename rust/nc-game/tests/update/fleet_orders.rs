@@ -5202,6 +5202,104 @@ fn fleet_change_roe_rejects_support_only_fleet_with_updated_message() {
 }
 
 #[test]
+fn fleet_list_checked_change_clears_only_successful_fleets_on_partial_roe_update() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    {
+        let combat = app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+            .expect("player 1 fleet #4 should exist");
+        combat.set_destroyer_count(1);
+        combat.set_cruiser_count(0);
+        combat.set_battleship_count(0);
+        combat.set_scout_count(0);
+        combat.set_troop_transport_count(0);
+        combat.set_army_count(0);
+        combat.set_etac_count(0);
+        combat.recompute_max_speed_from_composition();
+        combat.set_rules_of_engagement(0);
+
+        let support = app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+            .expect("player 1 fleet #1 should exist");
+        support.set_destroyer_count(0);
+        support.set_cruiser_count(0);
+        support.set_battleship_count(0);
+        support.set_scout_count(0);
+        support.set_troop_transport_count(1);
+        support.set_army_count(1);
+        support.set_etac_count(0);
+        support.recompute_max_speed_from_composition();
+        support.set_rules_of_engagement(0);
+    }
+    let combat_record_index = app
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .position(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 record index")
+        + 1;
+    let support_record_index = app
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .position(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 record index")
+        + 1;
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    app.fleet
+        .group_selected_fleets
+        .extend([combat_record_index, support_record_index]);
+
+    let action = app.handle_key(key(KeyCode::Char('c')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Char('r')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    submit_fleet_menu_prompt_value(&mut app, "6");
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(app.current_fleet_roe_by_id(4), Some(6));
+    assert_eq!(app.current_fleet_roe_by_id(1), Some(0));
+    assert_eq!(app.fleet.group_selected_fleets.len(), 1);
+    let remaining_record = *app
+        .fleet
+        .group_selected_fleets
+        .iter()
+        .next()
+        .expect("one fleet should remain selected");
+    assert_eq!(remaining_record, support_record_index);
+}
+
+#[test]
 fn fleet_change_id_updates_visible_fleet_number_inline() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

@@ -848,6 +848,10 @@ impl App {
         self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetList;
         let rows = self.fleet_list_rows();
+        if rows.is_empty() {
+            self.fleet.list_filter_clause = None;
+        }
+        let rows = self.fleet_list_rows();
         self.fleet.cursor = selected_record
             .and_then(|record| {
                 rows.iter()
@@ -1043,28 +1047,65 @@ impl App {
                     .map_err(|_| "Enter an ROE from 0 to 10.".to_string())?;
                 let checked_rows = self.checked_fleet_rows();
                 if self.fleet_list_has_checked_selection() {
+                    let mut successful = Vec::new();
+                    let mut failure_detail = None;
                     for row in &checked_rows {
-                        self.game_data
-                            .set_fleet_rules_of_engagement(
-                                self.player.record_index_1_based,
-                                row.fleet_record_index_1_based,
-                                roe,
-                            )
-                            .map_err(|err| match err {
-                                nc_data::GameStateMutationError::InvalidFleetPlayerInput {
-                                    reason:
-                                        nc_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                        match self.game_data.set_fleet_rules_of_engagement(
+                            self.player.record_index_1_based,
+                            row.fleet_record_index_1_based,
+                            roe,
+                        ) {
+                            Ok(_) => successful.push(row.fleet_record_index_1_based),
+                            Err(err) => {
+                                if failure_detail.is_none() {
+                                    failure_detail = Some(match err {
+                                        nc_data::GameStateMutationError::InvalidFleetPlayerInput {
+                                            reason:
+                                                nc_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                                                    ..
+                                                },
                                             ..
-                                        },
-                                    ..
-                                } => "Support-only fleets must use ROE 0.".to_string(),
-                                nc_data::GameStateMutationError::InvalidFleetPlayerInput {
-                                    reason:
-                                        nc_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },
-                                    ..
-                                } => "Enter an ROE from 0 to 10.".to_string(),
-                                other => other.to_string(),
-                            })?;
+                                        } => "Support-only fleets must use ROE 0.".to_string(),
+                                        nc_data::GameStateMutationError::InvalidFleetPlayerInput {
+                                            reason:
+                                                nc_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },
+                                            ..
+                                        } => "Enter an ROE from 0 to 10.".to_string(),
+                                        other => other.to_string(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    if successful.is_empty() {
+                        return Err(
+                            failure_detail.unwrap_or_else(|| "Unable to change ROE.".to_string())
+                        );
+                    }
+                    self.save_game_data().map_err(|err| err.to_string())?;
+                    for record_index in &successful {
+                        self.fleet.group_selected_fleets.remove(record_index);
+                    }
+                    let failure_count = checked_rows.len().saturating_sub(successful.len());
+                    if failure_count == 0 {
+                        self.clear_checked_fleet_selection();
+                        self.show_fleet_context_success(
+                            format!("Set ROE {} for {} checked fleets.", roe, checked_rows.len()),
+                            true,
+                        );
+                    } else {
+                        self.fleet.menu_prompt_status = self.show_fleet_prompt_feedback(
+                            PromptFeedback::error(format!(
+                                "Set ROE {} for {} fleets. {} {} remain selected: {}",
+                                roe,
+                                successful.len(),
+                                failure_count,
+                                if failure_count == 1 { "fleet" } else { "fleets" },
+                                failure_detail
+                                    .as_deref()
+                                    .unwrap_or("Some fleets could not be changed.")
+                            )),
+                        );
                     }
                 } else {
                     let row = self.prompt_context_fleet_row()?;
@@ -1089,16 +1130,7 @@ impl App {
                             } => "Enter an ROE from 0 to 10.".to_string(),
                             other => other.to_string(),
                         })?;
-                }
-                self.save_game_data().map_err(|err| err.to_string())?;
-                if self.fleet_list_has_checked_selection() {
-                    self.clear_checked_fleet_selection();
-                    self.show_fleet_context_success(
-                        format!("Set ROE {} for {} checked fleets.", roe, checked_rows.len()),
-                        true,
-                    );
-                } else {
-                    let row = self.prompt_context_fleet_row()?;
+                    self.save_game_data().map_err(|err| err.to_string())?;
                     self.show_fleet_context_success(
                         format!("Fleet #{} ROE set to {}.", row.fleet_number, roe),
                         true,
@@ -1137,30 +1169,76 @@ impl App {
                     .map_err(|_| "Enter a speed from 0 up.".to_string())?;
                 let checked_rows = self.checked_fleet_rows();
                 if self.fleet_list_has_checked_selection() {
+                    let mut successful = Vec::new();
+                    let mut failure_detail = None;
                     for row in &checked_rows {
-                        let fleet = self
+                        let Some(fleet) = self
                             .game_data
                             .fleets
                             .records
                             .get(row.fleet_record_index_1_based - 1)
-                            .ok_or_else(|| "Selected fleet is no longer available.".to_string())?
-                            .clone();
+                            .cloned()
+                        else {
+                            if failure_detail.is_none() {
+                                failure_detail =
+                                    Some("Selected fleet is no longer available.".to_string());
+                            }
+                            continue;
+                        };
                         let aux = fleet.mission_aux_bytes();
-                        self.game_data
-                            .set_fleet_order(
-                                row.fleet_record_index_1_based,
-                                speed,
-                                fleet.standing_order_code_raw(),
-                                fleet.standing_order_target_coords_raw(),
-                                Some(aux[0]),
-                                Some(aux[1]),
-                            )
-                            .map_err(|err| match err {
-                                nc_data::GameStateMutationError::InvalidFleetSpeed { max, .. } => {
-                                    format!("Enter a speed from 0 to {max}.")
+                        match self.game_data.set_fleet_order(
+                            row.fleet_record_index_1_based,
+                            speed,
+                            fleet.standing_order_code_raw(),
+                            fleet.standing_order_target_coords_raw(),
+                            Some(aux[0]),
+                            Some(aux[1]),
+                        ) {
+                            Ok(_) => successful.push(row.fleet_record_index_1_based),
+                            Err(err) => {
+                                if failure_detail.is_none() {
+                                    failure_detail = Some(match err {
+                                        nc_data::GameStateMutationError::InvalidFleetSpeed {
+                                            max,
+                                            ..
+                                        } => {
+                                            format!("Enter a speed from 0 to {max}.")
+                                        }
+                                        other => other.to_string(),
+                                    });
                                 }
-                                other => other.to_string(),
-                            })?;
+                            }
+                        }
+                    }
+                    if successful.is_empty() {
+                        return Err(
+                            failure_detail.unwrap_or_else(|| "Unable to change speed.".to_string())
+                        );
+                    }
+                    self.save_game_data().map_err(|err| err.to_string())?;
+                    for record_index in &successful {
+                        self.fleet.group_selected_fleets.remove(record_index);
+                    }
+                    let failure_count = checked_rows.len().saturating_sub(successful.len());
+                    if failure_count == 0 {
+                        self.clear_checked_fleet_selection();
+                        self.show_fleet_context_success(
+                            format!("Set speed {} for {} checked fleets.", speed, checked_rows.len()),
+                            true,
+                        );
+                    } else {
+                        self.fleet.menu_prompt_status = self.show_fleet_prompt_feedback(
+                            PromptFeedback::error(format!(
+                                "Set speed {} for {} fleets. {} {} remain selected: {}",
+                                speed,
+                                successful.len(),
+                                failure_count,
+                                if failure_count == 1 { "fleet" } else { "fleets" },
+                                failure_detail
+                                    .as_deref()
+                                    .unwrap_or("Some fleets could not be changed.")
+                            )),
+                        );
                     }
                 } else {
                     let row = self.prompt_context_fleet_row()?;
@@ -1187,16 +1265,7 @@ impl App {
                             }
                             other => other.to_string(),
                         })?;
-                }
-                self.save_game_data().map_err(|err| err.to_string())?;
-                if self.fleet_list_has_checked_selection() {
-                    self.clear_checked_fleet_selection();
-                    self.show_fleet_context_success(
-                        format!("Set speed {} for {} checked fleets.", speed, checked_rows.len()),
-                        true,
-                    );
-                } else {
-                    let row = self.prompt_context_fleet_row()?;
+                    self.save_game_data().map_err(|err| err.to_string())?;
                     self.show_fleet_context_success(
                         format!("Fleet #{} speed set to {}.", row.fleet_number, speed),
                         true,

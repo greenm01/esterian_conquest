@@ -1613,6 +1613,10 @@ impl App {
         self.planet.database_pending_column = None;
         self.current_screen = ScreenId::PlanetDatabaseList;
         let rows = self.planet_database_rows();
+        if rows.is_empty() {
+            self.planet.database_filter_clause = None;
+        }
+        let rows = self.planet_database_rows();
         self.planet.database_cursor = selected_record
             .and_then(|record| {
                 rows.iter()
@@ -1742,6 +1746,10 @@ impl App {
         self.planet.list_pending_range_anchor = None;
         self.planet.list_filter_pending_column = None;
         self.current_screen = ScreenId::PlanetList(mode, self.planet.list_sort);
+        let rows = self.planet_list_rows(mode, self.planet.list_sort);
+        if rows.is_empty() {
+            self.planet.list_filter_clause = None;
+        }
         let rows = self.planet_list_rows(mode, self.planet.list_sort);
         self.planet.brief_cursor = selected_record
             .and_then(|record| {

@@ -1963,18 +1963,11 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
     assert!(
-        !terminal.lines.iter().any(|line| line.contains(&format!(
-            "({:02},{:02})",
-            sample_worlds[1].1[0], sample_worlds[1].1[1]
-        ))),
-        "non-matching empire worlds should be filtered out"
-    );
-    assert!(
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("TOTAL PLANET DATABASE:") && line.contains("OWN~3")),
-        "database title should reflect the active owner filter"
+            .any(|line| line.contains("TOTAL PLANET DATABASE:") && line.contains(" ALL")),
+        "empty database filters should reset to ALL"
     );
 
     let range_anchor = sample_worlds[0].1;

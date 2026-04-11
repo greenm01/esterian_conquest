@@ -1671,6 +1671,10 @@ impl DashApp {
         self.planet_overlay.filter_clause = clause;
         self.reset_planet_overlay_prompt();
         let rows = planet_list::table_rows(self);
+        if rows.is_empty() {
+            self.planet_overlay.filter_clause = None;
+        }
+        let rows = planet_list::table_rows(self);
         self.planet_overlay.selected = selected_record
             .and_then(|record| {
                 rows.iter()
@@ -1696,6 +1700,10 @@ impl DashApp {
         self.fleet_overlay.clear_group_selection();
         self.fleet_overlay.clear_prompt();
         let rows = fleet_list::table_rows(self);
+        if rows.is_empty() {
+            self.fleet_overlay.filter_clause = None;
+        }
+        let rows = fleet_list::table_rows(self);
         self.fleet_overlay.selected = selected_key
             .and_then(|key| rows.iter().position(|row| row.key == key))
             .unwrap_or(0);
@@ -1716,6 +1724,10 @@ impl DashApp {
         self.intel_overlay.filter = IntelOverlayFilter::All;
         self.intel_overlay.filter_clause = clause;
         self.reset_intel_overlay_prompt();
+        let rows = intel_database::table_rows(self);
+        if rows.is_empty() {
+            self.intel_overlay.filter_clause = None;
+        }
         let rows = intel_database::table_rows(self);
         self.intel_overlay.selected = selected_record
             .and_then(|record| {
@@ -2805,6 +2817,63 @@ mod tests {
     }
 
     #[test]
+    fn checked_change_clears_only_successful_fleets_on_partial_roe_update() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::FleetList;
+        let selected_records = select_first_two_fleet_rows(&mut app);
+        let combat_record = selected_records[0];
+        let support_record = selected_records[1];
+
+        {
+            let combat = &mut app.game_data.fleets.records[combat_record - 1];
+            combat.set_destroyer_count(1);
+            combat.set_cruiser_count(0);
+            combat.set_battleship_count(0);
+            combat.set_scout_count(0);
+            combat.set_troop_transport_count(0);
+            combat.set_army_count(0);
+            combat.set_etac_count(0);
+            combat.recompute_max_speed_from_composition();
+            combat.set_rules_of_engagement(0);
+
+            let support = &mut app.game_data.fleets.records[support_record - 1];
+            support.set_destroyer_count(0);
+            support.set_cruiser_count(0);
+            support.set_battleship_count(0);
+            support.set_scout_count(0);
+            support.set_troop_transport_count(1);
+            support.set_army_count(1);
+            support.set_etac_count(0);
+            support.recompute_max_speed_from_composition();
+            support.set_rules_of_engagement(0);
+        }
+
+        app.handle_key(key(KeyCode::Char('c')));
+        app.handle_key(key(KeyCode::Char('r')));
+        app.handle_key(key(KeyCode::Enter));
+        app.handle_key(key(KeyCode::Char('6')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::ChangeValue
+        );
+        assert_eq!(
+            app.fleet_overlay.selected_fleet_record_indexes,
+            [support_record].into_iter().collect()
+        );
+        assert_eq!(
+            app.game_data.fleets.records[combat_record - 1].rules_of_engagement(),
+            6
+        );
+        assert_eq!(
+            app.game_data.fleets.records[support_record - 1].rules_of_engagement(),
+            0
+        );
+        assert!(app.fleet_overlay.aux_status.is_some());
+    }
+
+    #[test]
     fn checked_merge_uses_lowest_numbered_host() {
         let mut app = dash_app_with_store();
         app.overlay = ActiveOverlay::FleetList;
@@ -3026,6 +3095,66 @@ mod tests {
                 .code,
             "sco"
         );
+    }
+
+    #[test]
+    fn empty_fleet_filter_clause_resets_to_all() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        for ch in ['o', 'r', 'd'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        for ch in ['z', 'z', 'z', 'z'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert!(app.fleet_overlay.filter_clause.is_none());
+        assert!(!fleet_list::table_rows(&app).is_empty());
+    }
+
+    #[test]
+    fn empty_planet_filter_clause_resets_to_all() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        for ch in ['p', 'l', 'a'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        for ch in ['z', 'z', 'z', 'z'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert!(app.planet_overlay.filter_clause.is_none());
+        assert!(!planet_list::table_rows(&app).is_empty());
+    }
+
+    #[test]
+    fn empty_intel_filter_clause_resets_to_all() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::IntelDatabase;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        for ch in ['p', 'l', 'a'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        for ch in ['z', 'z', 'z', 'z'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+        assert!(app.intel_overlay.filter_clause.is_none());
+        assert!(!intel_database::table_rows(&app).is_empty());
     }
 
     #[test]

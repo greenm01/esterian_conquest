@@ -487,6 +487,138 @@ fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
 }
 
 #[test]
+fn empty_fleet_filter_clause_resets_to_all() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_fleet_list();
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    for ch in ['o', 'r', 'd'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    for ch in ['z', 'z', 'z', 'z'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+
+    assert_eq!(app.current_screen, ScreenId::FleetList);
+    assert!(app.fleet.list_filter_clause.is_none());
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(line_containing(&terminal, "FLEET LIST: ").contains(" ALL"));
+}
+
+#[test]
+fn empty_planet_list_filter_clause_resets_to_all() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenListFilterPrompt(PlanetListMode::Brief))
+        ),
+        AppOutcome::Continue
+    );
+    for ch in ['p', 'l', 'a'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    for ch in ['z', 'z', 'z', 'z'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+
+    assert_eq!(
+        app.current_screen,
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+    assert!(app.planet.list_filter_clause.is_none());
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet list should render");
+    assert!(line_containing(&terminal, "PLANET LIST: ").contains(" ALL"));
+}
+
+#[test]
+fn empty_database_filter_clause_resets_to_all() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_database();
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    for ch in ['p', 'l', 'a'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    for ch in ['z', 'z', 'z', 'z'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+
+    assert_eq!(app.current_screen, ScreenId::PlanetDatabaseList);
+    assert!(app.planet.database_filter_clause.is_none());
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet database should render");
+    assert!(line_containing(&terminal, "TOTAL PLANET DATABASE: ").contains(" ALL"));
+}
+
+#[test]
 fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
     let root = temp_game_copy();
     let config = AppConfig {
