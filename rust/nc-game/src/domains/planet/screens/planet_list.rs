@@ -31,9 +31,19 @@ pub enum PlanetListMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetListSort {
-    CurrentProduction,
     Location,
+    PlanetName,
     PotentialProduction,
+    CurrentProduction,
+    Treasury,
+    Budget,
+    Revenue,
+    Growth,
+    BuildQueue,
+    Stardock,
+    Starbase,
+    Armies,
+    Batteries,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,7 +95,6 @@ const BRIEF_TOP_HEADER_CELLS: [&str; 13] = [
 ];
 
 const BRIEF_BROWSE_HOTKEYS: &str = "? F S B A C L U X <Q>";
-const BRIEF_SORT_HOTKEYS: &str = "? C L M <Q>";
 const BRIEF_FILTER_HOTKEYS: &str = "? A R S T <Q>";
 pub(crate) const PLANET_LIST_AUTO_COMMISSION_PROMPT: &str =
     "Auto-Commission: Commission all ships and starbases? [Y]/N -> ";
@@ -229,8 +238,10 @@ impl PlanetListScreen {
         filter: PlanetListFilter,
         scroll_offset: usize,
         cursor: usize,
+        prompt_default: &str,
         input: &str,
         status: Option<&str>,
+        dismiss_message: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if let PlanetListMode::Stub(message) = mode {
             let mut buffer = new_playfield_for(frame.geometry);
@@ -241,14 +252,25 @@ impl PlanetListScreen {
         }
 
         let footer_label = sort_footer_label(direction);
-        let footer = TableFooter::LabeledCommandBar {
-            label: &footer_label,
-            hotkeys_markup: BRIEF_SORT_HOTKEYS,
-            default: None,
-            input: "",
+        let prompt;
+        let footer = if let Some(message) = dismiss_message {
+            prompt = filter_prompt_dismiss_prompt(message);
+            TableFooter::CommandPrompt {
+                label: &footer_label,
+                prompt: &prompt,
+            }
+        } else {
+            prompt = status
+                .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                .map(|value| value.trim_start().to_string())
+                .unwrap_or_else(|| "Sort column [?] ".to_string());
+            TableFooter::CommandInput {
+                label: &footer_label,
+                prompt: &prompt,
+                default: prompt_default,
+                input,
+            }
         };
-        let _ = input;
-        let _ = status;
         Ok(self
             .render_table(
                 frame,
@@ -492,17 +514,13 @@ impl PlanetListScreen {
     pub fn handle_sort_prompt_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
         match key.code {
             KeyCode::Char('?') => Action::OpenPopupHelp,
-            KeyCode::Char('c') | KeyCode::Char('C') | KeyCode::Enter => Action::Planet(
-                PlanetAction::SubmitListSort(mode, PlanetListSort::CurrentProduction),
-            ),
-            KeyCode::Char('l') | KeyCode::Char('L') => {
-                Action::Planet(PlanetAction::SubmitListSort(mode, PlanetListSort::Location))
-            }
-            KeyCode::Char('m') | KeyCode::Char('M') => Action::Planet(
-                PlanetAction::SubmitListSort(mode, PlanetListSort::PotentialProduction),
-            ),
+            KeyCode::Enter => Action::Planet(PlanetAction::SubmitListSortPrompt(mode)),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Planet(PlanetAction::CloseListSortPrompt(mode))
+            }
+            KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
+            KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                Action::Planet(PlanetAction::AppendListPromptChar(ch))
             }
             _ => Action::Noop,
         }
@@ -666,10 +684,10 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                     label: "COMMAND",
                     prompt: PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT,
                 }),
-                table_footer_scaffold_width(TableFooter::LabeledCommandBar {
+                table_footer_scaffold_width(TableFooter::CommandInput {
                     label: "SORT",
-                    hotkeys_markup: BRIEF_SORT_HOTKEYS,
-                    default: None,
+                    prompt: "Sort column [?] ",
+                    default: "gbs",
                     input: "",
                 }),
                 table_footer_scaffold_width(TableFooter::LabeledCommandBar {
@@ -689,10 +707,10 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                 default: Some("00,00"),
                 input: "",
             }),
-            table_footer_scaffold_width(TableFooter::LabeledCommandBar {
+            table_footer_scaffold_width(TableFooter::CommandInput {
                 label: "SORT",
-                hotkeys_markup: BRIEF_SORT_HOTKEYS,
-                default: None,
+                prompt: "Sort column [?] ",
+                default: "gbs",
                 input: "",
             }),
         ]

@@ -70,11 +70,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         ScreenId::FleetListSortPrompt => Some(table_help(
             "SORT COMMANDS",
             &[
-                ("I", "sort by fleet ID"),
-                ("L", "sort by location"),
-                ("O", "sort by order"),
-                ("E", "sort by ETA"),
-                ("T", "sort by strength"),
+                ("Type", "enter a column code or unique prefix, then Enter"),
+                ("Codes", "id sel loc ord tar spd eta roe ars shi"),
+                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
                 ("Repeat", "same sort flips ASC/DESC"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -165,9 +163,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         ScreenId::PlanetListSortPrompt(_) => Some(table_help(
             "SORT COMMANDS",
             &[
-                ("C", "sort by current production"),
-                ("L", "sort by location"),
-                ("M", "sort by max production"),
+                ("Type", "enter a column code or unique prefix, then Enter"),
+                ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
+                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
                 ("Repeat", "same sort flips ASC/DESC"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -206,10 +204,10 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         ScreenId::PlanetDatabaseSortPrompt => Some(table_help(
             "SORT COMMANDS",
             &[
-                ("L", "sort by location"),
-                ("R", "sort by range from a sector"),
-                ("E", "sort by known owner empire"),
-                ("M", "sort by max production"),
+                ("Type", "enter a column code or unique prefix, then Enter"),
+                ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
+                ("rng", "sort by range from a sector"),
+                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
                 ("Repeat", "same sort flips ASC/DESC"),
                 ("Q", "return"),
                 ("Esc", "return"),

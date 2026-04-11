@@ -62,6 +62,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::SubmitListFilter(filter) => app.submit_fleet_list_filter(filter),
         FleetAction::SubmitListFilterPrompt => app.submit_fleet_list_filter_prompt(),
         FleetAction::SubmitListSort(sort) => app.submit_fleet_list_sort(sort),
+        FleetAction::SubmitListSortPrompt => app.submit_fleet_list_sort_prompt(),
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),
         FleetAction::SubmitOrder => {
             if let Err(err) = app.submit_fleet_order() {

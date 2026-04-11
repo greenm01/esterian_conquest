@@ -56,6 +56,7 @@ pub enum FleetAction {
     SubmitListFilter(FleetListFilter),
     SubmitListFilterPrompt,
     SubmitListSort(FleetListSort),
+    SubmitListSortPrompt,
     SubmitMenuPrompt,
     SubmitOrder,
     SubmitGroupOrder,

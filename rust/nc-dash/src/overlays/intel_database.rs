@@ -28,7 +28,6 @@ use crate::overlays::frame::{
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S <Q>";
-pub(crate) const SORT_HOTKEYS: &str = "? L R E M <Q>";
 const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
 const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
@@ -62,8 +61,17 @@ const FILTER_COLUMNS: &[TableFilterColumn] = &[
 pub(crate) struct IntelOverlayRow {
     pub planet_record_index_1_based: usize,
     pub coords: [u8; 2],
+    pub known_name: Option<String>,
     pub known_owner_empire_id: Option<u8>,
+    pub known_owner_name: Option<String>,
     pub known_max_production: Option<u16>,
+    pub known_year_seen: Option<u16>,
+    pub known_armies: Option<u8>,
+    pub known_batteries: Option<u8>,
+    pub known_starbases: Option<u8>,
+    pub known_current_production: Option<u8>,
+    pub known_treasury: Option<u16>,
+    pub known_scout_year: Option<u16>,
     pub cells: Vec<String>,
 }
 
@@ -74,7 +82,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
-    let sort_footer_label = sort_footer_label(app);
     let mut filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
@@ -82,11 +89,20 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             default: selected_default.as_deref(),
             input: &app.intel_overlay.jump_input,
         },
-        IntelOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: &sort_footer_label,
-            hotkeys_markup: SORT_HOTKEYS,
-            default: None,
-            input: "",
+        IntelOverlayPromptMode::SortMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: {
+                filter_prompt = app
+                    .intel_overlay
+                    .prompt_status
+                    .as_deref()
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Sort column [?] ".to_string());
+                filter_prompt.as_str()
+            },
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
         },
         IntelOverlayPromptMode::SortRangeInput => TableFooter::CommandInput {
             label: "COMMAND",
@@ -193,7 +209,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
-    let sort_footer_label = sort_footer_label(app);
     let mut filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
@@ -201,11 +216,20 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             default: selected_default.as_deref(),
             input: &app.intel_overlay.jump_input,
         },
-        IntelOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: &sort_footer_label,
-            hotkeys_markup: SORT_HOTKEYS,
-            default: None,
-            input: "",
+        IntelOverlayPromptMode::SortMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: {
+                filter_prompt = app
+                    .intel_overlay
+                    .prompt_status
+                    .as_deref()
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Sort column [?] ".to_string());
+                filter_prompt.as_str()
+            },
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
         },
         IntelOverlayPromptMode::SortRangeInput => TableFooter::CommandInput {
             label: "COMMAND",
@@ -312,14 +336,57 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<IntelOverlayRow> {
             distance_sq(anchor, left.coords).cmp(&distance_sq(anchor, right.coords)),
         )
         .then_with(|| left.coords.cmp(&right.coords)),
-        IntelOverlaySort::Empire => apply_sort_direction(
+        IntelOverlaySort::PlanetName => apply_sort_direction(
             app.intel_overlay.sort_direction,
-            left.known_owner_empire_id.cmp(&right.known_owner_empire_id),
+            left.known_name.as_deref().cmp(&right.known_name.as_deref()),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Owner => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_owner_name
+                .as_deref()
+                .cmp(&right.known_owner_name.as_deref()),
         )
         .then_with(|| left.coords.cmp(&right.coords)),
         IntelOverlaySort::MaxProduction => apply_sort_direction(
             app.intel_overlay.sort_direction,
             left.known_max_production.cmp(&right.known_max_production),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::YearSeen => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_year_seen.cmp(&right.known_year_seen),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Armies => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_armies.cmp(&right.known_armies),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Batteries => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_batteries.cmp(&right.known_batteries),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Starbases => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_starbases.cmp(&right.known_starbases),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::CurrentProduction => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_current_production
+                .cmp(&right.known_current_production),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Treasury => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_treasury.cmp(&right.known_treasury),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::ScoutYear => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_scout_year.cmp(&right.known_scout_year),
         )
         .then_with(|| left.coords.cmp(&right.coords)),
     });
@@ -370,8 +437,17 @@ fn format_intel_row(
     IntelOverlayRow {
         planet_record_index_1_based: world.planet_record_index_1_based,
         coords,
+        known_name: world.known_name.clone(),
         known_owner_empire_id: world.known_owner_empire_id,
+        known_owner_name: world.known_owner_empire_name.clone(),
         known_max_production: world.known_potential_production,
+        known_year_seen: snapshot.and_then(|row| row.last_intel_year),
+        known_armies: world.known_armies,
+        known_batteries: world.known_ground_batteries,
+        known_starbases: world.known_starbase_count,
+        known_current_production: world.known_current_production,
+        known_treasury: world.known_stored_points,
+        known_scout_year: snapshot.and_then(|row| row.scout_year),
         cells: vec![
             format_sector_coords_table(coords),
             truncate(world.known_name.as_deref().unwrap_or("?"), 11),

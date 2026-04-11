@@ -30,7 +30,6 @@ use crate::overlays::frame::{
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S B <Q>";
-pub(crate) const SORT_HOTKEYS: &str = "? C L M <Q>";
 const TOP_HEADERS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
@@ -74,10 +73,18 @@ fn overlay_parent_rect(app: &DashApp) -> Rect {
 pub(crate) struct PlanetOverlayRow {
     pub planet_record_index_1_based: usize,
     pub coords: [u8; 2],
+    pub planet_name: String,
     pub current_prod: u16,
     pub max_prod: u16,
+    pub treasury: u32,
+    pub budget: u32,
+    pub revenue: i16,
+    pub growth: i16,
+    pub build_queue: u32,
     pub has_starbase: bool,
     pub docked: u32,
+    pub armies: u8,
+    pub batteries: u8,
     pub cells: Vec<String>,
 }
 
@@ -102,7 +109,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
-    let sort_footer_label = sort_footer_label(app);
     let command_bar = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
         default: selected_default.as_deref(),
@@ -128,11 +134,20 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                 command_bar
             }
         }
-        PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: &sort_footer_label,
-            hotkeys_markup: SORT_HOTKEYS,
-            default: None,
-            input: "",
+        PlanetOverlayPromptMode::SortMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: {
+                filter_prompt = app
+                    .planet_overlay
+                    .prompt_status
+                    .as_deref()
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Sort column [?] ".to_string());
+                filter_prompt.as_str()
+            },
+            default: &app.planet_overlay.prompt_default,
+            input: &app.planet_overlay.prompt_input,
         },
         PlanetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
@@ -253,7 +268,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
-    let sort_footer_label = sort_footer_label(app);
     let command_bar = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
         default: selected_default.as_deref(),
@@ -279,11 +293,20 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                 command_bar
             }
         }
-        PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: &sort_footer_label,
-            hotkeys_markup: SORT_HOTKEYS,
-            default: None,
-            input: "",
+        PlanetOverlayPromptMode::SortMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: {
+                filter_prompt = app
+                    .planet_overlay
+                    .prompt_status
+                    .as_deref()
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Sort column [?] ".to_string());
+                filter_prompt.as_str()
+            },
+            default: &app.planet_overlay.prompt_default,
+            input: &app.planet_overlay.prompt_input,
         },
         PlanetOverlayPromptMode::FilterMenu => TableFooter::CommandInput {
             label: "COMMAND",
@@ -671,18 +694,68 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<PlanetOverlayRow> {
     }
 
     rows.sort_by(|left, right| match app.planet_overlay.sort {
+        PlanetOverlaySort::Location => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.coords.cmp(&right.coords),
+        ),
+        PlanetOverlaySort::PlanetName => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.planet_name.cmp(&right.planet_name),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::MaxProduction => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.max_prod.cmp(&right.max_prod),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
         PlanetOverlaySort::CurrentProduction => apply_sort_direction(
             app.planet_overlay.sort_direction,
             left.current_prod.cmp(&right.current_prod),
         )
         .then_with(|| left.coords.cmp(&right.coords)),
-        PlanetOverlaySort::Location => apply_sort_direction(
+        PlanetOverlaySort::Treasury => apply_sort_direction(
             app.planet_overlay.sort_direction,
-            left.coords.cmp(&right.coords),
-        ),
-        PlanetOverlaySort::MaxProduction => apply_sort_direction(
+            left.treasury.cmp(&right.treasury),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Budget => apply_sort_direction(
             app.planet_overlay.sort_direction,
-            left.max_prod.cmp(&right.max_prod),
+            left.budget.cmp(&right.budget),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Revenue => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.revenue.cmp(&right.revenue),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Growth => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.growth.cmp(&right.growth),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::BuildQueue => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.build_queue.cmp(&right.build_queue),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Stardock => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.docked.cmp(&right.docked),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Starbase => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.has_starbase.cmp(&right.has_starbase),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Armies => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.armies.cmp(&right.armies),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Batteries => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.batteries.cmp(&right.batteries),
         )
         .then_with(|| left.coords.cmp(&right.coords)),
     });
@@ -718,10 +791,18 @@ fn format_planet_row_cells(
     PlanetOverlayRow {
         planet_record_index_1_based: row.planet_record_index_1_based,
         coords,
+        planet_name: row.planet_name.clone(),
         current_prod: row.present_production,
         max_prod: row.potential_production,
+        treasury: stored,
+        budget,
+        revenue: row.yearly_tax_revenue as i16,
+        growth,
+        build_queue: queue,
         has_starbase,
         docked,
+        armies: planet.army_count_raw(),
+        batteries: planet.ground_batteries_raw(),
         cells: vec![
             format_sector_coords_table(coords),
             truncate(&row.planet_name, 13),

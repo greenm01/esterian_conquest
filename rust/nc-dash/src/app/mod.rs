@@ -11,8 +11,10 @@ pub mod state;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
 use nc_ui::modal::Rect;
+use nc_ui::table_filter::{
+    format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
+};
 use nc_ui::table_selection;
-use nc_ui::table_filter::{format_column_code_error, parse_column_code, parse_filter_clause};
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
@@ -27,6 +29,108 @@ use crate::layout::dashboard;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
+
+const fn planet_sort_code(sort: PlanetOverlaySort) -> &'static str {
+    match sort {
+        PlanetOverlaySort::Location => "coo",
+        PlanetOverlaySort::PlanetName => "pla",
+        PlanetOverlaySort::MaxProduction => "max",
+        PlanetOverlaySort::CurrentProduction => "cur",
+        PlanetOverlaySort::Treasury => "trs",
+        PlanetOverlaySort::Budget => "bdg",
+        PlanetOverlaySort::Revenue => "rev",
+        PlanetOverlaySort::Growth => "gro",
+        PlanetOverlaySort::BuildQueue => "bui",
+        PlanetOverlaySort::Stardock => "sta",
+        PlanetOverlaySort::Starbase => "sbs",
+        PlanetOverlaySort::Armies => "ars",
+        PlanetOverlaySort::Batteries => "gbs",
+    }
+}
+
+fn planet_sort_from_code(code: &str) -> Option<PlanetOverlaySort> {
+    match code {
+        "coo" => Some(PlanetOverlaySort::Location),
+        "pla" => Some(PlanetOverlaySort::PlanetName),
+        "max" => Some(PlanetOverlaySort::MaxProduction),
+        "cur" => Some(PlanetOverlaySort::CurrentProduction),
+        "trs" => Some(PlanetOverlaySort::Treasury),
+        "bdg" => Some(PlanetOverlaySort::Budget),
+        "rev" => Some(PlanetOverlaySort::Revenue),
+        "gro" => Some(PlanetOverlaySort::Growth),
+        "bui" => Some(PlanetOverlaySort::BuildQueue),
+        "sta" => Some(PlanetOverlaySort::Stardock),
+        "sbs" => Some(PlanetOverlaySort::Starbase),
+        "ars" => Some(PlanetOverlaySort::Armies),
+        "gbs" => Some(PlanetOverlaySort::Batteries),
+        _ => None,
+    }
+}
+
+const fn fleet_sort_code(sort: FleetOverlaySort) -> &'static str {
+    match sort {
+        FleetOverlaySort::Id => "id",
+        FleetOverlaySort::Selected => "sel",
+        FleetOverlaySort::Location => "loc",
+        FleetOverlaySort::Order => "ord",
+        FleetOverlaySort::Target => "tar",
+        FleetOverlaySort::Speed => "spd",
+        FleetOverlaySort::Eta => "eta",
+        FleetOverlaySort::Roe => "roe",
+        FleetOverlaySort::Armies => "ars",
+        FleetOverlaySort::Strength => "shi",
+    }
+}
+
+fn fleet_sort_from_code(code: &str) -> Option<FleetOverlaySort> {
+    match code {
+        "id" => Some(FleetOverlaySort::Id),
+        "sel" => Some(FleetOverlaySort::Selected),
+        "loc" => Some(FleetOverlaySort::Location),
+        "ord" => Some(FleetOverlaySort::Order),
+        "tar" => Some(FleetOverlaySort::Target),
+        "spd" => Some(FleetOverlaySort::Speed),
+        "eta" => Some(FleetOverlaySort::Eta),
+        "roe" => Some(FleetOverlaySort::Roe),
+        "ars" => Some(FleetOverlaySort::Armies),
+        "shi" => Some(FleetOverlaySort::Strength),
+        _ => None,
+    }
+}
+
+const fn intel_sort_code(sort: IntelOverlaySort) -> &'static str {
+    match sort {
+        IntelOverlaySort::Location => "coo",
+        IntelOverlaySort::Range(_) => "rng",
+        IntelOverlaySort::PlanetName => "pla",
+        IntelOverlaySort::Owner => "own",
+        IntelOverlaySort::MaxProduction => "max",
+        IntelOverlaySort::YearSeen => "see",
+        IntelOverlaySort::Armies => "ars",
+        IntelOverlaySort::Batteries => "gbs",
+        IntelOverlaySort::Starbases => "sbs",
+        IntelOverlaySort::CurrentProduction => "cur",
+        IntelOverlaySort::Treasury => "trs",
+        IntelOverlaySort::ScoutYear => "sco",
+    }
+}
+
+fn intel_sort_from_code(code: &str) -> Option<IntelOverlaySort> {
+    match code {
+        "coo" => Some(IntelOverlaySort::Location),
+        "pla" => Some(IntelOverlaySort::PlanetName),
+        "own" => Some(IntelOverlaySort::Owner),
+        "max" => Some(IntelOverlaySort::MaxProduction),
+        "see" => Some(IntelOverlaySort::YearSeen),
+        "ars" => Some(IntelOverlaySort::Armies),
+        "gbs" => Some(IntelOverlaySort::Batteries),
+        "sbs" => Some(IntelOverlaySort::Starbases),
+        "cur" => Some(IntelOverlaySort::CurrentProduction),
+        "trs" => Some(IntelOverlaySort::Treasury),
+        "sco" => Some(IntelOverlaySort::ScoutYear),
+        _ => None,
+    }
+}
 
 impl DashApp {
     pub(crate) fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {
@@ -699,14 +803,34 @@ impl DashApp {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     self.planet_overlay.close_prompt();
                 }
-                KeyCode::Enter | KeyCode::Char('c') | KeyCode::Char('C') => {
-                    self.apply_planet_overlay_sort(PlanetOverlaySort::CurrentProduction);
+                KeyCode::Enter => {
+                    let raw = if self.planet_overlay.prompt_input.trim().is_empty() {
+                        self.planet_overlay.prompt_default.trim()
+                    } else {
+                        self.planet_overlay.prompt_input.trim()
+                    };
+                    match parse_column_code(planet_list::filter_columns(), raw) {
+                        Ok(column) => match planet_sort_from_code(column.code) {
+                            Some(sort) => self.apply_planet_overlay_sort(sort),
+                            None => {
+                                self.planet_overlay.prompt_input.clear();
+                                self.planet_overlay.prompt_status =
+                                    Some(" Enter a valid sort column.".to_string());
+                            }
+                        },
+                        Err(err) => {
+                            self.planet_overlay.prompt_status =
+                                Some(format!(" {}", format_column_code_error(&err)));
+                        }
+                    }
                 }
-                KeyCode::Char('l') | KeyCode::Char('L') => {
-                    self.apply_planet_overlay_sort(PlanetOverlaySort::Location);
+                KeyCode::Backspace => {
+                    self.planet_overlay.prompt_input.pop();
+                    self.planet_overlay.prompt_status = None;
                 }
-                KeyCode::Char('m') | KeyCode::Char('M') => {
-                    self.apply_planet_overlay_sort(PlanetOverlaySort::MaxProduction);
+                KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                    self.planet_overlay.prompt_input.push(ch);
+                    self.planet_overlay.prompt_status = None;
                 }
                 _ => {}
             },
@@ -805,6 +929,10 @@ impl DashApp {
                 self.clear_planet_overlay_footer_notice();
                 self.planet_overlay
                     .open_prompt(PlanetOverlayPromptMode::SortMenu);
+                self.planet_overlay.prompt_input.clear();
+                self.planet_overlay.prompt_default =
+                    planet_sort_code(self.planet_overlay.sort).to_string();
+                self.planet_overlay.prompt_status = None;
             }
             KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
             KeyCode::Char(ch)
@@ -1025,20 +1153,34 @@ impl DashApp {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     self.fleet_overlay.close_prompt();
                 }
-                KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
-                    self.apply_fleet_overlay_sort(FleetOverlaySort::Id);
+                KeyCode::Enter => {
+                    let raw = if self.fleet_overlay.filter_prompt_input.trim().is_empty() {
+                        self.fleet_overlay.filter_prompt_default.trim()
+                    } else {
+                        self.fleet_overlay.filter_prompt_input.trim()
+                    };
+                    match parse_column_code(fleet_list::filter_columns(), raw) {
+                        Ok(column) => match fleet_sort_from_code(column.code) {
+                            Some(sort) => self.apply_fleet_overlay_sort(sort),
+                            None => {
+                                self.fleet_overlay.filter_prompt_input.clear();
+                                self.fleet_overlay.filter_prompt_status =
+                                    Some(" Enter a valid sort column.".to_string());
+                            }
+                        },
+                        Err(err) => {
+                            self.fleet_overlay.filter_prompt_status =
+                                Some(format!(" {}", format_column_code_error(&err)));
+                        }
+                    }
                 }
-                KeyCode::Char('l') | KeyCode::Char('L') => {
-                    self.apply_fleet_overlay_sort(FleetOverlaySort::Location);
+                KeyCode::Backspace => {
+                    self.fleet_overlay.filter_prompt_input.pop();
+                    self.fleet_overlay.filter_prompt_status = None;
                 }
-                KeyCode::Char('o') | KeyCode::Char('O') => {
-                    self.apply_fleet_overlay_sort(FleetOverlaySort::Order);
-                }
-                KeyCode::Char('e') | KeyCode::Char('E') => {
-                    self.apply_fleet_overlay_sort(FleetOverlaySort::Eta);
-                }
-                KeyCode::Char('t') | KeyCode::Char('T') => {
-                    self.apply_fleet_overlay_sort(FleetOverlaySort::Strength);
+                KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                    self.fleet_overlay.filter_prompt_input.push(ch);
+                    self.fleet_overlay.filter_prompt_status = None;
                 }
                 _ => {}
             },
@@ -1137,6 +1279,10 @@ impl DashApp {
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 self.fleet_overlay
                     .open_prompt(FleetOverlayPromptMode::SortMenu);
+                self.fleet_overlay.filter_prompt_input.clear();
+                self.fleet_overlay.filter_prompt_default =
+                    fleet_sort_code(self.fleet_overlay.sort).to_string();
+                self.fleet_overlay.filter_prompt_status = None;
             }
             KeyCode::Char('o') | KeyCode::Char('O') => self.open_selected_fleet_order_flow(),
             KeyCode::Char('c') | KeyCode::Char('C') => self.open_selected_fleet_change_flow(),
@@ -1174,28 +1320,50 @@ impl DashApp {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     self.intel_overlay.close_prompt();
                 }
-                KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => {
-                    self.apply_intel_overlay_sort(IntelOverlaySort::Location);
-                }
-                KeyCode::Char('r') | KeyCode::Char('R') => {
-                    self.intel_overlay
-                        .open_prompt(IntelOverlayPromptMode::SortRangeInput);
-                    self.intel_overlay.prompt_input.clear();
-                    self.intel_overlay.prompt_default = match self.intel_overlay.sort {
-                        IntelOverlaySort::Range(anchor) => {
-                            nc_ui::coords::format_sector_coords_default(anchor)
-                        }
-                        _ => intel_database::table_rows(self)
-                            .get(self.intel_overlay.selected)
-                            .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
-                            .unwrap_or_else(|| "00,00".to_string()),
+                KeyCode::Enter => {
+                    let raw = if self.intel_overlay.prompt_input.trim().is_empty() {
+                        self.intel_overlay.prompt_default.trim()
+                    } else {
+                        self.intel_overlay.prompt_input.trim()
                     };
+                    if raw.eq_ignore_ascii_case("rng") || raw.eq_ignore_ascii_case("range") {
+                        self.intel_overlay
+                            .open_prompt(IntelOverlayPromptMode::SortRangeInput);
+                        self.intel_overlay.prompt_input.clear();
+                        self.intel_overlay.prompt_default = match self.intel_overlay.sort {
+                            IntelOverlaySort::Range(anchor) => {
+                                nc_ui::coords::format_sector_coords_default(anchor)
+                            }
+                            _ => intel_database::table_rows(self)
+                                .get(self.intel_overlay.selected)
+                                .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
+                                .unwrap_or_else(|| "00,00".to_string()),
+                        };
+                        self.intel_overlay.prompt_status = None;
+                    } else {
+                        match parse_column_code(intel_database::filter_columns(), raw) {
+                            Ok(column) => match intel_sort_from_code(column.code) {
+                                Some(sort) => self.apply_intel_overlay_sort(sort),
+                                None => {
+                                    self.intel_overlay.prompt_input.clear();
+                                    self.intel_overlay.prompt_status =
+                                        Some(" Enter a valid sort column or RNG.".to_string());
+                                }
+                            },
+                            Err(err) => {
+                                self.intel_overlay.prompt_status =
+                                    Some(format!(" {}", format_column_code_error(&err)));
+                            }
+                        }
+                    }
                 }
-                KeyCode::Char('e') | KeyCode::Char('E') => {
-                    self.apply_intel_overlay_sort(IntelOverlaySort::Empire);
+                KeyCode::Backspace => {
+                    self.intel_overlay.prompt_input.pop();
+                    self.intel_overlay.prompt_status = None;
                 }
-                KeyCode::Char('m') | KeyCode::Char('M') => {
-                    self.apply_intel_overlay_sort(IntelOverlaySort::MaxProduction);
+                KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                    self.intel_overlay.prompt_input.push(ch);
+                    self.intel_overlay.prompt_status = None;
                 }
                 _ => {}
             },
@@ -1319,6 +1487,10 @@ impl DashApp {
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 self.intel_overlay
                     .open_prompt(IntelOverlayPromptMode::SortMenu);
+                self.intel_overlay.prompt_input.clear();
+                self.intel_overlay.prompt_default =
+                    intel_sort_code(self.intel_overlay.sort).to_string();
+                self.intel_overlay.prompt_status = None;
             }
             KeyCode::Char(ch)
                 if self.intel_overlay.jump_input.len() < 16

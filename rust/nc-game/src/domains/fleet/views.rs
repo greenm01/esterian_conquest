@@ -105,6 +105,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet.list_filter_clause.as_ref(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
+            &app.fleet.list_filter_prompt_default_value,
+            &app.fleet.list_filter_prompt_input,
+            app.fleet.list_filter_prompt_status.as_deref(),
+            app.fleet.list_filter_prompt_dismiss_message.as_deref(),
         ),
         ScreenId::FleetReview => {
             let rows = if app.fleet.review_return_to_list {

@@ -149,9 +149,14 @@ struct RenderedFleetList {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetListSort {
     Id,
+    Selected,
     Location,
     Order,
+    Target,
+    Speed,
     Eta,
+    Roe,
+    Armies,
     Strength,
 }
 
@@ -247,8 +252,6 @@ const ROW_4: [MenuEntry<'static>; 4] = [
 ];
 
 const FLEET_LIST_BROWSE_HOTKEYS: &str = "? F S O C E D M T L U SPACE <Q>";
-const FLEET_LIST_SORT_HOTKEYS: &str = "? I L O E T <Q>";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetListFilterPromptMode {
     Column,
@@ -268,10 +271,6 @@ fn fleet_list_title(
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(filter))
     )
-}
-
-fn sort_footer_label(direction: SortDirection) -> String {
-    format!("SORT {}", direction.label())
 }
 
 fn filter_label(filter: FleetListFilter) -> &'static str {
@@ -740,6 +739,10 @@ impl FleetListScreen {
         filter: FleetListFilter,
         scroll_offset: usize,
         cursor: usize,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+        dismiss_message: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         self.render_sort_prompt_with_filter_clause(
             geometry,
@@ -751,6 +754,10 @@ impl FleetListScreen {
             None,
             scroll_offset,
             cursor,
+            prompt_default,
+            input,
+            status,
+            dismiss_message,
         )
     }
 
@@ -765,13 +772,29 @@ impl FleetListScreen {
         filter_clause: Option<&TableFilterClause>,
         scroll_offset: usize,
         cursor: usize,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+        dismiss_message: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let footer_label = sort_footer_label(direction);
-        let footer = TableFooter::LabeledCommandBar {
-            label: &footer_label,
-            hotkeys_markup: FLEET_LIST_SORT_HOTKEYS,
-            default: None,
-            input: "",
+        let prompt;
+        let footer = if let Some(message) = dismiss_message {
+            prompt = filter_prompt_dismiss_prompt(message);
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: &prompt,
+            }
+        } else {
+            prompt = status
+                .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                .map(|value| value.trim_start().to_string())
+                .unwrap_or_else(|| "Sort column [?] ".to_string());
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt,
+                default: prompt_default,
+                input,
+            }
         };
         Ok(self
             .render_table(
@@ -964,23 +987,13 @@ impl FleetListScreen {
     pub fn handle_sort_prompt_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('?') => Action::OpenPopupHelp,
-            KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
-                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Id))
-            }
-            KeyCode::Char('l') | KeyCode::Char('L') => {
-                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Location))
-            }
-            KeyCode::Char('o') | KeyCode::Char('O') => {
-                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Order))
-            }
-            KeyCode::Char('e') | KeyCode::Char('E') => {
-                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Eta))
-            }
-            KeyCode::Char('t') | KeyCode::Char('T') => {
-                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Strength))
-            }
+            KeyCode::Enter => Action::Fleet(FleetAction::SubmitListSortPrompt),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::CloseListPrompt)
+            }
+            KeyCode::Backspace => Action::Fleet(FleetAction::BackspaceListFilterPromptInput),
+            KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                Action::Fleet(FleetAction::AppendListFilterPromptChar(ch))
             }
             _ => Action::Noop,
         }

@@ -47,11 +47,75 @@ const PLANET_DATABASE_FILTER_COLUMNS: &[TableFilterColumn] = &[
     TableFilterColumn { code: "sco", label: "Scout", kind: FilterKind::Number },
 ];
 
+const fn planet_list_sort_code(sort: PlanetListSort) -> &'static str {
+    match sort {
+        PlanetListSort::Location => "coo",
+        PlanetListSort::PlanetName => "pla",
+        PlanetListSort::PotentialProduction => "max",
+        PlanetListSort::CurrentProduction => "cur",
+        PlanetListSort::Treasury => "trs",
+        PlanetListSort::Budget => "bdg",
+        PlanetListSort::Revenue => "rev",
+        PlanetListSort::Growth => "gro",
+        PlanetListSort::BuildQueue => "bui",
+        PlanetListSort::Stardock => "sta",
+        PlanetListSort::Starbase => "sbs",
+        PlanetListSort::Armies => "ars",
+        PlanetListSort::Batteries => "gbs",
+    }
+}
+
+fn planet_list_sort_from_column(column: TableFilterColumn) -> Option<PlanetListSort> {
+    match column.code {
+        "coo" => Some(PlanetListSort::Location),
+        "pla" => Some(PlanetListSort::PlanetName),
+        "max" => Some(PlanetListSort::PotentialProduction),
+        "cur" => Some(PlanetListSort::CurrentProduction),
+        "trs" => Some(PlanetListSort::Treasury),
+        "bdg" => Some(PlanetListSort::Budget),
+        "rev" => Some(PlanetListSort::Revenue),
+        "gro" => Some(PlanetListSort::Growth),
+        "bui" => Some(PlanetListSort::BuildQueue),
+        "sta" => Some(PlanetListSort::Stardock),
+        "sbs" => Some(PlanetListSort::Starbase),
+        "ars" => Some(PlanetListSort::Armies),
+        "gbs" => Some(PlanetListSort::Batteries),
+        _ => None,
+    }
+}
+
+const fn planet_database_sort_code(sort: PlanetDatabaseSort) -> &'static str {
+    match sort {
+        PlanetDatabaseSort::Location => "coo",
+        PlanetDatabaseSort::Range(_) => "rng",
+        PlanetDatabaseSort::PlanetName => "pla",
+        PlanetDatabaseSort::Owner => "own",
+        PlanetDatabaseSort::MaxProduction => "max",
+        PlanetDatabaseSort::YearSeen => "see",
+        PlanetDatabaseSort::Armies => "ars",
+        PlanetDatabaseSort::Batteries => "gbs",
+        PlanetDatabaseSort::Starbases => "sbs",
+        PlanetDatabaseSort::CurrentProduction => "cur",
+        PlanetDatabaseSort::Treasury => "trs",
+        PlanetDatabaseSort::ScoutYear => "sco",
+    }
+}
+
 const fn default_planet_list_sort_direction(sort: PlanetListSort) -> SortDirection {
     match sort {
-        PlanetListSort::CurrentProduction => SortDirection::Desc,
         PlanetListSort::Location => SortDirection::Asc,
+        PlanetListSort::PlanetName => SortDirection::Asc,
         PlanetListSort::PotentialProduction => SortDirection::Desc,
+        PlanetListSort::CurrentProduction => SortDirection::Desc,
+        PlanetListSort::Treasury => SortDirection::Desc,
+        PlanetListSort::Budget => SortDirection::Desc,
+        PlanetListSort::Revenue => SortDirection::Desc,
+        PlanetListSort::Growth => SortDirection::Desc,
+        PlanetListSort::BuildQueue => SortDirection::Desc,
+        PlanetListSort::Stardock => SortDirection::Desc,
+        PlanetListSort::Starbase => SortDirection::Desc,
+        PlanetListSort::Armies => SortDirection::Desc,
+        PlanetListSort::Batteries => SortDirection::Desc,
     }
 }
 
@@ -59,9 +123,51 @@ const fn default_planet_database_sort_direction(sort: PlanetDatabaseSort) -> Sor
     match sort {
         PlanetDatabaseSort::Location => SortDirection::Asc,
         PlanetDatabaseSort::Range(_) => SortDirection::Asc,
-        PlanetDatabaseSort::Empire => SortDirection::Asc,
+        PlanetDatabaseSort::PlanetName => SortDirection::Asc,
+        PlanetDatabaseSort::Owner => SortDirection::Asc,
         PlanetDatabaseSort::MaxProduction => SortDirection::Desc,
+        PlanetDatabaseSort::YearSeen => SortDirection::Desc,
+        PlanetDatabaseSort::Armies => SortDirection::Desc,
+        PlanetDatabaseSort::Batteries => SortDirection::Desc,
+        PlanetDatabaseSort::Starbases => SortDirection::Desc,
+        PlanetDatabaseSort::CurrentProduction => SortDirection::Desc,
+        PlanetDatabaseSort::Treasury => SortDirection::Desc,
+        PlanetDatabaseSort::ScoutYear => SortDirection::Desc,
     }
+}
+
+fn planet_row_sort_metrics(
+    app: &App,
+    row: &nc_data::EmpirePlanetEconomyRow,
+) -> (u32, u32, u32, u32, u8, u8) {
+    let planet = app
+        .game_data
+        .planets
+        .records
+        .get(row.planet_record_index_1_based.saturating_sub(1));
+    let (treasury, budget) = planet_build_view(&app.game_data, row)
+        .map(|view| (view.treasury_left, view.points_left))
+        .unwrap_or_else(|_| {
+            (
+                row.stored_production_points,
+                u32::from(row.build_capacity).min(row.stored_production_points),
+            )
+        });
+    let build_queue = planet
+        .map(|planet| {
+            (0..10)
+                .map(|slot| {
+                    let points = u32::from(planet.build_count_raw(slot));
+                    let kind = nc_data::ProductionItemKind::from_raw(planet.build_kind_raw(slot));
+                    kind.build_cost().map(|cost| points / cost).unwrap_or(0)
+                })
+                .sum()
+        })
+        .unwrap_or(0);
+    let docked = app.planet_list_docked_units(row);
+    let armies = planet.map(|planet| planet.army_count_raw()).unwrap_or(0);
+    let batteries = planet.map(|planet| planet.ground_batteries_raw()).unwrap_or(0);
+    (treasury, budget, build_queue, docked, armies, batteries)
 }
 
 fn apply_sort_direction(
@@ -342,9 +448,11 @@ impl App {
         }
         self.planet.database_prompt_mode = PlanetDatabasePromptMode::SortMenu;
         self.planet.database_input.clear();
-        self.planet.database_prompt_default_value.clear();
+        self.planet.database_prompt_default_value =
+            planet_database_sort_code(self.planet.database_sort).to_string();
         self.planet.database_pending_range_anchor = None;
         self.planet.database_status = None;
+        self.planet.database_prompt_dismiss_message = None;
         self.current_screen = ScreenId::PlanetDatabaseSortPrompt;
     }
 
@@ -427,6 +535,10 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.clear_planet_list_status();
+        self.planet.list_prompt_input.clear();
+        self.planet.list_prompt_default_value =
+            planet_list_sort_code(self.planet.list_sort).to_string();
+        self.planet.list_prompt_dismiss_message = None;
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
     }
 
@@ -486,6 +598,8 @@ impl App {
         self.planet.list_prompt_input.clear();
         self.planet.list_prompt_default_value.clear();
         self.planet.list_pending_range_anchor = None;
+        self.planet.list_prompt_dismiss_message = None;
+        self.planet.list_filter_pending_column = None;
         self.current_screen = match mode {
             PlanetListMode::Brief | PlanetListMode::BuildSelect => {
                 if mode == PlanetListMode::Brief {
@@ -496,6 +610,42 @@ impl App {
             }
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
+    }
+
+    pub fn submit_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
+        if self.current_screen != ScreenId::PlanetListSortPrompt(mode) {
+            return;
+        }
+        let raw = if self.planet.list_prompt_input.trim().is_empty() {
+            self.planet.list_prompt_default_value.trim()
+        } else {
+            self.planet.list_prompt_input.trim()
+        };
+        match parse_column_code(PLANET_LIST_FILTER_COLUMNS, raw) {
+            Ok(column) => match planet_list_sort_from_column(column) {
+                Some(sort) => self.submit_planet_list_sort(mode, sort),
+                None => {
+                    self.planet.list_prompt_input.clear();
+                    self.planet.list_prompt_status = None;
+                    self.planet.list_prompt_dismiss_message =
+                        Some("Enter a valid sort column.".to_string());
+                }
+            },
+            Err(ColumnCodeParseError::Ambiguous(codes)) => {
+                self.planet.list_prompt_input.clear();
+                self.planet.list_prompt_status = Some(format!(
+                    " {}",
+                    format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                ));
+                self.planet.list_prompt_dismiss_message = None;
+            }
+            Err(ColumnCodeParseError::Unknown) => {
+                self.planet.list_prompt_input.clear();
+                self.planet.list_prompt_status = None;
+                self.planet.list_prompt_dismiss_message =
+                    Some("Enter a valid sort column.".to_string());
+            }
+        }
     }
 
     pub fn submit_planet_list_filter(
@@ -604,6 +754,9 @@ impl App {
 
     pub fn close_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         self.clear_planet_list_status();
+        self.planet.list_prompt_input.clear();
+        self.planet.list_prompt_default_value.clear();
+        self.planet.list_prompt_dismiss_message = None;
         if mode == PlanetListMode::BuildSelect {
             self.select_planet_brief_origin_row(mode, self.planet.list_sort);
         }
@@ -682,9 +835,12 @@ impl App {
     }
 
     pub fn append_planet_list_prompt_char(&mut self, ch: char) {
-        let ScreenId::PlanetListFilterPrompt(_) = self.current_screen else {
+        if !matches!(
+            self.current_screen,
+            ScreenId::PlanetListFilterPrompt(_) | ScreenId::PlanetListSortPrompt(_)
+        ) {
             return;
-        };
+        }
         if self.planet.list_prompt_input.len() >= 16 {
             return;
         }
@@ -694,9 +850,12 @@ impl App {
     }
 
     pub fn backspace_planet_list_prompt_input(&mut self) {
-        let ScreenId::PlanetListFilterPrompt(_) = self.current_screen else {
+        if !matches!(
+            self.current_screen,
+            ScreenId::PlanetListFilterPrompt(_) | ScreenId::PlanetListSortPrompt(_)
+        ) {
             return;
-        };
+        }
         self.planet.list_prompt_input.pop();
         self.clear_planet_list_status();
         self.planet.list_prompt_dismiss_message = None;
@@ -800,6 +959,7 @@ impl App {
                 self.planet.database_prompt_mode,
                 PlanetDatabasePromptMode::FilterMenu
                     | PlanetDatabasePromptMode::FilterValueInput
+                    | PlanetDatabasePromptMode::SortMenu
                     | PlanetDatabasePromptMode::SortRangeInput
             ),
             _ => false,
@@ -811,14 +971,15 @@ impl App {
                 .database_prompt_mode
             {
                 PlanetDatabasePromptMode::SortRangeInput => is_coordinate_input_char(ch),
-                PlanetDatabasePromptMode::FilterMenu => is_filter_column_char(ch),
+                PlanetDatabasePromptMode::FilterMenu | PlanetDatabasePromptMode::SortMenu => {
+                    is_filter_column_char(ch)
+                }
                 PlanetDatabasePromptMode::FilterValueInput => {
                     matches!(
                         ch,
                         ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
                     ) || ch.is_ascii_alphanumeric()
                 }
-                PlanetDatabasePromptMode::SortMenu => false,
             },
             _ => false,
         };
@@ -841,6 +1002,7 @@ impl App {
                 self.planet.database_prompt_mode,
                 PlanetDatabasePromptMode::FilterMenu
                     | PlanetDatabasePromptMode::FilterValueInput
+                    | PlanetDatabasePromptMode::SortMenu
                     | PlanetDatabasePromptMode::SortRangeInput
             ),
             _ => false,
@@ -1030,12 +1192,37 @@ impl App {
                     self.planet.database_prompt_default_value =
                         format!("{:02},{:02}", default[0], default[1]);
                     self.planet.database_status = None;
+                    self.planet.database_prompt_dismiss_message = None;
                 }
-                PlanetDatabaseSortMode::Empire => {
-                    self.apply_planet_database_sort(PlanetDatabaseSort::Empire);
+                PlanetDatabaseSortMode::PlanetName => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::PlanetName);
+                }
+                PlanetDatabaseSortMode::Owner => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Owner);
                 }
                 PlanetDatabaseSortMode::MaxProduction => {
                     self.apply_planet_database_sort(PlanetDatabaseSort::MaxProduction);
+                }
+                PlanetDatabaseSortMode::YearSeen => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::YearSeen);
+                }
+                PlanetDatabaseSortMode::Armies => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Armies);
+                }
+                PlanetDatabaseSortMode::Batteries => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Batteries);
+                }
+                PlanetDatabaseSortMode::Starbases => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Starbases);
+                }
+                PlanetDatabaseSortMode::CurrentProduction => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::CurrentProduction);
+                }
+                PlanetDatabaseSortMode::Treasury => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Treasury);
+                }
+                PlanetDatabaseSortMode::ScoutYear => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::ScoutYear);
                 }
             },
             PlanetDatabasePromptMode::SortRangeInput => {
@@ -1053,6 +1240,63 @@ impl App {
                 self.apply_planet_database_sort(PlanetDatabaseSort::Range(coords));
             }
             _ => {}
+        }
+    }
+
+    pub fn submit_planet_database_sort_prompt(&mut self) {
+        if self.current_screen != ScreenId::PlanetDatabaseSortPrompt
+            || self.planet.database_prompt_mode != PlanetDatabasePromptMode::SortMenu
+        {
+            return;
+        }
+        let raw = if self.planet.database_input.trim().is_empty() {
+            self.planet.database_prompt_default_value.trim()
+        } else {
+            self.planet.database_input.trim()
+        };
+        if raw.eq_ignore_ascii_case("rng") || raw.eq_ignore_ascii_case("range") {
+            self.submit_planet_database_sort(PlanetDatabaseSortMode::Range);
+            return;
+        }
+        match parse_column_code(PLANET_DATABASE_FILTER_COLUMNS, raw) {
+            Ok(column) => {
+                let mode = match column.code {
+                    "coo" => Some(PlanetDatabaseSortMode::Location),
+                    "pla" => Some(PlanetDatabaseSortMode::PlanetName),
+                    "own" => Some(PlanetDatabaseSortMode::Owner),
+                    "max" => Some(PlanetDatabaseSortMode::MaxProduction),
+                    "see" => Some(PlanetDatabaseSortMode::YearSeen),
+                    "ars" => Some(PlanetDatabaseSortMode::Armies),
+                    "gbs" => Some(PlanetDatabaseSortMode::Batteries),
+                    "sbs" => Some(PlanetDatabaseSortMode::Starbases),
+                    "cur" => Some(PlanetDatabaseSortMode::CurrentProduction),
+                    "trs" => Some(PlanetDatabaseSortMode::Treasury),
+                    "sco" => Some(PlanetDatabaseSortMode::ScoutYear),
+                    _ => None,
+                };
+                if let Some(mode) = mode {
+                    self.submit_planet_database_sort(mode);
+                } else {
+                    self.planet.database_input.clear();
+                    self.planet.database_status = None;
+                    self.planet.database_prompt_dismiss_message =
+                        Some("Enter a valid sort column or RNG.".to_string());
+                }
+            }
+            Err(ColumnCodeParseError::Ambiguous(codes)) => {
+                self.planet.database_input.clear();
+                self.planet.database_status = Some(format!(
+                    " {}",
+                    format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                ));
+                self.planet.database_prompt_dismiss_message = None;
+            }
+            Err(ColumnCodeParseError::Unknown) => {
+                self.planet.database_input.clear();
+                self.planet.database_status = None;
+                self.planet.database_prompt_dismiss_message =
+                    Some("Enter a valid sort column or RNG.".to_string());
+            }
         }
     }
 
@@ -1295,18 +1539,80 @@ impl App {
             .game_data
             .empire_planet_economy_rows(self.player.record_index_1_based);
         rows.sort_by(|left, right| match sort {
+            PlanetListSort::Location => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.coords.cmp(&right.coords),
+            ),
+            PlanetListSort::PlanetName => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.planet_name.cmp(&right.planet_name),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::PotentialProduction => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.potential_production.cmp(&right.potential_production),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
             PlanetListSort::CurrentProduction => apply_sort_direction(
                 self.planet.list_sort_direction,
                 left.present_production.cmp(&right.present_production),
             )
             .then_with(|| left.coords.cmp(&right.coords)),
-            PlanetListSort::Location => apply_sort_direction(
+            PlanetListSort::Treasury => apply_sort_direction(
                 self.planet.list_sort_direction,
-                left.coords.cmp(&right.coords),
-            ),
-            PlanetListSort::PotentialProduction => apply_sort_direction(
+                planet_row_sort_metrics(self, left)
+                    .0
+                    .cmp(&planet_row_sort_metrics(self, right).0),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Budget => apply_sort_direction(
                 self.planet.list_sort_direction,
-                left.potential_production.cmp(&right.potential_production),
+                planet_row_sort_metrics(self, left)
+                    .1
+                    .cmp(&planet_row_sort_metrics(self, right).1),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Revenue => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.yearly_tax_revenue.cmp(&right.yearly_tax_revenue),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Growth => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.yearly_growth_delta.cmp(&right.yearly_growth_delta),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::BuildQueue => apply_sort_direction(
+                self.planet.list_sort_direction,
+                planet_row_sort_metrics(self, left)
+                    .2
+                    .cmp(&planet_row_sort_metrics(self, right).2),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Stardock => apply_sort_direction(
+                self.planet.list_sort_direction,
+                planet_row_sort_metrics(self, left)
+                    .3
+                    .cmp(&planet_row_sort_metrics(self, right).3),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Starbase => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.has_friendly_starbase.cmp(&right.has_friendly_starbase),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Armies => apply_sort_direction(
+                self.planet.list_sort_direction,
+                planet_row_sort_metrics(self, left)
+                    .4
+                    .cmp(&planet_row_sort_metrics(self, right).4),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Batteries => apply_sort_direction(
+                self.planet.list_sort_direction,
+                planet_row_sort_metrics(self, left)
+                    .5
+                    .cmp(&planet_row_sort_metrics(self, right).5),
             )
             .then_with(|| left.coords.cmp(&right.coords)),
         });
@@ -1384,8 +1690,17 @@ impl App {
             PlanetDatabaseRow {
                 planet_record_index_1_based: world.planet_record_index_1_based,
                 coords: world.coords,
+                known_name: world.known_name.clone(),
                 known_owner_empire_id: world.known_owner_empire_id,
+                known_owner_name: world.known_owner_empire_name.clone(),
                 known_max_production: world.known_potential_production,
+                known_year_seen: intel_snapshot.and_then(|snapshot| snapshot.last_intel_year),
+                known_armies: world.known_armies,
+                known_batteries: world.known_ground_batteries,
+                known_starbase_count: world.known_starbase_count,
+                known_current_production: world.known_current_production,
+                known_stored_points: world.known_stored_points,
+                known_scout_year: intel_snapshot.and_then(|snapshot| snapshot.last_intel_year),
                 name_label: world.known_name.unwrap_or_else(|| "?".to_string()),
                 owner_label,
                 max_prod_label: world
@@ -1443,7 +1758,12 @@ impl App {
                     .cmp(&planet_database_distance_sq(anchor, right.coords)),
             )
             .then_with(|| left.coords.cmp(&right.coords)),
-            PlanetDatabaseSort::Empire => apply_sort_direction(
+            PlanetDatabaseSort::PlanetName => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_name.as_deref().cmp(&right.known_name.as_deref()),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::Owner => apply_sort_direction(
                 self.planet.database_sort_direction,
                 (
                     left.known_owner_empire_id.is_none(),
@@ -1458,6 +1778,41 @@ impl App {
             PlanetDatabaseSort::MaxProduction => apply_sort_direction(
                 self.planet.database_sort_direction,
                 left.known_max_production.cmp(&right.known_max_production),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::YearSeen => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_year_seen.cmp(&right.known_year_seen),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::Armies => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_armies.cmp(&right.known_armies),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::Batteries => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_batteries.cmp(&right.known_batteries),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::Starbases => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_starbase_count.cmp(&right.known_starbase_count),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::CurrentProduction => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_current_production.cmp(&right.known_current_production),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::Treasury => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_stored_points.cmp(&right.known_stored_points),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::ScoutYear => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_scout_year.cmp(&right.known_scout_year),
             )
             .then_with(|| left.coords.cmp(&right.coords)),
         });

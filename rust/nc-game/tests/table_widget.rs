@@ -406,8 +406,17 @@ fn planet_database_screen_uses_stacked_header_table() {
     let rows = vec![PlanetDatabaseRow {
         planet_record_index_1_based: 1,
         coords: [12, 34],
+        known_name: Some("Aurora".to_string()),
         known_owner_empire_id: Some(1),
+        known_owner_name: Some("01".to_string()),
         known_max_production: Some(120),
+        known_year_seen: Some(3001),
+        known_armies: Some(10),
+        known_batteries: Some(4),
+        known_starbase_count: Some(1),
+        known_current_production: Some(80),
+        known_stored_points: Some(25),
+        known_scout_year: Some(3001),
         name_label: "Aurora".to_string(),
         owner_label: "01".to_string(),
         max_prod_label: "120".to_string(),
@@ -470,8 +479,17 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
     let rows = vec![PlanetDatabaseRow {
         planet_record_index_1_based: 1,
         coords: [12, 34],
+        known_name: Some("Aurora".to_string()),
         known_owner_empire_id: Some(1),
+        known_owner_name: Some("01".to_string()),
         known_max_production: Some(120),
+        known_year_seen: Some(3001),
+        known_armies: Some(10),
+        known_batteries: Some(4),
+        known_starbase_count: Some(1),
+        known_current_production: Some(80),
+        known_stored_points: Some(25),
+        known_scout_year: Some(3001),
         name_label: "Aurora".to_string(),
         owner_label: "01".to_string(),
         max_prod_label: "120".to_string(),
@@ -545,7 +563,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
         )
         .expect("render database sort prompt");
     assert_eq!(
-        line_index_containing(&sort, "SORT ASC <- ? L R E M <Q> ->"),
+        line_index_containing(&sort, "COMMAND <- Sort column [?] "),
         browse_row
     );
 }
@@ -557,8 +575,17 @@ fn planet_database_24_row_door_keeps_bottom_border_above_command_line() {
         .map(|idx| PlanetDatabaseRow {
             planet_record_index_1_based: idx + 1,
             coords: [idx as u8 % 20, idx as u8 / 20],
+            known_name: Some(format!("Aurora {idx:02}")),
             known_owner_empire_id: Some(1),
+            known_owner_name: Some("01".to_string()),
             known_max_production: Some(120),
+            known_year_seen: Some(3001),
+            known_armies: Some(10),
+            known_batteries: Some(4),
+            known_starbase_count: Some(1),
+            known_current_production: Some(80),
+            known_stored_points: Some(25),
+            known_scout_year: Some(3001),
             name_label: format!("Aurora {idx:02}"),
             owner_label: "01".to_string(),
             max_prod_label: "120".to_string(),
@@ -627,10 +654,14 @@ fn fleet_list_sort_and_filter_prompts_use_browse_footer_row() {
             FleetListFilter::All,
             0,
             0,
+            "id",
+            "",
+            None,
+            None,
         )
         .expect("render fleet sort prompt");
     assert_eq!(
-        line_index_containing(&sort, "SORT ASC <- ? I L O E T <Q> ->"),
+        line_index_containing(&sort, "COMMAND <- Sort column [?]"),
         browse_row
     );
 
@@ -1007,12 +1038,14 @@ fn planet_brief_list_sort_and_filter_prompts_use_browse_footer_row() {
             PlanetListFilter::All,
             0,
             0,
+            "cur",
             "",
+            None,
             None,
         )
         .expect("render planet sort prompt");
     assert_eq!(
-        line_index_containing(&sort, "SORT DESC <- ? C L M <Q> ->"),
+        line_index_containing(&sort, "SORT DESC <- Sort column [?]"),
         browse_row
     );
 
@@ -1164,8 +1197,17 @@ fn filter_prompt_inline_status_stays_on_browse_footer_row_for_all_tables() {
     let database_rows = vec![PlanetDatabaseRow {
         planet_record_index_1_based: 1,
         coords: [3, 3],
+        known_name: Some("Aurora".to_string()),
         known_owner_empire_id: Some(1),
+        known_owner_name: Some("01".to_string()),
         known_max_production: Some(120),
+        known_year_seen: Some(3001),
+        known_armies: Some(10),
+        known_batteries: Some(4),
+        known_starbase_count: Some(1),
+        known_current_production: Some(80),
+        known_stored_points: Some(25),
+        known_scout_year: Some(3001),
         name_label: "Aurora".to_string(),
         owner_label: "01".to_string(),
         max_prod_label: "120".to_string(),

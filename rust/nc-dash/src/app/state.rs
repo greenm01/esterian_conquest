@@ -192,17 +192,35 @@ impl SortDirection {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetOverlaySort {
-    CurrentProduction,
     Location,
+    PlanetName,
     MaxProduction,
+    CurrentProduction,
+    Treasury,
+    Budget,
+    Revenue,
+    Growth,
+    BuildQueue,
+    Stardock,
+    Starbase,
+    Armies,
+    Batteries,
 }
 
 pub const fn default_planet_overlay_sort_direction(sort: PlanetOverlaySort) -> SortDirection {
     match sort {
-        PlanetOverlaySort::CurrentProduction | PlanetOverlaySort::MaxProduction => {
-            SortDirection::Desc
-        }
-        PlanetOverlaySort::Location => SortDirection::Asc,
+        PlanetOverlaySort::Location | PlanetOverlaySort::PlanetName => SortDirection::Asc,
+        PlanetOverlaySort::MaxProduction
+        | PlanetOverlaySort::CurrentProduction
+        | PlanetOverlaySort::Treasury
+        | PlanetOverlaySort::Budget
+        | PlanetOverlaySort::Revenue
+        | PlanetOverlaySort::Growth
+        | PlanetOverlaySort::BuildQueue
+        | PlanetOverlaySort::Stardock
+        | PlanetOverlaySort::Starbase
+        | PlanetOverlaySort::Armies
+        | PlanetOverlaySort::Batteries => SortDirection::Desc,
     }
 }
 
@@ -333,18 +351,29 @@ pub enum FleetOverlayRowKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetOverlaySort {
     Id,
+    Selected,
     Location,
     Order,
+    Target,
+    Speed,
     Eta,
+    Roe,
+    Armies,
     Strength,
 }
 
 pub const fn default_fleet_overlay_sort_direction(sort: FleetOverlaySort) -> SortDirection {
     match sort {
-        FleetOverlaySort::Id | FleetOverlaySort::Strength => SortDirection::Desc,
-        FleetOverlaySort::Location | FleetOverlaySort::Order | FleetOverlaySort::Eta => {
-            SortDirection::Asc
-        }
+        FleetOverlaySort::Location
+        | FleetOverlaySort::Order
+        | FleetOverlaySort::Target
+        | FleetOverlaySort::Eta => SortDirection::Asc,
+        FleetOverlaySort::Id
+        | FleetOverlaySort::Selected
+        | FleetOverlaySort::Speed
+        | FleetOverlaySort::Roe
+        | FleetOverlaySort::Armies
+        | FleetOverlaySort::Strength => SortDirection::Desc,
     }
 }
 
@@ -537,16 +566,32 @@ impl FleetOverlayState {
 pub enum IntelOverlaySort {
     Location,
     Range([u8; 2]),
-    Empire,
+    PlanetName,
+    Owner,
     MaxProduction,
+    YearSeen,
+    Armies,
+    Batteries,
+    Starbases,
+    CurrentProduction,
+    Treasury,
+    ScoutYear,
 }
 
 pub const fn default_intel_overlay_sort_direction(sort: IntelOverlaySort) -> SortDirection {
     match sort {
-        IntelOverlaySort::MaxProduction => SortDirection::Desc,
-        IntelOverlaySort::Location | IntelOverlaySort::Range(_) | IntelOverlaySort::Empire => {
-            SortDirection::Asc
-        }
+        IntelOverlaySort::Location
+        | IntelOverlaySort::Range(_)
+        | IntelOverlaySort::PlanetName
+        | IntelOverlaySort::Owner => SortDirection::Asc,
+        IntelOverlaySort::MaxProduction
+        | IntelOverlaySort::YearSeen
+        | IntelOverlaySort::Armies
+        | IntelOverlaySort::Batteries
+        | IntelOverlaySort::Starbases
+        | IntelOverlaySort::CurrentProduction
+        | IntelOverlaySort::Treasury
+        | IntelOverlaySort::ScoutYear => SortDirection::Desc,
     }
 }
 

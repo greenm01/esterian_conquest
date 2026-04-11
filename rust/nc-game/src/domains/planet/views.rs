@@ -265,8 +265,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.list_filter,
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
-            &app.planet.brief_input,
+            &app.planet.list_prompt_default_value,
+            &app.planet.list_prompt_input,
             app.planet.list_prompt_status.as_deref(),
+            app.planet.list_prompt_dismiss_message.as_deref(),
         ),
         ScreenId::PlanetListFilterPrompt(mode) => app
             .planet_list

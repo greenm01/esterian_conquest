@@ -39,14 +39,14 @@ fn fleet_list_repeated_sort_toggles_direction_and_updates_title() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("sort prompt renders");
     assert_eq!(
-        line_containing(&terminal, "SORT DESC <- ? I L O E T <Q> ->").trim(),
-        "SORT DESC <- ? I L O E T <Q> ->"
+        line_containing(&terminal, "COMMAND <- Sort column [?]").trim(),
+        "COMMAND <- Sort column [?] [id] <Q> ->"
     );
 
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Id))
+            Action::Fleet(FleetAction::SubmitListSortPrompt)
         ),
         AppOutcome::Continue
     );
@@ -125,8 +125,8 @@ fn planet_list_repeated_sort_toggles_direction_and_updates_title() {
     app.render(&mut terminal)
         .expect("planet sort prompt renders");
     assert_eq!(
-        line_containing(&terminal, "SORT ASC <- ? C L M <Q> ->").trim(),
-        "SORT ASC <- ? C L M <Q> ->"
+        line_containing(&terminal, "SORT ASC <- Sort column [?]").trim(),
+        "SORT ASC <- Sort column [?] [cur] <Q> ->"
     );
 }
 
@@ -160,16 +160,23 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     app.render(&mut terminal)
         .expect("database sort prompt renders");
     assert_eq!(
-        line_containing(&terminal, "SORT ASC <- ? L R E M <Q> ->").trim(),
-        "SORT ASC <- ? L R E M <Q> ->"
+        line_containing(&terminal, "COMMAND <- Sort column [?]").trim(),
+        "COMMAND <- Sort column [?] [coo] <Q> ->"
     );
 
+    for ch in "rng".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendDatabaseChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(
-                PlanetDatabaseSortMode::Range
-            )),
+            Action::Planet(PlanetAction::SubmitDatabaseSortPrompt),
         ),
         AppOutcome::Continue
     );
@@ -185,9 +192,7 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(
-                PlanetDatabaseSortMode::Range
-            )),
+            Action::Planet(PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Range)),
         ),
         AppOutcome::Continue
     );
@@ -210,18 +215,14 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(
-                PlanetDatabaseSortMode::Range
-            )),
+            Action::Planet(PlanetAction::SubmitDatabaseSortPrompt),
         ),
         AppOutcome::Continue
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(
-                PlanetDatabaseSortMode::Range
-            )),
+            Action::Planet(PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Range)),
         ),
         AppOutcome::Continue
     );
@@ -244,9 +245,7 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(
-                PlanetDatabaseSortMode::Range
-            )),
+            Action::Planet(PlanetAction::SubmitDatabaseSortPrompt),
         ),
         AppOutcome::Continue
     );

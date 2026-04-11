@@ -185,12 +185,48 @@ fn fleet_eta_sort_key(label: &str) -> (u8, u16) {
     }
 }
 
+const fn fleet_list_sort_code(sort: FleetListSort) -> &'static str {
+    match sort {
+        FleetListSort::Id => "id",
+        FleetListSort::Selected => "sel",
+        FleetListSort::Location => "loc",
+        FleetListSort::Order => "ord",
+        FleetListSort::Target => "tar",
+        FleetListSort::Speed => "spd",
+        FleetListSort::Eta => "eta",
+        FleetListSort::Roe => "roe",
+        FleetListSort::Armies => "ars",
+        FleetListSort::Strength => "shi",
+    }
+}
+
+fn fleet_list_sort_from_column(column: TableFilterColumn) -> Option<FleetListSort> {
+    match column.code {
+        "id" => Some(FleetListSort::Id),
+        "sel" => Some(FleetListSort::Selected),
+        "loc" => Some(FleetListSort::Location),
+        "ord" => Some(FleetListSort::Order),
+        "tar" => Some(FleetListSort::Target),
+        "spd" => Some(FleetListSort::Speed),
+        "eta" => Some(FleetListSort::Eta),
+        "roe" => Some(FleetListSort::Roe),
+        "ars" => Some(FleetListSort::Armies),
+        "shi" => Some(FleetListSort::Strength),
+        _ => None,
+    }
+}
+
 const fn default_fleet_list_sort_direction(sort: FleetListSort) -> SortDirection {
     match sort {
         FleetListSort::Id => SortDirection::Desc,
+        FleetListSort::Selected => SortDirection::Desc,
         FleetListSort::Location => SortDirection::Asc,
         FleetListSort::Order => SortDirection::Asc,
+        FleetListSort::Target => SortDirection::Asc,
+        FleetListSort::Speed => SortDirection::Desc,
         FleetListSort::Eta => SortDirection::Asc,
+        FleetListSort::Roe => SortDirection::Desc,
+        FleetListSort::Armies => SortDirection::Desc,
         FleetListSort::Strength => SortDirection::Desc,
     }
 }
@@ -721,6 +757,13 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
+        self.fleet.list_filter_prompt_input.clear();
+        self.fleet.list_filter_prompt_default_value =
+            fleet_list_sort_code(self.fleet.list_sort).to_string();
+        self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
+        self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetListSortPrompt;
     }
 
@@ -891,6 +934,12 @@ impl App {
             self.fleet.list_sort = sort;
             self.fleet.list_sort_direction = default_fleet_list_sort_direction(sort);
         }
+        self.fleet.list_filter_prompt_mode = FleetListFilterPromptMode::Column;
+        self.fleet.list_filter_prompt_input.clear();
+        self.fleet.list_filter_prompt_default_value.clear();
+        self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
+        self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetList;
         let rows = self.fleet_list_rows();
         if rows.is_empty() {
@@ -910,6 +959,42 @@ impl App {
             self.fleet.cursor,
             visible_rows,
         );
+    }
+
+    pub fn submit_fleet_list_sort_prompt(&mut self) {
+        if self.current_screen != ScreenId::FleetListSortPrompt {
+            return;
+        }
+        let raw = if self.fleet.list_filter_prompt_input.trim().is_empty() {
+            self.fleet.list_filter_prompt_default_value.trim()
+        } else {
+            self.fleet.list_filter_prompt_input.trim()
+        };
+        match parse_column_code(FLEET_FILTER_COLUMNS, raw) {
+            Ok(column) => match fleet_list_sort_from_column(column) {
+                Some(sort) => self.submit_fleet_list_sort(sort),
+                None => {
+                    self.fleet.list_filter_prompt_input.clear();
+                    self.fleet.list_filter_prompt_status = None;
+                    self.fleet.list_filter_prompt_dismiss_message =
+                        Some("Enter a valid sort column.".to_string());
+                }
+            },
+            Err(ColumnCodeParseError::Ambiguous(codes)) => {
+                self.fleet.list_filter_prompt_input.clear();
+                self.fleet.list_filter_prompt_status = Some(format!(
+                    " {}",
+                    format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                ));
+                self.fleet.list_filter_prompt_dismiss_message = None;
+            }
+            Err(ColumnCodeParseError::Unknown) => {
+                self.fleet.list_filter_prompt_input.clear();
+                self.fleet.list_filter_prompt_status = None;
+                self.fleet.list_filter_prompt_dismiss_message =
+                    Some("Enter a valid sort column.".to_string());
+            }
+        }
     }
 
     pub fn open_fleet_review(&mut self) {
@@ -1563,6 +1648,19 @@ impl App {
                 self.fleet.list_sort_direction,
                 left.fleet_number.cmp(&right.fleet_number),
             ),
+            FleetListSort::Selected => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                self.fleet
+                    .group_selected_fleets
+                    .contains(&left.fleet_record_index_1_based)
+                    .cmp(
+                        &self
+                            .fleet
+                            .group_selected_fleets
+                            .contains(&right.fleet_record_index_1_based),
+                    ),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
             FleetListSort::Location => apply_sort_direction(
                 self.fleet.list_sort_direction,
                 left.coords.cmp(&right.coords),
@@ -1570,13 +1668,33 @@ impl App {
             .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
             FleetListSort::Order => apply_sort_direction(
                 self.fleet.list_sort_direction,
-                left.order_code.cmp(&right.order_code),
+                left.order_label.cmp(&right.order_label),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Target => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.target_coords.cmp(&right.target_coords),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Speed => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.current_speed.cmp(&right.current_speed),
             )
             .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
             FleetListSort::Eta => apply_sort_direction(
                 self.fleet.list_sort_direction,
                 fleet_eta_sort_key(&left.list_eta_label)
                     .cmp(&fleet_eta_sort_key(&right.list_eta_label)),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Roe => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.rules_of_engagement.cmp(&right.rules_of_engagement),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Armies => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.loaded_armies.cmp(&right.loaded_armies),
             )
             .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
             FleetListSort::Strength => apply_sort_direction(

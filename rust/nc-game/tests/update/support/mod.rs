@@ -34,10 +34,9 @@ pub(crate) use nc_game::screen::help::{MenuHelpTopic, help_lines, menu_help_spec
 pub(crate) use nc_game::screen::layout::COMMAND_LINE_ROW;
 pub(crate) use nc_game::screen::table::{TableColumn, fit_table_columns};
 pub(crate) use nc_game::screen::{
-    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetListSort, FleetRow,
-    MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
-    PlanetCommissionDraftRow, PlanetDatabaseSortMode, PlanetListMode, PlanetListSort, ScreenId,
-    SortDirection,
+    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRow, MessageComposeScreen,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow,
+    PlanetDatabaseSortMode, PlanetListMode, PlanetListSort, ScreenId, SortDirection,
 };
 pub(crate) use nc_game::startup::StartupPhase;
 pub(crate) use nc_game::terminal::Terminal;

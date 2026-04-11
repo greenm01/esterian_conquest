@@ -50,7 +50,6 @@ pub fn order_abbrev(order: Order) -> &'static str {
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <Q>";
-pub(crate) const SORT_HOTKEYS: &str = "? I L O E T <Q>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -86,11 +85,16 @@ const FILTER_COLUMNS: &[TableFilterColumn] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FleetOverlayRow {
     pub key: FleetOverlayRowKey,
+    pub id_number: Option<u16>,
+    pub selected: bool,
     pub id_label: String,
     pub coords: [u8; 2],
     pub target_coords: [u8; 2],
     pub order: Order,
+    pub current_speed: u8,
     pub eta_label: String,
+    pub roe: u8,
+    pub loaded_armies: u16,
     pub strength_key: (u16, u16, u16, u16, u8, u16, u16),
     pub cells: Vec<String>,
 }
@@ -136,7 +140,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let title = overlay_title(app);
-    let sort_footer_label = sort_footer_label(app);
     let mut filter_prompt;
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
@@ -174,11 +177,20 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                 input: &app.fleet_overlay.filter_prompt_input,
             }
         }
-        FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: &sort_footer_label,
-            hotkeys_markup: SORT_HOTKEYS,
-            default: None,
-            input: "",
+        FleetOverlayPromptMode::SortMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: {
+                filter_prompt = app
+                    .fleet_overlay
+                    .filter_prompt_status
+                    .as_deref()
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Sort column [?] ".to_string());
+                filter_prompt.as_str()
+            },
+            default: &app.fleet_overlay.filter_prompt_default,
+            input: &app.fleet_overlay.filter_prompt_input,
         },
         FleetOverlayPromptMode::ChangeField
         | FleetOverlayPromptMode::ChangeValue
@@ -289,7 +301,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let title = overlay_title(app);
-    let sort_footer_label = sort_footer_label(app);
     let mut filter_prompt;
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
@@ -327,11 +338,20 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                 input: &app.fleet_overlay.filter_prompt_input,
             }
         }
-        FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: &sort_footer_label,
-            hotkeys_markup: SORT_HOTKEYS,
-            default: None,
-            input: "",
+        FleetOverlayPromptMode::SortMenu => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: {
+                filter_prompt = app
+                    .fleet_overlay
+                    .filter_prompt_status
+                    .as_deref()
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Sort column [?] ".to_string());
+                filter_prompt.as_str()
+            },
+            default: &app.fleet_overlay.filter_prompt_default,
+            input: &app.fleet_overlay.filter_prompt_input,
         },
         FleetOverlayPromptMode::ChangeField
         | FleetOverlayPromptMode::ChangeValue
@@ -1411,11 +1431,19 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
         }
         rows.push(FleetOverlayRow {
             key: FleetOverlayRowKey::Fleet(idx + 1),
+            id_number: Some(fleet.local_slot_word_raw()),
+            selected: app
+                .fleet_overlay
+                .selected_fleet_record_indexes
+                .contains(&(idx + 1)),
             id_label: fleet.local_slot_word_raw().to_string(),
             coords: fleet.current_location_coords_raw(),
             target_coords: fleet.standing_order_target_coords_raw(),
             order: fleet.standing_order_kind(),
+            current_speed: fleet.current_speed(),
             eta_label: fleet_list_eta_label(&app.game_data, idx),
+            roe: fleet.rules_of_engagement(),
+            loaded_armies: fleet.army_count(),
             strength_key: fleet_strength_key(fleet),
             cells: vec![
                 fleet.local_slot_word_raw().to_string(),
@@ -1447,11 +1475,16 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
             }
             rows.push(FleetOverlayRow {
                 key: FleetOverlayRowKey::Starbase(idx + 1),
+                id_number: None,
+                selected: false,
                 id_label: format!("SB{}", base.base_id_raw()),
                 coords: base.coords_raw(),
                 target_coords: [0, 0],
                 order: Order::GuardStarbase,
+                current_speed: 0,
                 eta_label: starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
+                roe: 0,
+                loaded_armies: 0,
                 strength_key: (0, 0, 0, 0, 0, 0, u16::from(base.base_id_raw())),
                 cells: vec![
                     format!("SB{}", base.base_id_raw()),
@@ -1488,7 +1521,11 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
     rows.sort_by(|left, right| match app.fleet_overlay.sort {
         FleetOverlaySort::Id => apply_sort_direction(
             app.fleet_overlay.sort_direction,
-            left.id_label.cmp(&right.id_label),
+            left.id_number.cmp(&right.id_number),
+        ),
+        FleetOverlaySort::Selected => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.selected.cmp(&right.selected),
         ),
         FleetOverlaySort::Location => apply_sort_direction(
             app.fleet_overlay.sort_direction,
@@ -1497,12 +1534,32 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
         .then_with(|| right.id_label.cmp(&left.id_label)),
         FleetOverlaySort::Order => apply_sort_direction(
             app.fleet_overlay.sort_direction,
-            left.cells[3].cmp(&right.cells[3]),
+            order_abbrev(left.order).cmp(order_abbrev(right.order)),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Target => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.target_coords.cmp(&right.target_coords),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Speed => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.current_speed.cmp(&right.current_speed),
         )
         .then_with(|| right.id_label.cmp(&left.id_label)),
         FleetOverlaySort::Eta => apply_sort_direction(
             app.fleet_overlay.sort_direction,
             eta_sort_key(&left.eta_label).cmp(&eta_sort_key(&right.eta_label)),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Roe => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.roe.cmp(&right.roe),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Armies => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.loaded_armies.cmp(&right.loaded_armies),
         )
         .then_with(|| right.id_label.cmp(&left.id_label)),
         FleetOverlaySort::Strength => apply_sort_direction(

@@ -16,8 +16,6 @@ use crate::screen::{
 };
 use crate::theme::classic;
 
-const DATABASE_SORT_HOTKEYS: &str = "? L R E M <Q>";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetDatabaseFilterMode {
     All,
@@ -46,24 +44,49 @@ pub enum PlanetDatabaseFilter {
 pub enum PlanetDatabaseSortMode {
     Location,
     Range,
-    Empire,
+    PlanetName,
+    Owner,
     MaxProduction,
+    YearSeen,
+    Armies,
+    Batteries,
+    Starbases,
+    CurrentProduction,
+    Treasury,
+    ScoutYear,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetDatabaseSort {
     Location,
     Range([u8; 2]),
-    Empire,
+    PlanetName,
+    Owner,
     MaxProduction,
+    YearSeen,
+    Armies,
+    Batteries,
+    Starbases,
+    CurrentProduction,
+    Treasury,
+    ScoutYear,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetDatabaseRow {
     pub planet_record_index_1_based: usize,
     pub coords: [u8; 2],
+    pub known_name: Option<String>,
     pub known_owner_empire_id: Option<u8>,
+    pub known_owner_name: Option<String>,
     pub known_max_production: Option<u16>,
+    pub known_year_seen: Option<u16>,
+    pub known_armies: Option<u8>,
+    pub known_batteries: Option<u8>,
+    pub known_starbase_count: Option<u8>,
+    pub known_current_production: Option<u8>,
+    pub known_stored_points: Option<u16>,
+    pub known_scout_year: Option<u16>,
     pub name_label: String,
     pub owner_label: String,
     pub max_prod_label: String,
@@ -117,10 +140,6 @@ fn database_title(
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(filter))
     )
-}
-
-fn sort_footer_label(direction: SortDirection) -> String {
-    format!("SORT {}", direction.label())
 }
 
 fn filter_label(filter: PlanetDatabaseFilter) -> &'static str {
@@ -346,7 +365,6 @@ impl PlanetDatabaseScreen {
         dismiss_message: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let footer_label = sort_footer_label(direction);
         let prompt_text;
         let footer = match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => {
@@ -384,12 +402,26 @@ impl PlanetDatabaseScreen {
                     input,
                 }
             }
-            PlanetDatabasePromptMode::SortMenu => TableFooter::LabeledCommandBar {
-                label: &footer_label,
-                hotkeys_markup: DATABASE_SORT_HOTKEYS,
-                default: None,
-                input: "",
-            },
+            PlanetDatabasePromptMode::SortMenu => {
+                if let Some(message) = dismiss_message {
+                    prompt_text = filter_prompt_dismiss_prompt(message);
+                    TableFooter::CommandPrompt {
+                        label: COMMAND_LABEL,
+                        prompt: &prompt_text,
+                    }
+                } else {
+                    prompt_text = status
+                        .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                        .map(|value| value.trim_start().to_string())
+                        .unwrap_or_else(|| "Sort column [?] ".to_string());
+                    TableFooter::CommandInput {
+                        label: COMMAND_LABEL,
+                        prompt: &prompt_text,
+                        default: prompt_default,
+                        input,
+                    }
+                }
+            }
             PlanetDatabasePromptMode::SortRangeInput => TableFooter::CommandInput {
                 label: COMMAND_LABEL,
                 prompt: "Sort range from ",
@@ -480,20 +512,13 @@ impl PlanetDatabaseScreen {
             },
             PlanetDatabasePromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
-                    PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Location),
-                ),
-                KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
-                    PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Range),
-                ),
-                KeyCode::Char('e') | KeyCode::Char('E') => Action::Planet(
-                    PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Empire),
-                ),
-                KeyCode::Char('m') | KeyCode::Char('M') => Action::Planet(
-                    PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::MaxProduction),
-                ),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
+                }
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseSortPrompt),
+                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
+                KeyCode::Char(ch) if is_filter_column_char(ch) => {
+                    Action::Planet(PlanetAction::AppendDatabaseChar(ch))
                 }
                 _ => Action::Noop,
             },
