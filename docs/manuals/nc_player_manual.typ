@@ -1097,7 +1097,8 @@ and tells you no rows match.
 
 1. Open the table you want.
 2. Press `F`.
-3. Type the column code, or the shortest unique prefix, and press `Enter`.
+3. Type the column code, the visible column name, or the shortest unique
+   prefix, and press `Enter`.
 4. Type the value for that column and press `Enter`.
 5. Type `all` at the column prompt to clear the current filter.
 
@@ -1131,8 +1132,13 @@ Examples:
 
 1. Open the table you want.
 2. Press `S`.
-3. Press the sort key shown on the command line.
-4. Press the same sort key again to flip `ASC`/`DESC`.
+3. Type the column code, the visible column name, or the shortest unique
+   prefix, and press `Enter`.
+4. Press `S` again and submit the same code, or just press `Enter` on the
+   default code, to flip `ASC`/`DESC`.
+
+NOTE: On the Total Planet Database, `rng` or `range` is also accepted at the
+sort prompt to sort by distance from a chosen sector.
 
 The active sort and active filter both appear in the table title.
 

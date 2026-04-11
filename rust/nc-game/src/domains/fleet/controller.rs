@@ -17,7 +17,8 @@ use nc_engine::{
 };
 use nc_ui::table_filter::{
     ColumnCodeParseError, FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
-    format_column_code_error, is_filter_value_char, parse_column_code, parse_filter_clause,
+    format_column_code_error, is_filter_column_char, is_filter_value_char, parse_column_code,
+    parse_filter_clause,
 };
 use std::cmp::{Ordering, Reverse};
 
@@ -85,51 +86,61 @@ const FLEET_FILTER_COLUMNS: &[TableFilterColumn] = &[
     TableFilterColumn {
         code: "id",
         label: "Fleet ID",
+        aliases: &["fleet", "fleetid"],
         kind: FilterKind::Number,
     },
     TableFilterColumn {
         code: "loc",
         label: "Location",
+        aliases: &["coord", "coordinates"],
         kind: FilterKind::Coord,
     },
     TableFilterColumn {
         code: "ord",
         label: "Order",
+        aliases: &[],
         kind: FilterKind::Text,
     },
     TableFilterColumn {
         code: "tar",
         label: "Target",
+        aliases: &["destination"],
         kind: FilterKind::Coord,
     },
     TableFilterColumn {
         code: "spd",
         label: "Speed",
+        aliases: &[],
         kind: FilterKind::Number,
     },
     TableFilterColumn {
         code: "eta",
         label: "ETA",
+        aliases: &["arrival"],
         kind: FilterKind::Text,
     },
     TableFilterColumn {
         code: "roe",
         label: "ROE",
+        aliases: &["rules", "engagement"],
         kind: FilterKind::Number,
     },
     TableFilterColumn {
         code: "ars",
         label: "Armies",
+        aliases: &[],
         kind: FilterKind::Number,
     },
     TableFilterColumn {
         code: "shi",
         label: "Ships",
+        aliases: &["forces"],
         kind: FilterKind::Text,
     },
     TableFilterColumn {
         code: "sel",
         label: "Selected",
+        aliases: &["marked"],
         kind: FilterKind::Bool,
     },
 ];
@@ -863,7 +874,7 @@ impl App {
                         self.fleet.list_filter_prompt_input.clear();
                         self.fleet.list_filter_prompt_status = None;
                         self.fleet.list_filter_prompt_dismiss_message =
-                            Some("Enter a valid column code or ALL".to_string());
+                            Some("Enter a valid column name/code or ALL".to_string());
                     }
                 }
             }
@@ -1441,18 +1452,21 @@ impl App {
     }
 
     pub fn append_fleet_list_filter_prompt_char(&mut self, ch: char) {
-        if self.current_screen != ScreenId::FleetListFilterPrompt {
+        if !matches!(
+            self.current_screen,
+            ScreenId::FleetListFilterPrompt | ScreenId::FleetListSortPrompt
+        ) {
             return;
         }
         let allowed = match self.fleet.list_filter_prompt_mode {
-            FleetListFilterPromptMode::Column => ch.is_ascii_alphabetic(),
+            FleetListFilterPromptMode::Column => is_filter_column_char(ch),
             FleetListFilterPromptMode::Value => self
                 .fleet
                 .list_filter_pending_column
                 .map(|column| is_filter_value_char(column.kind, ch))
                 .unwrap_or(false),
         };
-        if !allowed || self.fleet.list_filter_prompt_input.len() >= 16 {
+        if !allowed || self.fleet.list_filter_prompt_input.len() >= 24 {
             return;
         }
         self.fleet.list_filter_prompt_input.push(ch);
@@ -1470,7 +1484,10 @@ impl App {
     }
 
     pub fn backspace_fleet_list_filter_prompt_input(&mut self) {
-        if self.current_screen != ScreenId::FleetListFilterPrompt {
+        if !matches!(
+            self.current_screen,
+            ScreenId::FleetListFilterPrompt | ScreenId::FleetListSortPrompt
+        ) {
             return;
         }
         self.fleet.list_filter_prompt_input.pop();

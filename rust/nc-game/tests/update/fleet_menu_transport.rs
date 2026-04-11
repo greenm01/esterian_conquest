@@ -2391,7 +2391,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         )
         .expect("fleet list renders");
 
-    assert_eq!(buffer.plain_line(0), " FLEET LIST: DESCENDING ALL");
+    assert_eq!(buffer.plain_line(0), " FLEET LIST: ID DESCENDING ALL");
     assert!(!buffer.plain_line(1).contains("ENTER reviews a fleet."));
     assert!(buffer.plain_line(1).starts_with("┌"));
     assert!(buffer.plain_line(1).ends_with("┐"));

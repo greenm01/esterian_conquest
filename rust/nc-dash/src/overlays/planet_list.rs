@@ -50,19 +50,19 @@ const COLUMNS: [TableColumn<'static>; 13] = [
 ];
 
 const FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", kind: FilterKind::Number },
-    TableFilterColumn { code: "bdg", label: "Budget", kind: FilterKind::Number },
-    TableFilterColumn { code: "rev", label: "Revenue", kind: FilterKind::Number },
-    TableFilterColumn { code: "gro", label: "Growth", kind: FilterKind::Number },
-    TableFilterColumn { code: "bui", label: "Build", kind: FilterKind::Number },
-    TableFilterColumn { code: "sta", label: "Dock", kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", kind: FilterKind::Number },
+    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
+    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
+    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
+    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
+    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
+    TableFilterColumn { code: "bdg", label: "Budget", aliases: &["bdgt", "bgdt"], kind: FilterKind::Number },
+    TableFilterColumn { code: "rev", label: "Revenue", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "gro", label: "Growth", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "bui", label: "Build", aliases: &["queue"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sta", label: "Dock", aliases: &["stardock"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
 ];
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -876,7 +876,8 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
 
 fn overlay_title(app: &DashApp) -> String {
     format!(
-        "PLANET LIST: {} {}",
+        "PLANET LIST: {} {} {}",
+        sort_label(app.planet_overlay.sort),
         app.planet_overlay.sort_direction.title_label(),
         app.planet_overlay
             .filter_clause
@@ -884,6 +885,24 @@ fn overlay_title(app: &DashApp) -> String {
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(app.planet_overlay.filter))
     )
+}
+
+const fn sort_label(sort: PlanetOverlaySort) -> &'static str {
+    match sort {
+        PlanetOverlaySort::Location => "COO",
+        PlanetOverlaySort::PlanetName => "PLA",
+        PlanetOverlaySort::MaxProduction => "MAX",
+        PlanetOverlaySort::CurrentProduction => "CUR",
+        PlanetOverlaySort::Treasury => "TRS",
+        PlanetOverlaySort::Budget => "BDG",
+        PlanetOverlaySort::Revenue => "REV",
+        PlanetOverlaySort::Growth => "GRO",
+        PlanetOverlaySort::BuildQueue => "BUI",
+        PlanetOverlaySort::Stardock => "STA",
+        PlanetOverlaySort::Starbase => "SBS",
+        PlanetOverlaySort::Armies => "ARS",
+        PlanetOverlaySort::Batteries => "GBS",
+    }
 }
 
 pub(crate) fn filter_columns() -> &'static [TableFilterColumn] {
@@ -986,7 +1005,7 @@ mod tests {
         );
         app.planet_overlay.sort_direction = SortDirection::Asc;
 
-        assert_eq!(overlay_title(&app), "PLANET LIST: ASCENDING ALL");
+        assert_eq!(overlay_title(&app), "PLANET LIST: CUR ASCENDING ALL");
         assert_eq!(sort_footer_label(&app), "SORT ASC");
     }
 

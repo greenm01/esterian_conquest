@@ -259,18 +259,34 @@ pub enum FleetListFilterPromptMode {
 }
 
 fn fleet_list_title(
-    _sort: FleetListSort,
+    sort: FleetListSort,
     direction: SortDirection,
     filter: FleetListFilter,
     filter_clause: Option<&TableFilterClause>,
 ) -> String {
     format!(
-        "FLEET LIST: {} {}",
+        "FLEET LIST: {} {} {}",
+        fleet_sort_label(sort),
         direction.title_label(),
         filter_clause
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(filter))
     )
+}
+
+const fn fleet_sort_label(sort: FleetListSort) -> &'static str {
+    match sort {
+        FleetListSort::Id => "ID",
+        FleetListSort::Selected => "SEL",
+        FleetListSort::Location => "LOC",
+        FleetListSort::Order => "ORD",
+        FleetListSort::Target => "TAR",
+        FleetListSort::Speed => "SPD",
+        FleetListSort::Eta => "ETA",
+        FleetListSort::Roe => "ROE",
+        FleetListSort::Armies => "ARS",
+        FleetListSort::Strength => "SHI",
+    }
 }
 
 fn filter_label(filter: FleetListFilter) -> &'static str {

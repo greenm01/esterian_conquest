@@ -44,17 +44,17 @@ const COLUMNS: [TableColumn<'static>; 11] = [
 ];
 
 const FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", kind: FilterKind::Text },
-    TableFilterColumn { code: "own", label: "Owner", kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", kind: FilterKind::Number },
-    TableFilterColumn { code: "see", label: "Seen", kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", kind: FilterKind::Number },
-    TableFilterColumn { code: "sco", label: "Scout", kind: FilterKind::Number },
+    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
+    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
+    TableFilterColumn { code: "own", label: "Owner", aliases: &["empire"], kind: FilterKind::Text },
+    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
+    TableFilterColumn { code: "see", label: "Seen", aliases: &["year", "yearseen", "seenyear"], kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
+    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
+    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sco", label: "Scout", aliases: &["scoutyear"], kind: FilterKind::Number },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -520,7 +520,8 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
 
 fn overlay_title(app: &DashApp) -> String {
     format!(
-        "TOTAL PLANET DATABASE: {} {}",
+        "TOTAL PLANET DATABASE: {} {} {}",
+        sort_label(app.intel_overlay.sort),
         app.intel_overlay.sort_direction.title_label(),
         app.intel_overlay
             .filter_clause
@@ -528,6 +529,23 @@ fn overlay_title(app: &DashApp) -> String {
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(app.intel_overlay.filter))
     )
+}
+
+const fn sort_label(sort: IntelOverlaySort) -> &'static str {
+    match sort {
+        IntelOverlaySort::Location => "COO",
+        IntelOverlaySort::Range(_) => "RNG",
+        IntelOverlaySort::PlanetName => "PLA",
+        IntelOverlaySort::Owner => "OWN",
+        IntelOverlaySort::MaxProduction => "MAX",
+        IntelOverlaySort::YearSeen => "SEE",
+        IntelOverlaySort::Armies => "ARS",
+        IntelOverlaySort::Batteries => "GBS",
+        IntelOverlaySort::Starbases => "SBS",
+        IntelOverlaySort::CurrentProduction => "CUR",
+        IntelOverlaySort::Treasury => "TRS",
+        IntelOverlaySort::ScoutYear => "SCO",
+    }
 }
 
 pub(crate) fn filter_columns() -> &'static [TableFilterColumn] {
@@ -653,7 +671,7 @@ mod tests {
         );
         app.intel_overlay.sort_direction = SortDirection::Desc;
 
-        assert_eq!(overlay_title(&app), "TOTAL PLANET DATABASE: DESCENDING ALL");
+        assert_eq!(overlay_title(&app), "TOTAL PLANET DATABASE: COO DESCENDING ALL");
         assert_eq!(sort_footer_label(&app), "SORT DESC");
     }
 }

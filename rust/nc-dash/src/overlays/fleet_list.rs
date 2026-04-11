@@ -70,16 +70,16 @@ const COLUMNS: [TableColumn<'static>; 10] = [
 ];
 
 const FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "id", label: "Fleet ID", kind: FilterKind::Number },
-    TableFilterColumn { code: "sel", label: "Selected", kind: FilterKind::Bool },
-    TableFilterColumn { code: "loc", label: "Location", kind: FilterKind::Coord },
-    TableFilterColumn { code: "ord", label: "Order", kind: FilterKind::Text },
-    TableFilterColumn { code: "tar", label: "Target", kind: FilterKind::Coord },
-    TableFilterColumn { code: "spd", label: "Speed", kind: FilterKind::Number },
-    TableFilterColumn { code: "eta", label: "ETA", kind: FilterKind::Text },
-    TableFilterColumn { code: "roe", label: "ROE", kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
-    TableFilterColumn { code: "shi", label: "Ships", kind: FilterKind::Text },
+    TableFilterColumn { code: "id", label: "Fleet ID", aliases: &["fleet", "fleetid"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sel", label: "Selected", aliases: &["marked"], kind: FilterKind::Bool },
+    TableFilterColumn { code: "loc", label: "Location", aliases: &["coord", "coordinates"], kind: FilterKind::Coord },
+    TableFilterColumn { code: "ord", label: "Order", aliases: &[], kind: FilterKind::Text },
+    TableFilterColumn { code: "tar", label: "Target", aliases: &["destination"], kind: FilterKind::Coord },
+    TableFilterColumn { code: "spd", label: "Speed", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "eta", label: "ETA", aliases: &["arrival"], kind: FilterKind::Text },
+    TableFilterColumn { code: "roe", label: "ROE", aliases: &["rules", "engagement"], kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "shi", label: "Ships", aliases: &["forces"], kind: FilterKind::Text },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1652,7 +1652,8 @@ fn fleet_strength_key(fleet: &nc_data::FleetRecord) -> (u16, u16, u16, u16, u8, 
 
 fn overlay_title(app: &DashApp) -> String {
     format!(
-        "FLEET LIST: {} {}",
+        "FLEET LIST: {} {} {}",
+        sort_label(app.fleet_overlay.sort),
         app.fleet_overlay.sort_direction.title_label(),
         app.fleet_overlay
             .filter_clause
@@ -1660,6 +1661,21 @@ fn overlay_title(app: &DashApp) -> String {
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(app.fleet_overlay.filter))
     )
+}
+
+const fn sort_label(sort: FleetOverlaySort) -> &'static str {
+    match sort {
+        FleetOverlaySort::Id => "ID",
+        FleetOverlaySort::Selected => "SEL",
+        FleetOverlaySort::Location => "LOC",
+        FleetOverlaySort::Order => "ORD",
+        FleetOverlaySort::Target => "TAR",
+        FleetOverlaySort::Speed => "SPD",
+        FleetOverlaySort::Eta => "ETA",
+        FleetOverlaySort::Roe => "ROE",
+        FleetOverlaySort::Armies => "ARS",
+        FleetOverlaySort::Strength => "SHI",
+    }
 }
 
 pub(crate) fn filter_columns() -> &'static [TableFilterColumn] {
@@ -1894,7 +1910,7 @@ mod tests {
         let mut app = dash_app();
         app.fleet_overlay.sort_direction = SortDirection::Asc;
 
-        assert_eq!(overlay_title(&app), "FLEET LIST: ASCENDING ALL");
+        assert_eq!(overlay_title(&app), "FLEET LIST: ID ASCENDING ALL");
         assert_eq!(sort_footer_label(&app), "SORT ASC");
     }
 
@@ -1975,7 +1991,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("FLEET LIST: DESCENDING HOLD"))
+                .any(|line| line.contains("FLEET LIST: ID DESCENDING HOLD"))
         );
         assert!(
             lines

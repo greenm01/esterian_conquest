@@ -294,14 +294,14 @@ fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     );
     assert_eq!(
         app.fleet.list_filter_prompt_status.as_deref(),
-        Some(" Ambiguous: spd/shi/sel")
+        Some(" Ambiguous: sel/shi/spd")
     );
     assert!(app.fleet.list_filter_prompt_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Ambiguous: spd/shi/sel")
+        line_containing(&terminal, "COMMAND <- Ambiguous: sel/shi/spd")
             .contains("[all] <Q> ->")
     );
 
@@ -377,14 +377,14 @@ fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     );
     assert_eq!(
         app.planet.list_prompt_status.as_deref(),
-        Some(" Ambiguous: sta/sbs")
+        Some(" Ambiguous: sbs/sta")
     );
     assert!(app.planet.list_prompt_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("planet list should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Ambiguous: sta/sbs")
+        line_containing(&terminal, "COMMAND <- Ambiguous: sbs/sta")
             .contains("[all] <Q> ->")
     );
 
@@ -397,9 +397,7 @@ fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
             .contains("[all] <Q> ->")
     );
 
-    let action = app.handle_key(key(KeyCode::Char('s')));
-    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
-    let action = app.handle_key(key(KeyCode::Char('t')));
+    let action = app.handle_key(key(KeyCode::Char('d')));
     assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
     let action = app.handle_key(key(KeyCode::Enter));
     assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
@@ -448,7 +446,7 @@ fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     );
     assert_eq!(
         app.planet.database_status.as_deref(),
-        Some(" Ambiguous: see/sbs/sco")
+        Some(" Ambiguous: sbs/sco/see")
     );
     assert!(app.planet.database_input.is_empty());
 
@@ -456,7 +454,7 @@ fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     app.render(&mut terminal)
         .expect("planet database should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Ambiguous: see/sbs/sco")
+        line_containing(&terminal, "COMMAND <- Ambiguous: sbs/sco/see")
             .contains("[all] <Q> ->")
     );
 
@@ -844,7 +842,7 @@ fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
     app.render(&mut terminal).expect("fleet filter prompt should render");
     assert!(
         line_containing(&terminal, "COMMAND <-")
-            .contains("Enter a valid column code or ALL (slap a key)")
+            .contains("Enter a valid column name/code or ALL (slap a key)")
     );
     let action = app.handle_key(key(KeyCode::Char('x')));
     assert_eq!(
@@ -876,7 +874,7 @@ fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
     app.render(&mut terminal).expect("planet filter prompt should render");
     assert!(
         line_containing(&terminal, "COMMAND <-")
-            .contains("Enter a valid column code or ALL (slap a key)")
+            .contains("Enter a valid column name/code or ALL (slap a key)")
     );
     let action = app.handle_key(key(KeyCode::Char('x')));
     assert_eq!(
@@ -902,7 +900,7 @@ fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
         .expect("database filter prompt should render");
     assert!(
         line_containing(&terminal, "COMMAND <-")
-            .contains("Enter a valid column code or ALL (slap a key)")
+            .contains("Enter a valid column name/code or ALL (slap a key)")
     );
     let action = app.handle_key(key(KeyCode::Char('x')));
     assert_eq!(

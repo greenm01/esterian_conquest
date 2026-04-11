@@ -7,21 +7,25 @@ const COLUMNS: &[TableFilterColumn] = &[
     TableFilterColumn {
         code: "ord",
         label: "Order",
+        aliases: &[],
         kind: FilterKind::Text,
     },
     TableFilterColumn {
         code: "max",
         label: "Max",
+        aliases: &[],
         kind: FilterKind::Number,
     },
     TableFilterColumn {
         code: "coo",
         label: "Coord",
+        aliases: &[],
         kind: FilterKind::Coord,
     },
     TableFilterColumn {
         code: "sel",
         label: "Selected",
+        aliases: &[],
         kind: FilterKind::Bool,
     },
 ];
@@ -30,26 +34,31 @@ const PREFIX_COLUMNS: &[TableFilterColumn] = &[
     TableFilterColumn {
         code: "ord",
         label: "Order",
+        aliases: &[],
         kind: FilterKind::Text,
     },
     TableFilterColumn {
         code: "max",
         label: "Max",
+        aliases: &[],
         kind: FilterKind::Number,
     },
     TableFilterColumn {
         code: "coo",
         label: "Coord",
+        aliases: &[],
         kind: FilterKind::Coord,
     },
     TableFilterColumn {
         code: "sel",
         label: "Selected",
+        aliases: &[],
         kind: FilterKind::Bool,
     },
     TableFilterColumn {
         code: "sco",
         label: "Scout",
+        aliases: &["year", "scoutyear"],
         kind: FilterKind::Number,
     },
 ];
@@ -61,13 +70,49 @@ fn resolves_column_codes_case_insensitively() {
         "ord"
     );
     assert_eq!(parse_column_code(COLUMNS, "or").expect("prefix").code, "ord");
+    assert_eq!(
+        parse_column_code(COLUMNS, "selected").expect("label").code,
+        "sel"
+    );
+}
+
+#[test]
+fn resolves_aliases_and_label_prefixes() {
+    assert_eq!(parse_column_code(PREFIX_COLUMNS, "scout").expect("label").code, "sco");
+    assert_eq!(parse_column_code(PREFIX_COLUMNS, "yea").expect("alias prefix").code, "sco");
+}
+
+#[test]
+fn resolves_multiword_names_with_spaces_normalized() {
+    const COLUMNS: &[TableFilterColumn] = &[
+        TableFilterColumn {
+            code: "trs",
+            label: "Treasury",
+            aliases: &["treasury points"],
+            kind: FilterKind::Number,
+        },
+        TableFilterColumn {
+            code: "bdg",
+            label: "Budget",
+            aliases: &["bdgt", "bgdt"],
+            kind: FilterKind::Number,
+        },
+    ];
+
+    assert_eq!(
+        parse_column_code(COLUMNS, "treasury points")
+            .expect("multiword alias")
+            .code,
+        "trs"
+    );
+    assert_eq!(parse_column_code(COLUMNS, "bgdt").expect("abbr alias").code, "bdg");
 }
 
 #[test]
 fn reports_ambiguous_and_unknown_column_codes() {
     assert_eq!(
         parse_column_code(PREFIX_COLUMNS, "s").expect_err("ambiguous"),
-        ColumnCodeParseError::Ambiguous(vec!["sel", "sco"])
+        ColumnCodeParseError::Ambiguous(vec!["sco", "sel"])
     );
     assert_eq!(
         parse_column_code(PREFIX_COLUMNS, "zzz").expect_err("unknown"),
@@ -130,6 +175,7 @@ fn parses_boolean_aliases() {
 #[test]
 fn char_helpers_match_expected_input_shapes() {
     assert!(is_filter_column_char('o'));
+    assert!(is_filter_column_char(' '));
     assert!(!is_filter_column_char('1'));
     assert!(is_filter_value_char(FilterKind::Coord, '/'));
     assert!(is_filter_value_char(FilterKind::Number, '>'));

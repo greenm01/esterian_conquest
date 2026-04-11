@@ -747,7 +747,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
 
     let title_col = buffer
         .plain_line(0)
-        .find("PLANET LIST: DESCENDING ALL")
+        .find("PLANET LIST: CUR DESCENDING ALL")
         .expect("title col");
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
     assert_eq!(title_col, border_col + 1);

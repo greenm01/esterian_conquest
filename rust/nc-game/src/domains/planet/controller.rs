@@ -18,33 +18,33 @@ use nc_ui::table_filter::{
 };
 
 const PLANET_LIST_FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", kind: FilterKind::Number },
-    TableFilterColumn { code: "bdg", label: "Budget", kind: FilterKind::Number },
-    TableFilterColumn { code: "rev", label: "Revenue", kind: FilterKind::Number },
-    TableFilterColumn { code: "gro", label: "Growth", kind: FilterKind::Number },
-    TableFilterColumn { code: "bui", label: "Build", kind: FilterKind::Number },
-    TableFilterColumn { code: "sta", label: "Dock", kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", kind: FilterKind::Number },
+    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
+    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
+    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
+    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
+    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
+    TableFilterColumn { code: "bdg", label: "Budget", aliases: &["bdgt", "bgdt"], kind: FilterKind::Number },
+    TableFilterColumn { code: "rev", label: "Revenue", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "gro", label: "Growth", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "bui", label: "Build", aliases: &["queue"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sta", label: "Dock", aliases: &["stardock"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
 ];
 
 const PLANET_DATABASE_FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", kind: FilterKind::Text },
-    TableFilterColumn { code: "own", label: "Owner", kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", kind: FilterKind::Number },
-    TableFilterColumn { code: "see", label: "Seen", kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", kind: FilterKind::Number },
-    TableFilterColumn { code: "sco", label: "Scout", kind: FilterKind::Number },
+    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
+    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
+    TableFilterColumn { code: "own", label: "Owner", aliases: &["empire"], kind: FilterKind::Text },
+    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
+    TableFilterColumn { code: "see", label: "Seen", aliases: &["year", "yearseen", "seenyear"], kind: FilterKind::Number },
+    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
+    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
+    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
+    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
+    TableFilterColumn { code: "sco", label: "Scout", aliases: &["scoutyear"], kind: FilterKind::Number },
 ];
 
 const fn planet_list_sort_code(sort: PlanetListSort) -> &'static str {
@@ -726,7 +726,7 @@ impl App {
                         self.planet.list_prompt_input.clear();
                         self.planet.list_prompt_status = None;
                         self.planet.list_prompt_dismiss_message =
-                            Some("Enter a valid column code or ALL".to_string());
+                            Some("Enter a valid column name/code or ALL".to_string());
                     }
                 }
             }
@@ -1146,7 +1146,7 @@ impl App {
                         self.planet.database_input.clear();
                         self.planet.database_status = None;
                         self.planet.database_prompt_dismiss_message =
-                            Some("Enter a valid column code or ALL".to_string());
+                            Some("Enter a valid column name/code or ALL".to_string());
                     }
                 }
             }

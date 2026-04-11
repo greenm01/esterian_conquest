@@ -115,7 +115,7 @@ fn filter_prompt_dismiss_prompt(message: &str) -> String {
 
 fn planet_list_title(
     mode: PlanetListMode,
-    _sort: PlanetListSort,
+    sort: PlanetListSort,
     direction: SortDirection,
     filter: PlanetListFilter,
     filter_clause: Option<&TableFilterClause>,
@@ -123,7 +123,8 @@ fn planet_list_title(
     match mode {
         PlanetListMode::Brief => {
             format!(
-                "PLANET LIST: {} {}",
+                "PLANET LIST: {} {} {}",
+                planet_list_sort_label(sort),
                 direction.title_label(),
                 filter_clause
                     .map(|clause| clause.summary.as_str())
@@ -132,6 +133,24 @@ fn planet_list_title(
         }
         PlanetListMode::BuildSelect => "CHANGE CURRENT PLANET:".to_string(),
         PlanetListMode::Stub(_) => "PLANET COMMAND:".to_string(),
+    }
+}
+
+const fn planet_list_sort_label(sort: PlanetListSort) -> &'static str {
+    match sort {
+        PlanetListSort::Location => "COO",
+        PlanetListSort::PlanetName => "PLA",
+        PlanetListSort::PotentialProduction => "MAX",
+        PlanetListSort::CurrentProduction => "CUR",
+        PlanetListSort::Treasury => "TRS",
+        PlanetListSort::Budget => "BDG",
+        PlanetListSort::Revenue => "REV",
+        PlanetListSort::Growth => "GRO",
+        PlanetListSort::BuildQueue => "BUI",
+        PlanetListSort::Stardock => "STA",
+        PlanetListSort::Starbase => "SBS",
+        PlanetListSort::Armies => "ARS",
+        PlanetListSort::Batteries => "GBS",
     }
 }
 

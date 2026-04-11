@@ -10,6 +10,7 @@ pub enum FilterKind {
 pub struct TableFilterColumn {
     pub code: &'static str,
     pub label: &'static str,
+    pub aliases: &'static [&'static str],
     pub kind: FilterKind,
 }
 
@@ -67,23 +68,42 @@ pub fn parse_column_code(
     if let Some(column) = columns.iter().copied().find(|column| column.code == raw) {
         return Ok(column);
     }
+    let exact_matches = columns
+        .iter()
+        .copied()
+        .filter(|column| column_matches_exact(column, &raw))
+        .collect::<Vec<_>>();
+    match exact_matches.as_slice() {
+        [] => {}
+        [column] => return Ok(*column),
+        _ => {
+            return Err(ColumnCodeParseError::Ambiguous(
+                dedupe_codes(&exact_matches),
+            ));
+        }
+    }
     let matches = columns
         .iter()
         .copied()
-        .filter(|column| column.code.starts_with(&raw))
+        .filter(|column| column_matches_prefix(column, &raw))
         .collect::<Vec<_>>();
     match matches.as_slice() {
         [] => Err(ColumnCodeParseError::Unknown),
         [column] => Ok(*column),
-        _ => Err(ColumnCodeParseError::Ambiguous(
-            matches.iter().map(|column| column.code).collect(),
-        )),
+        _ => {
+            let codes = dedupe_codes(&matches);
+            if codes.len() == 1 {
+                Ok(matches[0])
+            } else {
+                Err(ColumnCodeParseError::Ambiguous(codes))
+            }
+        }
     }
 }
 
 pub fn format_column_code_error(error: &ColumnCodeParseError) -> String {
     match error {
-        ColumnCodeParseError::Unknown => "Enter a valid column code or ALL.".to_string(),
+        ColumnCodeParseError::Unknown => "Enter a valid column name/code or ALL.".to_string(),
         ColumnCodeParseError::Ambiguous(codes) => {
             format!("Ambiguous: {}", codes.join("/"))
         }
@@ -109,7 +129,7 @@ pub fn parse_filter_clause(
 }
 
 pub fn is_filter_column_char(ch: char) -> bool {
-    ch.is_ascii_alphabetic()
+    ch.is_ascii_alphabetic() || ch == ' '
 }
 
 pub fn is_filter_value_char(kind: FilterKind, ch: char) -> bool {
@@ -265,4 +285,57 @@ fn summarize_clause(code: &str, predicate: &TableFilterPredicate) -> String {
         TableFilterPredicate::Bool(false) => format!("{code}=N"),
         TableFilterPredicate::Unknown => format!("{code}=?"),
     }
+}
+
+fn column_matches_exact(column: &TableFilterColumn, raw: &str) -> bool {
+    let normalized = normalize_match_key(raw);
+    !normalized.is_empty()
+        && column_match_tokens(column)
+            .into_iter()
+            .any(|token| token == normalized)
+}
+
+fn column_matches_prefix(column: &TableFilterColumn, raw: &str) -> bool {
+    let normalized = normalize_match_key(raw);
+    !normalized.is_empty()
+        && column_match_tokens(column)
+            .into_iter()
+            .any(|token| token.starts_with(&normalized))
+}
+
+fn column_match_tokens(column: &TableFilterColumn) -> Vec<String> {
+    let mut tokens = vec![
+        normalize_match_key(column.code),
+        normalize_match_key(column.label),
+    ];
+    tokens.extend(split_column_tokens(column.label));
+    for alias in column.aliases {
+        tokens.push(normalize_match_key(alias));
+        tokens.extend(split_column_tokens(alias));
+    }
+    tokens.retain(|token| !token.is_empty());
+    tokens.sort();
+    tokens.dedup();
+    tokens
+}
+
+fn split_column_tokens(label: &str) -> Vec<String> {
+    label.split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|part| !part.is_empty())
+        .map(normalize_match_key)
+        .collect()
+}
+
+fn dedupe_codes(columns: &[TableFilterColumn]) -> Vec<&'static str> {
+    let mut codes = columns.iter().map(|column| column.code).collect::<Vec<_>>();
+    codes.sort_unstable();
+    codes.dedup();
+    codes
+}
+
+fn normalize_match_key(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect()
 }

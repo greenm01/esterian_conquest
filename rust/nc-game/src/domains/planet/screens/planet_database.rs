@@ -128,18 +128,36 @@ fn filter_prompt_dismiss_prompt(message: &str) -> String {
 }
 
 fn database_title(
-    _sort: PlanetDatabaseSort,
+    sort: PlanetDatabaseSort,
     direction: SortDirection,
     filter: PlanetDatabaseFilter,
     filter_clause: Option<&TableFilterClause>,
 ) -> String {
     format!(
-        "TOTAL PLANET DATABASE: {} {}",
+        "TOTAL PLANET DATABASE: {} {} {}",
+        planet_database_sort_label(sort),
         direction.title_label(),
         filter_clause
             .map(|clause| clause.summary.as_str())
             .unwrap_or(filter_label(filter))
     )
+}
+
+const fn planet_database_sort_label(sort: PlanetDatabaseSort) -> &'static str {
+    match sort {
+        PlanetDatabaseSort::Location => "COO",
+        PlanetDatabaseSort::Range(_) => "RNG",
+        PlanetDatabaseSort::PlanetName => "PLA",
+        PlanetDatabaseSort::Owner => "OWN",
+        PlanetDatabaseSort::MaxProduction => "MAX",
+        PlanetDatabaseSort::YearSeen => "SEE",
+        PlanetDatabaseSort::Armies => "ARS",
+        PlanetDatabaseSort::Batteries => "GBS",
+        PlanetDatabaseSort::Starbases => "SBS",
+        PlanetDatabaseSort::CurrentProduction => "CUR",
+        PlanetDatabaseSort::Treasury => "TRS",
+        PlanetDatabaseSort::ScoutYear => "SCO",
+    }
 }
 
 fn filter_label(filter: PlanetDatabaseFilter) -> &'static str {
