@@ -100,6 +100,10 @@ const DATABASE_TOP_HEADER_CELLS: [&str; 11] = [
     "Coord", "", "", "Max", "Year", "", "", "", "Curr", "Trsry", "Year",
 ];
 
+fn filter_prompt_dismiss_prompt(message: &str) -> String {
+    format!("{message} (slap a key)")
+}
+
 fn database_title(
     sort: PlanetDatabaseSort,
     direction: SortDirection,
@@ -325,6 +329,7 @@ impl PlanetDatabaseScreen {
             status,
             menu,
             None,
+            None,
         )
     }
 
@@ -344,24 +349,30 @@ impl PlanetDatabaseScreen {
         input: &str,
         status: Option<&str>,
         menu: CommandMenu,
+        dismiss_message: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let footer_label = sort_footer_label(direction);
         let prompt_text;
         let footer = match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => {
-                prompt_text = {
-                    let mut prompt = "Filter column [?] ".to_string();
-                    if let Some(status) = status {
-                        prompt.push_str(status);
+                if let Some(message) = dismiss_message {
+                    prompt_text = filter_prompt_dismiss_prompt(message);
+                    TableFooter::CommandPrompt {
+                        label: COMMAND_LABEL,
+                        prompt: &prompt_text,
                     }
-                    prompt
-                };
-                TableFooter::CommandInput {
-                    label: COMMAND_LABEL,
-                    prompt: &prompt_text,
-                    default: prompt_default,
-                    input,
+                } else {
+                    prompt_text = status
+                        .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                        .map(|value| value.trim_start().to_string())
+                        .unwrap_or_else(|| "Filter column [?] ".to_string());
+                    TableFooter::CommandInput {
+                        label: COMMAND_LABEL,
+                        prompt: &prompt_text,
+                        default: prompt_default,
+                        input,
+                    }
                 }
             }
             PlanetDatabasePromptMode::FilterValueInput => {
@@ -446,13 +457,13 @@ impl PlanetDatabaseScreen {
         match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => Action::OpenPopupHelp,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::OpenDatabase)
+                }
                 KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
                 KeyCode::Char(ch) if is_filter_column_char(ch) => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
-                }
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::OpenDatabase)
                 }
                 _ => Action::Noop,
             },

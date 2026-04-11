@@ -72,6 +72,10 @@ fn fleet_list_dismiss_prompt(geometry: ScreenGeometry, table_col: usize, message
     format!("{prefix} {}", truncate_to_width(message, message_width))
 }
 
+fn filter_prompt_dismiss_prompt(message: &str) -> String {
+    format!("{message} (slap a key)")
+}
+
 fn fit_fleet_table_ships_summary(summary: &str, width: usize) -> String {
     if summary.chars().count() <= width {
         return summary.to_string();
@@ -807,6 +811,7 @@ impl FleetListScreen {
             "",
             None,
             None,
+            None,
         )
     }
 
@@ -825,30 +830,36 @@ impl FleetListScreen {
         prompt_default: &str,
         input: &str,
         status: Option<&str>,
+        dismiss_message: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut dynamic_prompt;
-        let prompt = match prompt_mode {
-            FleetListFilterPromptMode::Column => "Filter column [?] ",
-            FleetListFilterPromptMode::Value => {
-                dynamic_prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
-                if let Some(status) = status {
-                    dynamic_prompt.push_str(status);
+        let prompt;
+        let footer = if let Some(message) = dismiss_message {
+            prompt = filter_prompt_dismiss_prompt(message);
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: &prompt,
+            }
+        } else {
+            prompt = match prompt_mode {
+                FleetListFilterPromptMode::Column => status
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Filter column [?] ".to_string()),
+                FleetListFilterPromptMode::Value => {
+                    let mut prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                    if let Some(status) = status {
+                        prompt.push_str(status);
+                    }
+                    prompt
                 }
-                dynamic_prompt.as_str()
+            };
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt,
+                default: prompt_default,
+                input,
             }
-        };
-        let mut prompt = prompt.to_string();
-        if matches!(prompt_mode, FleetListFilterPromptMode::Column) {
-            if let Some(status) = status {
-                prompt.push_str(status);
-            }
-        }
-        let footer = TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: &prompt,
-            default: prompt_default,
-            input,
         };
         Ok(self
             .render_table(
@@ -938,6 +949,9 @@ impl FleetListScreen {
     ) -> Action {
         match key.code {
             KeyCode::Char('?') => Action::OpenPopupHelp,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Fleet(FleetAction::CloseListPrompt)
+            }
             KeyCode::Enter => Action::Fleet(FleetAction::SubmitListFilterPrompt),
             KeyCode::Backspace => Action::Fleet(FleetAction::BackspaceListFilterPromptInput),
             KeyCode::Char(ch)
@@ -954,9 +968,6 @@ impl FleetListScreen {
                     ) || ch.is_ascii_alphanumeric()) =>
             {
                 Action::Fleet(FleetAction::AppendListFilterPromptChar(ch))
-            }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Fleet(FleetAction::CloseListPrompt)
             }
             _ => Action::Noop,
         }

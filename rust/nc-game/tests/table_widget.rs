@@ -1061,10 +1061,11 @@ fn filter_prompt_inline_status_stays_on_browse_footer_row_for_all_tables() {
             "",
             Some(" Ambiguous: spd/shi"),
             None,
+            None,
         )
         .expect("render fleet filter prompt");
     assert_eq!(
-        line_index_containing(&fleet_filter, "COMMAND <- Filter column [?]  Ambiguous: spd/shi"),
+        line_index_containing(&fleet_filter, "COMMAND <- Ambiguous: spd/shi"),
         fleet_browse_row
     );
 
@@ -1137,7 +1138,7 @@ fn filter_prompt_inline_status_stays_on_browse_footer_row_for_all_tables() {
         )
         .expect("render planet filter prompt");
     assert_eq!(
-        line_index_containing(&planet_filter, "COMMAND <- Filter column [?]  Ambiguous: sta/sbs"),
+        line_index_containing(&planet_filter, "COMMAND <- Ambiguous: sta/sbs"),
         planet_browse_row
     );
 
@@ -1193,7 +1194,7 @@ fn filter_prompt_inline_status_stays_on_browse_footer_row_for_all_tables() {
     assert_eq!(
         line_index_containing(
             &database_filter,
-            "COMMAND <- Filter column [?]  Ambiguous: see/sbs/sco"
+            "COMMAND <- Ambiguous: see/sbs/sco"
         ),
         database_browse_row
     );

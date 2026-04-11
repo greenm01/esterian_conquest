@@ -14,7 +14,7 @@ use crate::screen::{
 use nc_data::{FleetRecord, Order};
 use nc_engine::{FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line};
 use nc_ui::table_filter::{
-    FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
+    ColumnCodeParseError, FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
     format_column_code_error, is_filter_value_char, parse_column_code, parse_filter_clause,
 };
 use std::cmp::{Ordering, Reverse};
@@ -307,6 +307,10 @@ impl App {
         self.fleet.list_status = None;
         self.fleet.dismiss_message = None;
         self.fleet.list_dismiss_message = Some(message.into());
+    }
+
+    pub(crate) fn dismiss_fleet_list_filter_prompt_notice(&mut self) {
+        self.fleet.list_filter_prompt_dismiss_message = None;
     }
 
     pub(crate) fn show_fleet_context_notice(&mut self, message: impl Into<String>) {
@@ -622,6 +626,7 @@ impl App {
         self.fleet.list_filter_prompt_input.clear();
         self.fleet.list_filter_prompt_default_value = "all".to_string();
         self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
         self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetListFilterPrompt;
     }
@@ -642,6 +647,7 @@ impl App {
         self.fleet.list_filter_prompt_input.clear();
         self.fleet.list_filter_prompt_default_value.clear();
         self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
         self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetList;
     }
@@ -716,10 +722,22 @@ impl App {
                         self.fleet.list_filter_prompt_default_value =
                             self.fleet_filter_default_value_for(column);
                         self.fleet.list_filter_prompt_status = None;
+                        self.fleet.list_filter_prompt_dismiss_message = None;
                     }
-                    Err(err) => {
+                    Err(ColumnCodeParseError::Ambiguous(codes)) => {
+                        self.fleet.list_filter_prompt_input.clear();
                         self.fleet.list_filter_prompt_status =
-                            Some(format!(" {}", format_column_code_error(&err)));
+                            Some(format!(
+                                " {}",
+                                format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                            ));
+                        self.fleet.list_filter_prompt_dismiss_message = None;
+                    }
+                    Err(ColumnCodeParseError::Unknown) => {
+                        self.fleet.list_filter_prompt_input.clear();
+                        self.fleet.list_filter_prompt_status = None;
+                        self.fleet.list_filter_prompt_dismiss_message =
+                            Some("Enter a valid column code or ALL".to_string());
                     }
                 }
             }
@@ -737,7 +755,10 @@ impl App {
                 };
                 match parse_filter_clause(column, raw) {
                     Ok(clause) => self.apply_fleet_filter_clause(Some(clause)),
-                    Err(err) => self.fleet.list_filter_prompt_status = Some(err),
+                    Err(err) => {
+                        self.fleet.list_filter_prompt_status = Some(err);
+                        self.fleet.list_filter_prompt_dismiss_message = None;
+                    }
                 }
             }
         }
@@ -754,6 +775,7 @@ impl App {
         self.fleet.list_filter_prompt_input.clear();
         self.fleet.list_filter_prompt_default_value.clear();
         self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
         self.fleet.list_filter_pending_column = None;
         self.current_screen = ScreenId::FleetList;
         let rows = self.fleet_list_rows();
@@ -1122,6 +1144,7 @@ impl App {
         }
         self.fleet.list_filter_prompt_input.push(ch);
         self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
     }
 
     pub fn backspace_fleet_list_input(&mut self) {
@@ -1139,6 +1162,7 @@ impl App {
         }
         self.fleet.list_filter_prompt_input.pop();
         self.fleet.list_filter_prompt_status = None;
+        self.fleet.list_filter_prompt_dismiss_message = None;
     }
 
     pub fn append_fleet_menu_prompt_char(&mut self, ch: char) {

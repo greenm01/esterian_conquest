@@ -293,14 +293,33 @@ fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.fleet.list_filter_prompt_status.as_deref(),
         Some(" Ambiguous: spd/shi")
     );
+    assert!(app.fleet.list_filter_prompt_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Filter column [?] ")
-            .contains("Ambiguous: spd/shi")
+        line_containing(&terminal, "COMMAND <- Ambiguous: spd/shi")
+            .contains("[all] <Q> ->")
     );
 
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::BackspaceListFilterPromptInput)
+        ),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("[all] <Q> ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar('s'))),
+        AppOutcome::Continue
+    );
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar('p'))),
         AppOutcome::Continue
@@ -357,14 +376,26 @@ fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.planet.list_prompt_status.as_deref(),
         Some(" Ambiguous: sta/sbs")
     );
+    assert!(app.planet.list_prompt_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("planet list should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Filter column [?] ")
-            .contains("Ambiguous: sta/sbs")
+        line_containing(&terminal, "COMMAND <- Ambiguous: sta/sbs")
+            .contains("[all] <Q> ->")
     );
 
+    let action = app.handle_key(key(KeyCode::Backspace));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet list should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("[all] <Q> ->")
+    );
+
+    let action = app.handle_key(key(KeyCode::Char('s')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
     let action = app.handle_key(key(KeyCode::Char('t')));
     assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
     let action = app.handle_key(key(KeyCode::Enter));
@@ -416,15 +447,28 @@ fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.planet.database_status.as_deref(),
         Some(" Ambiguous: see/sbs/sco")
     );
+    assert!(app.planet.database_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet database should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Filter column [?] ")
-            .contains("Ambiguous: see/sbs/sco")
+        line_containing(&terminal, "COMMAND <- Ambiguous: see/sbs/sco")
+            .contains("[all] <Q> ->")
     );
 
+    let action = app.handle_key(key(KeyCode::Backspace));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet database should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("[all] <Q> ->")
+    );
+
+    let action = app.handle_key(key(KeyCode::Char('s')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
     let action = app.handle_key(key(KeyCode::Char('c')));
     assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
     let action = app.handle_key(key(KeyCode::Enter));
@@ -437,6 +481,163 @@ fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.planet.database_pending_column.expect("pending column").code,
         "sco"
     );
+}
+
+#[test]
+fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+
+    app.open_fleet_list();
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar('p'))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet filter prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <-")
+            .contains("Enter a valid column code or ALL (slap a key)")
+    );
+    let action = app.handle_key(key(KeyCode::Char('x')));
+    assert_eq!(
+        action,
+        Action::Fleet(FleetAction::DismissListFilterPromptNotice)
+    );
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet filter prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Filter column [?] ")
+            .contains("[all] <Q> ->")
+    );
+
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenListFilterPrompt(PlanetListMode::Brief))
+        ),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('z')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet filter prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <-")
+            .contains("Enter a valid column code or ALL (slap a key)")
+    );
+    let action = app.handle_key(key(KeyCode::Char('x')));
+    assert_eq!(
+        action,
+        Action::Planet(PlanetAction::DismissListFilterPromptNotice)
+    );
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+
+    app.open_planet_database();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('z')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("database filter prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <-")
+            .contains("Enter a valid column code or ALL (slap a key)")
+    );
+    let action = app.handle_key(key(KeyCode::Char('x')));
+    assert_eq!(
+        action,
+        Action::Planet(PlanetAction::DismissDatabaseFilterPromptNotice)
+    );
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+}
+
+#[test]
+fn q_closes_filter_prompts_instead_of_becoming_input() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+
+    app.open_fleet_list();
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(action, Action::Fleet(FleetAction::CloseListPrompt));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenListFilterPrompt(PlanetListMode::Brief))
+        ),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(
+        action,
+        Action::Planet(PlanetAction::CloseListFilterPrompt(PlanetListMode::Brief))
+    );
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, app.planet.list_sort)
+    );
+
+    app.open_planet_database();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(action, Action::Planet(PlanetAction::OpenDatabase));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
 }
 
 #[test]

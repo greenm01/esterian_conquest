@@ -13,7 +13,7 @@ use crate::screen::{
 use nc_data::build_player_starmap_projection_from_snapshots;
 use nc_engine::planet_build_view;
 use nc_ui::table_filter::{
-    FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
+    ColumnCodeParseError, FilterKind, TableFilterClause, TableFilterColumn, TableFilterPredicate,
     format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
 
@@ -331,6 +331,7 @@ impl App {
         self.planet.database_prompt_default_value = "all".to_string();
         self.planet.database_pending_range_anchor = None;
         self.planet.database_status = None;
+        self.planet.database_prompt_dismiss_message = None;
         self.planet.database_pending_column = None;
         self.current_screen = ScreenId::PlanetDatabaseFilterPrompt;
     }
@@ -426,9 +427,18 @@ impl App {
         self.planet.list_prompt_input.clear();
         self.planet.list_prompt_default_value = "all".to_string();
         self.planet.list_pending_range_anchor = None;
+        self.planet.list_prompt_dismiss_message = None;
         self.planet.list_filter_pending_column = None;
         self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::FilterMenu;
         self.current_screen = ScreenId::PlanetListFilterPrompt(mode);
+    }
+
+    pub fn dismiss_planet_list_filter_prompt_notice(&mut self) {
+        self.planet.list_prompt_dismiss_message = None;
+    }
+
+    pub fn dismiss_planet_database_filter_prompt_notice(&mut self) {
+        self.planet.database_prompt_dismiss_message = None;
     }
 
     pub fn submit_planet_list_sort(&mut self, mode: PlanetListMode, sort: PlanetListSort) {
@@ -531,10 +541,22 @@ impl App {
                         self.planet.list_prompt_default_value =
                             self.planet_list_filter_default_value(mode, column);
                         self.planet.list_prompt_status = None;
+                        self.planet.list_prompt_dismiss_message = None;
                     }
-                    Err(err) => {
+                    Err(ColumnCodeParseError::Ambiguous(codes)) => {
+                        self.planet.list_prompt_input.clear();
                         self.planet.list_prompt_status =
-                            Some(format!(" {}", format_column_code_error(&err)));
+                            Some(format!(
+                                " {}",
+                                format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                            ));
+                        self.planet.list_prompt_dismiss_message = None;
+                    }
+                    Err(ColumnCodeParseError::Unknown) => {
+                        self.planet.list_prompt_input.clear();
+                        self.planet.list_prompt_status = None;
+                        self.planet.list_prompt_dismiss_message =
+                            Some("Enter a valid column code or ALL".to_string());
                     }
                 }
             }
@@ -551,7 +573,10 @@ impl App {
                 };
                 match parse_filter_clause(column, raw) {
                     Ok(clause) => self.apply_planet_list_filter_clause(mode, Some(clause)),
-                    Err(err) => self.planet.list_prompt_status = Some(err),
+                    Err(err) => {
+                        self.planet.list_prompt_status = Some(err);
+                        self.planet.list_prompt_dismiss_message = None;
+                    }
                 }
             }
         }
@@ -576,6 +601,7 @@ impl App {
         self.planet.list_prompt_input.clear();
         self.planet.list_prompt_default_value.clear();
         self.planet.list_pending_range_anchor = None;
+        self.planet.list_prompt_dismiss_message = None;
         self.planet.list_filter_pending_column = None;
         self.current_screen = ScreenId::PlanetList(mode, self.planet.list_sort);
     }
@@ -644,6 +670,7 @@ impl App {
         }
         self.planet.list_prompt_input.push(ch);
         self.clear_planet_list_status();
+        self.planet.list_prompt_dismiss_message = None;
     }
 
     pub fn backspace_planet_list_prompt_input(&mut self) {
@@ -652,6 +679,7 @@ impl App {
         };
         self.planet.list_prompt_input.pop();
         self.clear_planet_list_status();
+        self.planet.list_prompt_dismiss_message = None;
     }
 
     pub fn submit_planet_brief_input(&mut self) {
@@ -782,6 +810,7 @@ impl App {
                 }
             }
             self.planet.database_status = None;
+            self.planet.database_prompt_dismiss_message = None;
         }
     }
 
@@ -804,6 +833,7 @@ impl App {
             let _ = self.sync_planet_database_cursor_to_input();
         }
         self.planet.database_status = None;
+        self.planet.database_prompt_dismiss_message = None;
     }
 
     pub fn submit_planet_database_lookup(&mut self) {
@@ -919,10 +949,22 @@ impl App {
                         self.planet.database_prompt_default_value =
                             self.planet_database_filter_default_value(column);
                         self.planet.database_status = None;
+                        self.planet.database_prompt_dismiss_message = None;
                     }
-                    Err(err) => {
+                    Err(ColumnCodeParseError::Ambiguous(codes)) => {
+                        self.planet.database_input.clear();
                         self.planet.database_status =
-                            Some(format!(" {}", format_column_code_error(&err)));
+                            Some(format!(
+                                " {}",
+                                format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                            ));
+                        self.planet.database_prompt_dismiss_message = None;
+                    }
+                    Err(ColumnCodeParseError::Unknown) => {
+                        self.planet.database_input.clear();
+                        self.planet.database_status = None;
+                        self.planet.database_prompt_dismiss_message =
+                            Some("Enter a valid column code or ALL".to_string());
                     }
                 }
             }
@@ -939,7 +981,10 @@ impl App {
                 };
                 match parse_filter_clause(column, raw) {
                     Ok(clause) => self.apply_planet_database_filter_clause(Some(clause)),
-                    Err(err) => self.planet.database_status = Some(err),
+                    Err(err) => {
+                        self.planet.database_status = Some(err);
+                        self.planet.database_prompt_dismiss_message = None;
+                    }
                 }
             }
             PlanetDatabasePromptMode::SortMenu | PlanetDatabasePromptMode::SortRangeInput => {}
@@ -1561,6 +1606,7 @@ impl App {
         self.planet.database_filter_clause = clause;
         self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
         self.planet.database_status = None;
+        self.planet.database_prompt_dismiss_message = None;
         self.planet.database_input.clear();
         self.planet.database_prompt_default_value.clear();
         self.planet.database_pending_range_anchor = None;
@@ -1594,6 +1640,7 @@ impl App {
         }
         self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
         self.planet.database_status = None;
+        self.planet.database_prompt_dismiss_message = None;
         self.planet.database_input.clear();
         self.planet.database_prompt_default_value.clear();
         self.planet.database_pending_range_anchor = None;
@@ -1630,6 +1677,7 @@ impl App {
         self.planet.list_filter = filter;
         self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::FilterMenu;
         self.planet.list_prompt_status = None;
+        self.planet.list_prompt_dismiss_message = None;
         self.planet.list_prompt_input.clear();
         self.planet.list_prompt_default_value.clear();
         self.planet.list_pending_range_anchor = None;
@@ -1688,6 +1736,7 @@ impl App {
         self.planet.list_filter_clause = clause;
         self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::FilterMenu;
         self.planet.list_prompt_status = None;
+        self.planet.list_prompt_dismiss_message = None;
         self.planet.list_prompt_input.clear();
         self.planet.list_prompt_default_value.clear();
         self.planet.list_pending_range_anchor = None;

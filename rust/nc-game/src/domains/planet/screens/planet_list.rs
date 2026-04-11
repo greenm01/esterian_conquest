@@ -100,6 +100,10 @@ pub(crate) const PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT: &str =
     "Scorch Planet: Are you sure-sure? Y/[N] -> ";
 const PLANET_LIST_MAX_QTY_DEFAULT: &str = "255";
 
+fn filter_prompt_dismiss_prompt(message: &str) -> String {
+    format!("{message} (slap a key)")
+}
+
 fn planet_list_title(
     mode: PlanetListMode,
     sort: PlanetListSort,
@@ -297,6 +301,7 @@ impl PlanetListScreen {
             input,
             status,
             None,
+            None,
         )
     }
 
@@ -316,22 +321,36 @@ impl PlanetListScreen {
         prompt_default: &str,
         input: &str,
         status: Option<&str>,
+        dismiss_message: Option<&str>,
         pending_column_code: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut prompt = match prompt_mode {
-            PlanetListFilterPromptMode::FilterMenu => "Filter column [?] ".to_string(),
-            PlanetListFilterPromptMode::ValueInput => {
-                format!("Filter {} ", pending_column_code.unwrap_or("value"))
+        let prompt;
+        let footer = if let Some(message) = dismiss_message {
+            prompt = filter_prompt_dismiss_prompt(message);
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: &prompt,
             }
-        };
-        if let Some(status) = status {
-            prompt.push_str(status);
-        }
-        let footer = TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: &prompt,
-            default: prompt_default,
-            input,
+        } else {
+            prompt = match prompt_mode {
+                PlanetListFilterPromptMode::FilterMenu => status
+                    .filter(|value| value.trim_start().starts_with("Ambiguous:"))
+                    .map(|value| value.trim_start().to_string())
+                    .unwrap_or_else(|| "Filter column [?] ".to_string()),
+                PlanetListFilterPromptMode::ValueInput => {
+                    let mut prompt = format!("Filter {} ", pending_column_code.unwrap_or("value"));
+                    if let Some(status) = status {
+                        prompt.push_str(status);
+                    }
+                    prompt
+                }
+            };
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt,
+                default: prompt_default,
+                input,
+            }
         };
         Ok(self
             .render_table(
@@ -503,19 +522,22 @@ impl PlanetListScreen {
         match prompt_mode {
             PlanetListFilterPromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => Action::OpenPopupHelp,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
+                }
                 KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilterPrompt(mode)),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
                 KeyCode::Char(ch) if is_filter_column_char(ch) => {
                     Action::Planet(PlanetAction::AppendListPromptChar(ch))
-                }
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
                 }
                 _ => Action::Noop,
             },
             PlanetListFilterPromptMode::ValueInput => {
                 match key.code {
                     KeyCode::Char('?') => Action::OpenPopupHelp,
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                        Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
+                    }
                     KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilterPrompt(mode)),
                     KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
                     KeyCode::Char(ch)
@@ -525,9 +547,6 @@ impl PlanetListScreen {
                         ) || ch.is_ascii_alphanumeric() =>
                     {
                         Action::Planet(PlanetAction::AppendListPromptChar(ch))
-                    }
-                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                        Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
                     }
                     _ => Action::Noop,
                 }

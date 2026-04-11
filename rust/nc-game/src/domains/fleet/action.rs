@@ -19,6 +19,7 @@ pub enum FleetAction {
     OpenTransportLoad,
     OpenTransportUnload,
     OpenListFilterPrompt,
+    DismissListFilterPromptNotice,
     OpenListSortPrompt,
     DismissMessage,
     MoveList(i8),

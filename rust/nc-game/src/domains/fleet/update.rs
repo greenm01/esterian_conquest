@@ -10,6 +10,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenReview => app.open_fleet_review(),
         FleetAction::CloseReview => app.close_fleet_review(),
         FleetAction::OpenListFilterPrompt => app.open_fleet_list_filter_prompt(),
+        FleetAction::DismissListFilterPromptNotice => app.dismiss_fleet_list_filter_prompt_notice(),
         FleetAction::OpenListSortPrompt => app.open_fleet_list_sort_prompt(),
         FleetAction::OpenChangePrompt => app.open_fleet_change_prompt(),
         FleetAction::OpenOrder => app.open_fleet_order(),

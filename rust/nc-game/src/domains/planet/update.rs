@@ -62,6 +62,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::CloseBuildAbortPrompt => app.close_planet_build_abort_prompt(),
         PlanetAction::OpenBuildSpecify => app.open_planet_build_specify(),
         PlanetAction::OpenListFilterPrompt(mode) => app.open_planet_list_filter_prompt(mode),
+        PlanetAction::DismissListFilterPromptNotice => app.dismiss_planet_list_filter_prompt_notice(),
         PlanetAction::OpenListSortPrompt(mode) => app.open_planet_list_sort_prompt(mode),
         PlanetAction::SubmitListFilter(mode, filter) => app.submit_planet_list_filter(mode, filter),
         PlanetAction::SubmitListFilterPrompt(mode) => app.submit_planet_list_filter_prompt(mode),
@@ -74,6 +75,9 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::CloseTaxPrompt => app.close_planet_tax_prompt(),
         PlanetAction::OpenDatabase => app.open_planet_database(),
         PlanetAction::OpenDatabaseFilterPrompt => app.open_planet_database_filter_prompt(),
+        PlanetAction::DismissDatabaseFilterPromptNotice => {
+            app.dismiss_planet_database_filter_prompt_notice()
+        }
         PlanetAction::OpenDatabaseSortPrompt => app.open_planet_database_sort_prompt(),
         PlanetAction::SubmitDatabaseFilter(mode) => app.submit_planet_database_filter(mode),
         PlanetAction::SubmitDatabaseFilterPrompt => app.submit_planet_database_filter_prompt(),

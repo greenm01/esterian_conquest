@@ -83,6 +83,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet.list_filter_prompt_default_value,
             &app.fleet.list_filter_prompt_input,
             app.fleet.list_filter_prompt_status.as_deref(),
+            app.fleet.list_filter_prompt_dismiss_message.as_deref(),
             app.fleet
                 .list_filter_pending_column
                 .map(|column| column.code),

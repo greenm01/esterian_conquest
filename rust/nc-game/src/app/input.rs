@@ -30,6 +30,9 @@ impl App {
         if let Some(action) = self.handle_fleet_list_dismiss_latch(key) {
             return action;
         }
+        if let Some(action) = self.handle_table_filter_prompt_dismiss_latch(key) {
+            return action;
+        }
         if matches!(
             key,
             crossterm::event::KeyEvent {
@@ -384,6 +387,42 @@ impl App {
             _ => Some(Action::Fleet(
                 crate::domains::fleet::FleetAction::DismissMessage,
             )),
+        }
+    }
+
+    fn handle_table_filter_prompt_dismiss_latch(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> Option<Action> {
+        let action = match self.current_screen {
+            ScreenId::FleetListFilterPrompt if self.fleet.list_filter_prompt_dismiss_message.is_some() => {
+                Some(Action::Fleet(
+                    crate::domains::fleet::FleetAction::DismissListFilterPromptNotice,
+                ))
+            }
+            ScreenId::PlanetListFilterPrompt(_)
+                if self.planet.list_prompt_dismiss_message.is_some() =>
+            {
+                Some(Action::Planet(
+                    crate::domains::planet::PlanetAction::DismissListFilterPromptNotice,
+                ))
+            }
+            ScreenId::PlanetDatabaseFilterPrompt
+                if self.planet.database_prompt_dismiss_message.is_some() =>
+            {
+                Some(Action::Planet(
+                    crate::domains::planet::PlanetAction::DismissDatabaseFilterPromptNotice,
+                ))
+            }
+            _ => None,
+        }?;
+        match key.code {
+            crossterm::event::KeyCode::Modifier(_)
+            | crossterm::event::KeyCode::CapsLock
+            | crossterm::event::KeyCode::NumLock
+            | crossterm::event::KeyCode::ScrollLock
+            | crossterm::event::KeyCode::Null => None,
+            _ => Some(action),
         }
     }
 
