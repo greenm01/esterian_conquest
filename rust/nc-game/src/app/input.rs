@@ -143,10 +143,6 @@ impl App {
                             == FirstTimeOnboardingMode::BbsReserved
                         {
                             Action::Startup(StartupAction::RejectFirstTimePrompt)
-                        } else if self.startup_state.first_time_onboarding_mode
-                            == FirstTimeOnboardingMode::HostedInvite
-                        {
-                            Action::RequestQuit
                         } else {
                             Action::Startup(StartupAction::OpenFirstTimeMenu)
                         }

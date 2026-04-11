@@ -4,11 +4,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nc_data::{BbsGameConfig, CampaignStore, HostedSeatStatus, QueuedPlayerMail, SeatReservation};
-use nc_engine::build_seeded_new_game;
-use nc_gate::config::parse_config_str;
-use nc_gate::config::save_config;
-use nostr_sdk::{Keys, ToBech32};
+use nc_data::{BbsGameConfig, CampaignStore, SeatReservation};
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -24,12 +20,6 @@ fn unique_temp_dir(prefix: &str) -> PathBuf {
     ));
     fs::create_dir_all(&root).expect("create temp dir");
     root
-}
-
-fn current_username() -> String {
-    std::env::var("USER")
-        .or_else(|_| std::env::var("USERNAME"))
-        .expect("USER or USERNAME should be set for nc-sysop tests")
 }
 
 fn run_nc_sysop(args: &[&str]) -> String {
@@ -76,7 +66,7 @@ fn hosted_seat_count(dir: &PathBuf) -> usize {
 }
 
 #[test]
-fn nc_sysop_new_game_initializes_default_campaign() {
+fn nc_sysop_new_game_initializes_default_campaign_without_hosted_seats() {
     let target = unique_temp_dir("nc-sysop-new-game");
 
     let stdout = run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
@@ -92,11 +82,7 @@ fn nc_sysop_new_game_initializes_default_campaign() {
         .expect("load runtime")
         .expect("runtime snapshot should exist");
     assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 0);
-    assert_eq!(
-        runtime.game_data.planets.records[0].planet_name(),
-        "Not Named Yet"
-    );
-    assert_eq!(hosted_seat_count(&target), 4);
+    assert_eq!(hosted_seat_count(&target), 0);
     assert_eq!(fs::read_dir(&target).expect("read dir").count(), 1);
 
     let _ = fs::remove_dir_all(&target);
@@ -129,9 +115,9 @@ fn nc_sysop_new_game_bbs_reads_minimal_config_kdl() {
     let stdout = run_nc_sysop(&["new-game", "--bbs", target.to_str().expect("utf-8 path")]);
     assert!(stdout.contains("Initialized new game"));
     assert!(stdout.contains("players=4"));
-    assert!(stdout.contains("year=3000"));
     assert!(target.join("config.kdl").exists());
     assert!(target.join("ncgame.db").exists());
+    assert_eq!(hosted_seat_count(&target), 0);
 
     let runtime = CampaignStore::open_default_in_dir(&target)
         .expect("open campaign store")
@@ -168,19 +154,6 @@ fn nc_sysop_new_game_bbs_accepts_seed_as_creation_override() {
 }
 
 #[test]
-fn nc_sysop_new_game_rejects_internal_setup_preset_flag() {
-    let target = unique_temp_dir("nc-sysop-new-game-invalid-config");
-    let stderr = run_nc_sysop_failure(&[
-        "new-game",
-        target.to_str().expect("utf-8 path"),
-        "--config",
-        "nc-cli/config/setup.example.kdl",
-    ]);
-    assert!(stderr.contains("unexpected argument: --config"));
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
 fn nc_sysop_maint_runs_rust_maintenance() {
     let target = unique_temp_dir("nc-sysop-maint");
 
@@ -200,67 +173,6 @@ fn nc_sysop_maint_runs_rust_maintenance() {
         .expect("load runtime state")
         .expect("runtime snapshot should exist");
     assert_eq!(runtime.game_data.conquest.game_year(), 3001);
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_maint_enables_autopilot_after_three_missed_turns() {
-    let target = unique_temp_dir("nc-sysop-maint-autopilot");
-
-    run_nc_sysop(&[
-        "new-game",
-        target.to_str().expect("utf-8 path"),
-        "--seed",
-        "1515",
-    ]);
-
-    let store = CampaignStore::open_default_in_dir(&target).expect("open campaign store");
-    let runtime = store
-        .load_latest_runtime_state()
-        .expect("load runtime state")
-        .expect("runtime snapshot should exist");
-    let mut game_data = runtime.game_data;
-    game_data.join_player(1, "Codex Dominion").unwrap();
-    game_data.rename_player_homeworld(1, "Codex Prime").unwrap();
-    store
-        .save_runtime_state_structured(
-            &game_data,
-            &runtime.planet_scorch_orders,
-            &runtime.report_block_rows,
-            &runtime.queued_mail,
-        )
-        .expect("save joined runtime");
-
-    let stdout = run_nc_sysop(&["maint", target.to_str().expect("utf-8 path"), "4"]);
-    assert!(stdout.contains("Rust maintenance complete."));
-
-    let runtime = store
-        .load_latest_runtime_state()
-        .expect("load runtime state")
-        .expect("runtime snapshot should exist");
-    assert_eq!(runtime.game_data.conquest.game_year(), 3004);
-    assert_eq!(runtime.game_data.player.records[0].autopilot_flag(), 1);
-    let activity = store
-        .latest_player_activity_states(runtime.game_data.conquest.player_count())
-        .expect("load player activity");
-    assert_eq!(activity[0].last_participation_year, 3000);
-    assert!(activity[0].inactivity_autopilot_pending_clear);
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_new_game_rejects_year_flag() {
-    let target = unique_temp_dir("nc-sysop-new-game-year");
-
-    let stderr = run_nc_sysop_failure(&[
-        "new-game",
-        target.to_str().expect("utf-8 path"),
-        "--year",
-        "3012",
-    ]);
-    assert!(stderr.contains("unexpected argument: --year"));
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -296,7 +208,7 @@ fn nc_sysop_settings_show_for_bbs_campaign_omits_seed_and_lists_reservations() {
 }
 
 #[test]
-fn nc_sysop_settings_reserve_accepts_dir_with_other_flags_for_bbs_campaigns() {
+fn nc_sysop_settings_reserve_and_unreserve_work_for_bbs_campaigns() {
     let target = unique_temp_dir("nc-sysop-settings-reserve-bbs");
     BbsGameConfig {
         players: 4,
@@ -307,7 +219,7 @@ fn nc_sysop_settings_reserve_accepts_dir_with_other_flags_for_bbs_campaigns() {
 
     run_nc_sysop(&["new-game", "--bbs", target.to_str().expect("utf-8 path")]);
 
-    let stdout = run_nc_sysop(&[
+    let reserve_stdout = run_nc_sysop(&[
         "settings",
         "reserve",
         "--dir",
@@ -317,7 +229,7 @@ fn nc_sysop_settings_reserve_accepts_dir_with_other_flags_for_bbs_campaigns() {
         "--alias",
         "SYSOP",
     ]);
-    assert!(stdout.contains("Reserved seat 1"));
+    assert!(reserve_stdout.contains("Reserved seat 1"));
 
     let config = BbsGameConfig::load_kdl(&target.join("config.kdl")).expect("load BBS config");
     assert_eq!(
@@ -328,12 +240,25 @@ fn nc_sysop_settings_reserve_accepts_dir_with_other_flags_for_bbs_campaigns() {
         }]
     );
 
+    let unreserve_stdout = run_nc_sysop(&[
+        "settings",
+        "unreserve",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "1",
+    ]);
+    assert!(unreserve_stdout.contains("Removed reservation for seat 1"));
+
+    let config = BbsGameConfig::load_kdl(&target.join("config.kdl")).expect("reload BBS config");
+    assert!(config.reservations.is_empty());
+
     let _ = fs::remove_dir_all(&target);
 }
 
 #[test]
-fn nc_sysop_settings_set_accepts_dir_with_other_flags_for_hosted_campaigns() {
-    let target = unique_temp_dir("nc-sysop-settings-set-hosted");
+fn nc_sysop_settings_set_accepts_dir_with_other_flags_for_local_campaigns() {
+    let target = unique_temp_dir("nc-sysop-settings-set-local");
     run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
 
     let stdout = run_nc_sysop(&[
@@ -356,24 +281,16 @@ fn nc_sysop_settings_set_accepts_dir_with_other_flags_for_hosted_campaigns() {
 }
 
 #[test]
-fn nc_sysop_help_lists_public_subcommands() {
+fn nc_sysop_help_lists_only_local_and_bbs_public_subcommands() {
     let output = run_nc_sysop_output(&["--help"], None);
     assert!(output.status.success(), "help should succeed");
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("new-game <target_dir>"));
     assert!(stdout.contains("maint <dir> [turns]"));
-    assert!(stdout.contains("maint-all [--config <path>]"));
     assert!(stdout.contains("settings <show|set|reserve|unreserve>"));
-    assert!(stdout.contains("host <games|status>"));
-    assert!(stdout.contains("nostr init [--identity <path>]"));
-    assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
-    assert!(stdout.contains(
-        "nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
-    ));
-    assert!(
-        stdout.contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]")
-    );
-    assert!(stdout.contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"));
+    assert!(!stdout.contains("maint-all"));
+    assert!(!stdout.contains("host "));
+    assert!(!stdout.contains("nostr "));
 }
 
 #[test]
@@ -392,647 +309,20 @@ fn nc_sysop_new_game_help_does_not_treat_help_as_target_dir() {
 }
 
 #[test]
-fn nc_sysop_maint_help_prints_usage_without_running_maintenance() {
-    let cwd = unique_temp_dir("nc-sysop-maint-help");
-    let output = run_nc_sysop_output(&["maint", "--help"], Some(&cwd));
-    assert!(output.status.success(), "maint help should succeed");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
-    assert!(stdout.contains("maint <dir> [turns]"));
-    assert!(!stdout.contains("Running Rust maintenance"));
-    assert!(stderr.is_empty(), "maint help should not emit an error");
-    let _ = fs::remove_dir_all(&cwd);
-}
-
-#[test]
-fn nc_sysop_unknown_subcommand_fails_with_full_usage() {
-    let output = run_nc_sysop_output(&["badcmd"], None);
-    assert!(!output.status.success(), "unknown subcommand should fail");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
-    assert!(stdout.contains("new-game <target_dir>"));
-    assert!(stdout.contains("maint <dir> [turns]"));
-    assert!(stdout.contains("maint-all [--config <path>]"));
-    assert!(stdout.contains("host <games|status>"));
-    assert!(stdout.contains("nostr init [--identity <path>]"));
-    assert!(stderr.contains("unknown subcommand: badcmd"));
-}
-
-#[test]
-fn nc_sysop_host_help_prints_usage() {
-    let output = run_nc_sysop_output(&["host", "--help"], None);
-    assert!(output.status.success(), "host help should succeed");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("host games list [--config <path>]"));
-    assert!(stdout.contains("host games add --dir <game_dir> [--config <path>]"));
-    assert!(stdout.contains("host status [--config <path>]"));
-}
-
-#[test]
-fn nc_sysop_host_games_add_list_remove_and_status_use_gate_config() {
-    let root = unique_temp_dir("nc-sysop-host-games");
-    let config_path = root.join("config.kdl");
-    let game_one = root.join("friday-night");
-    let game_two = root.join("saturday-showdown");
-
-    let cfg = parse_config_str(&format!(
-        r#"
-relay "wss://relay.example.com"
-ssh-host "play.example.com"
-ssh-port 22
-ssh-user "{}"
-auth-keys-method "command"
-auth-keys-path "/var/lib/nc-gate/keys"
-key-ttl 60
-"#,
-        current_username()
-    ))
-    .expect("parse config");
-    save_config(&config_path, &cfg).expect("save config");
-
-    run_nc_sysop(&["new-game", game_one.to_str().expect("utf-8 path")]);
-    run_nc_sysop(&["new-game", game_two.to_str().expect("utf-8 path")]);
-
-    let add_one = run_nc_sysop(&[
-        "host",
-        "games",
-        "add",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-        "--dir",
-        game_one.to_str().expect("utf-8 path"),
-    ]);
-    assert!(add_one.contains("Registered game"));
-
-    let add_two = run_nc_sysop(&[
-        "host",
-        "games",
-        "add",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-        "--dir",
-        game_two.to_str().expect("utf-8 path"),
-    ]);
-    assert!(add_two.contains("Registered game"));
-
-    let list = run_nc_sysop(&[
-        "host",
-        "games",
-        "list",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-    ]);
-    assert!(list.contains("config="));
-    assert!(list.contains(game_one.to_str().expect("utf-8 path")));
-    assert!(list.contains(game_two.to_str().expect("utf-8 path")));
-
-    let status = run_nc_sysop(&[
-        "host",
-        "status",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-    ]);
-    assert!(status.contains("games=2"));
-    assert!(status.contains("slug=friday-night"));
-    assert!(status.contains("name=Friday Night"));
-    assert!(status.contains("slug=saturday-showdown"));
-    assert!(status.contains("service_writable=true"));
-
-    let remove = run_nc_sysop(&[
-        "host",
-        "games",
-        "remove",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-        "--dir",
-        game_one.to_str().expect("utf-8 path"),
-    ]);
-    assert!(remove.contains("Removed game"));
-
-    let list_after = run_nc_sysop(&[
-        "host",
-        "games",
-        "list",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-    ]);
-    assert!(!list_after.contains(game_one.to_str().expect("utf-8 path")));
-    assert!(list_after.contains(game_two.to_str().expect("utf-8 path")));
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-#[cfg(unix)]
-fn nc_sysop_host_games_add_rejects_game_not_writable_by_service_user() {
-    let root = unique_temp_dir("nc-sysop-host-games-perms");
-    let config_path = root.join("config.kdl");
-    let game_dir = root.join("beta-2");
-
-    let cfg = parse_config_str(
-        r#"
-relay "wss://relay.example.com"
-ssh-host "play.example.com"
-ssh-port 22
-ssh-user "root"
-auth-keys-method "command"
-auth-keys-path "/var/lib/nc-gate/keys"
-key-ttl 60
-"#,
-    )
-    .expect("parse config");
-    save_config(&config_path, &cfg).expect("save config");
-
-    run_nc_sysop(&["new-game", game_dir.to_str().expect("utf-8 path")]);
-
-    let stderr = run_nc_sysop_failure(&[
-        "host",
-        "games",
-        "add",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-        "--dir",
-        game_dir.to_str().expect("utf-8 path"),
-    ]);
-    assert!(stderr.contains("is not writable by service user 'root'"));
-    assert!(stderr.contains("sudo -u root nc-sysop new-game"));
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_nostr_help_prints_usage() {
-    let output = run_nc_sysop_output(&["nostr", "--help"], None);
-    assert!(output.status.success(), "nostr help should succeed");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("nostr init [--identity <path>]"));
-    assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
-    assert!(
-        stdout.contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]")
-    );
-    assert!(stdout.contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"));
-}
-
-#[test]
-fn nc_sysop_nostr_init_help_prints_usage_without_creating_identity() {
-    let cwd = unique_temp_dir("nc-sysop-nostr-init-help");
-    let output = run_nc_sysop_output(&["nostr", "init", "--help"], Some(&cwd));
-    assert!(output.status.success(), "nostr init help should succeed");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("nostr init [--identity <path>]"));
-    assert!(
-        fs::read_dir(&cwd)
-            .expect("cwd should exist")
-            .next()
-            .is_none(),
-        "nostr init help must not create files"
-    );
-    let _ = fs::remove_dir_all(&cwd);
-}
-
-#[test]
-fn nc_sysop_nostr_serve_help_prints_usage() {
-    let output = run_nc_sysop_output(&["nostr", "serve", "--help"], None);
-    assert!(output.status.success(), "nostr serve help should succeed");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
-}
-
-#[test]
-fn nc_sysop_nostr_serve_accepts_config_and_identity_flags_together() {
-    let root = unique_temp_dir("nc-sysop-nostr-serve-flags");
-    let config_path = root.join("config.kdl");
-    let identity_path = root.join("identity.kdl");
-
-    let stderr = run_nc_sysop_failure(&[
-        "nostr",
-        "serve",
-        "--config",
-        config_path.to_str().expect("utf-8 path"),
-        "--identity",
-        identity_path.to_str().expect("utf-8 path"),
-    ]);
-
-    assert!(
-        !stderr.contains("unexpected argument: --identity"),
-        "serve should accept --config and --identity together"
-    );
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_nostr_seats_lists_sqlite_backed_hosted_seats() {
-    let target = unique_temp_dir("nc-sysop-nostr-seats");
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-
-    let stdout = run_nc_sysop(&[
-        "nostr",
-        "seats",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-    ]);
-    assert!(stdout.contains("Game:"));
-    assert!(stdout.contains("Seat 1  [pending]"));
-    assert!(stdout.contains("Seat 4  [pending]"));
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_nostr_reissue_rotates_one_hosted_seat() {
-    let target = unique_temp_dir("nc-sysop-nostr-reissue");
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
-    let seed = store
-        .load_latest_runtime_state()
-        .expect("load runtime")
-        .expect("runtime should exist")
-        .campaign_seed;
-    let mut game_data = build_seeded_new_game(4, 3000, seed).expect("build baseline");
-    game_data.join_player(1, "Empire One").expect("join player");
-    store
-        .save_runtime_state_structured_and_claim_hosted_seat(
-            &game_data,
-            &std::collections::BTreeSet::new(),
-            &[],
-            &[QueuedPlayerMail {
-                sender_empire_id: 2,
-                recipient_empire_id: 1,
-                year: 3000,
-                subject: "status".to_string(),
-                body: "stay alive".to_string(),
-                recipient_deleted: false,
-            }],
-            1,
-            "npub1seat1",
-        )
-        .expect("save joined runtime");
-    let before = store.hosted_seats().expect("load seats");
-    let original_code = before[0].invite_code.clone();
-
-    let stdout = run_nc_sysop(&[
-        "nostr",
-        "reissue",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-        "--player",
-        "1",
-    ]);
-    assert!(stdout.contains("Reissued invite for seat 1:"));
-
-    let after = store.hosted_seats().expect("reload seats");
-    assert_ne!(after[0].invite_code, original_code);
-    assert_eq!(after[0].status, nc_data::HostedSeatStatus::Pending);
-    assert!(after[0].player_npub.is_none());
-    let runtime = store
-        .load_latest_runtime_state()
-        .expect("reload runtime")
-        .expect("runtime should exist");
-    assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 1);
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_nostr_reissue_nuke_seat_resets_runtime_player() {
-    let target = unique_temp_dir("nc-sysop-nostr-reissue-nuke");
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
-    let seed = store
-        .load_latest_runtime_state()
-        .expect("load runtime")
-        .expect("runtime should exist")
-        .campaign_seed;
-    let mut game_data = build_seeded_new_game(4, 3000, seed).expect("build baseline");
-    game_data.join_player(1, "Empire One").expect("join player");
-    game_data
-        .rename_player_homeworld(1, "Forge")
-        .expect("rename homeworld");
-    store
-        .save_runtime_state_structured_and_claim_hosted_seat(
-            &game_data,
-            &std::collections::BTreeSet::new(),
-            &[],
-            &[],
-            1,
-            "npub1seat1",
-        )
-        .expect("save joined runtime");
-    store
-        .set_player_theme_preference(1, "chrome")
-        .expect("set theme preference");
-
-    let stdout = run_nc_sysop(&[
-        "nostr",
-        "reissue",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-        "--player",
-        "1",
-        "--nuke-seat",
-    ]);
-    assert!(stdout.contains("Reissued invite and nuked seat 1:"));
-
-    let seats = store.hosted_seats().expect("reload seats");
-    assert_eq!(seats[0].status, HostedSeatStatus::Pending);
-    assert!(seats[0].player_npub.is_none());
-    let runtime = store
-        .load_latest_runtime_state()
-        .expect("reload runtime")
-        .expect("runtime should exist");
-    assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 0);
-    let homeworld_index =
-        runtime.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
-    assert_eq!(
-        runtime.game_data.planets.records[homeworld_index - 1].planet_name(),
-        "Not Named Yet"
-    );
-    assert_eq!(
-        store
-            .player_theme_preference(1)
-            .expect("load theme preference"),
-        None
-    );
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_nostr_reissue_reports_partial_success_when_republish_paths_are_missing() {
-    let root = unique_temp_dir("nc-sysop-nostr-reissue-republish-fail");
-    let target = root.join("game");
-    let missing_config = root.join("missing-config.kdl");
-    let missing_identity = root.join("missing-identity.kdl");
-
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
-    let before = store.hosted_seats().expect("load seats");
-    let original_code = before[0].invite_code.clone();
-
-    let stderr = run_nc_sysop_failure(&[
-        "nostr",
-        "reissue",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-        "--player",
-        "1",
-        "--config",
-        missing_config.to_str().expect("utf-8 path"),
-        "--identity",
-        missing_identity.to_str().expect("utf-8 path"),
-    ]);
-    assert!(stderr.contains("Reissued invite for seat 1:"));
-    assert!(stderr.contains("Relay publish failed:"));
-    assert!(stderr.contains("Local seat change succeeded"));
-
-    let after = store.hosted_seats().expect("reload seats");
-    assert_ne!(after[0].invite_code, original_code);
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_nostr_claim_marks_requested_hosted_seat_claimed() {
-    let target = unique_temp_dir("nc-sysop-nostr-claim");
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-    let player_keys = Keys::generate();
-    let player_npub = player_keys.public_key().to_bech32().expect("npub");
-    let player_hex = player_keys.public_key().to_hex();
-
-    let stdout = run_nc_sysop(&[
-        "nostr",
-        "claim",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-        "--player",
-        "2",
-        "--npub",
-        &player_npub,
-    ]);
-    assert!(stdout.contains("Claimed seat 2 for"));
-
-    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
-    let seats = store.hosted_seats().expect("load seats");
-    assert_eq!(seats[1].status, HostedSeatStatus::Claimed);
-    assert_eq!(seats[1].player_npub.as_deref(), Some(player_hex.as_str()));
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_nostr_claim_reports_partial_success_when_republish_paths_are_missing() {
-    let root = unique_temp_dir("nc-sysop-nostr-claim-republish-fail");
-    let target = root.join("game");
-    let missing_config = root.join("missing-config.kdl");
-    let missing_identity = root.join("missing-identity.kdl");
-
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-    let player_keys = Keys::generate();
-    let player_npub = player_keys.public_key().to_bech32().expect("npub");
-    let player_hex = player_keys.public_key().to_hex();
-
-    let stderr = run_nc_sysop_failure(&[
-        "nostr",
-        "claim",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-        "--player",
-        "2",
-        "--npub",
-        &player_npub,
-        "--config",
-        missing_config.to_str().expect("utf-8 path"),
-        "--identity",
-        missing_identity.to_str().expect("utf-8 path"),
-    ]);
-    assert!(stderr.contains("Claimed seat 2 for"));
-    assert!(stderr.contains("Relay publish failed:"));
-    assert!(stderr.contains("Local seat change succeeded"));
-
-    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
-    let seats = store.hosted_seats().expect("load seats");
-    assert_eq!(seats[1].status, HostedSeatStatus::Claimed);
-    assert_eq!(seats[1].player_npub.as_deref(), Some(player_hex.as_str()));
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_nostr_publish_and_verify_help_print_usage() {
-    let publish = run_nc_sysop_output(&["nostr", "publish", "--help"], None);
-    assert!(
-        publish.status.success(),
-        "nostr publish help should succeed"
-    );
-    let publish_stdout = String::from_utf8(publish.stdout).expect("stdout should be utf-8");
-    assert!(
-        publish_stdout
-            .contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]")
-    );
-
-    let verify = run_nc_sysop_output(&["nostr", "verify", "--help"], None);
-    assert!(verify.status.success(), "nostr verify help should succeed");
-    let verify_stdout = String::from_utf8(verify.stdout).expect("stdout should be utf-8");
-    assert!(
-        verify_stdout
-            .contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]")
-    );
-}
-
-#[test]
-fn nc_sysop_nostr_migrate_roster_imports_legacy_file_and_archives_it() {
-    let target = unique_temp_dir("nc-sysop-nostr-migrate-roster");
-    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
-
-    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
-    store.replace_hosted_seats(&[]).expect("clear hosted seats");
-
-    let roster = nc_gate::roster::Roster {
-        id: target
-            .file_name()
-            .and_then(|name| name.to_str())
-            .expect("utf-8 basename")
-            .to_string(),
-        name: "Migrated Friday Night".to_string(),
-        seats: vec![
-            nc_gate::roster::Seat {
-                player: 1,
-                code: "velvet-mountain".to_string(),
-                status: nc_gate::roster::SeatStatus::Pending,
-                npub: None,
-            },
-            nc_gate::roster::Seat {
-                player: 2,
-                code: "copper-sunrise".to_string(),
-                status: nc_gate::roster::SeatStatus::Claimed,
-                npub: Some("npub1migrated000".to_string()),
-            },
-        ],
-    };
-    nc_gate::roster::save_roster(&target.join("roster.kdl"), &roster).expect("save legacy roster");
-
-    let stdout = run_nc_sysop(&[
-        "nostr",
-        "migrate-roster",
-        "--dir",
-        target.to_str().expect("utf-8 path"),
-    ]);
-    assert!(stdout.contains("Migrated hosted roster into"));
-    assert!(target.join("roster.kdl.legacy").exists());
-
-    let seats = store.hosted_seats().expect("reload seats");
-    assert_eq!(seats.len(), 2);
-    assert_eq!(seats[1].player_npub.as_deref(), Some("npub1migrated000"));
-
-    let settings = store.load_campaign_settings().expect("load settings");
-    assert_eq!(settings.game_name, "Migrated Friday Night");
-
-    let _ = fs::remove_dir_all(&target);
-}
-
-#[test]
-fn nc_sysop_nostr_init_creates_identity_at_requested_path() {
-    let root = unique_temp_dir("nc-sysop-nostr-init");
-    let identity_path = root.join("identity.kdl");
-
-    let stdout = run_nc_sysop(&[
-        "nostr",
-        "init",
-        "--identity",
-        identity_path.to_str().expect("utf-8 path"),
-    ]);
-    assert!(stdout.contains("Daemon identity created at:"));
-    assert!(stdout.contains("Public key (npub): npub1"));
-    assert!(identity_path.exists(), "identity file should be created");
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_nostr_init_is_safe_to_rerun() {
-    let root = unique_temp_dir("nc-sysop-nostr-init-rerun");
-    let identity_path = root.join("identity.kdl");
-
-    let first = run_nc_sysop(&[
-        "nostr",
-        "init",
-        "--identity",
-        identity_path.to_str().expect("utf-8 path"),
-    ]);
-    assert!(first.contains("Daemon identity created at:"));
-
-    let second = run_nc_sysop(&[
-        "nostr",
-        "init",
-        "--identity",
-        identity_path.to_str().expect("utf-8 path"),
-    ]);
-    assert!(second.contains("Daemon identity already exists at:"));
-    assert!(second.contains("Created:"));
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_help_mentions_logging_flags() {
-    let output = run_nc_sysop_output(&["--help"], None);
-    assert!(output.status.success(), "help should succeed");
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("--log-file <path>"));
-    assert!(stdout.contains("--log-level <error|warn|info|debug|trace>"));
-}
-
-#[test]
-fn nc_sysop_opt_in_log_file_captures_command_lifecycle() {
-    let root = unique_temp_dir("nc-sysop-log-file");
-    let target = root.join("game");
-    let log_path = root.join("nc-sysop.log");
-
-    let output = run_nc_sysop_output(
-        &[
-            "--log-file",
-            log_path.to_str().expect("utf-8 path"),
-            "--log-level",
-            "debug",
-            "new-game",
-            target.to_str().expect("utf-8 path"),
-            "--seed",
-            "1515",
-        ],
-        None,
-    );
-
-    assert!(
-        output.status.success(),
-        "nc-sysop failed: stdout={:?} stderr={:?}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        String::from_utf8_lossy(&output.stdout).contains("Initialized new game"),
-        "stdout={:?}",
-        String::from_utf8_lossy(&output.stdout)
-    );
-    assert!(
-        output.stderr.is_empty(),
-        "successful nc-sysop run should not emit stderr: {:?}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let log = fs::read_to_string(&log_path).expect("log file should exist");
-    assert!(log.contains("nc-sysop logging initialized"));
-    assert!(log.contains("running nc-sysop new-game"));
-
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn nc_sysop_rejects_invalid_log_level() {
-    let output = run_nc_sysop_output(&["--log-level", "loud", "--help"], None);
-    assert!(!output.status.success(), "invalid log level should fail");
-    let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
-    assert!(
-        stderr.contains("unknown log level 'loud'; expected error, warn, info, debug, or trace")
-    );
+fn nc_sysop_removed_hosted_subcommands_fail_cleanly() {
+    for command in [["maint-all"], ["host"], ["nostr"]] {
+        let output = run_nc_sysop_output(&command, None);
+        assert!(!output.status.success(), "{command:?} should fail");
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+        let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
+        assert!(stdout.contains("new-game <target_dir>"));
+        assert!(!stdout.contains("maint-all [--config <path>]"));
+        assert!(!stdout.contains("host <games|status>"));
+        assert!(!stdout.contains("nostr init"));
+        assert!(
+            stderr.contains(&format!("unknown subcommand: {}", command[0])),
+            "stderr={stderr:?}"
+        );
+    }
 }

@@ -18,9 +18,6 @@ pub struct CommonLaunchArgs {
     pub log_level: nc_log::LogLevel,
     pub encoding: OutputEncoding,
     pub color_mode: ColorMode,
-    pub session_timeout_secs: Option<u32>,
-    pub session_token: Option<String>,
-    pub hosted_invite_code: Option<String>,
 }
 
 /// Detect the terminal's color depth from environment variables.

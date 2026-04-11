@@ -159,68 +159,6 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn save_game_data_and_claim_hosted_seat(
-        &mut self,
-        player_npub: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        if !matches!(self.player_access_mode, PlayerAccessMode::Normal) {
-            return Err("campaign state is read-only in the current access mode".into());
-        }
-        let planet_intel_by_viewer = (1..=self.game_data.conquest.player_count())
-            .map(|viewer_empire_id| {
-                self.planet
-                    .campaign_store
-                    .latest_planet_intel_for_viewer(viewer_empire_id)
-                    .map(|snapshots| {
-                        snapshots
-                            .into_iter()
-                            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-                            .collect::<BTreeMap<_, _>>()
-                    })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let new_snapshot_id = self
-            .planet
-            .campaign_store
-            .save_runtime_state_structured_with_intel_activity_and_claim_hosted_seat(
-                &self.game_data,
-                &self.planet_scorch_orders,
-                &self.report_block_rows,
-                &self.queued_mail,
-                &planet_intel_by_viewer,
-                &self.player_activity_states,
-                self.player.record_index_1_based,
-                player_npub,
-            )?;
-        self.snapshot_id = new_snapshot_id;
-        self.planet_intel_snapshots = self
-            .planet
-            .campaign_store
-            .latest_planet_intel_for_viewer(self.player.record_index_1_based as u8)?
-            .into_iter()
-            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-            .collect::<BTreeMap<_, _>>();
-        self.owned_planet_years = self
-            .planet
-            .campaign_store
-            .latest_owned_planet_years_for_empire(self.player.record_index_1_based as u8)?;
-        self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
-        self.player_activity_states = self
-            .planet
-            .campaign_store
-            .latest_player_activity_states(self.game_data.conquest.player_count())?;
-        self.player_lifecycle_states = self
-            .planet
-            .campaign_store
-            .latest_player_lifecycle_states(self.game_data.conquest.player_count())?;
-        self.player_access_mode = player_access_mode(
-            self.player.record_index_1_based,
-            &self.player_lifecycle_states,
-            self.winner_state,
-        );
-        Ok(())
-    }
-
     pub(crate) fn save_terminal_access_state(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let planet_intel_by_viewer = (1..=self.game_data.conquest.player_count())
             .map(|viewer_empire_id| {

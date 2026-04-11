@@ -11,11 +11,7 @@ path = "src/main.rs"
 [dependencies]
 nc-data = { path = "../nc-data" }
 nc-engine = { path = "../nc-engine" }
-nc-gate = { path = "../nc-gate" }
 nc-log = { path = "../nc-log" }
-nc-nostr = { path = "../nc-nostr" }
-nostr-sdk = { version = "0.44", features = ["nip44"] }
-tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"
 
 [build-dependencies]

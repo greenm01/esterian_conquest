@@ -131,9 +131,7 @@ pub fn render_first_time_reserved_prompt(
 pub fn render_first_time_join_name(
     rename_mode: bool,
     reserved_mode: bool,
-    hosted_invite_mode: bool,
     fixed_player_mode: bool,
-    hosted_invite_code: Option<&str>,
     reserved_alias: Option<&str>,
     current_empire_name: &str,
     input: &str,
@@ -185,25 +183,6 @@ pub fn render_first_time_join_name(
             classic::body_style(),
         );
         5
-    } else if hosted_invite_mode {
-        draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
-        buffer.write_text_clipped(
-            2,
-            LEFT_WINDOW_PAD_COL,
-            "Enter the name of your empire (up to 20 characters).",
-            classic::body_style(),
-        );
-        let mut last_content_row = 2;
-        if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
-            buffer.write_text_clipped(
-                4,
-                LEFT_WINDOW_PAD_COL,
-                &format!("Invite code: {invite_code}"),
-                classic::notice_style(),
-            );
-            last_content_row = 4;
-        }
-        last_content_row
     } else if fixed_player_mode {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME SETUP:");
         buffer.write_text_clipped(
@@ -253,7 +232,6 @@ pub fn render_first_time_join_name_confirm(
     rename_mode: bool,
     reserved_mode: bool,
     fixed_player_mode: bool,
-    hosted_invite_code: Option<&str>,
     empire_name: &str,
     door_mode: bool,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -286,25 +264,6 @@ pub fn render_first_time_join_name_confirm(
             "Press N or Esc to go back and edit it before joining.",
             classic::body_style(),
         );
-    } else if hosted_invite_code
-        .filter(|value| !value.trim().is_empty())
-        .is_some()
-    {
-        draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
-        buffer.write_text_clipped(
-            2,
-            LEFT_WINDOW_PAD_COL,
-            "Press N or Esc to go back and edit it before joining.",
-            classic::body_style(),
-        );
-        if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
-            buffer.write_text_clipped(
-                4,
-                LEFT_WINDOW_PAD_COL,
-                &format!("Invite code: {invite_code}"),
-                classic::notice_style(),
-            );
-        }
     } else if fixed_player_mode {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME SETUP:");
         buffer.write_text_clipped(
@@ -336,11 +295,6 @@ pub fn render_first_time_join_name_confirm(
             4
         } else if fixed_player_mode {
             2
-        } else if hosted_invite_code
-            .filter(|value| !value.trim().is_empty())
-            .is_some()
-        {
-            4
         } else {
             5
         }),

@@ -10,7 +10,7 @@ pub(crate) use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState
 pub(crate) use nc_compat::{decode_report_block_rows, import_directory_snapshot};
 pub(crate) use nc_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, HostedSeat, HostedSeatStatus, IntelTier, PlanetIntelSnapshot,
+    EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot,
     ProductionItemKind, QueuedPlayerMail, SeatReservation, map_size_for_player_count,
 };
 pub(crate) use nc_engine::yearly_tax_revenue;
@@ -29,7 +29,6 @@ pub(crate) use nc_game::domains::starbase::StarbaseAction;
 pub(crate) use nc_game::domains::starmap::StarmapAction;
 pub(crate) use nc_game::domains::startup::StartupAction;
 pub(crate) use nc_game::model::ClassicLoginState;
-pub(crate) use nc_game::screen::first_time::FIRST_TIME_INTRO_PAGE_COUNT;
 pub(crate) use nc_game::screen::help::{MenuHelpTopic, help_lines, menu_help_spec};
 pub(crate) use nc_game::screen::layout::COMMAND_LINE_ROW;
 pub(crate) use nc_game::screen::table::{TableColumn, fit_table_columns};

@@ -14,11 +14,9 @@ use crate::terminal::door::{DoorTerminal, DoorTransport};
 use crate::terminal::stdout::StdoutTerminal;
 use nc_data::{BbsGameConfig, CampaignStore};
 use nc_session::launch::{
-    HostedLaunchContext, LaunchBindingRequest, LaunchPlayerBinding, LaunchPlayerBindingSource,
+    LaunchBindingRequest, LaunchPlayerBinding, LaunchPlayerBindingSource,
     resolve_launch_player_binding as shared_resolve_launch_player_binding,
-    validate_and_activate_session_lease,
 };
-use nc_session::lease::SessionLeaseGuard;
 
 struct ParsedLaunchArgs {
     game_dir: PathBuf,
@@ -32,8 +30,6 @@ struct ParsedLaunchArgs {
     screen_geometry: ScreenGeometry,
     dropfile_alias: Option<String>,
     session_timeout_secs: Option<u32>,
-    session_token: Option<String>,
-    hosted_invite_code: Option<String>,
     use_door_terminal: bool,
     door_transport: DoorTransport,
 }
@@ -66,23 +62,6 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     validate_runtime_game_config(&campaign_store, &game_config)?;
     let launch_binding = resolve_launch_player_binding(&parsed, &game_config, &campaign_store)?;
     let player_record_index_1_based = launch_binding.player_record_index_1_based().unwrap_or(1);
-    let session_lease = parsed
-        .session_token
-        .clone()
-        .map(|session_token| {
-            let Some(player_record_index_1_based) = launch_binding.player_record_index_1_based()
-            else {
-                return Err("session token requires a bound player seat".into());
-            };
-            validate_session_lease(
-                campaign_store.clone(),
-                session_token,
-                player_record_index_1_based,
-                parsed.session_timeout_secs,
-                &game_config,
-            )
-        })
-        .transpose()?;
     let config = AppConfig {
         game_dir: parsed.game_dir.clone(),
         player_record_index_1_based,
@@ -104,10 +83,6 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         &mut app,
         &parsed,
         launch_binding,
-        session_lease.as_ref().map(|lease| HostedLaunchContext {
-            player_npub: lease.player_npub.clone(),
-            invite_code: parsed.hosted_invite_code.clone(),
-        }),
     )?;
     if app.door_mode {
         crate::theme::apply_door_theme();
@@ -130,39 +105,20 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     let stdin_is_terminal = std::io::stdin().is_terminal();
     let interactive_terminal = should_use_interactive_loop(&parsed, stdout_is_terminal);
     let enable_raw_mode = stdin_is_terminal && stdout_is_terminal;
-    let emit_local_exit_attribution =
-        should_emit_local_exit_attribution(&parsed, stdout_is_terminal, session_lease.is_some());
+    let emit_local_exit_attribution = should_emit_local_exit_attribution(&parsed, stdout_is_terminal);
     let result = if interactive_terminal {
-        run_interactive(
-            &mut app,
-            terminal.as_mut(),
-            session_lease.as_ref(),
-            enable_raw_mode,
-        )
+        run_interactive(&mut app, terminal.as_mut(), enable_raw_mode)
     } else {
-        if let Some(session_lease) = session_lease.as_ref() {
-            session_lease.heartbeat()?;
-        }
         render_with_logging(&mut app, terminal.as_mut())
     };
-    if let Some(session_lease) = session_lease.as_ref() {
-        session_lease.release()?;
-    }
     if result.is_ok() && emit_local_exit_attribution {
         emit_local_exit_lines();
     }
     result
 }
 
-fn should_emit_local_exit_attribution(
-    parsed: &ParsedLaunchArgs,
-    interactive_terminal: bool,
-    has_session_lease: bool,
-) -> bool {
-    interactive_terminal
-        && !parsed.use_door_terminal
-        && parsed.session_token.is_none()
-        && !has_session_lease
+fn should_emit_local_exit_attribution(parsed: &ParsedLaunchArgs, interactive_terminal: bool) -> bool {
+    interactive_terminal && !parsed.use_door_terminal
 }
 
 fn emit_local_exit_lines() {
@@ -191,7 +147,6 @@ impl Drop for RawModeGuard {
 fn run_interactive(
     app: &mut App,
     terminal: &mut dyn Terminal,
-    session_lease: Option<&SessionLeaseGuard>,
     enable_raw_mode_for_session: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _guard = if enable_raw_mode_for_session {
@@ -200,7 +155,7 @@ fn run_interactive(
     } else {
         None
     };
-    let result = run_interactive_inner(app, terminal, session_lease);
+    let result = run_interactive_inner(app, terminal);
     drop(_guard);
     let cleanup_result = terminal.clear_and_restore();
     result.and(cleanup_result)
@@ -209,12 +164,8 @@ fn run_interactive(
 fn run_interactive_inner(
     app: &mut App,
     terminal: &mut dyn Terminal,
-    session_lease: Option<&SessionLeaseGuard>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     loop {
-        if let Some(session_lease) = session_lease {
-            session_lease.heartbeat()?;
-        }
         render_with_logging(app, terminal)?;
         let key = match terminal.read_key() {
             Ok(key) => key,
@@ -296,7 +247,6 @@ fn apply_launch_context(
     app: &mut App,
     parsed: &ParsedLaunchArgs,
     launch_binding: LaunchPlayerBinding,
-    hosted_context: Option<HostedLaunchContext>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     app.screen_geometry = parsed.screen_geometry;
     app.door_mode = parsed.use_door_terminal;
@@ -304,15 +254,6 @@ fn apply_launch_context(
         launch_binding.source(),
         Some(LaunchPlayerBindingSource::ExplicitPlayer)
     );
-    if let Some(hosted_context) = hosted_context {
-        let player_npub = hosted_context.player_npub;
-        let invite_code = hosted_context.invite_code;
-        let invited_joined_transfer = invite_code.as_ref().is_some() && app.player.is_joined;
-        app.set_hosted_invite_session(player_npub.clone(), invite_code);
-        if invited_joined_transfer {
-            app.save_game_data_and_claim_hosted_seat(&player_npub)?;
-        }
-    }
     app.startup_state.caller_alias = parsed.dropfile_alias.clone();
     if launch_binding == LaunchPlayerBinding::UnboundDropfile {
         app.enter_unbound_bbs_first_time_mode();
@@ -344,8 +285,6 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut explicit_timeout_minutes: Option<u32> = None;
     let mut explicit_socket_descriptor: Option<u64> = None;
     let mut explicit_socket_port: Option<u16> = None;
-    let mut session_token = None;
-    let mut hosted_invite_code = None;
     let mut idx = 1;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -472,20 +411,6 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
                 explicit_socket_port = Some(port);
                 idx += 2;
             }
-            "--session-token" => {
-                let Some(value) = args.get(idx + 1) else {
-                    return Err("missing value for --session-token".into());
-                };
-                session_token = Some(value.to_string());
-                idx += 2;
-            }
-            "--hosted-invite-code" => {
-                let Some(value) = args.get(idx + 1) else {
-                    return Err("missing value for --hosted-invite-code".into());
-                };
-                hosted_invite_code = Some(value.trim().to_string());
-                idx += 2;
-            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -558,8 +483,6 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         screen_geometry,
         dropfile_alias,
         session_timeout_secs,
-        session_token,
-        hosted_invite_code,
         use_door_terminal,
         door_transport,
     })
@@ -670,8 +593,7 @@ fn print_usage() {
     println!(
         "  nc-game --dir <game_dir> [--player <1-based empire index>] \
              [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
-         [--dropfile <path>] [--timeout <minutes>] [--socket-descriptor <value>] [--socket-port <port>] [--session-token <token>] \
-         [--hosted-invite-code <code>] \
+         [--dropfile <path>] [--timeout <minutes>] [--socket-descriptor <value>] [--socket-port <port>] \
          [--export-root <dir>] [--queue-dir <dir>] \
          [--log-file <path>] [--log-level <error|warn|info|debug|trace>]"
     );
@@ -771,33 +693,6 @@ fn validate_runtime_game_config(
     Ok(())
 }
 
-fn validate_session_lease(
-    campaign_store: CampaignStore,
-    session_token: String,
-    player_record_index_1_based: usize,
-    session_timeout_secs: Option<u32>,
-    game_config: &RuntimeConfig,
-) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
-    validate_and_activate_session_lease(
-        campaign_store,
-        session_token,
-        player_record_index_1_based,
-        session_timeout_secs,
-        game_config.idle_timeout_secs(),
-    )
-}
-
-#[cfg(test)]
-fn session_lease_ttl_seconds(
-    session_timeout_secs: Option<u32>,
-    game_config: &RuntimeConfig,
-) -> u64 {
-    nc_session::launch::session_lease_ttl_seconds(
-        session_timeout_secs,
-        game_config.idle_timeout_secs(),
-    )
-}
-
 fn slug_from_dir(dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {
     let slug = dir
         .file_name()
@@ -840,26 +735,19 @@ fn humanize_slug(slug: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        HostedLaunchContext, LOOPBACK_DOOR_HOST, LaunchPlayerBinding, LaunchPlayerBindingSource,
-        ParsedLaunchArgs, apply_launch_context, local_exit_lines, resolve_launch_player_binding,
-        run_interactive_inner, select_door_transport, session_lease_ttl_seconds,
-        should_emit_local_exit_attribution,
+        LOOPBACK_DOOR_HOST, LaunchPlayerBinding, LaunchPlayerBindingSource, ParsedLaunchArgs,
+        apply_launch_context, local_exit_lines, resolve_launch_player_binding,
+        run_interactive_inner, select_door_transport, should_emit_local_exit_attribution,
     };
-    use crate::app::{App, AppConfig, RuntimeConfig, RuntimeSetupOverrides};
+    use crate::app::{App, AppConfig, RuntimeConfig};
     use crate::domains::fleet::state::FleetCommandContext;
-    use crate::domains::startup::state::FirstTimeOnboardingMode;
-    use crate::error::{
-        HOSTED_ONBOARDING_INVARIANT_EXIT_CODE, HostedOnboardingInvariantError, exit_code_for,
-    };
     use crate::screen::ScreenGeometry;
     use crate::screen::ScreenId;
     use crate::terminal::door::DoorTransport;
     use crate::terminal::{ColorMode, OutputEncoding, Terminal};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use nc_compat::import_directory_snapshot;
-    use nc_data::{
-        BbsGameConfig, CampaignStore, CoreGameData, HostedSeat, HostedSeatStatus, SeatReservation,
-    };
+    use nc_data::{BbsGameConfig, CampaignStore, CoreGameData, SeatReservation};
     use std::collections::VecDeque;
     use std::fs;
     use std::io;
@@ -973,17 +861,9 @@ mod tests {
             screen_geometry: ScreenGeometry::local_default(),
             dropfile_alias: None,
             session_timeout_secs: None,
-            session_token: None,
-            hosted_invite_code: None,
             use_door_terminal,
             door_transport: DoorTransport::Stdio,
         }
-    }
-
-    fn hosted_args() -> ParsedLaunchArgs {
-        let mut parsed = parsed_args(false);
-        parsed.session_token = Some("session-token".to_string());
-        parsed
     }
 
     fn key(code: KeyCode) -> KeyEvent {
@@ -1130,36 +1010,6 @@ mod tests {
     }
 
     #[test]
-    fn session_lease_uses_explicit_timeout_when_present() {
-        let mut game_config = RuntimeConfig::default();
-        game_config.setup_overrides = RuntimeSetupOverrides {
-            session_max_idle_minutes: Some(10),
-            ..RuntimeSetupOverrides::default()
-        };
-        assert_eq!(session_lease_ttl_seconds(Some(45), &game_config), 45);
-    }
-
-    #[test]
-    fn session_lease_uses_campaign_idle_timeout_by_default() {
-        let mut game_config = RuntimeConfig::default();
-        game_config.setup_overrides = RuntimeSetupOverrides {
-            session_max_idle_minutes: Some(10),
-            ..RuntimeSetupOverrides::default()
-        };
-        assert_eq!(session_lease_ttl_seconds(None, &game_config), 600);
-    }
-
-    #[test]
-    fn session_lease_falls_back_when_timeout_is_disabled() {
-        let mut game_config = RuntimeConfig::default();
-        game_config.setup_overrides = RuntimeSetupOverrides {
-            session_max_idle_minutes: Some(0),
-            ..RuntimeSetupOverrides::default()
-        };
-        assert_eq!(session_lease_ttl_seconds(None, &game_config), 120);
-    }
-
-    #[test]
     fn local_exit_lines_returns_empty() {
         assert_eq!(local_exit_lines(), Vec::<String>::new());
     }
@@ -1221,7 +1071,7 @@ mod tests {
         let mut terminal =
             ScriptedTerminal::new([key(KeyCode::Char('t')), key(KeyCode::Char('q'))]);
 
-        run_interactive_inner(&mut app, &mut terminal, None)
+        run_interactive_inner(&mut app, &mut terminal)
             .expect("interactive loop should stay alive through transfer prompt");
 
         assert!(
@@ -1257,31 +1107,9 @@ mod tests {
 
     #[test]
     fn attribution_only_emits_for_local_interactive_stdout_sessions() {
-        assert!(should_emit_local_exit_attribution(
-            &parsed_args(false),
-            true,
-            false
-        ));
-        assert!(!should_emit_local_exit_attribution(
-            &parsed_args(true),
-            true,
-            false
-        ));
-        assert!(!should_emit_local_exit_attribution(
-            &parsed_args(false),
-            false,
-            false
-        ));
-        assert!(!should_emit_local_exit_attribution(
-            &parsed_args(false),
-            true,
-            true
-        ));
-        assert!(!should_emit_local_exit_attribution(
-            &hosted_args(),
-            true,
-            false
-        ));
+        assert!(should_emit_local_exit_attribution(&parsed_args(false), true));
+        assert!(!should_emit_local_exit_attribution(&parsed_args(true), true));
+        assert!(!should_emit_local_exit_attribution(&parsed_args(false), false));
     }
 
     #[test]
@@ -1381,61 +1209,6 @@ mod tests {
     }
 
     #[test]
-    fn hosted_onboarding_invariant_maps_to_dedicated_exit_code() {
-        let err = HostedOnboardingInvariantError::new("FirstTimeMenu");
-
-        assert_eq!(
-            exit_code_for(&err),
-            Some(HOSTED_ONBOARDING_INVARIANT_EXIT_CODE)
-        );
-    }
-
-    #[test]
-    fn apply_launch_context_marks_hosted_first_join_state() {
-        let game_dir = temp_first_time_game_copy();
-        let config = AppConfig {
-            game_dir: game_dir.clone(),
-            player_record_index_1_based: 1,
-            export_root: None,
-            queue_dir: None,
-            session_timeout_secs: None,
-            game_config: RuntimeConfig::default(),
-        };
-        let mut app = App::load(config).expect("app should load");
-        let parsed = parsed_args(false);
-
-        apply_launch_context(
-            &mut app,
-            &parsed,
-            LaunchPlayerBinding::Bound {
-                player_record_index_1_based: 1,
-                source: LaunchPlayerBindingSource::ExplicitPlayer,
-            },
-            Some(HostedLaunchContext {
-                player_npub: "npub1hostedplayer".to_string(),
-                invite_code: Some("velvet-mountain".to_string()),
-            }),
-        )
-        .expect("hosted context should apply");
-
-        assert_eq!(
-            app.startup_state.hosted_player_npub.as_deref(),
-            Some("npub1hostedplayer")
-        );
-        assert_eq!(
-            app.startup_state.hosted_invite_code.as_deref(),
-            Some("velvet-mountain")
-        );
-        assert_eq!(
-            app.startup_state.first_time_onboarding_mode,
-            FirstTimeOnboardingMode::HostedInvite
-        );
-        assert!(app.startup_state.fixed_player_launch);
-
-        let _ = fs::remove_dir_all(&game_dir);
-    }
-
-    #[test]
     fn apply_launch_context_moves_unbound_dropfile_to_first_time_menu() {
         let game_dir = temp_first_time_game_copy();
         let config = AppConfig {
@@ -1454,71 +1227,12 @@ mod tests {
             &mut app,
             &parsed,
             LaunchPlayerBinding::UnboundDropfile,
-            None,
         )
         .expect("launch context should apply");
 
         assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
         assert!(app.startup_state.unbound_bbs_caller);
         assert_eq!(app.startup_state.caller_alias.as_deref(), Some("RIVAL"));
-
-        let _ = fs::remove_dir_all(&game_dir);
-    }
-
-    #[test]
-    fn apply_launch_context_claims_pending_hosted_transfer_for_joined_empire() {
-        let game_dir = temp_first_time_game_copy();
-        let mut game_data = CoreGameData::load(&game_dir).expect("load fixture");
-        game_data.join_player(1, "Empire One").expect("join player");
-        game_data.save(&game_dir).expect("save fixture");
-        let store = CampaignStore::open_default_in_dir(&game_dir).expect("open store");
-        import_directory_snapshot(&store, &game_dir).expect("refresh sqlite snapshot");
-        store
-            .replace_hosted_seats(&[
-                HostedSeat {
-                    player_record_index_1_based: 1,
-                    invite_code: "velvet-mountain".to_string(),
-                    status: HostedSeatStatus::Pending,
-                    player_npub: None,
-                },
-                HostedSeat {
-                    player_record_index_1_based: 2,
-                    invite_code: "copper-sunrise".to_string(),
-                    status: HostedSeatStatus::Pending,
-                    player_npub: None,
-                },
-            ])
-            .expect("seed hosted seats");
-
-        let config = AppConfig {
-            game_dir: game_dir.clone(),
-            player_record_index_1_based: 1,
-            export_root: None,
-            queue_dir: None,
-            session_timeout_secs: None,
-            game_config: RuntimeConfig::default(),
-        };
-        let mut app = App::load(config).expect("app should load");
-        let parsed = parsed_args(false);
-
-        apply_launch_context(
-            &mut app,
-            &parsed,
-            LaunchPlayerBinding::Bound {
-                player_record_index_1_based: 1,
-                source: LaunchPlayerBindingSource::ExplicitPlayer,
-            },
-            Some(HostedLaunchContext {
-                player_npub: "npub1hostedplayer".to_string(),
-                invite_code: Some("velvet-mountain".to_string()),
-            }),
-        )
-        .expect("hosted transfer should claim seat");
-
-        let seats = store.hosted_seats().expect("reload hosted seats");
-        assert_eq!(seats[0].status, HostedSeatStatus::Claimed);
-        assert_eq!(seats[0].player_npub.as_deref(), Some("npub1hostedplayer"));
-        assert!(app.player.is_joined);
 
         let _ = fs::remove_dir_all(&game_dir);
     }

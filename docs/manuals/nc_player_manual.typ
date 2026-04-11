@@ -129,16 +129,12 @@ In homage to the 1990s door-game pioneers and to the ancient dreamers, strategis
 
 == Three Ways to Play
 
-Nostrian Conquest supports three practical ways to play.
+Nostrian Conquest currently supports two active ways to play.
 
-The normal public path is *Nostr*. In that mode you run `nc-connect`, your
-sysop gives you an invite code, and `nc-connect` opens the live `nc-game`
-session for you. This is the recommended path for public multiplayer.
-
-The direct private path is *Localhost*. In that mode you or your sysop runs
-`nc-game` directly on the same machine. Use this for solo play, hotseat
-testing, and trusted same-machine sessions. If you are setting that up
-yourself, see the *Sysop Manual* section *Localhost Session Setup*.
+The direct path is *Localhost*. In that mode you or your sysop runs `nc-game`
+directly on the same machine. Use this for solo play, hotseat testing, and
+trusted same-machine sessions. If you are setting that up yourself, see the
+*Sysop Manual* section *Localhost Session Setup*.
 
 The classic path is *BBS*. In that mode you log into a bulletin board with a
 terminal client and launch the game from the doors menu. The sysop stages
@@ -147,121 +143,28 @@ terminal client and launch the game from the doors menu. The sysop stages
 
 == Finding New Games
 
-If you do not already have an invite code, start at
-#link("https://nostrian-conquest.com")[nostrian-conquest.com]. That landing page
-points to the current public meeting places for live campaigns and player
-announcements.
+If you are joining a private localhost campaign, your sysop tells you which
+machine and player slot to use.
 
-Right now, the main public meeting place is the Discord channel at
-#link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa]. The landing page
-also points to the `NC Sysop` Nostr/Primal presence for direct contact.
-
-Once a sysop has a seat ready for you, he gives you an invite code in the
-normal `amber-river@relay.example.com` form.
+If you are joining a BBS campaign, connect to the bulletin board normally and
+launch the game from the doors menu. Your sysop may reserve a seat for your BBS
+alias, or may leave open seats available from the first-time join menu.
 
 == Joining a Game
 
-Your sysop will give you an invite code like
-`amber-river@relay.example.com`. Here is the normal picker flow:
+For localhost play, the normal direct launch is:
 
-1. Run `nc-connect`.
-2. Press `N` to join a new game.
-3. Paste your invite code and press Enter.
+```sh
+nc-game --dir /path/to/mygame --player 1
+```
 
-In the packaged GUI, paste works with `Command-V` on macOS, `Ctrl-V`,
-`Ctrl-Shift-V`, `Shift-Insert`, or right-click.
+Your sysop may give you a different player number or run the command for you on
+the local machine.
 
-That is all. `nc-connect` handles your identity and opens your `nc-game`
-session. The invite already carries the relay host, and `nc-connect`
-discovers the rest from there. Your seat is not claimed until you actually
-save your empire name in the game. As soon as you name your empire and claim
-the invite, `nc-connect`
-downloads the campaign starmap bundle so maps are available locally for
-turn 1. The downloaded starmap bundle and CSV sheets are saved in your
-Documents `nc/maps` folder by default. Later, press `M` in the picker to
-change the default maps folder or re-download the bundle for the currently
-selected game.
-
-One NC keychain identity can hold only one seat in a hosted game. If you have
-already completed the first join for that game and later delete the local
-picker row, press `N`, paste the same invite again, and reconnect with that
-same identity. The original invite still belongs only to that identity; a
-different identity cannot use it to take over the seat.
-
-== nc-connect Setup
-
-Get the current `nc-connect` build from the repo's GitHub Releases page.
-Public player packages are available for Windows x64, Linux x64, and macOS
-Apple Silicon. Keep this manual with it. This package is for the Nostr path.
-Localhost and BBS play do not use `nc-connect` as the game client.
-
-The public Nostrian player package contains only Nostrian binaries, manuals,
-and support files. It does not bundle preserved Esterian Conquest executables
-or manuals.
-
-=== Windows
-
-If your sysop gives you the Windows `.zip` build, extract it to a folder of
-your choice. Double-click `nc-connect.exe` to launch the normal player
-window. No installation required.
-
-On first use, `nc-connect` creates an encrypted keychain. You choose one
-keychain password for the machine. That password protects your local
-identities. If you lose it, the client cannot recover your keychain for you.
-
-Your sysop gives you one invite code in the form
-`amber-river@relay.example.com`. Paste it when prompted.
-
-== Keychain Management
-
-The packaged GUI keeps one active identity at a time.
-
-From the main `nc-connect` picker:
-
-- `Y` opens the keychain screen
-- `I` shows identity info
-
-From the keychain screen:
-
-- `R` replaces the current identity: paste an existing `nsec`, or leave the field blank to generate a fresh one
-- `Enter` shows the full `npub` and `nsec`
-
-The keychain is local client state. It is not the server's player list.
-Replacing your current identity does not move any already-claimed hosted
-seat. Those stay bound to the original identity until your sysop reissues the
-seat with a new invite.
-
-=== Clearing Local Keychain Data
-
-To clear your local keychain and picker cache, close `nc-connect` and delete
-the files manually:
-
-- *Windows:* `%LOCALAPPDATA%\nc\` (e.g. `C:\Users\<you>\AppData\Local\nc\`)
-- *macOS:* `~/Library/Application Support/nc/`
-- *Linux:* `~/.local/share/nc/`
-
-Delete `keychain.kdl` to remove your identity, or `cache.kdl` to clear
-the picker game list. Removing `keychain.kdl` is permanent; a fresh
-identity will be created on next launch.
-
-== Relay Configuration
-
-Press lowercase `r` in the main `nc-connect` menu to open the relay manager.
-That screen lets you add relays, edit saved relay entries, mark a default
-relay, and inspect which joined games use each relay.
-
-Press uppercase `R` in the main game list to edit the relay for the currently
-selected joined game only. That is mainly useful when fixing an older cached
-entry or moving one specific game to a different relay.
-
-After a successful join, `nc-connect` caches the exact relay for that game, so
-most reconnects do not need relay entry again.
-
-== Refreshing Game Info
-
-Press `Space` on a selected joined game to refresh its cached hosted metadata.
-This asks the hosted service for the latest game name, seat, player-name, and
-relay details for that one entry without opening a play session.
+For BBS play, the sysop launches `nc-door` from the board software and the
+caller enters through the normal first-time or returning-player flow inside the
+game. If your BBS alias is reserved for a seat, the door routes you there
+automatically.
 
 #pagebreak()
 
@@ -607,7 +510,7 @@ In BBS door mode, `nc-game` instead keeps the classic *A>nsi color ON/OFF* toggl
 
 === General Command
 
-General Command handles empire-wide administration. Autopilot (*A*) lets the computer manage your defenses if you miss turns. By default, a hosted or direct Rust campaign turns autopilot on automatically after three consecutive missed turns, and the first real return that year --- logging into `nc-game` or successfully submitting a turn file --- turns that inactivity-triggered autopilot back off. Manual autopilot stays manual until you change it yourself. Diplomacy (*E*) lets you declare other players as Neutral or Enemy --- neutral fleets will not attack unless provoked, while enemy fleets will attack on sight based on ROE. Messages (*C*) lets you send messages to other empires.
+General Command handles empire-wide administration. Autopilot (*A*) lets the computer manage your defenses if you miss turns. By default, a Rust campaign turns autopilot on automatically after three consecutive missed turns, and the first real return that year --- logging into `nc-game`, entering through `nc-door`, or successfully submitting a turn file --- turns that inactivity-triggered autopilot back off. Manual autopilot stays manual until you change it yourself. Diplomacy (*E*) lets you declare other players as Neutral or Enemy --- neutral fleets will not attack unless provoked, while enemy fleets will attack on sight based on ROE. Messages (*C*) lets you send messages to other empires.
 
 To keep messaging civil, you may send no more than three messages to any single opponent per turn. In a four-player game, for example, that is up to twelve outgoing messages in a turn. Messages and reports are never automatically purged --- they accumulate in your inbox across turns until you remove them yourself. The inbox supports type and year filters to help you find older items, and pressing *D* on a selected item prompts for deletion, defaulting to yes. General Command also offers a bulk delete to clear all messages at once. New reports and messages from the most recent maintenance turn are presented one by one through the scrolling intro review when you log in, giving you another opportunity to read and delete before reaching the main menu.
 
@@ -671,7 +574,7 @@ A planet without a starbase can spend up to its Production in a single turn. A p
 
 #admonition("WARNING")[Stardock contents are a prime target for enemy bombardment. Commission your ships promptly or risk losing them before they ever see combat.]
 
-#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. In the recommended hosted flow, `nc-connect` downloads that static bundle automatically the first time you join. Local Rust-client play can also export it directly from the in-game starmap view.]
+#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. Local Rust-client play can export it directly from the in-game starmap view, and BBS operators can hand the exported files to players out of band if they want offline planning aids.]
 
 #pagebreak()
 

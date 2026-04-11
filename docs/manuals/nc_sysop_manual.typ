@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 2),
+  date: datetime(year: 2026, month: 4, day: 11),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(2em)
   #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: April 4, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: April 11, 2026]
 ]
 
 #pagebreak()
@@ -129,10 +129,8 @@ manuals.
 == System Requirements
 
 - Linux, macOS, or Windows
-- Rust toolchain (stable) for normal self-host and VPS deployment
-- For the recommended public-hosted flow: an SSH-accessible host plus a Nostr
-  relay reachable by players
-- A terminal emulator for localhost or direct SSH play
+- Rust toolchain (stable) for normal localhost builds
+- A terminal emulator for localhost play
 - A BBS server with socket support only if you specifically want legacy door
   deployment
 
@@ -141,34 +139,28 @@ manuals.
 From the repository root:
 
 ```
-cargo build --release -p nc-sysop -p nc-game -p nc-connect
+cargo build --release -p nc-sysop -p nc-game
 ```
 
 The release binaries will be in `target/release/`.
 
 == Current Beta Distribution
 
-During the current beta, public GitHub Releases include Windows x64, Linux x64,
-and macOS Apple Silicon `nc-connect` player archives. Public releases also
-include Windows x64, Windows x86 (32-bit), Windows 7+ x86 (32-bit), and Linux
-x64 `nc-sysop` BBS/sysop packages.
+During the current beta, public GitHub Releases include Windows x64, Windows
+x86 (32-bit), Windows 7+ x86 (32-bit), and Linux x64 `nc-sysop` BBS/sysop
+packages.
 
 Keep the binary roles straight.
 
-`nc-connect` is the packaged player client for the recommended Nostr path.
-`nc-game` is the direct localhost and SSH/VPS session client. `nc-door` is the
-BBS door entrypoint on Windows and Linux. `nc-sysop` is the administrator's
-tool for creation, settings, maintenance, and hosted operations.
+`nc-game` is the direct localhost session client. `nc-door` is the BBS door
+entrypoint on Windows and Linux. `nc-sysop` is the administrator's tool for
+creation, settings, reservations, and maintenance.
 
 For the Rust edition:
 
-1. VPS sysops should build from tagged source with Cargo and use
-   `scripts/install_vps.sh`.
-2. Hosted players can use the public GitHub Releases `nc-connect` archives
-   with the player manual on Windows, Linux, or macOS.
-3. BBS sysops can use the public `nc-sysop` package on Linux x64 or Windows
+1. BBS sysops can use the public `nc-sysop` package on Linux x64 or Windows
    x64, or build from tagged source with Cargo.
-4. Localhost sysops build from tagged source with Cargo and run `nc-game`
+2. Localhost sysops build from tagged source with Cargo and run `nc-game`
    directly.
 
 The public Nostrian packages do not bundle preserved Esterian Conquest
@@ -176,33 +168,7 @@ executables, manuals, or DOS helper assets.
 
 == Choose Your Deployment
 
-NC has three practical ways to run the Rust game.
-
-=== Nostr Host
-
-Use this when a sysop wants the normal public multiplayer path. Players use
-`nc-connect`. The host runs `nc-sysop nostr serve`, and the live game runs
-inside `nc-game` over SSH.
-
-1. Build the binaries.
-2. Create a game directory with `nc-sysop new-game`.
-3. Register the game with the host and start `nc-sysop nostr serve`.
-4. Run `nc-sysop maint` when the year should advance.
-
-The standard VPS layout is:
-
-```
-/usr/local/bin/nc-game
-/usr/local/bin/nc-sysop
-/usr/local/bin/nc-gate-keys
-/etc/nc-gate/config.kdl
-/etc/nc-gate/identity.kdl
-/var/lib/nc-gate/keys/
-/srv/nc/games/<slug>/ncgame.db
-```
-
-This path can live on a Linux VPS or any other SSH-reachable Linux host. The
-full hosted setup is covered below under *Recommended Public Host*.
+NC currently has two practical ways to run the Rust game.
 
 === Localhost Session
 
@@ -235,8 +201,7 @@ similar BBS.
    the BBS event runner.
 
 For BBS hosting, use the public `nc-sysop` package or build from source.
-Localhost play remains a source-build path. VPS/Nostr hosting remains a
-tagged-source Cargo workflow.
+Localhost play remains a source-build path.
 
 For the exact launcher setups, see:
 
@@ -247,7 +212,7 @@ For the exact launcher setups, see:
 
 == Game Directory Layout
 
-Hosted/Nostr campaigns are DB-only:
+Direct `nc-game` campaigns are DB-only:
 
 ```
 /path/to/mygame/
@@ -280,13 +245,6 @@ For BBS door campaigns, write `config.kdl` first and then initialize with:
 nc-sysop new-game --bbs /path/to/mygame
 ```
 
-#admonition("IMPORTANT")[
-  On a VPS host installed with `scripts/install_vps.sh`, create hosted games as
-  the `ncgame` service user. If you create `/srv/nc/games/<slug>` as `root`,
-  the `nc-nostr.service` daemon may fail to write session leases and hosted
-  joins can time out.
-]
-
 The supported public creation flags are:
 
 - *`--name`:* String. Optional game title stored in `ncgame.db`. If omitted,
@@ -306,190 +264,42 @@ The supported public creation flags are:
 
 The target directory basename becomes the stable game slug. It must use only
 lowercase ASCII letters, digits, and dashes. The slug is distinct from the
-human-readable `game_name`, and both are distinct from the per-seat invite
-codes used by `nc-connect`.
+human-readable `game_name`.
 
-== Recommended Public Host
+== Hosted / Nostr Status
 
-For new public campaigns, the recommended deployment path is `nc-sysop nostr`
-plus `nc-connect`. In that model, the sysop runs the normal Rust engine on a
-host, publishes the Nostr-facing daemon, and players join from their own
-machines with invite codes. The daemon handles identity and seat routing; the
-live game still runs inside `nc-game` over SSH. This keeps the original
-asynchronous NC rhythm without requiring per-player Unix account management or
-BBS door middleware.
+The earlier SSH/Nostr hosted path is no longer part of the active public sysop
+surface. `nc-sysop` no longer exposes `host`, `maint-all`, or `nostr`
+subcommands, and this manual no longer treats that stack as current operator
+workflow.
 
-If you are recruiting players for a live public game, point them first to
-#link("https://nostrian-conquest.com")[nostrian-conquest.com]. That landing page
-can carry the current public contact points and community links before you
-issue seat-specific invites. At the moment, it should direct them to the
-Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
-
-A minimal hosted setup looks like:
-
-```
-sudo -u ncgame nc-sysop new-game /srv/nc/games/friday-night --name "Friday Night NC" --players 4
-sudo nc-sysop host games add --config /etc/nc-gate/config.kdl --dir /srv/nc/games/friday-night
-sudo systemctl restart nc-nostr.service
-nc-sysop nostr init
-nc-sysop nostr serve
-```
-
-The values handed to players come from `/etc/nc-gate/config.kdl`:
-
-- `relay` is the Nostr relay URL
-- `ssh-host` and `ssh-port` are published in relay discovery during the first session handshake
-
-For a self-hosted relay, that `relay` URL must already work from outside the
-box. If `nostr-rs-relay` is listening only on loopback, also run the public
-HTTPS reverse proxy for the relay hostname before expecting hosted joins to
-work.
-
-After the daemon is running, view the hosted seat state and get the
-ready-to-distribute invite commands:
-
-```
-nc-sysop nostr seats --dir /path/to/mygame
-```
-
-The output lists every seat. Pending seats show the canonical join line:
-
-```
-Seat 1  [pending]
-  amber-river@relay.example.com
-
-Seat 2  [claimed]
-  npub1...
-```
-
-Send each player the raw invite code. The player:
-
-1. Runs `nc-connect`.
-2. Presses `N`.
-3. Pastes the invite code and presses Enter.
-
-That is the full player-side flow. The invite carries the seat token and relay
-host, and `nc-connect` discovers the rest from the relay. No extra flags are
-normally required.
-
-On first join, `nc-connect` creates or unlocks the player's encrypted
-identity and opens the SSH-backed `nc-game` session. The hosted seat is not
-claimed until the player actually saves the in-game empire name. If the player
-disconnects before that save, the invite is still pending and can be used
-again. After a completed first join, `nc-connect` caches the game locally,
-downloads the static starmap bundle, and returning players reconnect without
-re-entering any flags.
-
-One hosted identity can claim only one seat in a given game. If the same
-keychain identity tries to redeem a second invite for that game, the daemon now
-rejects it and expects the player to reconnect with the already-claimed seat.
-
-If an invite code is lost or compromised, reissue it:
-
-```
-nc-sysop nostr reissue --dir /path/to/mygame --player 2
-```
-
-This generates a fresh code for that seat, clears the old hosted `npub`
-binding, and republishes that game's public `30500` metadata when possible.
-It does *not* reset the runtime empire. Use this path when you want a new NC
-identity to take over the already-joined seat and keep the existing empire
-state.
-
-If you need to fully rewind one hosted seat back to a true pre-join state,
-use the destructive reset flag instead:
-
-```
-nc-sysop nostr reissue --dir /path/to/mygame --player 2 --nuke-seat
-```
-
-`--nuke-seat` clears the hosted `npub`, rotates the invite, resets that
-player slot back to the original seeded year-3000 baseline, and republishes
-`30500` when possible. This is only allowed during year `3000` before the
-first maintenance turn, and it refuses while any live hosted session lease
-exists.
-
-If a player reports that a pending invite cannot be found on the relay, check
-and repair the published hosted metadata directly:
-
-```
-nc-sysop nostr verify --dir /path/to/mygame
-nc-sysop nostr publish --dir /path/to/mygame
-```
-
-== Hosted Player Identity Management
-
-Hosted seats are bound to the first player identity that completes the
-in-game join and saves the empire name. In practice this means the seat is
-tied to one `npub` until the sysop changes it. Returning players should
-reconnect with the same local NC keychain identity they used when they finished
-that first join.
-
-Players should not expect to paste the same invite into a brand-new keychain and
-take over an already-claimed seat. `nc-gate` treats that as a different player
-identity and rejects the join.
-
-Players also should not expect one keychain identity to hold two seats in the
-same hosted game. Seat 1 and seat 2 in one campaign must be claimed by
-different identities, even if the same human is testing both paths.
-
-If a player loses or forgets the original local identity, the supported
-recovery path is:
-
-1. Reissue that seat with `nc-sysop nostr reissue`.
-2. Send the player the new invite.
-3. Have the player redeem it from the new keychain identity so that identity
-   takes over the existing empire.
-
-Reissuing is the deliberate “move this seat to a new identity” action. It
-clears the old hosted `npub` binding and rotates the invite code at the same
-time, but it preserves the runtime empire.
-
-If the goal is instead “forget this joined player and make the seat brand-new
-again,” use `nc-sysop nostr reissue --nuke-seat`. That path destroys the old
-runtime player slot and should be treated as a first-turn recovery tool, not a
-mid-campaign transfer workflow.
-
-Hosted seat claims are stored in `ncgame.db`. That SQLite state is the
-authority for invite codes, claim status, and bound player `npub`s. Hosted
-claim state no longer lives in a per-game roster file.
-
-#admonition("NOTE")[
-  `/etc/nc-gate/config.kdl` is host-owned. Game-registry edits such as
-  `host games add` and `host games remove` should be run as root. Restart
-  `nc-nostr.service` after changing the game list so the daemon reloads the
-  config.
-]
+If hosted play returns later, it should do so as a separate `nc-daemon` /
+`nc-dash` architecture with its own docs. Until then, treat the remaining
+material in `docs/nostr/` as design/archive content, not live operator
+instructions.
 
 // ─── 3. Game Directory Structure ─────────────────────────────────────────────
 
 = Game Directory Structure
 
-/ `ncgame.db`: The SQLite runtime database. All game state lives here. Hosted
-  seat claims live here too. Do not edit it by hand.
+/ `ncgame.db`: The SQLite runtime database. All game state lives here. Do not
+  edit it by hand.
 
 / `config.kdl`: Present only for BBS door campaigns. It holds `players` and
-  optional seat `reservations`. Hosted/Nostr campaigns do not use it.
+  optional seat `reservations`.
 
 // ─── 4. Configuration ─────────────────────────────────────────────────────────
 
 = Configuration <configuration>
 
-Keep these three paths separate:
-
-=== Hosted / Nostr Host
-
-- Live state: `/etc/nc-gate/config.kdl` plus per-game `ncgame.db`
-- Runtime path: `nc-gate` launches hosted `nc-game` sessions
-- Operator rule: use `nc-sysop settings set` on the game directory; `maint-all`
-  scheduling applies here
+Keep these two paths separate:
 
 === Direct `nc-game`
 
 - Live state: per-game `ncgame.db`
-- Runtime path: `nc-game --dir ... --player ...` on localhost or over SSH
-- Operator rule: this uses the same non-BBS settings surface as hosted games,
-  but there is no gate, no relay, and no normal `maint-all` use
+- Runtime path: `nc-game --dir ... --player ...` on localhost
+- Operator rule: use the normal `nc-sysop settings ...` surface and schedule
+  `nc-sysop maint` yourself
 
 === BBS Door Host
 
@@ -559,18 +369,14 @@ In BBS door mode, `nc-door` does not use `default_theme_key` at runtime. Door
 sessions always force the bundled `mag16` palette so ANSI16 terminals and BBS
 clients get a predictable color-safe baseline.
 
-// ─── 6. SSH Access ────────────────────────────────────────────────────────────
+// ─── 6. Terminal Access ───────────────────────────────────────────────────────
 
-= SSH Access
+= Terminal Access
 
-The recommended hosted path above already uses SSH under the hood: players
-enter through `nc-connect`, and the daemon opens a PTY running `nc-game`.
-You can also run `nc-game` over SSH directly when you want a private
-shared-host setup, manual debugging, or a simple trusted deployment without
-the Nostr invite flow.
-
-`nc-game` runs cleanly over SSH. No special flags are required for modern
-terminal sessions.
+`nc-game` is a direct terminal client. The primary supported path is local
+same-machine play, but if you manually remote into a trusted shell and launch
+`nc-game` there, it behaves the same way. No special hosted/session flags are
+required.
 
 Color mode is auto-detected from the environment:
 
@@ -578,23 +384,24 @@ Color mode is auto-detected from the environment:
 - `TERM` containing `256color` → 256-color
 - Otherwise → 16-color ANSI fallback
 
-Force a specific mode with `--color-mode` if your SSH setup does not propagate
+Force a specific mode with `--color-mode` if your terminal setup does not
+propagate
 `COLORTERM` reliably:
 
 ```
 nc-game --dir /path/to/mygame --player 1 --color-mode 256
 ```
 
-UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
-Use `--encoding cp437` only if you are proxying through a BBS or a CP437
-terminal emulator over SSH.
+UTF-8 encoding (the default) is correct for modern terminals. Use
+`--encoding cp437` only if you are proxying through a BBS or a CP437 terminal
+emulator over SSH.
 
 // ─── 7. Localhost Session Setup ───────────────────────────────────────────────
 
 = Localhost Session Setup
 
-Localhost play remains a fully supported secondary mode for solo campaigns,
-hotseat sessions, and sysop testing. Run `nc-game` directly in your terminal:
+Localhost play remains a fully supported mode for solo campaigns, hotseat
+sessions, and sysop testing. Run `nc-game` directly in your terminal:
 
 ```
 nc-game --dir /path/to/mygame --player 1
@@ -609,8 +416,8 @@ automatically.
 = BBS Door Setup
 
 `nc-door` is the standard BBS entrypoint on Windows and Linux. Use it when the
-host is a BBS. Keep `nc-game` for direct localhost and SSH/VPS sessions. In
-door mode, `nc-door` uses CP437 and 16-color ANSI for classic terminal clients.
+host is a BBS. Keep `nc-game` for direct localhost sessions. In door mode,
+`nc-door` uses CP437 and 16-color ANSI for classic terminal clients.
 
 == Flags for Door Mode
 
@@ -780,25 +587,17 @@ Run yearly maintenance with:
 
 ```
 nc-sysop maint /path/to/mygame [turns]
-nc-sysop maint-all [--config /etc/nc-gate/config.kdl]
 ```
 
 `nc-sysop maint` advances the campaign in `ncgame.db` immediately. It does not
 change the schedule fields. NC does not schedule maintenance by itself. For
-one direct localhost game, one manual SSH/VPS game, or one BBS game, invoke
+one direct localhost game or one BBS game, invoke
 `nc-sysop maint` from your own scheduler or event tooling:
 
 - a `systemd` timer
 - `cron`
 - a BBS event runner
 - or manual sysop operation
-
-For multi-game hosted/Nostr operation, prefer a single global timer that runs
-`nc-sysop maint-all`. It reads the configured game directories from the gate
-config, advances only games whose schedule is enabled and already due, and
-skips games with live session leases so a player is never interrupted by
-maintenance. After a scheduled run, it writes the next due time back into
-`ncgame.db`.
 
 To put one hosted game on a real schedule, turn scheduling on and set the
 first due time yourself:
@@ -811,9 +610,9 @@ That example enables weekly scheduling. `10080` is seven days in minutes.
 `1775347200` is just a sample Unix timestamp. Replace it with the first due
 time you actually want.
 
-Treat these schedule fields as hosted `maint-all` metadata. They do not create
-their own timer. They are not BBS `config.kdl` fields. If you run a direct
-localhost or manual SSH game, you can ignore them and schedule `maint
+Treat these schedule fields as optional metadata. They do not create their own
+timer. They are not BBS `config.kdl` fields. If you run a direct localhost
+game, you can ignore them and schedule `maint
 /path/to/mygame` yourself.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
@@ -825,7 +624,7 @@ inactivity-related state in `ncgame.db`. BBS door campaigns do not use a
 separate inactivity block in `config.kdl`; caller idle handling belongs to the
 BBS software.
 
-For Rust-hosted and direct DB-only campaigns, the default inactivity autopilot
+For direct DB-only campaigns, the default inactivity autopilot
 threshold is `3` turns. Set `inactivity_autopilot_after_turns=0` if you want
 that policy disabled. A player is treated as active for the year by either
 reaching the live `nc-game` menus or successfully applying a `submit-turn`
@@ -879,16 +678,10 @@ setup section earlier in this manual instead of the BBS dropfile path.
 / game directory: The directory containing `ncgame.db` for one running game.
   Passed to all tools with `--dir`.
 
-/ `nc-sysop`: The public Rust command-line sysop tool for campaign creation
-  maintenance, and Nostr hosting.
+/ `nc-sysop`: The public Rust command-line sysop tool for campaign creation,
+  maintenance, and settings management.
 
-/ `nc-connect`: The beta-quality player-side connection client for the
-  recommended hosted flow. It manages the player's Nostr identity, joins
-  games by invite code, downloads the static starmap bundle on first join,
-  and opens the SSH-backed `nc-game` session.
-
-/ `nc-game`: The Rust TUI player client for direct localhost and SSH/VPS
-  sessions.
+/ `nc-game`: The Rust TUI player client for direct localhost sessions.
 
 / `nc-door`: The Rust BBS door entrypoint. It runs the same game flow as
   `nc-game`, but it is the staged binary for Windows and Linux BBS hosts.
@@ -897,10 +690,9 @@ setup section earlier in this manual instead of the BBS dropfile path.
   Rust engine.
 
 / non-BBS campaign settings: The sysop-managed runtime policy rows stored in
-  `ncgame.db` for hosted/Nostr and direct `nc-game` campaigns. They control
-  game name, the default compiled-in color set, hosted maintenance metadata,
-  optional alias reservations, and a small set of carried-forward classic
-  setup fields.
+  `ncgame.db` for direct `nc-game` campaigns. They control game name, the
+  default compiled-in color set, maintenance metadata, optional alias
+  reservations, and a small set of carried-forward classic setup fields.
 
 / `config.kdl`: Present only for BBS door campaigns. It holds `players` and
   optional seat `reservations`.
@@ -915,38 +707,13 @@ setup section earlier in this manual instead of the BBS dropfile path.
 nc-sysop <subcommand> [options]
 ```
 
-- *`new-game`:* Create a new campaign directory. Hosted/Nostr campaigns use
+- *`new-game`:* Create a new campaign directory. Direct `nc-game` campaigns use
   `--name`, `--players`, and `--seed`. BBS campaigns use `new-game --bbs` with
   a minimal per-game `config.kdl`.
 - *`settings show|set|reserve|unreserve`:* Inspect or edit non-BBS runtime
   policy in `ncgame.db`, or edit BBS seat reservations in per-game
   `config.kdl`.
-- *`host games list|add|remove`:* Inspect or edit the global game registry in
-  `/etc/nc-gate/config.kdl`.
-- *`host status`:* Summarize the configured host, served game directories,
-  claim counts, busy state, and maintenance-due state.
-- *`nostr init`:* Initialize the Nostr-hosting identity and config for the
-  recommended public multiplayer path.
-- *`nostr serve`:* Run the Nostr-facing daemon that authenticates players and
-  launches `nc-game` sessions.
-- *`nostr seats`:* List the hosted seat state stored in `ncgame.db` for one
-  game directory.
-- *`nostr reissue`:* Generate a fresh invite code for one hosted seat, clear
-  its old hosted player binding, preserve the existing runtime empire, and
-  republish that game's public `30500` metadata when possible.
-- *`nostr reissue --nuke-seat`:* Destructively reset one hosted seat back to a
-  true pre-join year-3000 baseline, clear its hosted binding, and republish
-  that game's public `30500` metadata when possible.
-- *`nostr claim`:* Manually bind one hosted seat to a specific `npub` and
-  republish that game's public `30500` metadata when possible.
-- *`nostr publish`:* Republish one game's public `30500` metadata to the
-  configured relay immediately.
-- *`nostr verify`:* Compare one game's local hosted-seat state against the
-  latest published `30500` on the configured relay.
 - *`maint`:* Run one or more maintenance turns against `ncgame.db`.
-- *`maint-all`:* Sweep every game registered in the gate config, skip games
-  that are not due or that currently have active sessions, and advance only
-  games whose schedule is enabled.
 
 == nc-game and nc-door
 
@@ -956,14 +723,14 @@ nc-door --dir <game_dir> --dropfile <path> [options]
 nc-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
 
-Use `nc-game` for direct localhost and SSH/VPS sessions. Use `nc-door` for BBS
+Use `nc-game` for direct localhost sessions. Use `nc-door` for BBS
 door launches. The interactive flags below apply to both binaries unless a host
 setup guide says otherwise.
 
 Interactive client flags:
 
 - *`--dir <path>`:* Game directory containing `ncgame.db`. Required.
-- *`--player <N>`:* 1-based empire index for direct localhost or SSH play.
+- *`--player <N>`:* 1-based empire index for direct localhost play.
   Normal BBS dropfile launches can omit it.
 - *`--encoding <utf8|cp437>`:* Output encoding. Default: `utf8`. Use `cp437`
   for BBS or door mode.
@@ -977,9 +744,6 @@ Interactive client flags:
   for ENiGMA½ `abracadabra` in `socket` mode.
 - *`--socket-descriptor <value>`:* Native Windows door socket handle. Mainly
   for Synchronet-style socket door launches.
-- *`--session-token <hex>`:* Hosted-session lease token injected by `nc-gate`
-  during Nostr or SSH login. Normal local and BBS launches do not pass this
-  flag.
 - *`--timeout <minutes>`:* Session time limit in minutes. It overrides any
   drop file value.
 - *`--export-root <path>`:* Optional map or export staging root for local or

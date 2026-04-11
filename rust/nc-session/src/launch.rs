@@ -1,8 +1,6 @@
 //! Shared launch/session helpers for nc-game and other clients.
 
-use nc_data::{CampaignStore, CoreGameData, SeatReservation};
-
-use crate::lease::{SessionLeaseGuard, unix_now};
+use nc_data::{CoreGameData, SeatReservation};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LaunchPlayerBindingSource {
@@ -37,12 +35,6 @@ impl LaunchPlayerBinding {
             Self::UnboundDropfile => None,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HostedLaunchContext {
-    pub player_npub: String,
-    pub invite_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -155,40 +147,6 @@ pub fn resolve_launch_player_binding(
         "usage: nc-game --dir <game_dir> --player <1-based empire index>\n       or use --dropfile for BBS/door mode"
             .to_string(),
     )
-}
-
-pub fn validate_and_activate_session_lease(
-    campaign_store: CampaignStore,
-    session_token: String,
-    player_record_index_1_based: usize,
-    session_timeout_secs: Option<u32>,
-    idle_timeout_secs: Option<u64>,
-) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
-    let lease = campaign_store.load_session_lease(&session_token, unix_now())?;
-    if lease.player_record_index_1_based != player_record_index_1_based {
-        return Err(format!(
-            "session token is for seat {}, not seat {}",
-            lease.player_record_index_1_based, player_record_index_1_based
-        )
-        .into());
-    }
-    SessionLeaseGuard::activate(
-        campaign_store,
-        session_token,
-        unix_now(),
-        session_lease_ttl_seconds(session_timeout_secs, idle_timeout_secs),
-        lease.player_npub,
-    )
-}
-
-pub fn session_lease_ttl_seconds(
-    session_timeout_secs: Option<u32>,
-    idle_timeout_secs: Option<u64>,
-) -> u64 {
-    session_timeout_secs
-        .map(u64::from)
-        .or(idle_timeout_secs)
-        .unwrap_or(120)
 }
 
 pub fn validate_reservations_for_player_count(

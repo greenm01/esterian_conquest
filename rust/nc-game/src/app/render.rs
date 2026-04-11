@@ -1,6 +1,5 @@
 use super::state::App;
 use crate::app::help;
-use crate::error::HostedOnboardingInvariantError;
 use crate::screen::ScreenId;
 use crate::terminal::Terminal;
 
@@ -10,24 +9,6 @@ impl App {
         terminal: &mut dyn Terminal,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::domains;
-
-        if self.startup_state.hosted_player_npub.is_some() {
-            let invalid_screen = match self.current_screen {
-                ScreenId::FirstTimeMenu => Some("FirstTimeMenu"),
-                ScreenId::FirstTimeIntro => Some("FirstTimeIntro"),
-                ScreenId::FirstTimeEmpires => Some("FirstTimeEmpires"),
-                ScreenId::FirstTimeReservedPrompt => Some("FirstTimeReservedPrompt"),
-                _ => None,
-            };
-            if let Some(screen_name) = invalid_screen {
-                tracing::error!(
-                    screen = screen_name,
-                    login_state = ?self.player.classic_login_state,
-                    "hosted session reached a forbidden generic first-time screen"
-                );
-                return Err(Box::new(HostedOnboardingInvariantError::new(screen_name)));
-            }
-        }
 
         let mut playfield = match self.current_screen {
             ScreenId::Startup(_)

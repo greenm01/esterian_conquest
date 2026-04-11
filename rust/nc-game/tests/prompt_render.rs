@@ -20,7 +20,6 @@ use nc_game::screen::layout::{
     draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
     table_dismiss_prompt_row,
 };
-use nc_game::screen::render_first_time_join_name;
 use nc_game::theme::classic;
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
@@ -251,26 +250,6 @@ fn starmap_prompt_clips_long_export_status_without_panicking() {
         )
         .expect("starmap prompt renders");
     assert!(row_text(&buffer, 9).contains("Export path is"));
-}
-
-#[test]
-fn first_time_join_name_clips_long_invite_code_without_panicking() {
-    let buffer = render_first_time_join_name(
-        false,
-        false,
-        true,
-        false,
-        Some(
-            "this-is-a-very-long-hosted-invite-code-that-should-be-clipped-before-it-can-overflow-the-screen@relay.example.com",
-        ),
-        None,
-        "",
-        "",
-        None,
-        false,
-    )
-    .expect("join name renders");
-    assert!(row_text(&buffer, 4).contains("Invite code: "));
 }
 
 #[test]

@@ -2253,11 +2253,7 @@ version = "1.0.0-beta.2"
 dependencies = [
  "nc-data",
  "nc-engine",
- "nc-gate",
  "nc-log",
- "nc-nostr",
- "nostr-sdk",
- "tokio",
  "tracing",
  "winresource",
 ]

@@ -13,10 +13,7 @@ use crate::screen::{
 };
 use crate::startup::{StartupPhase, StartupSummary};
 use nc_data::{PlayerAccessMode, TerminalOutcome};
-use nc_session::onboarding::{
-    HostedFirstTimeStatus, first_time_onboarding_mode as shared_first_time_onboarding_mode,
-    hosted_first_time_status,
-};
+use nc_session::onboarding::first_time_onboarding_mode as shared_first_time_onboarding_mode;
 
 impl App {
     fn record_returning_player_participation_once(
@@ -68,40 +65,12 @@ impl App {
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
-    pub fn set_hosted_invite_session(&mut self, player_npub: String, invite_code: Option<String>) {
-        self.startup_state.hosted_player_npub = Some(player_npub);
-        self.startup_state.hosted_invite_code = invite_code;
-        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::HostedInvite;
-        self.startup_state.unbound_bbs_caller = false;
-        tracing::info!(
-            screen = ?self.current_screen,
-            login_state = ?self.player.classic_login_state,
-            has_invite_code = self
-                .startup_state
-                .hosted_invite_code
-                .as_ref()
-                .map(|value| !value.trim().is_empty())
-                .unwrap_or(false),
-            "applied hosted invite session context"
-        );
-        // The splash transcript pages (Y at the splash) serve as the intro
-        // for hosted sessions.  Do not enable the separate Startup(Intro)
-        // phase, which duplicates the intro with accent-coloured rendering.
-    }
-
     fn has_bbs_reserved_seat(&self) -> bool {
         self.door_mode && self.startup_state.reserved_seat_alias.is_some()
     }
 
-    fn has_hosted_invite_session(&self) -> bool {
-        self.startup_state.hosted_player_npub.is_some()
-    }
-
     fn first_time_onboarding_mode(&self) -> FirstTimeOnboardingMode {
-        shared_first_time_onboarding_mode(
-            self.has_hosted_invite_session(),
-            self.has_bbs_reserved_seat(),
-        )
+        shared_first_time_onboarding_mode(self.has_bbs_reserved_seat())
     }
 
     fn is_bbs_reserved_first_time_login(&self) -> bool {
@@ -109,38 +78,8 @@ impl App {
             && self.has_bbs_reserved_seat()
     }
 
-    fn is_hosted_invite_first_time_login(&self) -> bool {
-        self.player.classic_login_state == ClassicLoginState::FirstTimeMenu
-            && self.has_hosted_invite_session()
-    }
-
     fn first_time_join_uses_reserved_prompt(&self) -> bool {
         self.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::BbsReserved
-    }
-
-    pub(crate) fn prepare_hosted_invite_quit_warning(&mut self) {
-        self.startup_state.first_time_status =
-            Some("Your seat is unreserved until you name an empire.".to_string());
-    }
-
-    fn hosted_first_time_entry_screen(&self) -> ScreenId {
-        match hosted_first_time_status(&self.game_data) {
-            HostedFirstTimeStatus::NeedsEmpireName => ScreenId::FirstTimeJoinEmpireName,
-            HostedFirstTimeStatus::NoPendingSeat => ScreenId::FirstTimeJoinNoPending,
-        }
-    }
-
-    fn redirect_hosted_first_time_flow(&mut self, source: &'static str) {
-        tracing::error!(
-            source,
-            screen = ?self.current_screen,
-            login_state = ?self.player.classic_login_state,
-            "hosted session reached a generic first-time screen; redirecting back to hosted onboarding"
-        );
-        self.startup_state.first_time_status = None;
-        self.startup_state.first_time_input.clear();
-        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::HostedInvite;
-        self.current_screen = self.hosted_first_time_entry_screen();
     }
 
     fn theme_picker_visible_rows(&self) -> usize {
@@ -306,13 +245,7 @@ impl App {
             if self.startup_state.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT {
                 self.startup_state.first_time_intro_page += 1;
             } else {
-                if self.has_hosted_invite_session() {
-                    self.redirect_hosted_first_time_flow(
-                        "advance_startup_first_time_intro_complete",
-                    );
-                } else {
-                    self.current_screen = ScreenId::FirstTimeMenu;
-                }
+                self.current_screen = ScreenId::FirstTimeMenu;
             }
             return;
         }
@@ -635,10 +568,6 @@ impl App {
     }
 
     pub fn open_first_time_menu(&mut self) {
-        if self.has_hosted_invite_session() {
-            self.redirect_hosted_first_time_flow("open_first_time_menu");
-            return;
-        }
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
         self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
@@ -646,19 +575,11 @@ impl App {
     }
 
     pub fn open_first_time_empires(&mut self) {
-        if self.has_hosted_invite_session() {
-            self.redirect_hosted_first_time_flow("open_first_time_empires");
-            return;
-        }
         self.startup_state.first_time_status = None;
         self.current_screen = ScreenId::FirstTimeEmpires;
     }
 
     pub fn open_first_time_intro(&mut self) {
-        if self.has_hosted_invite_session() {
-            self.redirect_hosted_first_time_flow("open_first_time_intro");
-            return;
-        }
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_intro_page = 0;
         self.current_screen = ScreenId::FirstTimeIntro;
@@ -894,11 +815,7 @@ impl App {
         if !self.game_data.has_open_first_join_slot() {
             self.startup_state.first_time_status =
                 Some("This game is already full. No open empires remain.".to_string());
-            self.current_screen = if self.has_hosted_invite_session() {
-                ScreenId::FirstTimeJoinNoPending
-            } else {
-                ScreenId::FirstTimeMenu
-            };
+            self.current_screen = ScreenId::FirstTimeMenu;
             return;
         }
         self.startup_state.first_time_status = None;
@@ -1092,13 +1009,8 @@ impl App {
             ScreenId::FirstTimeReservedPrompt => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
-                if self.has_hosted_invite_session() {
-                    self.redirect_hosted_first_time_flow("reject_first_time_prompt_reserved");
-                } else {
-                    self.startup_state.first_time_onboarding_mode =
-                        FirstTimeOnboardingMode::Generic;
-                    self.current_screen = ScreenId::FirstTimeMenu;
-                }
+                self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
+                self.current_screen = ScreenId::FirstTimeMenu;
             }
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 self.startup_state.first_time_status = None;
@@ -1450,11 +1362,7 @@ impl App {
             }
         }
         self.startup_state.unbound_bbs_caller = false;
-        if let Some(player_npub) = self.startup_state.hosted_player_npub.clone() {
-            self.save_game_data_and_claim_hosted_seat(&player_npub)?;
-        } else {
-            self.save_game_data()?;
-        }
+        self.save_game_data()?;
         self.refresh_player_context()?;
         if self.player.is_joined {
             if let Some(theme_key) = self.startup_state.prejoin_theme_key.take() {
@@ -1591,11 +1499,7 @@ impl App {
                 crate::model::ClassicLoginState::FirstTimeMenu => {
                     self.startup_state.first_time_onboarding_mode =
                         self.first_time_onboarding_mode();
-                    if self.is_hosted_invite_first_time_login() {
-                        self.startup_state.first_time_status = None;
-                        self.startup_state.first_time_input.clear();
-                        self.hosted_first_time_entry_screen()
-                    } else if self.is_bbs_reserved_first_time_login() {
+                    if self.is_bbs_reserved_first_time_login() {
                         ScreenId::FirstTimeReservedPrompt
                     } else if self.startup_state.fixed_player_launch {
                         self.startup_state.first_time_status = None;

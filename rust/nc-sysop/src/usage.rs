@@ -10,37 +10,7 @@ pub fn print_usage() {
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint <dir> [turns]"
     );
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint-all [--config <path>]"
-    );
-    println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] settings <show|set|reserve|unreserve> ..."
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] host <games|status> ..."
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr init [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr migrate-roster --dir <game_dir>"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--nuke-seat] [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
     );
 }
 
@@ -61,13 +31,6 @@ pub fn print_maint_usage() {
     );
 }
 
-pub fn print_maint_all_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint-all [--config <path>]"
-    );
-}
-
 pub fn print_settings_usage() {
     println!("Usage:");
     println!(
@@ -81,105 +44,5 @@ pub fn print_settings_usage() {
     );
     println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] settings unreserve --dir <game_dir> --player <N>"
-    );
-}
-
-pub fn print_nostr_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr init [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr migrate-roster --dir <game_dir>"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--nuke-seat] [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
-    );
-}
-
-pub fn print_host_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] host games list [--config <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] host games add --dir <game_dir> [--config <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] host games remove --dir <game_dir> [--config <path>]"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] host status [--config <path>]"
-    );
-}
-
-pub fn print_nostr_init_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr init [--identity <path>]"
-    );
-}
-
-pub fn print_nostr_serve_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
-    );
-}
-
-pub fn print_nostr_migrate_roster_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr migrate-roster --dir <game_dir>"
-    );
-}
-
-pub fn print_nostr_seats_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
-    );
-}
-
-pub fn print_nostr_reissue_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--nuke-seat] [--config <path>] [--identity <path>]"
-    );
-}
-
-pub fn print_nostr_claim_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
-    );
-}
-
-pub fn print_nostr_publish_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
-    );
-}
-
-pub fn print_nostr_verify_usage() {
-    println!("Usage:");
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
     );
 }

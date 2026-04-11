@@ -5,154 +5,41 @@ Keep this file short. Historical detail belongs in
 
 ## Current State
 
-- Public gameplay work is centered on `nc-connect`, `nc-game`, and
-  `nc-sysop`.
-- Hosted Rust campaigns are now DB-only: `nc-sysop new-game` creates only
-  `ncgame.db`.
-- `nc-sysop` now owns SQLite-native `new-game`, `settings`, `maint-all`, and
-  host game-registry commands directly instead of delegating to `nc-cli`.
-- `nc-game` and `nc-sysop` normal dependency graphs no longer pull
-  `nc-compat` / `nc-classic`.
-- `nc-dash` now runs as a native local window instead of a terminal/PTY app.
-  It still renders the same cell-grid dashboard, but the shell now uses
-  `winit` + shared `nc-ui` native rendering with coalesced pointer updates.
-- `nc-gate` now reads game names and seat/session metadata from `ncgame.db`
-  and issues per-seat session leases to block duplicate logins.
-- `nc-sysop nostr` now has one-shot `publish` / `verify` repair commands for
-  hosted `30500` relay metadata, and `nostr reissue` / `nostr claim` now try
-  to republish the affected game immediately.
-- `nc-game` is broadly feature-complete and the player TUI is in good shape.
-- `nc-sysop` is also in good enough shape for normal campaign operation.
-- The total planet database now supports both `F` filters and `S` sorting.
-- SQLite is the live runtime store and the runtime/storage architecture is now
-  effectively production-complete for normal gameplay use.
-- Snapshot families use normalized per-family tables rather than the old
-  byte-offset `*_record_fields` tables.
-- Runtime/gameplay code no longer dereferences classic record offsets directly
-  under `nc-engine`, and shared `nc-data` runtime helpers are now using record
-  accessors instead of open-coded `.raw[...]` reads.
-- Runtime-only state such as reports, mail, intel, scorch orders, and theme
-  preferences is already stored relationally.
-- The project is now effectively in a **beta / playtest** phase:
-  - core player/connect/sysop workflows exist
-  - the main remaining unknowns are real-world usability issues and bugs found
-    during campaign play
-- The Rust BBS door client is now verified on both Mystic and ENiGMA½.
-- The SSH/local `nc-game` renderer now diffs retained frames instead of
-  clearing the whole terminal every keypress; the BBS door path still uses
-  full-frame repaint and should get the same treatment later.
-- Latest broad baselines before new work:
-  - `cargo test -q`
+- Public gameplay is now centered on `nc-game`, `nc-door`, and `nc-sysop`.
+- The old SSH/Nostr hosted path has been cut out of the active gameplay and
+  sysop surfaces.
+- `nc-sysop` now exposes only `new-game`, `maint`, and `settings`.
+- `nc-sysop new-game` no longer seeds hosted seats in `ncgame.db`.
+- `nc-game` no longer accepts hosted-only launch flags such as
+  `--session-token` or `--hosted-invite-code`.
+- `nc-dash` is still the native dashboard client, but not yet the hosted lobby.
+- The BBS door client is verified on Mystic and ENiGMA½.
+- Latest local baselines after the hosted-path cut:
+  - `cargo test -q -p nc-session`
   - `cargo test -q -p nc-game`
   - `cargo test -q -p nc-sysop`
 
 ## Current Goal
 
-- Keep the Rust player and sysop surfaces stable during real playtesting.
-- Collect player/sysop feedback and fix reported bugs, rough edges, and
-  workflow confusion quickly.
-- Keep classic import/export and oracle tooling as compatibility backstops, not
-  the primary day-to-day development model.
-- The EC turn-cycle audit now lives in
-  [ec-turn-cycle-compliance-audit.md](ec-turn-cycle-compliance-audit.md);
-  treat it as the current maintenance-conformance snapshot.
-
-## Recent Fixes
-
-- **Hosted Rust runtime decoupled from classic packaging** (fixed):
-  `nc-sysop new-game` now writes only `ncgame.db`; no `.DAT` files, classic
-  executables/docs, `config.kdl`, or `themes/` are produced in hosted game
-  directories.
-- **Multi-game host operations moved into `nc-sysop`** (fixed):
-  per-game settings now live in SQLite, `maint-all` sweeps registered games
-  from the gate config, and host `games add/remove/list` plus `status` now
-  manage and inspect the daemon-facing game registry.
-- **Hosted first-join routing and seat-claim guardrails tightened** (fixed):
-  hosted players now stay on the dedicated empire-naming flow instead of
-  falling through generic first-time screens, and one hosted identity can no
-  longer claim multiple seats in the same game.
-- **Hosted relay drift repair path added** (fixed):
-  sysops can now run `nc-sysop nostr publish --dir ...` and
-  `nc-sysop nostr verify --dir ...`, and seat reissue/claim now attempt to
-  republish the game's public `30500` metadata automatically.
-- **Fleet contact reports merged into a single report** (fixed):
-  the old two-report pattern (a "Sensor contact shows..." prelude followed by
-  a separate identify report) was replaced with one merged report:
-  `"Sensor contact — detected and identified an alien fleet in {location}.
-  It is {enemy}. Their fleet contains {size_summary} of unknown type."`
-  This applies to `FleetMission` and `Fleet` contact sources; Starbase and
-  `EncounterDispositionEvent` reports are unchanged.
-- **ColonizeWorld on-station order reset and duplicate ROE battle reports**
-  (fixed, `5599d2d9`): a fleet with `ColonizeWorld` already at its target
-  no longer gets stuck; the order now resolves and resets. `FleetBattleEvent`
-  reports are also suppressed when a matching `EncounterDispositionEvent`
-  already covers the same fleet in the same turn.
-- **Redundant sensor contact reports on ROE encounters** (fixed, `5fa0fc51`):
-  `ScoutContactEvent` reports are now suppressed when an
-  `EncounterDispositionEvent` (Retreated / PursuitFire / NoEngagement) already
-  covers the same encounter — those disposition reports already name the enemy
-  and describe the outcome. Full `FleetBattleEvent` encounters are not
-  suppressed; the contact remains useful context there.
-- **Joined-player defeat / winner lifecycle is now explicit** (fixed):
-  joined empires now use runtime lifecycle state instead of raw civil-disorder
-  inference for public status and access control. Planetless empires get a
-  three-turn recovery window when they still have a real comeback path, final-
-  blow and winner-declared reports now exist, non-winners get one review-only
-  end state, the winner gets survey-only access, and `nc-game` / `nc-dash`
-  leaderboard surfaces now show `Active`, `MIA`, or `Defeated`.
+- Stabilize the localhost and BBS release surfaces for public beta use.
+- Fix real playtest bugs and workflow rough edges quickly.
+- Keep docs aligned with the local/BBS product story.
+- Treat future Nostr work as a separate `nc-daemon` / `nc-dash` track.
 
 ## Biggest Blockers
 
-- There is no major runtime-storage blocker left.
-- There is no known major player-TUI feature gap left.
-- The main remaining risk is unknown bugs or confusing workflows that only show
-  up under real player/sysop use.
-- `nc-connect`'s post-`nc-game` first-key fix is currently Unix-only; Windows
-  still needs a bridge-side stdin shutdown path so the first returned keypress
-  cannot be stolen after the SSH session exits.
-- The current live Windows/QEMU hosted-join blocker is earlier than SSH:
-  the GUI hangs on `CLAIMING INVITE...`, the VM browser can reach
-  `https://relay.nostrian-conquest.com`, but no new VPS relay or `nc-nostr`
-  logs appear during the hang. Treat this as a Windows `nc-connect`
-  relay/websocket/discovery-path issue first, not a game-daemon issue.
-- `nc-dash` now has the right native shell shape, but the client model still
-  uses an internal crossterm-shaped compatibility layer; future Nostr sync work
-  should push more state changes through typed client messages directly.
-- `nc-sysop nostr verify` still fails against the live VPS relay with
-  `could not fetch 30500 ...: no relays`; the one-shot `publish` path works,
-  but the `verify` fetch path needs a follow-up fix before relying on it in
-  ops docs.
-- `nc-connect` is still single-relay; multi-relay join/handshake redundancy is
-  a future resilience improvement, not part of the current player fix stream.
-- `nc-connect` cache rows are still not modeled for the legitimate edge case of
-  one local wallet keeping multiple seats in the same hosted game under
-  different identities; that is a separate follow-up from current management
-  fixes.
-- The BBS door renderer still repaints full frames and may show the same flash
-  that was just fixed for SSH/local play.
-- New gameplay features should not deepen the offset-shaped storage path.
+- No known major engine/storage blocker remains.
+- The main remaining risk is field bugs found by real BBS and localhost players.
+- `nc-dash` still needs its future lobby/hosted architecture if hosted play is
+  revisited.
+- The BBS door renderer still repaints full frames instead of using the
+  retained-frame diffing already in local `nc-game`.
 
 ## Immediate Next Steps
 
-1. Reproduce the Windows/QEMU `CLAIMING INVITE...` hang with better client-side
-   signal, ideally from a Windows build that can emit relay/discovery logs.
-2. Start moving `nc-dash` local-state refresh and future Nostr async completions
-   onto typed native client messages instead of direct imperative calls.
-3. Fix the `nc-sysop nostr verify` live-relay fetch bug (`no relays`) so the
-   new repair command is actually usable on VPS hosts.
-4. Run more VPS and live multi-game playtests against the DB-only hosted
-   layout once the Windows hosted join path is unblocked.
-5. Preserve the storage roundtrip tests and source-policy guardrails so runtime
-   code does not drift back toward raw-offset dependence.
-6. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
-   so screen-local key discoverability can move out of crowded command rails.
-7. Add the Windows half of the `nc-connect` bridge stdin shutdown fix so
-   post-game return behavior matches Linux/macOS and the first keypress works
-   immediately after leaving `nc-game`.
-8. Revisit multi-relay support for `nc-connect` join/handshake flows if relay
-   reliability remains a recurring playtest problem.
-9. Only do deeper semantic cleanup when it materially helps a real gameplay,
-   playtest, or compatibility issue.
-10. If maintenance-spec conformance work resumes, do it in this order:
-    phase 6 weekly report emission, then broader phase 3 validation coverage,
-    then 4n fleet-reassignment implementation or explicit long-term deferral.
+1. Keep running real BBS and localhost playtests and tighten the rough edges.
+2. Regenerate manuals/PDFs whenever the public command surface changes.
+3. Keep runtime/storage code pointed at SQLite and away from raw offset-style
+   regressions.
+4. If hosted work resumes, do it as the new `nc-daemon` / `nc-dash` path, not
+   by reviving the retired SSH bridge stack.

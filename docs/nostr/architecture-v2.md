@@ -1,8 +1,16 @@
 # Nostrian Conquest Architecture v2
 
+> Status: future design draft, not the current shipped stack.
+>
+> Today’s supported gameplay surfaces are `nc-game` (localhost), `nc-door`
+> (BBS), and `nc-sysop` (local/BBS administration). This document describes a
+> future relay-native hosted architecture centered on `nc-daemon` and
+> `nc-dash`, not an implemented release.
+
 ## 1. Overview
 
-Nostrian Conquest (NC) evolves to support fully decentralized Nostr-powered hosted games while preserving traditional localhost and BBS play modes.
+Nostrian Conquest (NC) may evolve to support fully decentralized Nostr-powered
+hosted games while preserving traditional localhost and BBS play modes.
 
 **Core vision:**
 - **Nostr-hosted:** Players discover and play games via Nostr protocol — no persistent VPS session required
