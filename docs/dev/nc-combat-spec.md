@@ -189,7 +189,11 @@ same turn.
    Factories and stored goods are not damaged during invasion --- the goal is
    to capture the planet with its production intact. Softening may destroy at
    most half of the defender's starting armies.
-3. **Landing battle:** Armies vs armies. Defender wins ties.
+3. **Landing battle:** Armies fight in repeated simultaneous rounds until one
+   side is destroyed. The defender receives a **+1** column bonus in ground
+   combat. Ground combat cannot end in a draw: if a simultaneous exchange
+   would annihilate both sides, the larger force entering that exchange holds
+   the field with a remnant army; exact equality favors the defender.
 
 ## Fleet Combat Sequence
 

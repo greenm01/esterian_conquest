@@ -200,8 +200,8 @@ Our defenses:      12 ground batteries and 40 armies
 
 All planetary defenses were destroyed.
 Enemy losses:      no ship losses
-Orbital softening losses: 20 armies
-Ground battle losses: 20 armies
+Our orbital softening losses: 20 armies
+Our ground battle losses: 20 armies
 <end of transmission>
 ```
 

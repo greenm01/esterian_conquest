@@ -276,6 +276,14 @@ pub fn invasion_softening_losses_summary(event: &nc_data::AssaultReportEvent) ->
     })
 }
 
+pub fn invasion_softening_losses_label(is_attacker_report: bool) -> &'static str {
+    if is_attacker_report {
+        "Enemy orbital softening losses:"
+    } else {
+        "Our orbital softening losses:"
+    }
+}
+
 pub fn invasion_ground_battle_losses_summary(
     event: &nc_data::AssaultReportEvent,
 ) -> Option<String> {
@@ -293,6 +301,14 @@ pub fn invasion_ground_battle_losses_summary(
     } else {
         "none".to_string()
     })
+}
+
+pub fn invasion_ground_battle_losses_label(is_attacker_report: bool) -> &'static str {
+    if is_attacker_report {
+        "Enemy ground battle losses:"
+    } else {
+        "Our ground battle losses:"
+    }
 }
 
 pub fn roe_retreat_loss_clause(losses: ShipLosses) -> String {

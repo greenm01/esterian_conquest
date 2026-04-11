@@ -453,13 +453,13 @@ pub fn push_combat_entries(
         });
         if let Some(softening_losses) = invasion_softening_losses_summary(event) {
             outcome_rows.push(StructuredBodyItem::Label {
-                label: "Orbital softening losses: ".to_string(),
+                label: format!("{} ", invasion_softening_losses_label(true)),
                 value: softening_losses,
             });
         }
         if let Some(ground_battle_losses) = invasion_ground_battle_losses_summary(event) {
             outcome_rows.push(StructuredBodyItem::Label {
-                label: "Ground battle losses: ".to_string(),
+                label: format!("{} ", invasion_ground_battle_losses_label(true)),
                 value: ground_battle_losses,
             });
         }

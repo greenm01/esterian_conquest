@@ -8,10 +8,10 @@ use crate::{
 
 use super::super::hostile_order_ready_for_execution;
 use super::exchange::{
-    COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND, COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND,
-    COMBAT_KIND_INVASION_SOFTEN, COMBAT_KIND_INVASION_SUPPRESSION, ExchangeResolution,
-    GROUND_AS_BATTERY, apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange,
-    scalar_hits_with_critical,
+    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND,
+    COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND, COMBAT_KIND_INVASION_SOFTEN,
+    COMBAT_KIND_INVASION_SUPPRESSION, ExchangeResolution, GROUND_AS_BATTERY,
+    apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange, scalar_hits_with_critical,
 };
 use super::reporting::{
     mission_kind_for_fleet, preferred_reporting_fleet_number, push_planet_intel,
@@ -283,6 +283,80 @@ fn apply_blitz_landing_fire(
     }
 
     (landed_army_losses, ship_losses)
+}
+
+fn resolve_ground_battle_to_destruction(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    attacker_empire: u8,
+    defender_empire: u8,
+    attacker_armies: u32,
+    defender_armies: u32,
+    defender_bonus_shift: i32,
+) -> Result<(u32, u32), Box<dyn std::error::Error>> {
+    let mut attacker_survivors = attacker_armies;
+    let mut defender_survivors = defender_armies;
+
+    for round in 1..=COMBAT_GUARDRAIL_MAX_ROUNDS {
+        if attacker_survivors == 0 || defender_survivors == 0 {
+            return Ok((attacker_survivors, defender_survivors));
+        }
+
+        let attacker_before_round = attacker_survivors;
+        let defender_before_round = defender_survivors;
+
+        let attacker_ground = resolve_ground_exchange(
+            campaign_seed,
+            game_year,
+            coords,
+            combat_kind,
+            round,
+            attacker_empire,
+            defender_empire,
+            attacker_survivors,
+            defender_survivors,
+            0,
+        );
+        let defender_ground = resolve_ground_exchange(
+            campaign_seed,
+            game_year,
+            coords,
+            combat_kind,
+            round,
+            defender_empire,
+            attacker_empire,
+            defender_survivors,
+            attacker_survivors,
+            defender_bonus_shift,
+        );
+
+        let attacker_losses = scalar_hits_with_critical(defender_ground).min(attacker_survivors);
+        let defender_losses = scalar_hits_with_critical(attacker_ground).min(defender_survivors);
+
+        attacker_survivors = attacker_survivors.saturating_sub(attacker_losses);
+        defender_survivors = defender_survivors.saturating_sub(defender_losses);
+
+        // Ground combat must resolve with one side broken and the other still
+        // holding the field. If a simultaneous exchange would annihilate both
+        // sides, the larger force entering that exchange survives with a
+        // remnant army; exact equality favors the defender.
+        if attacker_survivors == 0 && defender_survivors == 0 {
+            if attacker_before_round > defender_before_round {
+                attacker_survivors = 1;
+            } else {
+                defender_survivors = 1;
+            }
+            return Ok((attacker_survivors, defender_survivors));
+        }
+    }
+
+    Err(format!(
+        "ground combat at ({},{}) exceeded {} rounds",
+        coords[0], coords[1], COMBAT_GUARDRAIL_MAX_ROUNDS
+    )
+    .into())
 }
 
 fn select_orbital_supremacy_empire(
@@ -690,34 +764,18 @@ pub(crate) fn process_planetary_assaults(
                         .sum();
                     let defender_armies =
                         game_data.planets.records[planet_idx].army_count_raw() as u32;
-                    let attacker_ground = resolve_ground_exchange(
-                        campaign_seed,
-                        battle_year,
-                        coords,
-                        COMBAT_KIND_GROUND,
-                        1,
-                        winner_empire,
-                        previous_owner,
-                        attacking_armies,
-                        defender_armies.max(1),
-                        0,
-                    );
-                    let defender_ground = resolve_ground_exchange(
-                        campaign_seed,
-                        battle_year,
-                        coords,
-                        COMBAT_KIND_GROUND,
-                        1,
-                        previous_owner,
-                        winner_empire,
-                        defender_armies,
-                        attacking_armies.max(1),
-                        0,
-                    );
-                    let attacker_survivors =
-                        attacking_armies.saturating_sub(scalar_hits_with_critical(defender_ground));
-                    let defender_survivors =
-                        defender_armies.saturating_sub(scalar_hits_with_critical(attacker_ground));
+                    let (attacker_survivors, defender_survivors) =
+                        resolve_ground_battle_to_destruction(
+                            campaign_seed,
+                            battle_year,
+                            coords,
+                            COMBAT_KIND_GROUND,
+                            winner_empire,
+                            previous_owner,
+                            attacking_armies,
+                            defender_armies,
+                            1,
+                        )?;
                     let defender_battery_losses = pre_batteries.saturating_sub(
                         game_data.planets.records[planet_idx].ground_batteries_raw(),
                     );
@@ -939,34 +997,18 @@ pub(crate) fn process_planetary_assaults(
                     apply_blitz_landing_fire(game_data, &winner_fleets, surviving_batteries);
                 let armies_after_landing = attacking_armies.saturating_sub(landing_army_losses);
                 let defender_armies = game_data.planets.records[planet_idx].army_count_raw() as u32;
-                let attacker_ground = resolve_ground_exchange(
-                    campaign_seed,
-                    battle_year,
-                    coords,
-                    COMBAT_KIND_BLITZ_GROUND,
-                    1,
-                    winner_empire,
-                    previous_owner,
-                    armies_after_landing,
-                    defender_armies.max(1),
-                    0,
-                );
-                let defender_ground = resolve_ground_exchange(
-                    campaign_seed,
-                    battle_year,
-                    coords,
-                    COMBAT_KIND_BLITZ_GROUND,
-                    1,
-                    previous_owner,
-                    winner_empire,
-                    defender_armies,
-                    armies_after_landing.max(1),
-                    1,
-                );
-                let attacker_survivors =
-                    armies_after_landing.saturating_sub(scalar_hits_with_critical(defender_ground));
-                let defender_survivors =
-                    defender_armies.saturating_sub(scalar_hits_with_critical(attacker_ground));
+                let (attacker_survivors, defender_survivors) =
+                    resolve_ground_battle_to_destruction(
+                        campaign_seed,
+                        battle_year,
+                        coords,
+                        COMBAT_KIND_BLITZ_GROUND,
+                        winner_empire,
+                        previous_owner,
+                        armies_after_landing,
+                        defender_armies,
+                        1,
+                    )?;
                 let defender_battery_losses = pre_batteries
                     .saturating_sub(game_data.planets.records[planet_idx].ground_batteries_raw());
                 let defender_army_losses =

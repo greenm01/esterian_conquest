@@ -1875,8 +1875,8 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     assert!(text.contains("Our forces:"), "{text}");
     assert!(text.contains("The landing was repulsed."), "{text}");
     assert!(text.contains("World defenses:"), "{text}");
-    assert!(text.contains("Orbital softening losses:"), "{text}");
-    assert!(text.contains("Ground battle losses:"), "{text}");
+    assert!(text.contains("Enemy orbital softening losses:"), "{text}");
+    assert!(text.contains("Enemy ground battle losses:"), "{text}");
     assert!(!text.contains("initially contained"), "{text}");
     assert!(!text.contains("0 ground battery(ies)"), "{text}");
     assert!(!text.contains("0 army(ies)"), "{text}");
@@ -2085,11 +2085,11 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
     assert!(
-        attacker_report.contains("Orbital softening losses: 71 armies"),
+        attacker_report.contains("Enemy orbital softening losses: 71 armies"),
         "{attacker_report}"
     );
     assert!(
-        attacker_report.contains("Ground battle losses: 71 armies"),
+        attacker_report.contains("Enemy ground battle losses: 71 armies"),
         "{attacker_report}"
     );
 
@@ -2109,11 +2109,11 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{defender_report}"
     );
     assert!(
-        defender_report.contains("Orbital softening losses: 71 armies"),
+        defender_report.contains("Our orbital softening losses: 71 armies"),
         "{defender_report}"
     );
     assert!(
-        defender_report.contains("Ground battle losses: 71 armies"),
+        defender_report.contains("Our ground battle losses: 71 armies"),
         "{defender_report}"
     );
 

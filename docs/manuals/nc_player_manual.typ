@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 10),
+  date: datetime(year: 2026, month: 4, day: 11),
 )
 
 #set page(
@@ -73,7 +73,7 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 10, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 11, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
 ]
@@ -293,15 +293,15 @@ The table below lists everything your planets can produce. *AS* is Attack Streng
     table.header(
       [Item], [Cost], [Size], [Speed], [AS], [DS], [Purpose],
     ),
-    [Destroyer],       [05], [S], [6], [01], [01], [Combat, scouting, defense],
-    [Cruiser],         [15], [M], [5], [03], [03], [Balanced combat],
-    [Battleship],      [45], [L], [4], [09], [10], [Heavy combat],
-    [Scout],           [15], [S], [6], [00], [01], [Reconnaissance],
-    [Troop Transport], [05], [M], [5], [00], [01], [Deliver armies],
-    [ETAC],            [20], [L], [3], [00], [02], [Colonize raw planets (reusable)],
-    [Ground Battery],  [20], [L], [--], [09], [02], [Planetary defense],
-    [Army],            [02], [S], [--], [01], [01], [Surface defense and capture],
-    [Starbase],        [50], [L], [1], [10], [12], [Defense, production boost],
+    [Destroyer],       [05], [S], [6], [10], [05], [Combat, scouting, defense],
+    [Cruiser],         [15], [M], [5], [30], [30], [Balanced combat],
+    [Battleship],      [45], [L], [4], [90], [100], [Heavy combat],
+    [Scout],           [15], [S], [6], [00], [10], [Reconnaissance],
+    [Troop Transport], [05], [M], [5], [00], [10], [Deliver armies],
+    [ETAC],            [20], [L], [3], [00], [20], [Colonize raw planets (reusable)],
+    [Ground Battery],  [20], [L], [--], [90], [20], [Planetary defense],
+    [Army],            [02], [S], [--], [10], [10], [Surface defense and capture],
+    [Starbase],        [50], [L], [1], [100], [120], [Defense, production boost],
   ),
 )
 
@@ -362,18 +362,18 @@ Ships operate in fleets. A fleet always moves at the speed of its slowest member
     table.header(
       [Ship Type], [Cost], [Speed], [Size], [AS], [DS], [Tactical Role],
     ),
-    [*Destroyer*],  [05], [6], [S], [01], [01], [Fast, cheap screen. Escapes heavy fleets. Good for scouting.],
-    [*Cruiser*],    [15], [5], [M], [03], [03], [Balanced fighter. About 3x the power of a destroyer.],
-    [*Battleship*], [45], [4], [L], [09], [10], [Heavy firepower anchor. About 3x the power of a cruiser. Slow but durable.],
-    [*Scout*],      [15], [6], [S], [00], [01], [Stealthy spy. A lone scout is hardest to detect.],
-    [*Transport*],  [05], [5], [M], [00], [01], [Unarmed. Carries one army. Essential for conquest.],
-    [*ETAC*],       [20], [3], [L], [00], [02], [Colony ship. Reusable --- survives colonization.],
+    [*Destroyer*],  [05], [6], [S], [10], [05], [Fast, cheap screen. Escapes heavy fleets. Good for scouting.],
+    [*Cruiser*],    [15], [5], [M], [30], [30], [Balanced fighter. About 3x the power of a destroyer.],
+    [*Battleship*], [45], [4], [L], [90], [100], [Heavy firepower anchor. About 3x the power of a cruiser. Slow but durable.],
+    [*Scout*],      [15], [6], [S], [00], [10], [Stealthy spy. A lone scout is hardest to detect.],
+    [*Transport*],  [05], [5], [M], [00], [10], [Unarmed. Carries one army. Essential for conquest.],
+    [*ETAC*],       [20], [3], [L], [00], [20], [Colony ship. Reusable --- survives colonization.],
   ),
 )
 
 === Starbases
 
-Starbases are large space fortresses (Cost: 50, AS: 10, DS: 12) that serve dual roles. In orbit around a planet, they provide a defensive combat bonus and significant economic benefits --- they help underdeveloped colonies grow faster at low and moderate tax rates, and they let a planet spend up to *5x* its current production on a single build when points have been accumulated (see @economy for details). They are not a free pass to run punitive tax rates forever. In deep space, they function as surveillance platforms with slightly more firepower than a battleship, though they move very slowly at just 1 sector per year.
+Starbases are large space fortresses (Cost: 50, AS: 100, DS: 120) that serve dual roles. In orbit around a planet, they provide a defensive combat bonus and significant economic benefits --- they help underdeveloped colonies grow faster at low and moderate tax rates, and they let a planet spend up to *5x* its current production on a single build when points have been accumulated (see @economy for details). They are not a free pass to run punitive tax rates forever. In deep space, they function as surveillance platforms with slightly more firepower than a battleship, though they move very slowly at just 1 sector per year.
 
 Unlike ships, starbases are not assigned to fleets. They are commissioned individually from stardock and moved independently through the *Starbase Command* submenu. Older documentation sometimes says a starbase is "hauled," but in practice this is simply the normal move order for a very slow unit, likely implying tug support rather than a separate modeled mechanic. You can order combat fleets to escort a starbase using Mission 4 (Guard Starbase), but the starbase itself remains a separate unit.
 
@@ -381,9 +381,9 @@ Unlike ships, starbases are not assigned to fleets. They are commissioned indivi
 
 === Ground Forces
 
-*Armies* (Cost: 2, AS: 1, DS: 1) defend your planets from invasion and are the only way to capture enemy worlds. Each troop transport carries one army, and a successful invasion requires landing enough armies to overwhelm the defending garrison.
+*Armies* (Cost: 2, AS: 10, DS: 10) defend your planets from invasion and are the only way to capture enemy worlds. Each troop transport carries one army, and a successful invasion requires landing enough armies to overwhelm the defending garrison.
 
-*Ground Batteries* (Cost: 20, AS: 9, DS: 2) are immobile land-based cannons that offer massive firepower per cost --- roughly equal to a battleship at less than half the price. During an invasion, all batteries must be destroyed before transports can land. During a blitz, surviving batteries fire directly on descending transports, inflicting heavy losses. If a planet is captured via blitz, any surviving batteries transfer intact to the new owner.
+*Ground Batteries* (Cost: 20, AS: 90, DS: 20) are immobile land-based cannons that offer massive firepower per cost --- roughly equal to a battleship at less than half the price. During an invasion, all batteries must be destroyed before transports can land. During a blitz, surviving batteries fire directly on descending transports, inflicting heavy losses. If a planet is captured via blitz, any surviving batteries transfer intact to the new owner.
 
 #pagebreak()
 
@@ -581,9 +581,9 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Each turn your fleet bombards, the engine runs three rounds of fire. In rounds 1 and 2, your ships exchange fire with ground batteries --- hits destroy stardock contents first, then batteries, but armies, stored goods, and industry are shielded behind the battery wall. In round 3, if batteries have been eliminated, your firepower breaks through to armies, stored goods, and finally industry. If batteries still stand after round 2, round 3 is another suppression exchange and the planet's production survives. Bombardment persists each turn until you issue new orders. Use it to grind down a world's defenses before invasion, or to deny resources to an enemy over time.
 
-*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- industry and stored goods are preserved because the goal is to capture the planet with its production intact. However, orbital softening can destroy at most *half* of the defending army stack; at least half of the original defenders must still be fought on the ground. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
+*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- industry and stored goods are preserved because the goal is to capture the planet with its production intact. However, orbital softening can destroy at most *half* of the defending army stack; at least half of the original defenders must still be fought on the ground. Finally, transports land their armies and the ground battle continues in repeated simultaneous rounds until one side is wiped out. The defender fights from cover with a defensive edge, and ground combat cannot end in a draw --- if a final exchange would wipe out both sides, the larger force entering that exchange is treated as the winner, with exact equality favoring the defender. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
 
-*Mission 8: Blitz a World.* Transports drop armies immediately in a fast assault that bypasses the full orbital suppression sequence. Escorting combat ships provide brief cover fire, but surviving batteries fire directly on descending transports, causing heavy losses. Landed armies fight defenders immediately, and the defender receives a defensive bonus. If you take the planet, surviving ground batteries transfer intact to your control. The blitz preserves industry but carries high risk to your armies and transports --- a 2:1 army advantage or better is recommended. Choose blitz when the planet has few or no batteries and you want to preserve its industry, or when speed matters more than casualties.
+*Mission 8: Blitz a World.* Transports drop armies immediately in a fast assault that bypasses the full orbital suppression sequence. Escorting combat ships provide brief cover fire, but surviving batteries fire directly on descending transports, causing heavy losses. Once on the surface, armies fight in repeated simultaneous rounds until one side is wiped out, and the defender receives a defensive bonus throughout the ground battle. If you take the planet, surviving ground batteries transfer intact to your control. The blitz preserves industry but carries high risk to your armies and transports --- a 2:1 army advantage or better is recommended. Choose blitz when the planet has few or no batteries and you want to preserve its industry, or when speed matters more than casualties.
 
 #pagebreak()
 
@@ -940,8 +940,12 @@ Invasion uses one suppression exchange against batteries. If batteries are
 cleared, the softening pass targets armies only --- industry and stored goods
 are not damaged during invasion. Orbital softening may destroy at most half of
 the defender's starting armies, ensuring a meaningful landing battle whenever a
-world began the assault with a garrison. Ground combat in invasion and blitz
-uses the same CRT framework, with defender ties winning by default.
+world began the assault with a garrison. Once armies land, ground combat in
+invasion and blitz proceeds in repeated simultaneous CRT rounds until one side
+is destroyed. The defender receives a `+1` column bonus in those ground rounds,
+and a final exchange cannot produce a draw: the larger force entering that
+exchange survives with a remnant army, with exact equality favoring the
+defender.
 
 #pagebreak()
 

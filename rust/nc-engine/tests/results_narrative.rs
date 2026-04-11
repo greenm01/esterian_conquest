@@ -559,11 +559,11 @@ fn invasion_report_lists_ship_and_ground_army_losses() {
     assert!(invasion.contains("15CA and 7 armies"));
     assert!(invasion.contains("Enemy losses:"));
     assert!(invasion.contains("10 ground batteries and 34 armies"));
-    assert!(invasion.contains("Orbital softening losses:"));
-    assert!(invasion.contains("Orbital softening losses: 17 armies"));
+    assert!(invasion.contains("Enemy orbital softening losses:"));
+    assert!(invasion.contains("Enemy orbital softening losses: 17 armies"));
     assert!(invasion.contains("17 armies"));
-    assert!(invasion.contains("Ground battle losses:"));
-    assert!(invasion.contains("Ground battle losses: 17 armies"));
+    assert!(invasion.contains("Enemy ground battle losses:"));
+    assert!(invasion.contains("Enemy ground battle losses: 17 armies"));
 }
 
 #[test]
