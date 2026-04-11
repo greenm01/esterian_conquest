@@ -250,13 +250,13 @@ pub fn push_intel_entries(
             });
             if let Some(softening_losses) = invasion_softening_losses_summary(assault) {
                 outcome_rows.push(StructuredBodyItem::Label {
-                    label: "Orbital softening losses:".to_string(),
+                    label: "Orbital softening losses: ".to_string(),
                     value: softening_losses,
                 });
             }
             if let Some(ground_battle_losses) = invasion_ground_battle_losses_summary(assault) {
                 outcome_rows.push(StructuredBodyItem::Label {
-                    label: "Ground battle losses:".to_string(),
+                    label: "Ground battle losses: ".to_string(),
                     value: ground_battle_losses,
                 });
             }

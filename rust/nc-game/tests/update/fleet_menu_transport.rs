@@ -2875,6 +2875,35 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
 }
 
 #[test]
+fn fleet_review_screen_splits_loaded_and_empty_transports() {
+    let mut screen = nc_game::screen::FleetReviewScreen::new();
+    let row = FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 7,
+        coords: [16, 13],
+        target_coords: [19, 13],
+        order_code: 1,
+        current_speed: 3,
+        max_speed: 3,
+        eta_label: "1".to_string(),
+        list_eta_label: "1".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Move fleet to Sector (19,13)".to_string(),
+        composition_label: "CA=1 TT=5 AR=2".to_string(),
+        table_ships_label: "CA 2TT* 3TT".to_string(),
+        join_host_fleet_number: None,
+    };
+
+    let buffer = screen
+        .render(&row, 0, 1, false)
+        .expect("fleet review screen renders");
+
+    assert!(buffer.plain_line(9).contains("Composition: CA 2TT* 3TT"));
+    assert!(!buffer.plain_line(9).contains("AR="));
+}
+
+#[test]
 fn fleet_eta_screen_renders_bottom_line_prompt() {
     let mut screen = nc_game::screen::FleetEtaScreen::new();
     let row = FleetRow {
@@ -2888,10 +2917,10 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         eta_label: "1".to_string(),
         list_eta_label: "1".to_string(),
         rules_of_engagement: 6,
-        loaded_armies: 0,
+        loaded_armies: 2,
         order_label: "Move fleet to Sector (19,13)".to_string(),
-        composition_label: "CA=1".to_string(),
-        table_ships_label: "CA".to_string(),
+        composition_label: "CA=1 TT=5 AR=2".to_string(),
+        table_ships_label: "CA 2TT* 3TT".to_string(),
         join_host_fleet_number: None,
     };
 
@@ -2910,6 +2939,8 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert_eq!(buffer.plain_line(2).trim_end(), " Fleet ID: 7");
     assert_eq!(buffer.plain_line(4).trim_end(), " Location: (16,13)");
     assert_eq!(buffer.plain_line(8).trim_end(), " Target: (19,13)");
+    assert!(buffer.plain_line(10).contains("Ships: CA 2TT* 3TT"));
+    assert!(!buffer.plain_line(10).contains("AR="));
     assert!(
         buffer
             .plain_line(12)

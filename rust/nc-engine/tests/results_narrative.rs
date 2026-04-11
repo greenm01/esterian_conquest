@@ -500,7 +500,7 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(invasion.contains("ALERT: Planetary invasion successful!"));
-    assert!(invasion.contains("Our armies have captured planet \"dog\"."));
+    assert!(!invasion.contains("Our armies have captured planet \"dog\"."));
     assert!(invasion.contains("Our forces:"));
     assert!(invasion.contains("1BB, 2TT*"));
     assert!(invasion.contains("World defenses:"));
@@ -554,14 +554,16 @@ fn invasion_report_lists_ship_and_ground_army_losses() {
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(invasion.contains("ALERT: Planetary invasion successful!"));
-    assert!(invasion.contains("Our armies have captured planet \"red\"."));
+    assert!(!invasion.contains("Our armies have captured planet \"red\"."));
     assert!(invasion.contains("Our losses:"));
     assert!(invasion.contains("15CA and 7 armies"));
     assert!(invasion.contains("Enemy losses:"));
     assert!(invasion.contains("10 ground batteries and 34 armies"));
     assert!(invasion.contains("Orbital softening losses:"));
+    assert!(invasion.contains("Orbital softening losses: 17 armies"));
     assert!(invasion.contains("17 armies"));
     assert!(invasion.contains("Ground battle losses:"));
+    assert!(invasion.contains("Ground battle losses: 17 armies"));
 }
 
 #[test]

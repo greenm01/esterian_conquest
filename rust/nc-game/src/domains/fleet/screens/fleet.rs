@@ -1072,7 +1072,7 @@ impl FleetReviewScreen {
             &row.rules_of_engagement.to_string(),
         );
         draw_status_line(&mut buffer, 7, "Standing Order: ", &row.order_label);
-        draw_status_line(&mut buffer, 9, "Composition: ", &row.composition_label);
+        draw_status_line(&mut buffer, 9, "Composition: ", &row.table_ships_label);
         draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(9));
         Ok(buffer)
     }
@@ -1184,7 +1184,7 @@ impl FleetSingleOrderScreen {
             &row.rules_of_engagement.to_string(),
         );
         draw_status_line(&mut buffer, 5, "Order: ", current_order_label);
-        draw_status_line(&mut buffer, 7, "Ships: ", &row.composition_label);
+        draw_status_line(&mut buffer, 7, "Ships: ", &row.table_ships_label);
         draw_status_line(
             &mut buffer,
             9,
@@ -1268,7 +1268,7 @@ impl FleetSingleOrderScreen {
             &row.rules_of_engagement.to_string(),
         );
         draw_status_line(&mut buffer, 5, "Order: ", current_order_label);
-        draw_status_line(&mut buffer, 7, "Ships: ", &row.composition_label);
+        draw_status_line(&mut buffer, 7, "Ships: ", &row.table_ships_label);
         draw_status_line(&mut buffer, 9, "", header_text);
         let command_row = menu_prompt_row(9);
         draw_command_line_default_input_padded(
@@ -1355,7 +1355,7 @@ impl FleetEtaScreen {
             &format_sector_coords_table(row.target_coords),
         );
         // row 9: blank
-        draw_status_line(&mut buffer, 10, "Ships: ", &row.composition_label);
+        draw_status_line(&mut buffer, 10, "Ships: ", &row.table_ships_label);
         const LAST_CONTENT_ROW: usize = 10;
         match mode {
             FleetEtaMode::EnteringDestination => {

@@ -388,25 +388,22 @@ pub fn push_combat_entries(
             owned_fleet_source_clause(event.attacker_fleet_number, &format!("System({x},{y})"));
         let header = report_header(&source, event.stardate_week, year);
         let outcome_text = match (event.kind, event.outcome) {
-            (Mission::InvadeWorld, MissionOutcome::Succeeded) => {
-                format!(
-                    "Our armies have captured planet \"{}\".",
-                    planet.planet_name()
-                )
-            }
+            (Mission::InvadeWorld, MissionOutcome::Succeeded) => None,
             (Mission::InvadeWorld, MissionOutcome::Failed) => {
-                "The landing was repulsed.".to_string()
+                Some("The landing was repulsed.".to_string())
             }
             (Mission::InvadeWorld, MissionOutcome::Aborted) => {
-                "Enemy ground batteries prevented a landing.".to_string()
+                Some("Enemy ground batteries prevented a landing.".to_string())
             }
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => {
-                format!(
+                Some(format!(
                     "We have seized planet \"{}\" in a fast assault.",
                     planet.planet_name()
-                )
+                ))
             }
-            (Mission::BlitzWorld, MissionOutcome::Failed) => "The blitz attack failed.".to_string(),
+            (Mission::BlitzWorld, MissionOutcome::Failed) => {
+                Some("The blitz attack failed.".to_string())
+            }
             _ => continue,
         };
         let context_rows = vec![StructuredBodyItem::Label {
@@ -435,7 +432,10 @@ pub fn push_combat_entries(
                 });
             }
         }
-        let mut outcome_rows = vec![StructuredBodyItem::Text(outcome_text)];
+        let mut outcome_rows = Vec::new();
+        if let Some(outcome_text) = outcome_text {
+            outcome_rows.push(StructuredBodyItem::Text(outcome_text));
+        }
         outcome_rows.push(StructuredBodyItem::Label {
             label: LABEL_OUR_LOSSES.to_string(),
             value: assault_friendly_losses_summary(
@@ -453,13 +453,13 @@ pub fn push_combat_entries(
         });
         if let Some(softening_losses) = invasion_softening_losses_summary(event) {
             outcome_rows.push(StructuredBodyItem::Label {
-                label: "Orbital softening losses:".to_string(),
+                label: "Orbital softening losses: ".to_string(),
                 value: softening_losses,
             });
         }
         if let Some(ground_battle_losses) = invasion_ground_battle_losses_summary(event) {
             outcome_rows.push(StructuredBodyItem::Label {
-                label: "Ground battle losses:".to_string(),
+                label: "Ground battle losses: ".to_string(),
                 value: ground_battle_losses,
             });
         }

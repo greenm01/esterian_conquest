@@ -1435,7 +1435,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                 fleet_list_eta_label(&app.game_data, idx),
                 fleet.rules_of_engagement().to_string(),
                 fleet.army_count().to_string(),
-                truncate(&fleet.ship_composition_summary(), COLUMNS[9].width),
+                truncate(&fleet.ship_composition_table_summary(), COLUMNS[9].width),
             ],
         });
     }
@@ -1680,7 +1680,8 @@ mod tests {
         table_rows,
     };
     use crate::app::state::{
-        ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, SortDirection,
+        ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, FleetOverlayRowKey,
+        SortDirection,
     };
     use crate::layout::dashboard_layout;
     use nc_data::{GameStateBuilder, Order};
@@ -1929,6 +1930,35 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("You have no active fleets or starbases."))
         );
+    }
+
+    #[test]
+    fn fleet_table_rows_split_loaded_and_empty_transports() {
+        let mut app = dash_app();
+        let fleet_number;
+        let fleet = app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
+            .expect("owned fleet");
+        fleet_number = fleet.local_slot_word_raw().to_string();
+        fleet.set_cruiser_count(1);
+        fleet.set_troop_transport_count(5);
+        fleet.set_army_count(2);
+        fleet.recompute_max_speed_from_composition();
+
+        let row = table_rows(&app)
+            .into_iter()
+            .find(|row| {
+                matches!(row.key, FleetOverlayRowKey::Fleet(_)) && row.id_label == fleet_number
+            })
+            .expect("fleet row");
+
+        assert!(row.cells[9].contains("TT*"), "{:?}", row.cells);
+        assert!(row.cells[9].contains("TT"), "{:?}", row.cells);
+        assert!(!row.cells[9].contains("AR="), "{:?}", row.cells);
     }
 
     #[test]

@@ -2085,11 +2085,11 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
     assert!(
-        attacker_report.contains("Orbital softening losses:71 armies"),
+        attacker_report.contains("Orbital softening losses: 71 armies"),
         "{attacker_report}"
     );
     assert!(
-        attacker_report.contains("Ground battle losses:71 armies"),
+        attacker_report.contains("Ground battle losses: 71 armies"),
         "{attacker_report}"
     );
 
@@ -2109,11 +2109,11 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{defender_report}"
     );
     assert!(
-        defender_report.contains("Orbital softening losses:71 armies"),
+        defender_report.contains("Orbital softening losses: 71 armies"),
         "{defender_report}"
     );
     assert!(
-        defender_report.contains("Ground battle losses:71 armies"),
+        defender_report.contains("Ground battle losses: 71 armies"),
         "{defender_report}"
     );
 
@@ -2145,6 +2145,10 @@ fn maint_rust_invasion_reports_arrival_and_execution_on_separate_turns() {
         "{second_text}"
     );
     assert!(second_text.contains("Target world:"), "{second_text}");
+    assert!(
+        !second_text.contains("Our armies have captured planet"),
+        "{second_text}"
+    );
     assert!(
         !second_text.contains(
             "We have arrived at our target world and are preparing to begin the invasion."

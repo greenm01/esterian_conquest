@@ -318,6 +318,96 @@ fn fleet_group_order_ar_column_renders_zero_like_fleet_list() {
 }
 
 #[test]
+fn fleet_single_order_coordinate_screen_splits_loaded_and_empty_transports() {
+    let mut screen = nc_game::screen::FleetSingleOrderScreen::new();
+    let row = FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 7,
+        coords: [16, 13],
+        target_coords: [19, 13],
+        order_code: 1,
+        current_speed: 3,
+        max_speed: 3,
+        eta_label: "1".to_string(),
+        list_eta_label: "1".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Move fleet to Sector (19,13)".to_string(),
+        composition_label: "CA=1 TT=5 AR=2".to_string(),
+        table_ships_label: "CA 2TT* 3TT".to_string(),
+        join_host_fleet_number: None,
+    };
+
+    let buffer = screen
+        .render(
+            &row,
+            "Move fleet to Sector (19,13)",
+            "Bombard",
+            nc_game::screen::FleetSingleOrderMode::EnteringTargetX,
+            "",
+            "",
+            "",
+            "",
+            "19",
+            "",
+            "13",
+            "",
+            "",
+            3015,
+            None,
+        )
+        .expect("fleet order screen renders");
+
+    assert!(buffer.plain_line(7).contains("Ships: CA 2TT* 3TT"));
+    assert!(!buffer.plain_line(7).contains("AR="));
+}
+
+#[test]
+fn fleet_single_order_named_target_screen_splits_loaded_and_empty_transports() {
+    let mut screen = nc_game::screen::FleetSingleOrderScreen::new();
+    let row = FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 7,
+        coords: [16, 13],
+        target_coords: [19, 13],
+        order_code: 13,
+        current_speed: 3,
+        max_speed: 3,
+        eta_label: "1".to_string(),
+        list_eta_label: "1".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Join Fleet #3".to_string(),
+        composition_label: "CA=1 TT=5 AR=2".to_string(),
+        table_ships_label: "CA 2TT* 3TT".to_string(),
+        join_host_fleet_number: Some(3),
+    };
+
+    let buffer = screen
+        .render(
+            &row,
+            "Join Fleet #3",
+            "Join another fleet",
+            nc_game::screen::FleetSingleOrderMode::EnteringTarget,
+            "Enter the host fleet number for Join another fleet.",
+            "Fleet # ",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            3015,
+            None,
+        )
+        .expect("named-target fleet order screen renders");
+
+    assert!(buffer.plain_line(7).contains("Ships: CA 2TT* 3TT"));
+    assert!(!buffer.plain_line(7).contains("AR="));
+}
+
+#[test]
 fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
