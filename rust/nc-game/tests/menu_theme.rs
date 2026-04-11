@@ -55,8 +55,8 @@ fn featured_menu_label_cells_are_used_for_planet_and_fleet_lists() {
     assert_eq!(planet_buffer.row(3)[planet_col].style, normal_style);
     assert_eq!(planet_buffer.row(3)[planet_col + 2].style, featured_style);
     let auto_col = planet_line
-        .find("A>UTO-COMMISSION")
-        .expect("auto-commission entry");
+        .find("M>ASS-COMMISSION")
+        .expect("mass-commission entry");
     assert_eq!(planet_buffer.row(3)[auto_col].style, normal_style);
     assert_eq!(
         planet_buffer.row(3)[auto_col + 2].style,

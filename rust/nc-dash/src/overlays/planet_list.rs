@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 
 use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
-use nc_engine::{BUILD_UNITS, planet_build_view};
+use nc_engine::{BUILD_UNITS, build_kind_count_label, planet_build_view};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
@@ -11,7 +11,7 @@ use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
-    write_stacked_table_window_with_theme_at,
+    write_stacked_table_window_with_theme_at, write_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
 
@@ -29,7 +29,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S B <Q>";
+pub(crate) const HOTKEYS: &str = "? F S B D A <Q>";
 const TOP_HEADERS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
@@ -90,6 +90,10 @@ pub(crate) struct PlanetOverlayRow {
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     match app.planet_overlay.prompt_mode {
+        PlanetOverlayPromptMode::BuildList => {
+            draw_build_list(buf, app, map_frame);
+            return;
+        }
         PlanetOverlayPromptMode::BuildSpecify => {
             draw_build_specify(buf, app, map_frame);
             return;
@@ -134,6 +138,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                 command_bar
             }
         }
+        PlanetOverlayPromptMode::BuildAbortConfirm => TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "Abort queued builds? Y/[N] -> ",
+        },
         PlanetOverlayPromptMode::SortMenu => TableFooter::CommandInput {
             label: "COMMAND",
             prompt: {
@@ -179,7 +187,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                 input: &app.planet_overlay.prompt_input,
             }
         }
-        PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
+        PlanetOverlayPromptMode::BuildList
+        | PlanetOverlayPromptMode::BuildSpecify
+        | PlanetOverlayPromptMode::BuildQuantity => {
             unreachable!("build flows render separately")
         }
     };
@@ -251,6 +261,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rect> {
     match app.planet_overlay.prompt_mode {
+        PlanetOverlayPromptMode::BuildList => {
+            return Some(build_list_popup_rect(app));
+        }
         PlanetOverlayPromptMode::BuildSpecify => {
             return Some(build_specify_popup_rect(app));
         }
@@ -293,6 +306,10 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                 command_bar
             }
         }
+        PlanetOverlayPromptMode::BuildAbortConfirm => TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "Abort queued builds? Y/[N] -> ",
+        },
         PlanetOverlayPromptMode::SortMenu => TableFooter::CommandInput {
             label: "COMMAND",
             prompt: {
@@ -338,7 +355,9 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                 input: &app.planet_overlay.prompt_input,
             }
         }
-        PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
+        PlanetOverlayPromptMode::BuildList
+        | PlanetOverlayPromptMode::BuildSpecify
+        | PlanetOverlayPromptMode::BuildQuantity => {
             unreachable!("build flows are not draggable")
         }
     };
@@ -427,6 +446,126 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapW
             theme::error_style(),
         );
     }
+}
+
+fn draw_build_list(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
+    let Some(view) = app.planet_build_view() else {
+        return;
+    };
+    let entries = app.planet_build_list_entries();
+    let table_cells = if entries.is_empty() {
+        vec![vec![
+            "No build orders are queued.".to_string(),
+            String::new(),
+            String::new(),
+        ]]
+    } else {
+        entries
+            .iter()
+            .map(|entry| {
+                vec![
+                    build_kind_count_label(entry.kind, entry.queue_qty).to_string(),
+                    entry.points.to_string(),
+                    entry.queue_qty.to_string(),
+                ]
+            })
+            .collect::<Vec<_>>()
+    };
+    const BUILD_LIST_COLUMNS: [TableColumn<'static>; 3] = [
+        TableColumn::left("Unit", 24),
+        TableColumn::right("Points", 6),
+        TableColumn::right("Queue", 5),
+    ];
+    let columns = resolve_table_columns(
+        &BUILD_LIST_COLUMNS,
+        &table_cells,
+        max_overlay_body_width(_map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let table_width = table_render_width(&columns);
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
+        buf,
+        overlay_parent_rect(app),
+        "QUEUED BUILDS",
+        table_width,
+        1 + standard_table_body_height(table_cells.len()),
+        OverlaySizePolicy::default(),
+        TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "? <Q> -> ",
+        },
+        app.overlay_position_for(ActiveOverlay::PlanetList),
+    );
+    assert_overlay_body_write_fits(
+        frame,
+        "QUEUED BUILDS",
+        table_width,
+        1 + standard_table_body_height(table_cells.len()),
+    );
+    write_build_points_line(buf, frame, view.points_left, table_width);
+    let table_col =
+        frame.body_col + centered_table_start_col(frame.body_width, &BUILD_LIST_COLUMNS);
+    let _ = write_table_window_with_theme_at(
+        buf,
+        frame.body_row + 1,
+        table_col,
+        &columns,
+        &table_cells,
+        0,
+        table_cells.len(),
+        theme::table_theme(),
+        None,
+        0,
+        None,
+    );
+}
+
+fn build_list_popup_rect(app: &DashApp) -> Rect {
+    let entries = app.planet_build_list_entries();
+    let table_cells = if entries.is_empty() {
+        vec![vec![
+            "No build orders are queued.".to_string(),
+            String::new(),
+            String::new(),
+        ]]
+    } else {
+        entries
+            .iter()
+            .map(|entry| {
+                vec![
+                    build_kind_count_label(entry.kind, entry.queue_qty).to_string(),
+                    entry.points.to_string(),
+                    entry.queue_qty.to_string(),
+                ]
+            })
+            .collect::<Vec<_>>()
+    };
+    const BUILD_LIST_COLUMNS: [TableColumn<'static>; 3] = [
+        TableColumn::left("Unit", 24),
+        TableColumn::right("Points", 6),
+        TableColumn::right("Queue", 5),
+    ];
+    let columns = resolve_table_columns(
+        &BUILD_LIST_COLUMNS,
+        &table_cells,
+        80,
+        false,
+        TableWidthMode::Compact,
+    );
+    let table_width = table_render_width(&columns);
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
+        "QUEUED BUILDS",
+        table_width,
+        1 + standard_table_body_height(table_cells.len()),
+        OverlaySizePolicy::default(),
+        TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "? <Q> -> ",
+        },
+        app.overlay_position_for(ActiveOverlay::PlanetList),
+    )
 }
 
 fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
@@ -983,7 +1122,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_planet_list_commands() {
-        assert_eq!(HOTKEYS, "? F S B <Q>");
+        assert_eq!(HOTKEYS, "? F S B D A <Q>");
     }
 
     #[test]

@@ -122,14 +122,14 @@ fn planet_list_auto_commission_prompt_and_report_return_to_list() {
     );
 
     app.render(&mut terminal)
-        .expect("planet list auto-commission prompt should render");
+        .expect("planet list mass-commission prompt should render");
     assert!(
         line_containing(
             &terminal,
-            "COMMAND <- Auto-Commission: Commission all ships and starbases? [Y]/N ->",
+            "Mass Commission: Commission all ships and starbases? [Y]/N ->",
         )
-        .contains("Auto-Commission: Commission all ships and starbases? [Y]/N ->"),
-        "expected inline auto-commission prompt on planet list"
+        .contains("Mass Commission: Commission all ships and starbases? [Y]/N ->"),
+        "expected inline mass-commission prompt on planet list"
     );
     assert!(
         terminal
@@ -162,6 +162,101 @@ fn planet_list_auto_commission_prompt_and_report_return_to_list() {
         app.current_screen(),
         ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
     );
+}
+
+#[test]
+fn planet_list_display_queue_opens_selected_planet_and_returns_to_list() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let mut rows = app.game_data.empire_planet_economy_rows(1);
+    rows.sort_by_key(|row| row.coords);
+    let target = rows.first().expect("owned planet");
+    app.game_data
+        .append_planet_build_order(target.planet_record_index_1_based, 10, 1)
+        .expect("queue build order");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildList);
+
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(action, Action::Planet(PlanetAction::OpenBuildMenu));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+}
+
+#[test]
+fn planet_list_abort_builds_prompt_stays_inline_and_clears_queue() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let mut rows = app.game_data.empire_planet_economy_rows(1);
+    rows.sort_by_key(|row| row.coords);
+    let target = rows.first().expect("owned planet");
+    app.game_data
+        .append_planet_build_order(target.planet_record_index_1_based, 10, 1)
+        .expect("queue build order");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+
+    app.render(&mut terminal)
+        .expect("planet list abort-build prompt should render");
+    assert!(
+        line_containing(&terminal, "Abort queued builds? Y/[N] ->")
+            .contains("Abort queued builds? Y/[N] ->"),
+        "expected inline build-abort prompt on planet list"
+    );
+
+    let action = app.handle_key(key(KeyCode::Char('y')));
+    assert_eq!(action, Action::Planet(PlanetAction::ConfirmBuildAbort));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+    assert!(
+        nc_engine::planet_build_orders(
+            &app.game_data.planets.records[target.planet_record_index_1_based - 1]
+        )
+        .is_empty()
+    );
+    assert_eq!(app.planet.list_prompt_status.as_deref(), Some("Build orders aborted."));
 }
 
 #[test]
@@ -1111,7 +1206,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(4).trim_end(),
-        "  X>pert mode ON/OFF         C>hange current planet      L>ist builds"
+        "  X>pert mode ON/OFF         C>hange current planet      D>isplay queue"
     );
     assert_eq!(
         terminal.line(5).trim_end(),
@@ -1119,7 +1214,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(7).trim_end(),
-        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A D I <Q> ->"
     );
     assert_eq!(
         terminal.line(13).trim_end(),

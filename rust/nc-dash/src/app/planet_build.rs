@@ -1,9 +1,9 @@
 use nc_data::{EmpirePlanetEconomyRow, GameStateMutationError, ProductionItemKind};
 use nc_engine::{
-    build_unit_spec, build_unit_spec_by_kind, planet_build_max_quantity,
+    build_unit_spec, build_unit_spec_by_kind, planet_build_list_entries, planet_build_max_quantity,
     planet_build_max_selectable_unit_number, planet_build_orders, planet_build_specify_entries,
     planet_build_unavailable_message, planet_build_view, planet_has_any_buildable_unit,
-    production_item_kind_raw,
+    production_item_kind_raw, PlanetBuildListEntry,
 };
 
 use crate::overlays::planet_list;
@@ -18,6 +18,22 @@ pub(crate) struct PlanetBuildOverlayView {
 
 impl DashApp {
     const PLANET_BUILD_BUDGET_EXHAUSTED_NOTICE: &'static str = "No build budget remains.";
+
+    pub(crate) fn planet_build_list_entries(&self) -> Vec<PlanetBuildListEntry> {
+        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based()
+        else {
+            return Vec::new();
+        };
+        let Some(record) = self
+            .game_data
+            .planets
+            .records
+            .get(planet_record_index_1_based.saturating_sub(1))
+        else {
+            return Vec::new();
+        };
+        planet_build_list_entries(record)
+    }
 
     pub(crate) fn planet_build_view(&self) -> Option<PlanetBuildOverlayView> {
         let planet_record_index_1_based = self.planet_build_planet_record_index_1_based()?;
@@ -55,16 +71,10 @@ impl DashApp {
     }
 
     pub(crate) fn open_planet_build_specify(&mut self) {
-        let rows = planet_list::table_rows(self);
-        let selected = self
-            .planet_overlay
-            .selected
-            .min(rows.len().saturating_sub(1));
-        let Some(row) = rows.get(selected) else {
+        let Some(_planet_record_index_1_based) = self.focus_planet_build_target_from_selection()
+        else {
             return;
         };
-        self.planet_overlay.build_planet_record_index_1_based =
-            Some(row.planet_record_index_1_based);
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;
         self.planet_overlay.build_selected_kind = None;
@@ -77,6 +87,33 @@ impl DashApp {
         self.clear_planet_overlay_footer_notice();
         self.planet_overlay
             .open_prompt(PlanetOverlayPromptMode::BuildSpecify);
+    }
+
+    pub(crate) fn open_planet_build_list(&mut self) {
+        let Some(_planet_record_index_1_based) = self.focus_planet_build_target_from_selection()
+        else {
+            return;
+        };
+        if self.planet_build_list_entries().is_empty() {
+            self.show_planet_overlay_footer_notice("No build orders are queued.");
+            return;
+        }
+        self.clear_planet_overlay_footer_notice();
+        self.planet_overlay.open_prompt(PlanetOverlayPromptMode::BuildList);
+    }
+
+    pub(crate) fn open_planet_build_abort_prompt(&mut self) {
+        let Some(_planet_record_index_1_based) = self.focus_planet_build_target_from_selection()
+        else {
+            return;
+        };
+        if self.planet_build_list_entries().is_empty() {
+            self.show_planet_overlay_footer_notice("No build orders are queued.");
+            return;
+        }
+        self.clear_planet_overlay_footer_notice();
+        self.planet_overlay
+            .open_prompt(PlanetOverlayPromptMode::BuildAbortConfirm);
     }
 
     pub(crate) fn append_planet_build_unit_char(&mut self, ch: char) {
@@ -260,6 +297,39 @@ impl DashApp {
         self.help_context = HelpContext::PlanetList;
     }
 
+    pub(crate) fn close_planet_build_list(&mut self) {
+        self.planet_overlay.close_prompt();
+        if self.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None {
+            self.planet_overlay.build_planet_record_index_1_based = None;
+        }
+        self.help_context = HelpContext::PlanetList;
+    }
+
+    pub(crate) fn close_planet_build_abort_prompt(&mut self) {
+        self.planet_overlay.close_prompt();
+        if self.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None {
+            self.planet_overlay.build_planet_record_index_1_based = None;
+        }
+        self.help_context = HelpContext::PlanetList;
+    }
+
+    pub(crate) fn confirm_planet_build_abort(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based()
+        else {
+            self.close_planet_build_abort_prompt();
+            return Ok(());
+        };
+        self.game_data
+            .clear_planet_build_queue(planet_record_index_1_based)?;
+        self.save_and_refresh_runtime()?;
+        self.reselect_planet_overlay_row(planet_record_index_1_based);
+        self.close_planet_build_abort_prompt();
+        self.show_planet_overlay_footer_notice("Build orders aborted.");
+        Ok(())
+    }
+
     pub(crate) fn clear_planet_overlay_footer_notice(&mut self) {
         self.planet_overlay.footer_notice = None;
     }
@@ -270,6 +340,18 @@ impl DashApp {
 
     fn planet_build_planet_record_index_1_based(&self) -> Option<usize> {
         self.planet_overlay.build_planet_record_index_1_based
+    }
+
+    fn focus_planet_build_target_from_selection(&mut self) -> Option<usize> {
+        let rows = planet_list::table_rows(self);
+        let selected = self
+            .planet_overlay
+            .selected
+            .min(rows.len().saturating_sub(1));
+        let row = rows.get(selected)?;
+        self.planet_overlay.build_planet_record_index_1_based =
+            Some(row.planet_record_index_1_based);
+        Some(row.planet_record_index_1_based)
     }
 
     fn current_planet_can_afford_any_build(&self) -> bool {

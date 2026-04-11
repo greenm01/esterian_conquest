@@ -119,9 +119,9 @@ fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
     app.render(&mut terminal)
         .expect("planet brief list should render");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? F S B A C L U X <Q>").trim(),
+        line_containing(&terminal, "COMMAND <- ? F S B D A C M L U X <Q>").trim(),
         format!(
-            "COMMAND <- ? F S B A C L U X <Q> [{:02},{:02}] ->",
+            "COMMAND <- ? F S B D A C M L U X <Q> [{:02},{:02}] ->",
             target_coords[0], target_coords[1]
         )
     );
@@ -2635,16 +2635,24 @@ fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
         "planet list helper should advertise Enter review on its own row"
     );
     assert!(
-        line_containing(&terminal, "build queue").contains("B"),
-        "planet list helper should advertise B for build"
+        line_containing(&terminal, "new build orders").contains("B"),
+        "planet list helper should advertise B for build specify"
     );
     assert!(
-        line_containing(&terminal, "auto-commission").contains("A"),
-        "planet list helper should advertise A for auto-commission"
+        line_containing(&terminal, "queued build orders").contains("D"),
+        "planet list helper should advertise D for display queue"
+    );
+    assert!(
+        line_containing(&terminal, "abort queued build orders").contains("A"),
+        "planet list helper should advertise A for build abort"
     );
     assert!(
         line_containing(&terminal, "manually commission").contains("C"),
         "planet list helper should advertise C for commission"
+    );
+    assert!(
+        line_containing(&terminal, "mass commission").contains("M"),
+        "planet list helper should advertise M for mass commission"
     );
     assert!(
         line_containing(&terminal, "load armies").contains("L"),

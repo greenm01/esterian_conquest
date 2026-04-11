@@ -37,7 +37,7 @@ const ROW_1: [MenuEntry<'static>; 4] = [
 
 const ROW_2: [MenuEntry<'static>; 4] = [
     MenuEntry::new(PLANET_COL_1, "Q", "uit: Main Menu"),
-    MenuEntry::new(PLANET_COL_2, "A", "UTO-COMMISSION"),
+    MenuEntry::new(PLANET_COL_2, "M", "ASS-COMMISSION"),
     MenuEntry::featured(PLANET_COL_3, "P", "LANET LIST"),
     MenuEntry::new(PLANET_COL_4, "L", "oad TTs w/Armies"),
 ];
@@ -107,7 +107,7 @@ impl PlanetMenuScreen {
                 draw_inline_confirm_block_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
-                    "AUTO-COMMISSION SHIPS:",
+                    "MASS COMMISSION:",
                     &["Automatically commission all ships and starbases in stardock?"],
                     notice,
                 );
@@ -176,7 +176,7 @@ impl PlanetMenuScreen {
                 draw_expert_menu_padded(
                     &mut buffer,
                     "PLANET COMMAND",
-                    "? X V C A B I P T S L U <Q>",
+                    "? X V C M B I P T S L U <Q>",
                     notice,
                 );
             }
@@ -227,7 +227,7 @@ impl PlanetMenuScreen {
             draw_inline_confirm_block_padded(
                 &mut buffer,
                 command_row,
-                "AUTO-COMMISSION SHIPS:",
+                "MASS COMMISSION:",
                 &["Automatically commission all ships and starbases in stardock?"],
                 notice,
             );
@@ -302,7 +302,7 @@ impl PlanetMenuScreen {
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",
-                "? X V C A B I P T S L U <Q>",
+                "? X V C M B I P T S L U <Q>",
             );
         }
         Ok(buffer)
@@ -358,7 +358,7 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('c') | KeyCode::Char('C') => {
                 Action::Planet(PlanetAction::OpenCommissionMenu)
             }
-            KeyCode::Char('a') | KeyCode::Char('A') => {
+            KeyCode::Char('m') | KeyCode::Char('M') => {
                 Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {

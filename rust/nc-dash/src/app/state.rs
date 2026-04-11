@@ -237,6 +237,8 @@ pub enum PlanetOverlayPromptMode {
     SortMenu,
     FilterMenu,
     FilterValueInput,
+    BuildList,
+    BuildAbortConfirm,
     BuildSpecify,
     BuildQuantity,
 }

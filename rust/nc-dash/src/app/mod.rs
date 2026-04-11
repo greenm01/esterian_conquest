@@ -772,6 +772,28 @@ impl DashApp {
     fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
         let prompt_mode = self.planet_overlay.prompt_mode;
         match prompt_mode {
+            PlanetOverlayPromptMode::BuildList => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.close_planet_build_list();
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::BuildAbortConfirm => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    if let Err(err) = self.confirm_planet_build_abort() {
+                        self.show_planet_overlay_footer_notice(err.to_string());
+                    }
+                }
+                KeyCode::Char('q')
+                | KeyCode::Char('Q')
+                | KeyCode::Char('n')
+                | KeyCode::Char('N')
+                | KeyCode::Enter
+                | KeyCode::Esc => self.close_planet_build_abort_prompt(),
+                _ => {}
+            },
             PlanetOverlayPromptMode::BuildSpecify => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetBuildSpecify),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
@@ -935,6 +957,8 @@ impl DashApp {
                 self.planet_overlay.prompt_status = None;
             }
             KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
+            KeyCode::Char('d') | KeyCode::Char('D') => self.open_planet_build_list(),
+            KeyCode::Char('a') | KeyCode::Char('A') => self.open_planet_build_abort_prompt(),
             KeyCode::Char(ch)
                 if self.planet_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
@@ -2420,6 +2444,51 @@ mod tests {
             Some("No build budget remains.")
         );
         assert_eq!(app.planet_overlay.build_planet_record_index_1_based, None);
+    }
+
+    #[test]
+    fn planet_overlay_display_queue_opens_and_closes_for_selected_planet() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data
+            .append_planet_build_order(1, 10, 1)
+            .expect("queue build order");
+
+        app.open_planet_build_list();
+
+        assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::BuildList);
+
+        app.handle_key(key(KeyCode::Char('q')));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::None);
+    }
+
+    #[test]
+    fn planet_overlay_abort_builds_clears_queue_and_shows_notice() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data
+            .append_planet_build_order(1, 10, 1)
+            .expect("queue build order");
+
+        app.open_planet_build_abort_prompt();
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildAbortConfirm
+        );
+
+        app.handle_key(key(KeyCode::Char('y')));
+
+        assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::None);
+        assert_eq!(
+            app.planet_overlay.footer_notice.as_deref(),
+            Some("Build orders aborted.")
+        );
+        assert!(
+            nc_engine::planet_build_orders(&app.game_data.planets.records[0]).is_empty(),
+            "build queue should be cleared after confirming abort"
+        );
     }
 
     #[test]

@@ -674,6 +674,13 @@ fn owned_planet_info_detail_shows_owned_since_year() {
             .iter()
             .any(|line| line.contains("Owned Since") && line.contains("Y3000"))
     );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Budget") && !line.contains("?")),
+        "owned planet info should show budget"
+    );
 }
 
 #[test]

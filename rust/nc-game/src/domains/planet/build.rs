@@ -246,7 +246,9 @@ impl App {
         if self.planet.build_return_to_list
             && matches!(
                 self.current_screen,
-                ScreenId::PlanetBuildSpecify | ScreenId::PlanetBuildQuantity
+                ScreenId::PlanetBuildSpecify
+                    | ScreenId::PlanetBuildQuantity
+                    | ScreenId::PlanetBuildList
             )
         {
             self.planet.build_status = None;
@@ -299,13 +301,41 @@ impl App {
     }
 
     pub fn open_planet_build_list(&mut self) {
+        let opened_from_planet_list = matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        );
+        if opened_from_planet_list {
+            let Ok(row) = self.current_planet_list_row() else {
+                self.show_planet_context_notice("You do not currently control any planets.");
+                return;
+            };
+            let Some(index) = self.build_planet_rows().iter().position(|planet| {
+                planet.planet_record_index_1_based == row.planet_record_index_1_based
+            }) else {
+                self.show_planet_context_notice("No owned planets available for building.");
+                return;
+            };
+            self.planet.command_context = crate::domains::planet::state::PlanetCommandContext::List;
+            self.planet.build_return_to_list = true;
+            self.planet.build_index = index;
+            self.clear_planet_list_status();
+        }
         if self.build_planet_rows().is_empty() {
-            self.open_planet_build_menu();
+            if opened_from_planet_list {
+                self.show_planet_context_notice("No owned planets available for building.");
+            } else {
+                self.open_planet_build_menu();
+            }
             return;
         }
         if self.current_planet_build_orders().is_empty() {
-            self.planet.build_status = Some("No build orders are queued.".to_string());
-            self.current_screen = ScreenId::PlanetBuildMenu;
+            if opened_from_planet_list {
+                self.show_planet_context_notice("No build orders are queued.");
+            } else {
+                self.planet.build_status = Some("No build orders are queued.".to_string());
+                self.current_screen = ScreenId::PlanetBuildMenu;
+            }
             return;
         }
         self.planet.build_list_scroll_offset = 0;
@@ -357,19 +387,51 @@ impl App {
     }
 
     pub fn open_planet_build_abort_prompt(&mut self) {
+        let opened_from_planet_list = matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        );
+        if opened_from_planet_list {
+            let Ok(row) = self.current_planet_list_row() else {
+                self.show_planet_context_notice("You do not currently control any planets.");
+                return;
+            };
+            let Some(index) = self.build_planet_rows().iter().position(|planet| {
+                planet.planet_record_index_1_based == row.planet_record_index_1_based
+            }) else {
+                self.show_planet_context_notice("No owned planets available for building.");
+                return;
+            };
+            self.planet.command_context = crate::domains::planet::state::PlanetCommandContext::List;
+            self.planet.build_return_to_list = true;
+            self.planet.build_index = index;
+            self.clear_planet_list_status();
+        }
         if self.build_planet_rows().is_empty() {
-            self.open_planet_build_menu();
+            if opened_from_planet_list {
+                self.show_planet_context_notice("No owned planets available for building.");
+            } else {
+                self.open_planet_build_menu();
+            }
             return;
         }
         if self.current_planet_build_orders().is_empty() {
-            self.planet.build_status = Some("No build orders are queued.".to_string());
-            self.current_screen = ScreenId::PlanetBuildMenu;
+            if opened_from_planet_list {
+                self.show_planet_context_notice("No build orders are queued.");
+            } else {
+                self.planet.build_status = Some("No build orders are queued.".to_string());
+                self.current_screen = ScreenId::PlanetBuildMenu;
+            }
             return;
         }
         self.close_planet_info_prompt();
         self.planet.build_status = None;
         self.planet.build_abort_prompt_active = true;
-        self.current_screen = ScreenId::PlanetBuildMenu;
+        self.current_screen = if opened_from_planet_list {
+            self.planet_build_return_screen()
+        } else {
+            ScreenId::PlanetBuildMenu
+        };
     }
 
     pub fn close_planet_build_abort_prompt(&mut self) {
@@ -1280,8 +1342,14 @@ impl App {
             .clear_planet_build_queue(row.planet_record_index_1_based)?;
         self.save_game_data()?;
         self.close_planet_build_abort_prompt();
-        self.planet.build_status = Some("Build orders aborted.".to_string());
-        self.current_screen = ScreenId::PlanetBuildMenu;
+        if self.planet.build_return_to_list {
+            self.clear_command_menu_notice();
+            self.planet.list_prompt_status = Some("Build orders aborted.".to_string());
+            self.current_screen = self.planet_build_return_screen();
+        } else {
+            self.planet.build_status = Some("Build orders aborted.".to_string());
+            self.current_screen = ScreenId::PlanetBuildMenu;
+        }
         Ok(())
     }
 

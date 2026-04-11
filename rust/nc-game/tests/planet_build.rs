@@ -40,7 +40,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
 
     assert_eq!(
         buffer.plain_line(7),
-        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A D I <Q> ->"
     );
     assert_eq!(
         buffer.plain_line(13),

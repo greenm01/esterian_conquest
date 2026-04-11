@@ -94,14 +94,15 @@ const BRIEF_TOP_HEADER_CELLS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
 
-const BRIEF_BROWSE_HOTKEYS: &str = "? F S B A C L U X <Q>";
+const BRIEF_BROWSE_HOTKEYS: &str = "? F S B D A C M L U X <Q>";
 const BRIEF_FILTER_HOTKEYS: &str = "? A R S T <Q>";
-pub(crate) const PLANET_LIST_AUTO_COMMISSION_PROMPT: &str =
-    "Auto-Commission: Commission all ships and starbases? [Y]/N -> ";
+pub(crate) const PLANET_LIST_MASS_COMMISSION_PROMPT: &str =
+    "Mass Commission: Commission all ships and starbases? [Y]/N -> ";
 pub(crate) const PLANET_LIST_LOAD_FLEET_PROMPT: &str = "Load Armies: Fleet # ";
 pub(crate) const PLANET_LIST_UNLOAD_FLEET_PROMPT: &str = "Unload Armies: Fleet # ";
 pub(crate) const PLANET_LIST_LOAD_QTY_PROMPT: &str = "Load Armies: How many armies? ";
 pub(crate) const PLANET_LIST_UNLOAD_QTY_PROMPT: &str = "Unload Armies: How many armies? ";
+pub(crate) const PLANET_LIST_ABORT_BUILD_PROMPT: &str = "Abort queued builds? Y/[N] -> ";
 pub(crate) const PLANET_LIST_SCORCH_CONFIRM_PROMPT: &str = "Scorch Planet: Are you sure? Y/[N] -> ";
 pub(crate) const PLANET_LIST_SCORCH_REALLY_CONFIRM_PROMPT: &str =
     "Scorch Planet: Are you really sure? Y/[N] -> ";
@@ -418,6 +419,7 @@ impl PlanetListScreen {
         input: &str,
         status: Option<&str>,
         auto_commission_prompt: bool,
+        build_abort_prompt: bool,
         transport_prompt_label: Option<&str>,
         transport_prompt_default: &str,
         transport_prompt_input: &str,
@@ -438,6 +440,7 @@ impl PlanetListScreen {
             input,
             status,
             auto_commission_prompt,
+            build_abort_prompt,
             transport_prompt_label,
             transport_prompt_default,
             transport_prompt_input,
@@ -462,6 +465,7 @@ impl PlanetListScreen {
         input: &str,
         status: Option<&str>,
         auto_commission_prompt: bool,
+        build_abort_prompt: bool,
         transport_prompt_label: Option<&str>,
         transport_prompt_default: &str,
         transport_prompt_input: &str,
@@ -485,7 +489,12 @@ impl PlanetListScreen {
         } else if auto_commission_prompt {
             TableFooter::CommandPrompt {
                 label: "COMMAND",
-                prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
+                prompt: PLANET_LIST_MASS_COMMISSION_PROMPT,
+            }
+        } else if build_abort_prompt {
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: PLANET_LIST_ABORT_BUILD_PROMPT,
             }
         } else if let Some(prompt) = transport_prompt_label {
             TableFooter::CommandInput {
@@ -606,6 +615,12 @@ impl PlanetListScreen {
                 Action::Planet(PlanetAction::OpenBuildSpecify)
             }
             KeyCode::Char('a') | KeyCode::Char('A') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenBuildAbortPrompt)
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenBuildList)
+            }
+            KeyCode::Char('m') | KeyCode::Char('M') if mode == PlanetListMode::Brief => {
                 Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
             }
             KeyCode::Char('c') | KeyCode::Char('C') if mode == PlanetListMode::Brief => {
@@ -665,7 +680,11 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                 }),
                 table_footer_scaffold_width(TableFooter::CommandPrompt {
                     label: "COMMAND",
-                    prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
+                    prompt: PLANET_LIST_MASS_COMMISSION_PROMPT,
+                }),
+                table_footer_scaffold_width(TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_ABORT_BUILD_PROMPT,
                 }),
                 table_footer_scaffold_width(TableFooter::CommandInput {
                     label: "COMMAND",

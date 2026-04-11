@@ -1010,7 +1010,7 @@ fn planet_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(3).trim_end(),
-        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>LANET LIST         L>oad TTs w/Armies"
+        "  Q>uit: Main Menu  M>ASS-COMMISSION   P>LANET LIST         L>oad TTs w/Armies"
     );
     assert_eq!(
         terminal.line(4).trim_end(),
@@ -1043,7 +1043,7 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
         .expect("planet menu should render");
     assert_eq!(
         terminal.lines[6].trim_end(),
-        " PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
+        " PLANET COMMAND <- ? X V C M B I P T S L U <Q> ->"
     );
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
@@ -1076,7 +1076,7 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        " PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
+        " PLANET COMMAND <- ? X V C M B I P T S L U <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
     assert_eq!(terminal.lines[2].trim_end(), "");
@@ -1113,7 +1113,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        " PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
+        " PLANET COMMAND <- ? X V C M B I P T S L U <Q> ->"
     );
 
     assert_eq!(
@@ -1124,7 +1124,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert build menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A D I <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 
@@ -1136,7 +1136,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("empty build list should leave expert build menu visible");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A D I <Q> ->"
     );
     assert!(
         terminal

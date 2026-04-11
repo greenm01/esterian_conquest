@@ -94,7 +94,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::PlanetList => vec![
             ("F", "Open the planet-list filter prompt"),
             ("S", "Open the planet-list sort menu"),
-            ("B", "Open build orders for the selected planet"),
+            ("B", "Specify new build orders for the selected planet"),
+            ("D", "Display queued build orders for the selected planet"),
+            ("A", "Abort queued build orders for the selected planet"),
             ("Coords", "Typed jump; exact match clears the footer input"),
             ("Q", "Close this overlay"),
             ("Esc", "Close this overlay"),

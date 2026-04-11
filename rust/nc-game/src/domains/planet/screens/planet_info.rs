@@ -60,6 +60,13 @@ impl PlanetInfoScreen {
         let tax_rate =
             frame.game_data.player.records[frame.player.record_index_1_based - 1].tax_rate();
         let expected_revenue = yearly_tax_revenue(present, tax_rate);
+        let budget = frame
+            .game_data
+            .empire_planet_economy_rows(frame.player.record_index_1_based)
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == planet_idx + 1)
+            .map(|row| u32::from(row.build_capacity).min(row.stored_production_points))
+            .unwrap_or_else(|| planet.stored_production_points().min(u32::from(present)));
         let info_label_width = aligned_label_width([
             "Coordinates",
             "Planet",
@@ -69,6 +76,7 @@ impl PlanetInfoScreen {
             "Production",
             "Potential Production",
             "Treasury",
+            "Budget",
             "Efficiency",
             "Expected Revenue",
             "Armies",
@@ -128,12 +136,19 @@ impl PlanetInfoScreen {
             &mut buffer,
             10,
             info_label_width,
+            "Budget",
+            &budget.to_string(),
+        );
+        draw_aligned_status_line(
+            &mut buffer,
+            11,
+            info_label_width,
             "Efficiency",
             &format!("{efficiency:.1}%"),
         );
         draw_aligned_status_line(
             &mut buffer,
-            11,
+            12,
             info_label_width,
             "Expected Revenue",
             &format!("{expected_revenue} points"),

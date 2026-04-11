@@ -307,6 +307,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.list_prompt_status.as_deref(),
             app.planet.auto_commission_prompt_active
                 && mode == crate::screen::PlanetListMode::Brief,
+            app.planet.build_abort_prompt_active
+                && mode == crate::screen::PlanetListMode::Brief,
             if mode == crate::screen::PlanetListMode::Brief {
                 list_transport_prompt_label.as_deref()
             } else {

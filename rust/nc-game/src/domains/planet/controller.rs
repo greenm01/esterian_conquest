@@ -344,6 +344,7 @@ impl App {
         self.close_planet_auto_commission_prompt();
         self.clear_planet_auto_commission_report();
         self.close_planet_tax_prompt();
+        self.close_planet_build_abort_prompt();
         self.clear_planet_scorch_prompt();
         self.clear_planet_transport_prompt();
         self.planet.command_context = PlanetCommandContext::Menu;
@@ -1507,7 +1508,11 @@ impl App {
     }
 
     pub(crate) fn inline_planet_build_abort_active_on_current_screen(&self) -> bool {
-        self.planet.build_abort_prompt_active && self.current_screen == ScreenId::PlanetBuildMenu
+        self.planet.build_abort_prompt_active
+            && matches!(
+                self.current_screen,
+                ScreenId::PlanetBuildMenu | ScreenId::PlanetList(PlanetListMode::Brief, _)
+            )
     }
 
     pub(crate) fn inline_planet_info_active_on_current_screen(&self) -> bool {

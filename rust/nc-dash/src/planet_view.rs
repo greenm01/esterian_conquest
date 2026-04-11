@@ -93,6 +93,13 @@ fn owned_planet_detail(
         .get(&(planet_index_0_based + 1))
         .map(|year| format!("Y{year}"))
         .unwrap_or_else(|| String::from("?"));
+    let budget = app
+        .game_data
+        .empire_planet_economy_rows(app.player_record_index_1_based)
+        .into_iter()
+        .find(|row| row.planet_record_index_1_based == planet_index_0_based + 1)
+        .map(|row| u32::from(row.build_capacity).min(row.stored_production_points))
+        .unwrap_or_else(|| planet.stored_production_points().min(u32::from(present)));
     let popup_lines = vec![
         detail_line("Coordinates", coords_label(coords)),
         detail_line("Planet", planet.status_or_name_summary()),
@@ -108,6 +115,7 @@ fn owned_planet_detail(
         detail_line("Production", present.to_string()),
         detail_line("Potential Production", potential.to_string()),
         detail_line("Treasury", planet.stored_production_points().to_string()),
+        detail_line("Budget", budget.to_string()),
         detail_line("Efficiency", owned_efficiency_label(present, potential)),
         detail_line(
             "Expected Revenue",
@@ -139,6 +147,7 @@ fn owned_planet_detail(
         widget_field("Production", present.to_string()),
         widget_field("Potential Production", potential.to_string()),
         widget_field("Treasury", planet.stored_production_points().to_string()),
+        widget_field("Budget", budget.to_string()),
         widget_field("Armies", planet.army_count_raw().to_string()),
         widget_field(
             "Ground Batteries",
@@ -302,6 +311,7 @@ fn widget_label_variants(label: &'static str) -> Option<&'static [&'static str]>
         "Potential Production" => &["Pot Prod"],
         "Production" => &["Production", "Prod"],
         "Treasury" => &["Treasury", "Trsry"],
+        "Budget" => &["Budget", "Bdgt"],
         "Ground Batteries" => &["Grnd Batt", "GBs"],
         "Armies" => &["Armies", "ARs"],
         "Starbases" => &["Starbases", "SBs"],
@@ -575,6 +585,7 @@ mod tests {
                 "Production",
                 "Potential Production",
                 "Treasury",
+                "Budget",
                 "Armies",
                 "Ground Batteries",
                 "Starbases",

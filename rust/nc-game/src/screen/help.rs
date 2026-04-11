@@ -98,7 +98,7 @@ const STARBASE_LINES: [&str; 8] = [
 ];
 
 const PLANET_LINES: [&str; 14] = [
-    "<A> - automatically commission armies and batteries for your planets",
+    "<M> - mass commission ships and starbases waiting in stardock",
     "<B> - open the build menu to spend production on local construction",
     "<C> - open the commission menu for fine-grained ground-defense control",
     "<D> - display a detailed list of your planets and their economies",
@@ -116,7 +116,7 @@ const PLANET_LINES: [&str; 14] = [
 
 const BUILD_LINES: [&str; 13] = [
     "<S> - specify build orders using this planet's build budget",
-    "<L> - list units currently queued for construction",
+    "<D> - display units currently queued for construction",
     "<R> - review the current build planet through planet information",
     "<C> - change to another owned planet for local build orders",
     "<N> - move to the next owned planet in the build cycle",
