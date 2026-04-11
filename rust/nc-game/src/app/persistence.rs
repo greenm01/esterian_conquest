@@ -38,6 +38,8 @@ impl App {
             &self.player_lifecycle_states,
             self.winner_state,
         );
+        self.player
+            .apply_access_mode_override(self.player_access_mode);
         self.owned_planet_years = self
             .planet
             .campaign_store

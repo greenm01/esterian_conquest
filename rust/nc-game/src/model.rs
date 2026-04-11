@@ -1,4 +1,4 @@
-use nc_data::CoreGameData;
+use nc_data::{CoreGameData, PlayerAccessMode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassicLoginState {
@@ -59,6 +59,16 @@ impl PlayerContext {
             empire_name,
             handle,
         })
+    }
+
+    pub fn apply_access_mode_override(&mut self, access_mode: PlayerAccessMode) {
+        if matches!(
+            access_mode,
+            PlayerAccessMode::ReviewOnly | PlayerAccessMode::SurveyOnly
+        ) {
+            self.classic_login_state = ClassicLoginState::ReturningPlayer;
+            self.is_joined = true;
+        }
     }
 }
 

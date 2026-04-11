@@ -180,6 +180,8 @@ impl App {
         if matches!(player_access_mode, PlayerAccessMode::LockedOut) {
             return Err("This empire has been defeated and is no longer allowed to log in.".into());
         }
+        let mut player = player;
+        player.apply_access_mode_override(player_access_mode);
         let owned_planet_years = campaign_store
             .latest_owned_planet_years_for_empire(config.player_record_index_1_based as u8)?;
         let main_menu_summary = MainMenuSummary::from_game_data(

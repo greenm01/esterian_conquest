@@ -30,12 +30,7 @@ pub fn first_time_onboarding_mode(
 }
 
 pub fn hosted_first_time_status(game_data: &CoreGameData) -> HostedFirstTimeStatus {
-    if game_data
-        .player
-        .records
-        .iter()
-        .any(|player| player.occupied_flag() == 0)
-    {
+    if game_data.has_open_first_join_slot() {
         HostedFirstTimeStatus::NeedsEmpireName
     } else {
         HostedFirstTimeStatus::NoPendingSeat

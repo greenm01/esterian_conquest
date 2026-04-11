@@ -263,6 +263,9 @@ pub enum GameStateMutationError {
     PlayerAlreadyJoined {
         index_1_based: usize,
     },
+    PlayerSlotNotJoinable {
+        index_1_based: usize,
+    },
     PlanetBuildQueueFull {
         index_1_based: usize,
     },
@@ -528,6 +531,9 @@ impl std::fmt::Display for GameStateMutationError {
             }
             Self::PlayerAlreadyJoined { index_1_based } => {
                 write!(f, "player {} is already joined", index_1_based)
+            }
+            Self::PlayerSlotNotJoinable { index_1_based } => {
+                write!(f, "player {} is not an open joinable seat", index_1_based)
             }
             Self::PlanetBuildQueueFull { index_1_based } => {
                 write!(f, "build queue full for planet record {}", index_1_based)

@@ -3,6 +3,27 @@ use super::*;
 const DEFAULT_JOIN_TAX_RATE: u8 = 50;
 
 impl CoreGameData {
+    pub fn player_slot_is_open_for_first_join(&self, player_record_index_1_based: usize) -> bool {
+        let Some(player) = self.player.records.get(player_record_index_1_based - 1) else {
+            return false;
+        };
+        if !player.is_civil_disorder_player() || player.last_run_year_raw() != 0 {
+            return false;
+        }
+        self.planets.records.iter().any(|planet| {
+            planet.owner_empire_slot_raw() as usize == player_record_index_1_based
+                && planet.is_homeworld_seed_ignoring_name()
+        })
+    }
+
+    pub fn has_open_first_join_slot(&self) -> bool {
+        (1..=self.player.records.len()).any(|idx| self.player_slot_is_open_for_first_join(idx))
+    }
+
+    pub fn first_open_first_join_slot(&self) -> Option<usize> {
+        (1..=self.player.records.len()).find(|&idx| self.player_slot_is_open_for_first_join(idx))
+    }
+
     pub fn join_player(
         &mut self,
         player_record_index_1_based: usize,
@@ -33,6 +54,24 @@ impl CoreGameData {
             (player.ipbm_count_raw(), homeworld_planet_index_1_based)
         };
         let tax_rate = DEFAULT_JOIN_TAX_RATE;
+        let already_joined = self
+            .player
+            .records
+            .get(player_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: player_record_index_1_based,
+            })?
+            .is_active_human_player();
+        if already_joined {
+            return Err(GameStateMutationError::PlayerAlreadyJoined {
+                index_1_based: player_record_index_1_based,
+            });
+        }
+        if !self.player_slot_is_open_for_first_join(player_record_index_1_based) {
+            return Err(GameStateMutationError::PlayerSlotNotJoinable {
+                index_1_based: player_record_index_1_based,
+            });
+        }
         let player = self
             .player
             .records
@@ -40,11 +79,6 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingPlayerRecord {
                 index_1_based: player_record_index_1_based,
             })?;
-        if player.is_active_human_player() {
-            return Err(GameStateMutationError::PlayerAlreadyJoined {
-                index_1_based: player_record_index_1_based,
-            });
-        }
         player.set_player_mode_raw(0x01);
         player.set_controlled_empire_name_raw(empire_name);
         player.set_tax_rate_raw(tax_rate);

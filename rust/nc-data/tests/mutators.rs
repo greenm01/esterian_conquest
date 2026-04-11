@@ -217,6 +217,25 @@ fn join_player_rejects_already_joined_seat() {
 }
 
 #[test]
+fn join_player_rejects_civil_disorder_seat_that_was_already_used() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(2)
+        .build_joinable_new_game_baseline()
+        .expect("joinable baseline should build");
+
+    data.player.records[0].set_last_run_year_raw(3004);
+    data.planets.records[0].set_owner_empire_slot_raw(0);
+    data.planets.records[0].set_ownership_status_raw(0);
+    data.player.records[0].set_planet_count_raw(0);
+
+    assert!(!data.player_slot_is_open_for_first_join(1));
+    assert_eq!(
+        data.join_player(1, "Other Empire"),
+        Err(GameStateMutationError::PlayerSlotNotJoinable { index_1_based: 1 })
+    );
+}
+
+#[test]
 fn stardock_slots_round_trip_through_contiguous_classic_offsets() {
     let mut planet = PlanetRecord::new_zeroed();
 

@@ -926,6 +926,7 @@ fn maint_rust_updates_large_game_database_from_scout_intel_event() {
     assert!(stdout.contains("seed=1515"));
 
     let mut game_data = CoreGameData::load(&target).expect("generated game should load");
+    zero_all_fleets(&mut game_data);
     let (planet_idx, coords, owner_empire_raw) = game_data
         .planets
         .records
@@ -2852,6 +2853,94 @@ fn maint_rust_enemy_roe_withdrawal_does_not_abort_invade_mission() {
 }
 
 #[test]
+fn maint_rust_blitz_clears_hostile_empty_transports_in_orbit() {
+    let target = unique_temp_dir("nc-cli-maint-rust-blitz-clears-empty-transports");
+    fs::create_dir_all(&target).expect("temp dir should exist");
+
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(2)
+        .build_joinable_new_game_baseline()
+        .expect("baseline should build");
+    game_data.join_player(1, "Player1").expect("join player 1");
+    game_data.join_player(2, "Player2").expect("join player 2");
+    let target_coords = game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 2)
+        .map(|planet| planet.coords_raw())
+        .expect("player 2 should own a world");
+
+    zero_all_fleets(&mut game_data);
+
+    let attacker_idx = game_data
+        .fleets
+        .records
+        .iter()
+        .position(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("player 1 fleet");
+    let defender_idx = game_data
+        .fleets
+        .records
+        .iter()
+        .position(|fleet| fleet.owner_empire_raw() == 2)
+        .expect("player 2 fleet");
+
+    let attacker = &mut game_data.fleets.records[attacker_idx];
+    attacker.set_current_location_coords_raw(target_coords);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
+    attacker.set_standing_order_target_coords_raw(target_coords);
+    attacker.set_current_speed(0);
+    attacker.set_battleship_count(4);
+    attacker.set_cruiser_count(8);
+    attacker.set_destroyer_count(6);
+    attacker.set_troop_transport_count(12);
+    attacker.set_army_count(12);
+    attacker.set_rules_of_engagement(10);
+
+    let defender = &mut game_data.fleets.records[defender_idx];
+    defender.set_current_location_coords_raw(target_coords);
+    defender.set_standing_order_kind(Order::HoldPosition);
+    defender.set_standing_order_target_coords_raw(target_coords);
+    defender.set_current_speed(0);
+    defender.set_troop_transport_count(25);
+    defender.set_army_count(0);
+    defender.set_rules_of_engagement(10);
+
+    let target_world = game_data
+        .planets
+        .records
+        .iter_mut()
+        .find(|planet| planet.coords_raw() == target_coords)
+        .expect("target world should exist");
+    target_world.set_ground_batteries_raw(0);
+    target_world.set_army_count_raw(2);
+
+    game_data.save(&target).expect("scenario should save");
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let attacker_report = joined_report_containing(&results, "ALERT: Enemy fleet contact!");
+    assert!(attacker_report.contains("The aliens were completely destroyed."));
+    let defender_report = joined_report_containing(&results, "ALERT: Fleet contact lost!");
+    assert!(defender_report.contains("Fleet lost:"));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let defender = reloaded
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 2)
+        .expect("player 2 fleet should remain addressable");
+    assert_eq!(defender.troop_transport_count(), 0);
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
     let target = unique_temp_dir("nc-cli-maint-rust-invalid-fleet-order");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
@@ -3861,7 +3950,7 @@ fn maint_rust_seeded_games_survive_five_turns_across_manual_player_tiers() {
 /// both fleet numbers and their short mission labels instead of two separate
 /// per-fleet per-mission reports.
 #[test]
-fn maint_rust_multi_fleet_abort_produces_single_batched_report() {
+fn maint_rust_multi_fleet_abort_prefers_destroyed_fleet_telemetry_over_batching() {
     let target = unique_temp_dir("nc-cli-maint-rust-multi-fleet-abort");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
@@ -3893,9 +3982,8 @@ fn maint_rust_multi_fleet_abort_produces_single_batched_report() {
     game_data.player.records[0].raw[0x00] = 0x01;
 
     // Fleet 0 — empire 1, 1st Fleet, ScoutSector: 1 DD + many scouts.
-    // The DD gives just enough combat AS to engage; the scouts soak the
-    // remaining hits after the DDs are gone so the fleet survives battle
-    // (no FleetDestroyedEvent) and retreats with MissionEvent::Aborted.
+    // With auxiliaries now remaining targetable after the DD is destroyed,
+    // this fleet should be wiped out and reported through FleetDestroyedEvent.
     {
         let f = &mut game_data.fleets.records[0];
         f.set_owner_empire_raw(1);
@@ -3905,10 +3993,10 @@ fn maint_rust_multi_fleet_abort_produces_single_batched_report() {
         f.set_standing_order_target_coords_raw(battle_coords);
         f.set_current_speed(3);
         f.set_destroyer_count(1);
-        f.set_scout_count(200);
+        f.set_scout_count(255);
         f.set_rules_of_engagement(10);
     }
-    // Fleet 1 — empire 1, 2nd Fleet, MoveOnly: same survival shape as fleet 0.
+    // Fleet 1 — empire 1, 2nd Fleet, MoveOnly: survives and aborts.
     {
         let f = &mut game_data.fleets.records[1];
         f.set_owner_empire_raw(1);
@@ -3918,11 +4006,11 @@ fn maint_rust_multi_fleet_abort_produces_single_batched_report() {
         f.set_standing_order_target_coords_raw(battle_coords);
         f.set_current_speed(3);
         f.set_destroyer_count(1);
-        f.set_scout_count(200);
+        f.set_scout_count(40);
         f.set_rules_of_engagement(10);
     }
-    // Fleet 2 — empire 2, 1st Fleet, MoveOnly: 3 BBs — beats empire 1 on AS
-    // but delivers few enough hits (≤ 402 fresh_steps) that empire-1 scouts survive.
+    // Fleet 2 — empire 2, 1st Fleet, MoveOnly: 3 BBs — enough to destroy one
+    // fleet and force the other to break off.
     {
         let f = &mut game_data.fleets.records[2];
         f.set_owner_empire_raw(2);
@@ -3944,35 +4032,17 @@ fn maint_rust_multi_fleet_abort_produces_single_batched_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
 
-    // Single batched abort report present.
     assert!(
-        text.contains("Hostile action forced"),
-        "expected batched abort text, got: {text}"
+        text.contains("ALERT: Fleet contact lost!"),
+        "expected destroyed-fleet telemetry, got: {text}"
     );
-    // Note: text appears as "theirmissions" due to record concatenation.
     assert!(
-        text.contains("abort") && text.contains("missions"),
-        "expected batched abort missions text, got: {text}"
+        text.contains("Move mission report: Hostile action forced us to abort our mission"),
+        "expected surviving fleet abort report, got: {text}"
     );
-    // Both mission short labels present.
-    assert!(
-        text.contains("(Scout)") || text.contains("(Move)"),
-        "expected mission short labels in batched report, got: {text}"
-    );
-    // No separate per-fleet per-mission abort prose.
     assert!(
         !text.contains("Scouting mission report: Hostile action forced us to abort"),
-        "should not produce individual scouting abort report, got: {text}"
-    );
-    assert!(
-        !text.contains("Move mission report: Hostile action forced us to abort"),
-        "should not produce individual move abort report, got: {text}"
-    );
-    // Exactly one batched abort (not two).
-    let count = text.matches("Hostile action forced").count();
-    assert_eq!(
-        count, 1,
-        "expected exactly one batched abort report, found {count} in: {text}"
+        "destroyed scouting fleet should not emit a separate abort report, got: {text}"
     );
 
     cleanup_dir(&target);

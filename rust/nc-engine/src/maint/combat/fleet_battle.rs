@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     CoreGameData, DiplomacyOverride, DiplomaticRelation, EncounterDispositionEvent,
     EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError,
-    MissionEvent, MissionOutcome, Order, PlanetIntelEvent, ScoutContactEvent, ShipLosses,
-    StarbaseDestroyedEvent,
+    MissionAbortReason, MissionEvent, MissionOutcome, Order, PlanetIntelEvent,
+    ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
 };
 
 use super::exchange::{
@@ -19,7 +19,7 @@ use super::reporting::{
 use super::retreat::{
     abort_mission_to_seek_home_or_hold, apply_roe_retreat_to_task_force,
     clear_empty_withdrawn_fleets, dominant_empire_after_battle, nearest_owned_planet,
-    retreat_task_force,
+    retreat_task_force, set_fleet_to_hold_current_position,
 };
 use super::state::{
     build_task_forces_at_location, has_anchored_guard_order, planet_idx_at_coords,
@@ -168,6 +168,30 @@ fn hostile_target_priority(
 
 fn defending_starbase_holds_planet(task_force: &TaskForce) -> bool {
     matches!(task_force.role, BattleRole::IncumbentDefender) && task_force.state.counts[IDX_SB] > 0
+}
+
+fn task_force_can_fire(task_force: &TaskForce) -> bool {
+    task_force.state.has_units() && task_force.state.total_combat_as() > 0 && !task_force.withdrew_under_roe
+}
+
+fn battle_has_live_hostile_targets(
+    game_data: &CoreGameData,
+    diplomacy_overrides: &[DiplomacyOverride],
+    coords: [u8; 2],
+    task_forces: &[TaskForce],
+) -> bool {
+    task_forces
+        .iter()
+        .filter(|tf| task_force_can_fire(tf))
+        .any(|actor| {
+            task_forces.iter().any(|other| {
+                other.empire != actor.empire
+                    && other.state.has_units()
+                    && !other.withdrew_under_roe
+                    && hostility_reason_between(game_data, diplomacy_overrides, coords, actor, other)
+                        .is_some()
+            })
+        })
 }
 
 fn apply_withdrawal_exchanges(
@@ -419,6 +443,7 @@ fn abort_invalid_dominant_missions_after_battle(
                 owner_empire_raw,
                 kind,
                 outcome: MissionOutcome::Aborted,
+                abort_reason: Some(MissionAbortReason::CapabilityLost),
                 planet_idx: planet_idx_at_coords(game_data, coords),
                 location_coords: Some(coords),
                 target_coords: Some(
@@ -436,6 +461,7 @@ fn emit_aborted_mission_events_for_task_force(
     fleet_indices: &[usize],
     pre_orders: &HashMap<usize, Order>,
     coords: [u8; 2],
+    abort_reason: Option<MissionAbortReason>,
 ) {
     for &fleet_idx in fleet_indices {
         let Some(kind) = mission_kind_for_order(pre_orders.get(&fleet_idx).copied()) else {
@@ -447,11 +473,64 @@ fn emit_aborted_mission_events_for_task_force(
             owner_empire_raw: fleet.owner_empire_raw(),
             kind,
             outcome: MissionOutcome::Aborted,
+            abort_reason,
             planet_idx: planet_idx_at_coords(game_data, coords),
             location_coords: Some(coords),
             target_coords: Some(fleet.standing_order_target_coords_raw()),
             stardate_week: None,
         });
+    }
+}
+
+fn task_force_has_tt_only_blitz_assault(
+    game_data: &CoreGameData,
+    task_force: &TaskForce,
+    pre_orders: &HashMap<usize, Order>,
+) -> bool {
+    task_force.state.total_combat_as() == 0
+        && task_force.state.has_units()
+        && task_force.fleet_indices.iter().any(|&fleet_idx| {
+            pre_orders.get(&fleet_idx) == Some(&Order::BlitzWorld) && {
+                let fleet = &game_data.fleets.records[fleet_idx];
+                fleet.troop_transport_count() > 0 && fleet.army_count() > 0
+            }
+        })
+}
+
+fn tt_only_blitz_followthrough_empire(
+    game_data: &CoreGameData,
+    task_forces: &[TaskForce],
+    pre_orders: &HashMap<usize, Order>,
+) -> Option<u8> {
+    if task_forces.is_empty()
+        || task_forces
+            .iter()
+            .any(|tf| tf.withdrew_under_roe || tf.state.total_combat_as() > 0)
+        || task_forces.iter().any(defending_starbase_holds_planet)
+    {
+        return None;
+    }
+
+    let mut candidate_empires = task_forces
+        .iter()
+        .filter(|tf| tf.state.has_units())
+        .filter_map(|tf| {
+            tf.fleet_indices
+                .iter()
+                .any(|&fleet_idx| {
+                    pre_orders.get(&fleet_idx) == Some(&Order::BlitzWorld) && {
+                        let fleet = &game_data.fleets.records[fleet_idx];
+                        fleet.troop_transport_count() > 0 && fleet.army_count() > 0
+                    }
+                })
+                .then_some(tf.empire)
+        })
+        .collect::<Vec<_>>();
+    candidate_empires.sort_unstable();
+    candidate_empires.dedup();
+    match candidate_empires.as_slice() {
+        [empire] => Some(*empire),
+        _ => None,
     }
 }
 
@@ -684,14 +763,8 @@ pub(crate) fn process_fleet_battles(
         let mut resolved_within_guardrail = false;
 
         for round in 1..=COMBAT_GUARDRAIL_MAX_ROUNDS {
-            let active_empires: Vec<u8> = task_forces
-                .iter()
-                .filter(|tf| {
-                    tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
-                })
-                .map(|tf| tf.empire)
-                .collect();
-            if active_empires.len() < 2 {
+            if !battle_has_live_hostile_targets(game_data, diplomacy_overrides, coords, &task_forces)
+            {
                 resolved_within_guardrail = true;
                 break;
             }
@@ -892,13 +965,8 @@ pub(crate) fn process_fleet_battles(
             });
             combat_occurred |= any_round_state_change || any_withdrawal;
 
-            let remaining_active_after_exchange = task_forces
-                .iter()
-                .filter(|tf| {
-                    tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
-                })
-                .count();
-            if remaining_active_after_exchange < 2 {
+            if !battle_has_live_hostile_targets(game_data, diplomacy_overrides, coords, &task_forces)
+            {
                 resolved_within_guardrail = true;
                 break;
             }
@@ -1042,13 +1110,8 @@ pub(crate) fn process_fleet_battles(
             }
             combat_occurred |= any_post_round_withdrawal;
 
-            let remaining_active_after_retreats = task_forces
-                .iter()
-                .filter(|tf| {
-                    tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
-                })
-                .count();
-            if remaining_active_after_retreats < 2 {
+            if !battle_has_live_hostile_targets(game_data, diplomacy_overrides, coords, &task_forces)
+            {
                 resolved_within_guardrail = true;
                 break;
             }
@@ -1120,16 +1183,32 @@ pub(crate) fn process_fleet_battles(
             .flat_map(|tf| tf.fleet_indices.iter().copied())
             .map(|idx| (idx, game_data.fleets.records[idx].standing_order_kind()))
             .collect();
+        let tt_only_blitz_followthrough =
+            (dominant_empire.is_none())
+                .then(|| tt_only_blitz_followthrough_empire(game_data, &task_forces, &pre_retreat_orders))
+                .flatten();
 
         for tf in &task_forces {
+            if tt_only_blitz_followthrough.is_some() {
+                continue;
+            }
             if Some(tf.empire) != dominant_empire && !tf.withdrew_under_roe {
-                retreat_task_force(game_data, tf);
+                let blocked_tt_only_blitz =
+                    task_force_has_tt_only_blitz_assault(game_data, tf, &pre_retreat_orders);
+                if blocked_tt_only_blitz {
+                    for &fleet_idx in &tf.fleet_indices {
+                        set_fleet_to_hold_current_position(&mut game_data.fleets.records[fleet_idx]);
+                    }
+                } else {
+                    retreat_task_force(game_data, tf);
+                }
                 emit_aborted_mission_events_for_task_force(
                     game_data,
                     &mut events,
                     &tf.fleet_indices,
                     &pre_retreat_orders,
                     coords,
+                    blocked_tt_only_blitz.then_some(MissionAbortReason::OrbitBlocked),
                 );
             }
         }
@@ -1151,6 +1230,7 @@ pub(crate) fn process_fleet_battles(
                 &tf.fleet_indices,
                 &pre_encounter_orders,
                 coords,
+                None,
             );
             if !tf_has_any_units(tf) {
                 clear_empty_withdrawn_fleets(game_data, &tf.fleet_indices);

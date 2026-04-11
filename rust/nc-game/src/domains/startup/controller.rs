@@ -25,6 +25,9 @@ impl App {
         if self.player.classic_login_state != ClassicLoginState::ReturningPlayer {
             return Ok(());
         }
+        if !matches!(self.player_access_mode, PlayerAccessMode::Normal) {
+            return Ok(());
+        }
         let player_idx = self.player.record_index_1_based.saturating_sub(1);
         let current_year = self.game_data.conquest.game_year();
         let Some(activity_state) = self.player_activity_states.get(player_idx).copied() else {
@@ -888,13 +891,7 @@ impl App {
     }
 
     pub fn open_first_time_join_name(&mut self) {
-        if !self
-            .game_data
-            .player
-            .records
-            .iter()
-            .any(|player| player.occupied_flag() == 0)
-        {
+        if !self.game_data.has_open_first_join_slot() {
             self.startup_state.first_time_status =
                 Some("This game is already full. No open empires remain.".to_string());
             self.current_screen = if self.has_hosted_invite_session() {
@@ -1348,11 +1345,13 @@ impl App {
                             format!(" [{handle}]")
                         }
                     )
-                } else {
+                } else if self.game_data.player_slot_is_open_for_first_join(slot) {
                     format!(
                         "Empire {:>2}: OPEN    Available for a new Star Master",
                         slot
                     )
+                } else {
+                    format!("Empire {:>2}: CLOSED  No longer available", slot)
                 }
             })
             .collect()
@@ -1421,9 +1420,9 @@ impl App {
                 .records
                 .iter()
                 .enumerate()
-                .find_map(|(idx, player)| {
+                .find_map(|(idx, _)| {
                     let seat = idx + 1;
-                    (player.occupied_flag() == 0
+                    (runtime_state.game_data.player_slot_is_open_for_first_join(seat)
                         && self.game_config.reservation_for_player(seat).is_none())
                     .then_some(seat)
                 })

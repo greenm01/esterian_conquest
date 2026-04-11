@@ -2280,3 +2280,136 @@ fn first_time_join_from_menu_refuses_full_game_and_displays_notice() {
         .iter()
         .any(|line| line.contains("Notice: This game is already full. No open empires remain.")));
 }
+
+#[test]
+fn defeated_player_with_pending_reports_uses_returning_review_flow() {
+    let fixture_dir = temp_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.player.records[0].set_owner_empire_raw(0);
+    state.report_block_rows.push(nc_data::ReportBlockRow {
+        viewer_empire_id: 1,
+        block_index: 0,
+        decoded_text:
+            "From your Fleet Command Center:\nALERT: Empire defeated!\n<end of transmission>"
+                .to_string(),
+        raw_bytes: None,
+        recipient_deleted: false,
+    });
+    let player_count = state.game_data.conquest.player_count();
+    let planet_intel_by_viewer = (1..=player_count)
+        .map(|viewer_empire_id| {
+            store.latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let player_activity_states = store
+        .latest_player_activity_states(player_count)
+        .expect("load player activity");
+    let mut player_lifecycle_states = store
+        .latest_player_lifecycle_states(player_count)
+        .expect("load player lifecycle");
+    player_lifecycle_states[0].terminal_outcome = nc_data::TerminalOutcome::Defeated;
+    player_lifecycle_states[0].terminal_review_consumed = false;
+    store
+        .save_runtime_state_structured_with_intel_activity_and_lifecycle(
+            &state.game_data,
+            &state.planet_scorch_orders,
+            &state.report_block_rows,
+            &state.queued_mail,
+            &planet_intel_by_viewer,
+            &player_activity_states,
+            &player_lifecycle_states,
+            state.winner_state,
+        )
+        .expect("save defeated runtime state");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(app.classic_login_state(), ClassicLoginState::ReturningPlayer);
+
+    let mut saw_review = false;
+    for _ in 0..32 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            saw_review = true;
+            break;
+        }
+        assert_ne!(app.current_screen(), ScreenId::FirstTimeMenu);
+        app.advance_startup();
+    }
+    assert!(saw_review, "startup should reach results review");
+}
+
+#[test]
+fn first_time_join_does_not_offer_spent_civil_disorder_seats() {
+    let fixture_dir = temp_first_time_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    let mut state = latest_runtime_state(&fixture_dir);
+    for (idx, player) in state.game_data.player.records.iter_mut().enumerate() {
+        player.set_owner_empire_raw(0);
+        player.set_last_run_year_raw(3005 + idx as u16);
+        player.set_planet_count_raw(0);
+    }
+    for planet in &mut state.game_data.planets.records {
+        planet.set_owner_empire_slot_raw(0);
+        planet.set_ownership_status_raw(0);
+    }
+    let player_count = state.game_data.conquest.player_count();
+    let planet_intel_by_viewer = (1..=player_count)
+        .map(|viewer_empire_id| {
+            store.latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let player_activity_states = store
+        .latest_player_activity_states(player_count)
+        .expect("load player activity");
+    store
+        .save_runtime_state_structured_with_intel_and_activity(
+            &state.game_data,
+            &state.planet_scorch_orders,
+            &state.report_block_rows,
+            &state.queued_mail,
+            &planet_intel_by_viewer,
+            &player_activity_states,
+        )
+        .expect("save spent-seat runtime state");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    app.open_first_time_menu();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("This game is already full. No open empires remain.")
+    );
+}

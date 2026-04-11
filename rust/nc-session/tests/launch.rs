@@ -101,3 +101,24 @@ fn hosted_first_time_status_detects_pending_joinable_seat() {
         HostedFirstTimeStatus::NoPendingSeat
     );
 }
+
+#[test]
+fn hosted_first_time_status_ignores_used_civil_disorder_seats() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .build_joinable_new_game_baseline()
+        .expect("build game data");
+    for player_idx in 1..=4 {
+        game_data.player.records[player_idx - 1].set_last_run_year_raw(3005);
+        game_data.player.records[player_idx - 1].set_planet_count_raw(0);
+    }
+    for planet in &mut game_data.planets.records {
+        planet.set_owner_empire_slot_raw(0);
+        planet.set_ownership_status_raw(0);
+    }
+
+    assert_eq!(
+        hosted_first_time_status(&game_data),
+        HostedFirstTimeStatus::NoPendingSeat
+    );
+}
