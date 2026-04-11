@@ -69,7 +69,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Built on Nostr for decentralized play. All code, UI, and assets are original.]
+  #text(size: 10pt, fill: luma(120))[Built for localhost, BBS, and the planned Nostr GameServer path. All code, UI, and assets are original.]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
@@ -129,7 +129,7 @@ In homage to the 1990s door-game pioneers and to the ancient dreamers, strategis
 
 == Three Ways to Play
 
-Nostrian Conquest currently supports two active ways to play.
+Nostrian Conquest has three practical ways to play.
 
 The direct path is *Localhost*. In that mode you or your sysop runs `nc-game`
 directly on the same machine. Use this for solo play, hotseat testing, and
@@ -141,6 +141,11 @@ terminal client and launch the game from the doors menu. The sysop stages
 `nc-door` behind the BBS. If you are the sysop, see the *Sysop Manual* section
 *BBS Door Setup*.
 
+The planned modern path is *Nostr GameServer*. In that mode the player will
+use `nc-dash` against a Nostr-backed game server instead of a direct terminal
+session. That path is still under development, but it is the intended modern
+network way to play NC.
+
 == Finding New Games
 
 If you are joining a private localhost campaign, your sysop tells you which
@@ -149,6 +154,10 @@ machine and player slot to use.
 If you are joining a BBS campaign, connect to the bulletin board normally and
 launch the game from the doors menu. Your sysop may reserve a seat for your BBS
 alias, or may leave open seats available from the first-time join menu.
+
+If you are waiting for the Nostr GameServer path, watch the project release
+notes and main docs. That path is planned, but not yet the normal public join
+flow.
 
 == Joining a Game
 
@@ -613,7 +622,7 @@ The project has now reached a real beta stage. The Rust player, connection,
 and sysop tools cover the core campaign workflow, and the main work from here
 is broad playtesting, collecting feedback, and fixing the rough edges and bugs
 that only show up in live games while preserving the classic experience for
-Nostr hosts, local players, and legacy BBS sysops.
+local players, BBS sysops, and the planned Nostr GameServer path.
 
 #pagebreak()
 

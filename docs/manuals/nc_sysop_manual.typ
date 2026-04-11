@@ -108,8 +108,8 @@ instance. It covers:
 
 - choosing the right deployment path
 - creating and maintaining a DB-only game
-- running the recommended Nostr host
-- running a local or direct SSH game
+- understanding the planned Nostr GameServer path
+- running a local game
 - putting `nc-door` on a BBS
 - managing players and yearly maintenance
 
@@ -168,7 +168,7 @@ executables, manuals, or DOS helper assets.
 
 == Choose Your Deployment
 
-NC currently has two practical ways to run the Rust game.
+NC has three practical deployment paths.
 
 === Localhost Session
 
@@ -202,6 +202,16 @@ similar BBS.
 
 For BBS hosting, use the public `nc-sysop` package or build from source.
 Localhost play remains a source-build path.
+
+=== Nostr GameServer
+
+This is the planned modern network path. In that model, players use `nc-dash`
+and the sysop runs the Nostr GameServer stack instead of handing out direct
+terminal access. That path is still under development, but it is the intended
+modern way to host NC over the network.
+
+For now, use localhost or BBS hosting for live games. Treat the Nostr docs as
+the design track for that planned deployment.
 
 For the exact launcher setups, see:
 
@@ -266,17 +276,13 @@ The target directory basename becomes the stable game slug. It must use only
 lowercase ASCII letters, digits, and dashes. The slug is distinct from the
 human-readable `game_name`.
 
-== Hosted / Nostr Status
+== Nostr GameServer Status
 
-The earlier SSH/Nostr hosted path is no longer part of the active public sysop
-surface. `nc-sysop` no longer exposes `host`, `maint-all`, or `nostr`
-subcommands, and this manual no longer treats that stack as current operator
-workflow.
+The planned Nostr GameServer path is not driven by the current `nc-sysop`
+command surface. `nc-sysop` is for localhost and BBS administration today.
 
-If hosted play returns later, it should do so as a separate `nc-daemon` /
-`nc-dash` architecture with its own docs. Until then, treat the remaining
-material in `docs/nostr/` as design/archive content, not live operator
-instructions.
+The Nostr/GameServer docs describe the planned modern network path and should
+be read as the design track for that deployment.
 
 // ─── 3. Game Directory Structure ─────────────────────────────────────────────
 
@@ -375,7 +381,7 @@ clients get a predictable color-safe baseline.
 
 `nc-game` is a direct terminal client. The primary supported path is local
 same-machine play, but if you manually remote into a trusted shell and launch
-`nc-game` there, it behaves the same way. No special hosted/session flags are
+`nc-game` there, it behaves the same way. No special session flags are
 required.
 
 Color mode is auto-detected from the environment:
@@ -599,8 +605,8 @@ one direct localhost game or one BBS game, invoke
 - a BBS event runner
 - or manual sysop operation
 
-To put one hosted game on a real schedule, turn scheduling on and set the
-first due time yourself:
+To put one game on a real schedule, turn scheduling on and set the first due
+time yourself:
 
 ```
 nc-sysop settings set --dir /srv/nc/games/friday-night --maintenance-enabled on --maintenance-interval-minutes 10080 --maintenance-next-due 1775347200

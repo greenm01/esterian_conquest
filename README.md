@@ -1,6 +1,6 @@
 # Nostrian Conquest
 
-_Nostrian Conquest is a from-scratch Rust recreation of the 1990's BBS door game Esterian Conquest. It currently ships as a direct localhost client and BBS door stack. All code is original. It is not affiliated with any historical release._
+_Nostrian Conquest is a from-scratch Rust recreation of the 1990's BBS door game Esterian Conquest. It currently ships as a direct localhost client and BBS door stack, with a planned Nostr GameServer path as the modern network mode. All code is original. It is not affiliated with any historical release._
 
 **Status:** `v1.0.0-beta.2`  
 Active beta. The Rust player and sysop stack is playable now. The main work is live playtesting, bug fixing, and tightening the rough edges.
@@ -30,6 +30,7 @@ Keep the binaries straight:
 - `nc-game`: direct localhost player client
 - `nc-door`: BBS door entrypoint
 - `nc-sysop`: sysop and BBS/local campaign administration tool
+- `nc-dash`: planned modern client for the Nostr GameServer path
 - `nc-cli`: internal developer, oracle, and compatibility tool
 
 A normal non-BBS game directory contains `ncgame.db` and nothing else. BBS
@@ -39,8 +40,9 @@ reserved aliases.
 ## Play
 
 NC is built for native Windows, Linux, and macOS clients. No web app is
-required. Use `nc-game` for direct same-machine play and `nc-door` when the
-host is a BBS.
+required. Use `nc-game` for direct same-machine play, `nc-door` when the host
+is a BBS, and keep the planned Nostr GameServer path in mind as the intended
+modern network mode.
 
 ### Public Beta Downloads
 
@@ -120,6 +122,13 @@ Stage `nc-door` as the live BBS binary. For working host setups, see:
 - [Synchronet BBS Setup](docs/sysop/bbs/synchronet-bbs-setup.md)
 - [ENiGMA½ BBS Setup](docs/sysop/bbs/enigma-bbs-setup.md)
 - [WWIV BBS Setup](docs/sysop/bbs/wwiv-bbs-setup.md)
+
+### 3. Planned Nostr GameServer Path
+
+The planned modern network path is a Nostr-backed GameServer with `nc-dash` as
+the player client. That stack is still under construction, but it is the
+intended long-term way to host and join NC over the network without direct BBS
+or localhost access.
 
 ## Operator Docs
 
