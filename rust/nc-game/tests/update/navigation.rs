@@ -619,6 +619,201 @@ fn empty_database_filter_clause_resets_to_all() {
 }
 
 #[test]
+fn stale_fleet_filter_clause_resets_to_all_after_rows_change() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+
+    let owned_fleet_indexes = app
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, fleet)| (fleet.owner_empire_raw() == 1).then_some(idx))
+        .collect::<Vec<_>>();
+    assert!(!owned_fleet_indexes.is_empty(), "fixture should have owned fleets");
+    for &idx in &owned_fleet_indexes {
+        app.game_data.fleets.records[idx].set_standing_order_kind(nc_data::Order::SeekHome);
+    }
+    app.game_data.fleets.records[owned_fleet_indexes[0]]
+        .set_standing_order_kind(nc_data::Order::HoldPosition);
+
+    app.open_fleet_list();
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    for ch in ['o', 'r', 'd'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendListFilterPromptChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitListFilterPrompt)),
+        AppOutcome::Continue
+    );
+    for ch in "hold".chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert!(app.fleet.list_filter_clause.is_some());
+
+    app.game_data.fleets.records[owned_fleet_indexes[0]]
+        .set_standing_order_kind(nc_data::Order::SeekHome);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(app.fleet.list_filter_clause.is_none());
+    assert!(line_containing(&terminal, "FLEET LIST: ").contains(" ALL"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("No fleets match current filter."))
+    );
+}
+
+#[test]
+fn stale_planet_list_filter_clause_resets_to_all_after_rows_change() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+
+    let owned_planet_indexes = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, planet)| (planet.owner_empire_slot_raw() == 1).then_some(idx))
+        .collect::<Vec<_>>();
+    let target_planet_idx = *owned_planet_indexes.first().expect("owned planet exists");
+    for &idx in &owned_planet_indexes {
+        app.game_data.planets.records[idx].set_army_count_raw(0);
+    }
+    app.game_data.planets.records[target_planet_idx].set_army_count_raw(5);
+
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenListFilterPrompt(PlanetListMode::Brief))
+        ),
+        AppOutcome::Continue
+    );
+    for ch in ['a', 'r', 's'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    for ch in "5".chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert!(app.planet.list_filter_clause.is_some());
+
+    app.game_data.planets.records[target_planet_idx].set_army_count_raw(0);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet list should render");
+    assert!(app.planet.list_filter_clause.is_none());
+    assert!(line_containing(&terminal, "PLANET LIST: ").contains(" ALL"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("No planets match current filter."))
+    );
+}
+
+#[test]
+fn stale_database_filter_clause_resets_to_all_after_rows_change() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+
+    for planet in &mut app.game_data.planets.records {
+        planet.set_army_count_raw(0);
+    }
+    let target_planet_idx = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .position(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("owned planet exists");
+    app.game_data.planets.records[target_planet_idx].set_army_count_raw(7);
+
+    app.open_planet_database();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    for ch in ['a', 'r', 's'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    for ch in "7".chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert!(app.planet.database_filter_clause.is_some());
+
+    app.game_data.planets.records[target_planet_idx].set_army_count_raw(0);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet database should render");
+    assert!(app.planet.database_filter_clause.is_none());
+    assert!(line_containing(&terminal, "TOTAL PLANET DATABASE: ").contains(" ALL"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("No worlds match current filter."))
+    );
+}
+
+#[test]
 fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
     let root = temp_game_copy();
     let config = AppConfig {

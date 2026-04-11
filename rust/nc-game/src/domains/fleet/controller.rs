@@ -655,14 +655,28 @@ impl App {
     }
 
     pub(crate) fn enforce_valid_fleet_filter(&mut self) {
-        if self.fleet.list_filter_clause.is_none() && self.fleet.list_filter != FleetListFilter::All
+        if self.fleet.list_filter == FleetListFilter::All
+            && self.fleet.list_filter_clause.is_none()
         {
-            if self.fleet_list_rows().is_empty() && !self.fleet_rows().is_empty() {
-                self.fleet.list_filter = FleetListFilter::All;
-                self.fleet.cursor = 0;
-                self.fleet.scroll_offset = 0;
-            }
+            return;
         }
+        if !self.fleet_list_rows().is_empty() {
+            return;
+        }
+
+        let previous_filter = self.fleet.list_filter;
+        let previous_clause = self.fleet.list_filter_clause.clone();
+        self.fleet.list_filter = FleetListFilter::All;
+        self.fleet.list_filter_clause = None;
+        if self.fleet_list_rows().is_empty() {
+            self.fleet.list_filter = previous_filter;
+            self.fleet.list_filter_clause = previous_clause;
+            return;
+        }
+
+        self.clear_checked_fleet_selection();
+        self.fleet.cursor = 0;
+        self.fleet.scroll_offset = 0;
     }
 
     pub fn open_fleet_list(&mut self) {

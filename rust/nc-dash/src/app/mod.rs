@@ -57,6 +57,7 @@ impl DashApp {
             return;
         }
         if self.overlay != ActiveOverlay::None && self.handle_overlay_key(key) {
+            self.normalize_table_overlay_filters();
             return;
         }
         if self.handle_map_coord_key(key) {
@@ -67,6 +68,7 @@ impl DashApp {
             self.map_coord_input.clear();
         }
         self.apply_action(action);
+        self.normalize_table_overlay_filters();
     }
 
     fn apply_action(&mut self, action: Action) {
@@ -1519,12 +1521,27 @@ impl DashApp {
     }
 
     fn enforce_valid_planet_filter(&mut self) {
-        if self.planet_overlay.filter_clause.is_none()
-            && self.planet_overlay.filter != crate::app::state::PlanetOverlayFilter::All
-            && crate::overlays::planet_list::table_rows(self).is_empty()
+        if self.planet_overlay.filter == crate::app::state::PlanetOverlayFilter::All
+            && self.planet_overlay.filter_clause.is_none()
         {
-            self.planet_overlay.filter = crate::app::state::PlanetOverlayFilter::All;
+            return;
         }
+        if !crate::overlays::planet_list::table_rows(self).is_empty() {
+            return;
+        }
+
+        let previous_filter = self.planet_overlay.filter;
+        let previous_clause = self.planet_overlay.filter_clause.clone();
+        self.planet_overlay.filter = crate::app::state::PlanetOverlayFilter::All;
+        self.planet_overlay.filter_clause = None;
+        if crate::overlays::planet_list::table_rows(self).is_empty() {
+            self.planet_overlay.filter = previous_filter;
+            self.planet_overlay.filter_clause = previous_clause;
+            return;
+        }
+
+        self.planet_overlay.selected = 0;
+        self.planet_overlay.scroll = 0;
     }
 
     fn apply_planet_overlay_filter(&mut self, filter: PlanetOverlayFilter) {
@@ -1575,12 +1592,28 @@ impl DashApp {
     }
 
     fn enforce_valid_fleet_filter(&mut self) {
-        if self.fleet_overlay.filter_clause.is_none()
-            && self.fleet_overlay.filter != FleetOverlayFilter::All
-            && fleet_list::table_rows(self).is_empty()
+        if self.fleet_overlay.filter == FleetOverlayFilter::All
+            && self.fleet_overlay.filter_clause.is_none()
         {
-            self.fleet_overlay.filter = FleetOverlayFilter::All;
+            return;
         }
+        if !fleet_list::table_rows(self).is_empty() {
+            return;
+        }
+
+        let previous_filter = self.fleet_overlay.filter;
+        let previous_clause = self.fleet_overlay.filter_clause.clone();
+        self.fleet_overlay.filter = FleetOverlayFilter::All;
+        self.fleet_overlay.filter_clause = None;
+        if fleet_list::table_rows(self).is_empty() {
+            self.fleet_overlay.filter = previous_filter;
+            self.fleet_overlay.filter_clause = previous_clause;
+            return;
+        }
+
+        self.fleet_overlay.clear_group_selection();
+        self.fleet_overlay.selected = 0;
+        self.fleet_overlay.scroll = 0;
     }
 
     fn apply_fleet_overlay_filter(&mut self, filter: FleetOverlayFilter) {
@@ -1608,6 +1641,36 @@ impl DashApp {
 
     fn reset_intel_overlay_prompt(&mut self) {
         self.intel_overlay.clear_prompt();
+    }
+
+    fn enforce_valid_intel_filter(&mut self) {
+        if self.intel_overlay.filter == IntelOverlayFilter::All
+            && self.intel_overlay.filter_clause.is_none()
+        {
+            return;
+        }
+        if !intel_database::table_rows(self).is_empty() {
+            return;
+        }
+
+        let previous_filter = self.intel_overlay.filter;
+        let previous_clause = self.intel_overlay.filter_clause.clone();
+        self.intel_overlay.filter = IntelOverlayFilter::All;
+        self.intel_overlay.filter_clause = None;
+        if intel_database::table_rows(self).is_empty() {
+            self.intel_overlay.filter = previous_filter;
+            self.intel_overlay.filter_clause = previous_clause;
+            return;
+        }
+
+        self.intel_overlay.selected = 0;
+        self.intel_overlay.scroll = 0;
+    }
+
+    fn normalize_table_overlay_filters(&mut self) {
+        self.enforce_valid_fleet_filter();
+        self.enforce_valid_planet_filter();
+        self.enforce_valid_intel_filter();
     }
 
     fn apply_intel_overlay_sort(&mut self, sort: IntelOverlaySort) {
@@ -3158,6 +3221,116 @@ mod tests {
     }
 
     #[test]
+    fn stale_fleet_filter_clause_resets_to_all_after_rows_change() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+
+        let owned_fleet_indexes = app
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, fleet)| (fleet.owner_empire_raw() == 1).then_some(idx))
+            .collect::<Vec<_>>();
+        assert!(!owned_fleet_indexes.is_empty(), "fixture should have owned fleets");
+        let target_fleet_number = app.game_data.fleets.records[owned_fleet_indexes[0]].local_slot_word_raw();
+
+        app.handle_key(key(KeyCode::Char('f')));
+        for ch in ['i', 'd'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        for ch in target_fleet_number.to_string().chars() {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        assert!(app.fleet_overlay.filter_clause.is_some());
+
+        app.game_data.fleets.records[owned_fleet_indexes[0]]
+            .set_owner_empire_raw(0);
+        app.handle_key(key(KeyCode::Down));
+
+        assert!(app.fleet_overlay.filter_clause.is_none());
+        assert!(!fleet_list::table_rows(&app).is_empty());
+        assert!(render_fleet_title_line(&app, "FLEET LIST:").contains("FLEET LIST: DESCENDING ALL"));
+    }
+
+    #[test]
+    fn stale_planet_filter_clause_resets_to_all_after_rows_change() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+
+        let owned_planet_indexes = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, planet)| (planet.owner_empire_slot_raw() == 1).then_some(idx))
+            .collect::<Vec<_>>();
+        let target_planet_idx = *owned_planet_indexes.first().expect("owned planet exists");
+        for &idx in &owned_planet_indexes {
+            app.game_data.planets.records[idx].set_army_count_raw(0);
+        }
+        app.game_data.planets.records[target_planet_idx].set_army_count_raw(5);
+
+        app.handle_key(key(KeyCode::Char('f')));
+        for ch in ['a', 'r', 's'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        for ch in "5".chars() {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        assert!(app.planet_overlay.filter_clause.is_some());
+
+        app.game_data.planets.records[target_planet_idx].set_army_count_raw(0);
+        app.handle_key(key(KeyCode::Down));
+
+        assert!(app.planet_overlay.filter_clause.is_none());
+        assert!(!planet_list::table_rows(&app).is_empty());
+        assert!(render_planet_title_line(&app, "PLANET LIST:").contains("PLANET LIST: DESCENDING ALL"));
+    }
+
+    #[test]
+    fn stale_intel_filter_clause_resets_to_all_after_rows_change() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::IntelDatabase;
+
+        for planet in &mut app.game_data.planets.records {
+            planet.set_army_count_raw(0);
+        }
+        let target_planet_idx = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .position(|planet| planet.owner_empire_slot_raw() == 1)
+            .expect("owned planet exists");
+        app.game_data.planets.records[target_planet_idx].set_army_count_raw(7);
+
+        app.handle_key(key(KeyCode::Char('f')));
+        for ch in ['a', 'r', 's'] {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        for ch in "7".chars() {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        assert!(app.intel_overlay.filter_clause.is_some());
+
+        app.game_data.planets.records[target_planet_idx].set_army_count_raw(0);
+        app.handle_key(key(KeyCode::Down));
+
+        assert!(app.intel_overlay.filter_clause.is_none());
+        assert!(!intel_database::table_rows(&app).is_empty());
+        assert!(render_intel_title_line(&app, "TOTAL PLANET DATABASE:").contains("TOTAL PLANET DATABASE: ASCENDING ALL"));
+    }
+
+    #[test]
     fn dragging_top_level_overlay_updates_position() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::Inbox;
@@ -3953,6 +4126,20 @@ mod tests {
             .expect("fleet footer")
     }
 
+    fn render_fleet_title_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        fleet_list::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("fleet title")
+    }
+
     fn render_planet_footer_line(app: &DashApp, needle: &str) -> String {
         let layout = dashboard_layout(app);
         let mut buffer = PlayfieldBuffer::new(
@@ -3967,6 +4154,20 @@ mod tests {
             .expect("planet footer")
     }
 
+    fn render_planet_title_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        planet_list::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("planet title")
+    }
+
     fn render_intel_footer_line(app: &DashApp, needle: &str) -> String {
         let layout = dashboard_layout(app);
         let mut buffer = PlayfieldBuffer::new(
@@ -3979,6 +4180,20 @@ mod tests {
             .map(|row| buffer.plain_line(row))
             .find(|line| line.contains(needle))
             .expect("intel footer")
+    }
+
+    fn render_intel_title_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        intel_database::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("intel title")
     }
 
     fn key(code: KeyCode) -> KeyEvent {

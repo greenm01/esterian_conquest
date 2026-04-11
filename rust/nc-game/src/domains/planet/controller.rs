@@ -360,37 +360,57 @@ impl App {
     }
 
     pub(crate) fn enforce_valid_planet_list_filter(&mut self) {
-        if self.planet.list_filter_clause.is_none() && self.planet.list_filter != PlanetListFilter::All {
-            if self
-                .planet_list_rows(PlanetListMode::Brief, self.planet.list_sort)
-                .is_empty()
-                && !self
-                    .game_data
-                    .empire_planet_economy_rows(self.player.record_index_1_based)
-                    .is_empty()
-            {
-                self.planet.list_filter = PlanetListFilter::All;
-                self.planet.brief_cursor = 0;
-                self.planet.brief_scroll_offset = 0;
-            }
+        if self.planet.list_filter == PlanetListFilter::All
+            && self.planet.list_filter_clause.is_none()
+        {
+            return;
         }
+        if !self
+            .planet_list_rows(PlanetListMode::Brief, self.planet.list_sort)
+            .is_empty()
+        {
+            return;
+        }
+
+        let previous_filter = self.planet.list_filter;
+        let previous_clause = self.planet.list_filter_clause.clone();
+        self.planet.list_filter = PlanetListFilter::All;
+        self.planet.list_filter_clause = None;
+        if self
+            .planet_list_rows(PlanetListMode::Brief, self.planet.list_sort)
+            .is_empty()
+        {
+            self.planet.list_filter = previous_filter;
+            self.planet.list_filter_clause = previous_clause;
+            return;
+        }
+
+        self.planet.brief_cursor = 0;
+        self.planet.brief_scroll_offset = 0;
     }
 
     pub(crate) fn enforce_valid_planet_database_filter(&mut self) {
-        if self.planet.database_filter_clause.is_none()
-            && self.planet.database_filter != PlanetDatabaseFilter::All
+        if self.planet.database_filter == PlanetDatabaseFilter::All
+            && self.planet.database_filter_clause.is_none()
         {
-            if self.planet_database_rows().is_empty() {
-                let previous = self.planet.database_filter;
-                self.planet.database_filter = PlanetDatabaseFilter::All;
-                if self.planet_database_rows().is_empty() {
-                    self.planet.database_filter = previous;
-                } else {
-                    self.planet.database_cursor = 0;
-                    self.planet.database_scroll_offset = 0;
-                }
-            }
+            return;
         }
+        if !self.planet_database_rows().is_empty() {
+            return;
+        }
+
+        let previous_filter = self.planet.database_filter;
+        let previous_clause = self.planet.database_filter_clause.clone();
+        self.planet.database_filter = PlanetDatabaseFilter::All;
+        self.planet.database_filter_clause = None;
+        if self.planet_database_rows().is_empty() {
+            self.planet.database_filter = previous_filter;
+            self.planet.database_filter_clause = previous_clause;
+            return;
+        }
+
+        self.planet.database_cursor = 0;
+        self.planet.database_scroll_offset = 0;
     }
 
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
