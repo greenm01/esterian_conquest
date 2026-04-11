@@ -174,13 +174,13 @@ world/fleet details that matter to planning.
 
 ```text
 From your 3rd Fleet, located in System(9,5):           Stardate: 02/3031
-Guard/Blockade World mission report
+ALERT: Enemy fleet contact!
 
-Enemy:             the 8th Fleet of "Player2", (Empire #2)
+Enemy:             The 8th Fleet of "Player2", (Empire #2)
 Our forces:        2 battleships, 4 cruisers and 6 destroyers
 Alien forces:      1 battleship, 5 cruisers and 3 destroyers
 
-We successfully intercepted the alien fleet.
+Interception successful.
 The enemy fled the field.
 Our losses:        1 cruiser and 2 destroyers
 Alien losses:      2 cruisers and 1 destroyer
@@ -191,16 +191,33 @@ Alien losses:      2 cruisers and 1 destroyer
 
 ```text
 From planet "Red" in System(9,6):                      Stardate: 03/3031
-Invasion report
+ALERT: Planetary invasion successful!
 
 Invader:           "Player1", (Empire #1)
 Attacking force:   11 battleships, 28 cruisers, 8 destroyers and 106 troop
                    transport ships
 Our defenses:      12 ground batteries and 40 armies
 
-We have been invaded and captured by "Player1", (Empire #1).
+Planet captured by "Player1", (Empire #1).
 All planetary defenses were destroyed.
 Enemy losses:      no ship losses
+<end of transmission>
+```
+
+### Structured Bombardment Report
+
+```text
+From planet "biggy" in System(1,9):                    Stardate: 03/3040
+ALERT: Orbital bombardment underway!
+
+Attacker:          The 10th Fleet of "Player2", (Empire #2)
+Attacking force:   26 battleships, 58 cruisers and 68 troop transport ships
+Our defenses:      3 armies
+
+All planetary defenses were destroyed.
+Local damage:      7 stardock items destroyed.
+Local damage:      10497 points of industry destroyed.
+Local damage:      42 stored production destroyed.
 <end of transmission>
 ```
 

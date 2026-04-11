@@ -98,7 +98,7 @@ fn results_reports_contact_before_destroyed_fleet_notice() {
         .expect("merged contact report should exist");
     let destroyed_idx = texts
         .iter()
-        .position(|text| text.contains("We lost all contact with the 15th Fleet"))
+        .position(|text| text.contains("ALERT: Fleet contact lost!"))
         .expect("lost-contact report should exist");
     assert!(
         contact_idx < destroyed_idx,
@@ -196,11 +196,11 @@ fn results_reports_battle_before_bombard_aftermath() {
         .expect("merged contact report should exist");
     let battle_idx = texts
         .iter()
-        .position(|text| text.contains("We successfully intercepted"))
+        .position(|text| text.contains("ALERT: Enemy fleet contact!"))
         .expect("battle report should exist");
     let bombard_idx = texts
         .iter()
-        .position(|text| text.contains("Our world has been bombarded"))
+        .position(|text| text.contains("ALERT: Orbital bombardment underway!"))
         .expect("bombard report should exist");
     assert!(
         contact_idx < battle_idx,
@@ -258,9 +258,9 @@ fn destroyed_reporting_fleet_uses_telemetry_report_even_if_side_holds_field() {
     let rows = build_results_report_blocks(&game_data, &events);
     let text = viewer_report_texts(1, &rows).join(" ");
     assert!(text.contains("From your Fleet Command Center:"));
-    assert!(text.contains("We lost all contact with the 15th Fleet"));
+    assert!(text.contains("ALERT: Fleet contact lost!"));
     assert!(!text.contains("From your 15th Fleet"));
-    assert!(!text.contains("We successfully intercepted"));
+    assert!(!text.contains("Interception successful."));
 }
 
 #[test]
@@ -299,7 +299,9 @@ fn bombardment_defender_report_uses_first_person_loss_wording() {
     let rows = build_results_report_blocks(&game_data, &events);
     let bombard = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
-    assert!(bombard.contains("Our world has been bombarded by"));
+    assert!(bombard.contains("ALERT: Orbital bombardment underway!"));
+    assert!(bombard.contains("Attacker:"));
+    assert!(bombard.contains("The 9th Fleet of"));
     assert!(bombard.contains("Attacking force:"));
     assert!(bombard.contains("1DD"));
     assert!(bombard.contains("Our defenses:"));
@@ -444,7 +446,7 @@ fn blitz_report_for_undefended_world_includes_attacker_force_and_no_battery_text
     let rows = build_results_report_blocks(&game_data, &events);
     let blitz = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
-    assert!(blitz.contains("Blitz mission report"));
+    assert!(blitz.contains("ALERT: Blitz assault successful!"));
     assert!(blitz.contains("We have seized planet \"dog\" in a fast assault."));
     assert!(blitz.contains("Our forces:"));
     assert!(blitz.contains("2CA, 2TT*"));
@@ -493,7 +495,7 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     let rows = build_results_report_blocks(&game_data, &events);
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
-    assert!(invasion.contains("Invasion mission report"));
+    assert!(invasion.contains("ALERT: Planetary invasion successful!"));
     assert!(invasion.contains("Our armies have captured planet \"dog\"."));
     assert!(invasion.contains("Our forces:"));
     assert!(invasion.contains("1BB, 2TT*"));
@@ -544,7 +546,7 @@ fn invasion_report_lists_ship_and_ground_army_losses() {
     let rows = build_results_report_blocks(&game_data, &events);
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
-    assert!(invasion.contains("Invasion mission report"));
+    assert!(invasion.contains("ALERT: Planetary invasion successful!"));
     assert!(invasion.contains("Our armies have captured planet \"red\"."));
     assert!(invasion.contains("Our losses:"));
     assert!(invasion.contains("15CA and 7 armies"));
@@ -599,7 +601,8 @@ fn ownership_change_report_uses_assault_context_for_defender() {
 
     let rows = build_results_report_blocks(&game_data, &events);
     let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
-    assert!(text.contains("We have been invaded and captured by"));
+    assert!(text.contains("ALERT: Blitz assault successful!"));
+    assert!(text.contains("Planet seized in a blitz assault by"));
     assert!(!text.contains("captured by \"Player1\", (Empire #1) from"));
     assert!(text.contains("Attacking force:"));
     assert!(text.contains("1CA"));
@@ -658,7 +661,7 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("Bombardment mission report"));
+    assert!(text.contains("ALERT: Orbital bombardment underway!"));
     assert!(text.contains("Our forces: 10BB, 11CA, 21TT"));
     assert!(text.contains("World defenses: undefended"));
     assert!(text.contains("Bombing damage: 336 points of industry destroyed."));
@@ -1023,7 +1026,7 @@ fn victorious_invasion_report_says_enemy_fled_without_roe_leak() {
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")
         .replace('\n', " ");
-    assert!(text.contains("Invasion mission report"));
+    assert!(text.contains("ALERT: Enemy fleet contact!"));
     assert!(text.contains("The enemy fled the field."));
     assert!(!text.contains("In accordance with our ROE"));
 }
@@ -1377,7 +1380,7 @@ fn destroyed_starbase_only_defender_emits_only_telemetry_report() {
         .expect("expected Alien forces section");
     assert!(before_forces.ends_with("\n\n"), "{:?}", texts[0]);
     assert!(texts[0].contains("Last contact: destroyed by"));
-    assert!(texts[0].contains("We lost all contact with Starbase 4"));
+    assert!(texts[0].contains("ALERT: Starbase contact lost!"));
 }
 
 #[test]
@@ -1432,7 +1435,7 @@ fn results_reports_starbase_contact_before_destroyed_starbase_notice() {
         "expected contact and destroyed-starbase reports: {texts:?}"
     );
     assert!(texts[0].contains("We have located and identified an alien fleet"));
-    assert!(texts[1].contains("We lost all contact with Starbase 5"));
+    assert!(texts[1].contains("ALERT: Starbase contact lost!"));
 }
 
 #[test]

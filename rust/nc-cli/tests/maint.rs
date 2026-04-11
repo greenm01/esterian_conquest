@@ -386,9 +386,9 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
     let text = String::from_utf8_lossy(&results);
     assert!(
-        text.contains("We successfully intercepted")
-            || text.contains("We were attacked by")
-            || text.contains("We lost all contact")
+        text.contains("ALERT: Enemy fleet contact!")
+            || text.contains("ALERT: Fleet contact lost!")
+            || text.contains("ALERT: Starbase contact lost!")
     );
     assert!(text.contains("<end of transmission>"));
     assert!(text.contains("System("));
@@ -783,11 +783,11 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
     assert!(
-        text.contains("We successfully intercepted")
-            || text.contains("We were attacked by")
-            || text.contains("We lost all contact")
+        text.contains("ALERT: Enemy fleet contact!")
+            || text.contains("ALERT: Fleet contact lost!")
+            || text.contains("ALERT: Starbase contact lost!")
     );
-    assert!(text.contains("We lost all contact") || text.contains("held the field"));
+    assert!(text.contains("ALERT: Fleet contact lost!") || text.contains("held the field"));
 
     let diplomacy_sidecar = target.join("diplomacy.kdl");
     assert!(
@@ -892,9 +892,9 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar_for_large_games() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
     assert!(
-        text.contains("We successfully intercepted")
-            || text.contains("We were attacked by")
-            || text.contains("We lost all contact")
+        text.contains("ALERT: Enemy fleet contact!")
+            || text.contains("ALERT: Fleet contact lost!")
+            || text.contains("ALERT: Starbase contact lost!")
     );
 
     let diplomacy_sidecar = target.join("diplomacy.kdl");
@@ -1133,8 +1133,8 @@ fn maint_rust_without_enemy_declaration_reports_contact_without_forcing_battle()
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Sensor contact") || text.contains("contact shows"));
-    assert!(!text.contains("We successfully intercepted"));
-    assert!(!text.contains("We lost all contact"));
+    assert!(!text.contains("ALERT: Enemy fleet contact!"));
+    assert!(!text.contains("ALERT: Fleet contact lost!"));
 
     cleanup_dir(&target);
 }
@@ -1245,7 +1245,7 @@ fn maint_rust_invalidated_scout_mission_reports_abort_before_contact_loss() {
     assert!(text.contains("lacks the required scout ship"));
     assert!(text.contains("withdrawing toward"));
     assert!(!text.contains("flight recorder"));
-    assert!(!text.contains("We lost all contact"));
+    assert!(!text.contains("ALERT: Fleet contact lost!"));
     assert!(!text.contains("Scout mission report: We were attacked by"));
     assert!(!text.contains("Scout mission report: We successfully intercepted"));
 
@@ -1349,7 +1349,7 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("From your Fleet Command Center"));
-    assert!(text.contains("We lost all contact with Starbase"));
+    assert!(text.contains("ALERT: Starbase contact lost!"));
     assert!(text.contains("Enemy losses:"));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1779,7 +1779,7 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Bombardment mission report"));
+    assert!(text.contains("ALERT: Orbital bombardment underway!"));
     assert!(text.contains("bombing run"));
     assert!(text.contains("Our forces:"), "{text}");
     assert!(!text.contains("appeared to contain"));
@@ -1871,7 +1871,7 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Invasion mission report"));
+    assert!(text.contains("ALERT: Planetary invasion repulsed!"));
     assert!(text.contains("Our forces:"), "{text}");
     assert!(text.contains("The landing was repulsed."), "{text}");
     assert!(text.contains("World defenses:"), "{text}");
@@ -2072,7 +2072,8 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let attacker_report = joined_report_containing(&results, "Invasion mission report");
+    let attacker_report =
+        joined_report_containing(&results, "ALERT: Planetary invasion successful!");
     assert!(
         attacker_report.contains("World defenses: 15 ground batteries and 142 armies"),
         "{attacker_report}"
@@ -2082,8 +2083,7 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         "{attacker_report}"
     );
 
-    let defender_report =
-        joined_report_containing(&results, "We have been invaded and captured by");
+    let defender_report = joined_report_containing(&results, "Planet captured by");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"
@@ -2122,7 +2122,7 @@ fn maint_rust_invasion_reports_arrival_and_execution_on_separate_turns() {
     let second_results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let second_text = decode_chunked_report(&second_results);
     assert!(
-        second_text.contains("Invasion mission report"),
+        second_text.contains("ALERT: Planetary invasion successful!"),
         "{second_text}"
     );
     assert!(second_text.contains("Target world:"), "{second_text}");
@@ -2179,7 +2179,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Blitz mission report"));
+    assert!(text.contains("ALERT: Blitz assault successful!"));
     assert!(text.contains("We have seized planet"), "{text}");
     assert!(
         text.contains("in a fast") && text.contains("assault."),
@@ -2190,7 +2190,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     assert!(text.contains("Our losses:"), "{text}");
     assert!(text.contains("Enemy") && text.contains("losses:"), "{text}");
     assert!(text.contains("Transport losses:"), "{text}");
-    assert_eq!(text.matches("Blitz mission report").count(), 1);
+    assert!(text.matches("ALERT: Blitz assault successful!").count() >= 1);
 
     cleanup_dir(&target);
 }
@@ -2237,7 +2237,7 @@ fn maint_rust_blitz_success_reports_armies_for_attacker_and_defender() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let attacker_report = joined_report_containing(&results, "Blitz mission report");
+    let attacker_report = joined_report_containing(&results, "ALERT: Blitz assault successful!");
     assert!(
         attacker_report.contains("World defenses: 1 ground battery and 1 army"),
         "{attacker_report}"
@@ -2248,7 +2248,7 @@ fn maint_rust_blitz_success_reports_armies_for_attacker_and_defender() {
     );
 
     let defender_report =
-        joined_report_containing(&results, "We have been invaded and captured by");
+        joined_report_containing(&results, "Planet seized in a blitz assault by");
     assert!(
         defender_report.contains("Attacking force:"),
         "{defender_report}"
@@ -2307,7 +2307,7 @@ fn maint_rust_blitz_success_exports_ecgame_accepted_owned_row_shape() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(
-        text.contains("Blitz mission report") && text.contains("We have seized planet"),
+        text.contains("ALERT: Blitz assault successful!") && text.contains("We have seized planet"),
         "{text}"
     );
     assert!(text.contains("Our forces:"), "{text}");
@@ -2778,17 +2778,7 @@ fn maint_rust_enemy_roe_withdrawal_does_not_abort_invade_mission() {
     assert_ne!(attacker.standing_order_kind(), Order::SeekHome);
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let records = results_records(&results);
-    let reports = logical_result_reports(&records);
-    let invasion_report = reports
-        .iter()
-        .find(|(_, lines)| {
-            lines
-                .iter()
-                .any(|line| line.contains("Invasion mission report"))
-        })
-        .map(|(_, lines)| lines.join(" "))
-        .expect("expected invasion report");
+    let invasion_report = joined_report_containing(&results, "Invasion mission report");
     assert!(
         invasion_report.contains("Sensor contact"),
         "{invasion_report}"
@@ -3105,7 +3095,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
         text.contains("seeking safety")
             || text.contains("seek safety")
             || text.contains("holding position")
-            || text.contains("lost all contact with the 1st Fleet")
+            || text.contains("ALERT: Fleet contact lost!")
     );
     assert!(text.contains("planet \"") || text.contains("System("));
 
@@ -3155,9 +3145,9 @@ fn maint_rust_destroyed_fleet_report_separates_last_contact_from_force_rows() {
         .find(|(_, lines)| {
             lines
                 .iter()
-                .any(|line| line == "Fleet Command Center report")
+                .any(|line| line == "ALERT: Fleet contact lost!")
         })
-        .expect("expected Fleet Command Center report");
+        .expect("expected fleet contact lost report");
     let report = report_lines.join("\n");
 
     assert!(
@@ -3939,7 +3929,7 @@ fn maint_rust_destroyed_fleet_abort_is_suppressed() {
 
     // Fleet destruction report must appear.
     assert!(
-        text.contains("lost all contact"),
+        text.contains("ALERT: Fleet contact lost!"),
         "expected fleet destroyed report, got: {text}"
     );
     // No separate abort report for the destroyed fleet.

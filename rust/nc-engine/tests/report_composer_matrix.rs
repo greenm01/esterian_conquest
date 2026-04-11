@@ -106,8 +106,8 @@ fn fleet_destroyed_event_supersedes_generic_battle_report() {
     assert!(before_forces.ends_with("\n\n"), "{:?}", texts[0]);
     assert!(texts[0].contains("Last contact:"));
     assert!(texts[0].contains("destroyed while intercepting"));
-    assert!(texts[0].contains("We lost all contact with the 11th Fleet"));
-    assert!(!texts[0].contains("We successfully intercepted"));
+    assert!(texts[0].contains("ALERT: Fleet contact lost!"));
+    assert!(!texts[0].contains("Interception successful."));
 }
 
 #[test]

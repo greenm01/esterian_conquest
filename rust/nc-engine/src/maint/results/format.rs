@@ -1,5 +1,5 @@
 use crate::maint::timing::format_report_first_line;
-use nc_data::{CoreGameData, Mission, ShipLosses};
+use nc_data::{CoreGameData, Mission, MissionOutcome, ShipLosses};
 
 pub fn report_header(source_clause: &str, week: Option<u8>, year: u16) -> String {
     format_report_first_line(source_clause, week.unwrap_or(1), year)
@@ -109,6 +109,18 @@ pub fn known_hostile_fleet_label(
     ))
 }
 
+fn capitalize_leading_ascii(text: &str) -> String {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) => {
+            let mut value = first.to_ascii_uppercase().to_string();
+            value.push_str(chars.as_str());
+            value
+        }
+        None => String::new(),
+    }
+}
+
 pub fn classic_enemy_reference(
     game_data: &CoreGameData,
     fleet_number: Option<u8>,
@@ -116,6 +128,14 @@ pub fn classic_enemy_reference(
 ) -> String {
     known_hostile_fleet_label(game_data, fleet_number, empire_raw)
         .unwrap_or_else(|| classic_empire_clause(game_data, empire_raw))
+}
+
+pub fn classic_enemy_reference_titlecase(
+    game_data: &CoreGameData,
+    fleet_number: Option<u8>,
+    empire_raw: u8,
+) -> String {
+    capitalize_leading_ascii(&classic_enemy_reference(game_data, fleet_number, empire_raw))
 }
 
 pub fn mission_short_label(kind: Mission) -> &'static str {
@@ -267,20 +287,43 @@ pub fn compact_fleet_number_list(numbers: &[u8]) -> String {
     }
 }
 
-pub fn structured_bombardment_title(mission_owned: bool) -> &'static str {
-    if mission_owned {
-        mission_report_label(Mission::BombardWorld)
-    } else {
-        crate::maint::results::mod_constants::STRUCTURED_TITLE_BOMBARDMENT
+pub fn structured_fleet_battle_alert() -> &'static str {
+    "ALERT: Enemy fleet contact!"
+}
+
+pub fn structured_fleet_destroyed_alert() -> &'static str {
+    "ALERT: Fleet contact lost!"
+}
+
+pub fn structured_starbase_destroyed_alert() -> &'static str {
+    "ALERT: Starbase contact lost!"
+}
+
+pub fn structured_bombardment_alert() -> &'static str {
+    "ALERT: Orbital bombardment underway!"
+}
+
+pub fn structured_assault_alert(kind: Mission, outcome: MissionOutcome) -> &'static str {
+    match (kind, outcome) {
+        (Mission::InvadeWorld, MissionOutcome::Succeeded) => {
+            "ALERT: Planetary invasion successful!"
+        }
+        (Mission::InvadeWorld, MissionOutcome::Failed) => {
+            "ALERT: Planetary invasion repulsed!"
+        }
+        (Mission::InvadeWorld, MissionOutcome::Aborted) => "ALERT: Planetary invasion blocked!",
+        (Mission::BlitzWorld, MissionOutcome::Succeeded) => "ALERT: Blitz assault successful!",
+        (Mission::BlitzWorld, MissionOutcome::Failed) => "ALERT: Blitz assault failed!",
+        (Mission::BlitzWorld, MissionOutcome::Aborted) => "ALERT: Blitz assault blocked!",
+        _ => "ALERT: Combat underway!",
     }
 }
 
-pub fn structured_capture_title() -> &'static str {
-    crate::maint::results::mod_constants::STRUCTURED_TITLE_CAPTURED_WORLD
-}
-
-pub fn structured_fleet_command_title() -> &'static str {
-    crate::maint::results::mod_constants::STRUCTURED_TITLE_FLEET_COMMAND
+pub fn structured_capture_alert(kind: Mission) -> &'static str {
+    match kind {
+        Mission::BlitzWorld => "ALERT: Blitz assault successful!",
+        _ => "ALERT: Planetary invasion successful!",
+    }
 }
 
 pub fn aborted_mission_follow_on_text(

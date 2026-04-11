@@ -129,7 +129,7 @@ fn harness_preview_reports_prints_attacker_and_defender_sections() {
     assert!(stdout.contains("family=bombard"));
     assert!(stdout.contains("attacker (empire=1):"));
     assert!(stdout.contains("defender (empire=2):"));
-    assert!(stdout.contains("Bombardment mission report"));
+    assert!(stdout.contains("ALERT: Orbital bombardment underway!"));
 }
 
 #[test]

@@ -11,7 +11,7 @@ use crate::maint::results::compose::{
 use crate::maint::results::entries::intel::{
     matching_planet_intel_event, owner_clause_from_snapshot, stardock_scan_summary_from_snapshot,
 };
-use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::entries::{NarrativePhase, ReportEntry, ReportTarget, narrative_phase_for_report_text};
 use crate::maint::results::format::*;
 use crate::maint::results::mod_constants::*;
 use crate::maint::results::structured::*;
@@ -528,7 +528,7 @@ pub fn push_mission_entries(
                                 .to_string(),
                         ));
                         MissionReportBody::Structured(structured_combat_body(
-                            structured_bombardment_title(true),
+                            structured_bombardment_alert(),
                             context_rows,
                             force_rows,
                             outcome_rows,
@@ -701,8 +701,10 @@ pub fn push_mission_entries(
                 (format!("{header}{body}"), phase)
             }
             MissionReportBody::Structured(items) => {
-                let body = render_structured_body(&items);
-                let phase = narrative_phase_for_report_text(&body);
+                let phase = match event.kind {
+                    Mission::BombardWorld => NarrativePhase::AttackerAftermath,
+                    _ => NarrativePhase::AttackerAftermath,
+                };
                 (structured_report_text(&header, items), phase)
             }
         };

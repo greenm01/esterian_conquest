@@ -4,7 +4,7 @@ use nc_data::{
 };
 
 use crate::maint::results::combat::*;
-use crate::maint::results::entries::{ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::entries::{NarrativePhase, ReportEntry, ReportTarget, narrative_phase_for_report_text};
 use crate::maint::results::format::*;
 use crate::maint::results::mod_constants::*;
 use crate::maint::results::structured::*;
@@ -236,7 +236,12 @@ pub fn push_intel_entries(
                 },
             ];
             let mut outcome_rows = vec![StructuredBodyItem::Text(format!(
-                "We have been invaded and captured by {invader}."
+                "{}",
+                if assault.kind == Mission::BlitzWorld {
+                    format!("Planet seized in a blitz assault by {invader}.")
+                } else {
+                    format!("Planet captured by {invader}.")
+                }
             ))];
             if assault.defender_batteries_initial > 0 || assault.defender_armies_initial > 0 {
                 outcome_rows.push(StructuredBodyItem::Text(planetary_defense_outcome_line(
@@ -251,23 +256,22 @@ pub fn push_intel_entries(
                 value: ship_loss_summary(assault.attacker_ship_losses),
             });
             structured_combat_body(
-                structured_capture_title(),
+                structured_capture_alert(assault.kind),
                 context_rows,
                 force_rows,
                 outcome_rows,
             )
         } else {
             structured_combat_body(
-                structured_capture_title(),
+                structured_capture_alert(Mission::InvadeWorld),
                 Vec::new(),
                 Vec::new(),
                 vec![StructuredBodyItem::Text(format!(
-                    "We have been invaded and captured by {}.",
+                    "Planet captured by {}.",
                     classic_empire_clause(game_data, event.new_owner_empire_raw),
                 ))],
             )
         };
-        let body = render_structured_body(&items);
         let text = structured_report_text(&header, items);
         entries.push(ReportEntry {
             text,
@@ -278,7 +282,7 @@ pub fn push_intel_entries(
             },
             repeat_next_pointer: false,
             stardate_week: event.stardate_week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+            narrative_phase: NarrativePhase::DefenderAftermath,
         });
     }
 }

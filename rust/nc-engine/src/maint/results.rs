@@ -59,20 +59,17 @@ mod tests {
         let text = structured_report_text(
             header,
             vec![
-                StructuredBodyItem::Title("Fleet Command Center report".to_string()),
+                StructuredBodyItem::Title("ALERT: Fleet contact lost!".to_string()),
                 StructuredBodyItem::Blank,
                 StructuredBodyItem::Label {
                     label: "Fleet lost:".to_string(),
                     value: "15th Fleet".to_string(),
                 },
-                StructuredBodyItem::Blank,
-                StructuredBodyItem::Text("We lost all contact with the 15th Fleet.".to_string()),
             ],
         );
         let lines = classic_results_lines(&text);
-        assert_eq!(lines[1], "Fleet Command Center report");
+        assert_eq!(lines[1], "ALERT: Fleet contact lost!");
         assert_eq!(lines[2], "");
-        assert_eq!(lines[4], "");
         assert!(lines.iter().all(|line| line.chars().count() <= 72));
     }
 
@@ -82,7 +79,7 @@ mod tests {
         let text = structured_report_text(
             header,
             structured_combat_body(
-                "Fleet Command Center report",
+                "ALERT: Fleet contact lost!",
                 vec![
                     StructuredBodyItem::Label {
                         label: "Fleet lost:".to_string(),
@@ -105,9 +102,10 @@ mod tests {
                         value: "9BB, 1CA, 12TT*, 1TT".to_string(),
                     },
                 ],
-                vec![StructuredBodyItem::Text(
-                    "We lost all contact with the 13th Fleet.".to_string(),
-                )],
+                vec![StructuredBodyItem::Label {
+                    label: "Enemy losses:".to_string(),
+                    value: "none".to_string(),
+                }],
             ),
         );
         let lines = classic_results_lines(&text);

@@ -271,19 +271,30 @@ pub fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
         || text.contains("we are avoiding engagement")
     {
         NarrativePhase::ContactIdentify
-    } else if text.contains("We lost all contact")
+    } else if text.contains("ALERT: Enemy fleet contact!")
+        || text.contains("ALERT: Fleet contact lost!")
+        || text.contains("ALERT: Starbase contact lost!")
+        || text.contains("We lost all contact")
         || text.contains("We successfully intercepted")
         || text.contains("We were attacked by")
         || text.contains("We engaged")
         || text.contains("We attempted to disengage")
     {
         NarrativePhase::BattleResolution
-    } else if text.contains("Our world has been bombarded")
+    } else if text.contains("ALERT: Orbital bombardment underway!")
+        || text.contains("Planet captured by")
+        || text.contains("Planet seized in a blitz assault by")
+        || text.contains("Our world has been bombarded")
         || text.contains("We have been bombarded")
         || text.contains("We have been invaded and captured")
     {
         NarrativePhase::DefenderAftermath
-    } else if text.contains("Bombardment mission report")
+    } else if text.contains("ALERT: Planetary invasion successful!")
+        || text.contains("ALERT: Planetary invasion repulsed!")
+        || text.contains("ALERT: Planetary invasion blocked!")
+        || text.contains("ALERT: Blitz assault successful!")
+        || text.contains("ALERT: Blitz assault failed!")
+        || text.contains("Bombardment mission report")
         || text.contains("Invasion mission report")
         || text.contains("Blitz mission report")
     {
