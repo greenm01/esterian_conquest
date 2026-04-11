@@ -344,6 +344,7 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
         attacker_army_losses: 3,
         transport_army_losses: 0,
         defender_battery_losses: 2,
+        defender_army_losses_softening: 0,
         defender_army_losses: 5,
         outcome: MissionOutcome::Succeeded,
         stardate_week: Some(3),
@@ -395,6 +396,7 @@ fn blitz_report_includes_transport_and_ground_army_losses_in_total_losses() {
         attacker_army_losses: 3,
         transport_army_losses: 2,
         defender_battery_losses: 2,
+        defender_army_losses_softening: 0,
         defender_army_losses: 5,
         outcome: MissionOutcome::Succeeded,
         stardate_week: Some(3),
@@ -438,6 +440,7 @@ fn blitz_report_for_undefended_world_includes_attacker_force_and_no_battery_text
         attacker_army_losses: 0,
         transport_army_losses: 0,
         defender_battery_losses: 0,
+        defender_army_losses_softening: 0,
         defender_army_losses: 0,
         outcome: MissionOutcome::Succeeded,
         stardate_week: Some(3),
@@ -487,6 +490,7 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
         attacker_army_losses: 0,
         transport_army_losses: 0,
         defender_battery_losses: 0,
+        defender_army_losses_softening: 0,
         defender_army_losses: 0,
         outcome: MissionOutcome::Succeeded,
         stardate_week: Some(3),
@@ -503,6 +507,8 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     assert!(invasion.contains("undefended"));
     assert!(invasion.contains("Enemy losses:"));
     assert!(invasion.contains("none"));
+    assert!(!invasion.contains("Orbital softening losses:"));
+    assert!(!invasion.contains("Ground battle losses:"));
 }
 
 #[test]
@@ -538,6 +544,7 @@ fn invasion_report_lists_ship_and_ground_army_losses() {
         attacker_army_losses: 7,
         transport_army_losses: 0,
         defender_battery_losses: 10,
+        defender_army_losses_softening: 17,
         defender_army_losses: 34,
         outcome: MissionOutcome::Succeeded,
         stardate_week: Some(3),
@@ -552,6 +559,9 @@ fn invasion_report_lists_ship_and_ground_army_losses() {
     assert!(invasion.contains("15CA and 7 armies"));
     assert!(invasion.contains("Enemy losses:"));
     assert!(invasion.contains("10 ground batteries and 34 armies"));
+    assert!(invasion.contains("Orbital softening losses:"));
+    assert!(invasion.contains("17 armies"));
+    assert!(invasion.contains("Ground battle losses:"));
 }
 
 #[test]
@@ -585,6 +595,7 @@ fn ownership_change_report_uses_assault_context_for_defender() {
         attacker_army_losses: 3,
         transport_army_losses: 0,
         defender_battery_losses: 2,
+        defender_army_losses_softening: 0,
         defender_army_losses: 5,
         outcome: MissionOutcome::Succeeded,
         stardate_week: Some(3),
@@ -611,6 +622,8 @@ fn ownership_change_report_uses_assault_context_for_defender() {
     assert!(text.contains("All planetary defenses were destroyed."));
     assert!(text.contains("Enemy losses:"));
     assert!(text.contains("no ship losses"));
+    assert!(!text.contains("Orbital softening losses:"));
+    assert!(!text.contains("Ground battle losses:"));
 }
 
 #[test]

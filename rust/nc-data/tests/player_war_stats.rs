@@ -91,6 +91,7 @@ fn maintenance_events_accumulate_lifetime_war_stats() {
         attacker_army_losses: 3,
         transport_army_losses: 0,
         defender_battery_losses: 1,
+        defender_army_losses_softening: 1,
         defender_army_losses: 2,
         outcome: MissionOutcome::Failed,
         stardate_week: Some(16),

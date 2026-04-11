@@ -134,8 +134,8 @@ fn configure_delayed_invade_arrival_directory(target: &std::path::Path) {
     attacker.set_battleship_count(20);
     attacker.set_cruiser_count(20);
     attacker.set_destroyer_count(20);
-    attacker.set_troop_transport_count(2);
-    attacker.set_army_count(2);
+    attacker.set_troop_transport_count(5);
+    attacker.set_army_count(5);
     attacker.set_etac_count(0);
     attacker.set_movement_state_flag_raw(0x80);
     attacker.set_movement_fraction_raw(0);
@@ -1875,6 +1875,8 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     assert!(text.contains("Our forces:"), "{text}");
     assert!(text.contains("The landing was repulsed."), "{text}");
     assert!(text.contains("World defenses:"), "{text}");
+    assert!(text.contains("Orbital softening losses:"), "{text}");
+    assert!(text.contains("Ground battle losses:"), "{text}");
     assert!(!text.contains("initially contained"), "{text}");
     assert!(!text.contains("0 ground battery(ies)"), "{text}");
     assert!(!text.contains("0 army(ies)"), "{text}");
@@ -1987,8 +1989,8 @@ fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
     attacker.set_battleship_count(20);
     attacker.set_cruiser_count(20);
     attacker.set_destroyer_count(20);
-    attacker.set_troop_transport_count(2);
-    attacker.set_army_count(2);
+    attacker.set_troop_transport_count(120);
+    attacker.set_army_count(120);
     attacker.set_etac_count(0);
     game_data
         .save(&target)
@@ -2018,7 +2020,7 @@ fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
         u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
         65
     );
-    assert_eq!(viewer_record.raw[0x23], 2);
+    assert_eq!(viewer_record.raw[0x23], reloaded.planets.records[13].army_count_raw());
     assert_eq!(viewer_record.raw[0x24], 0x00);
     assert_eq!(viewer_record.raw[0x25], 0);
     assert_eq!(viewer_record.raw[0x26], 0x00);
@@ -2061,8 +2063,8 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
     attacker.set_battleship_count(20);
     attacker.set_cruiser_count(20);
     attacker.set_destroyer_count(20);
-    attacker.set_troop_transport_count(2);
-    attacker.set_army_count(2);
+    attacker.set_troop_transport_count(120);
+    attacker.set_army_count(120);
     attacker.set_etac_count(0);
     game_data
         .save(&target)
@@ -2082,6 +2084,14 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         attacker_report.contains("Enemy losses: 15 ground batteries and 142 armies"),
         "{attacker_report}"
     );
+    assert!(
+        attacker_report.contains("Orbital softening losses:71 armies"),
+        "{attacker_report}"
+    );
+    assert!(
+        attacker_report.contains("Ground battle losses:71 armies"),
+        "{attacker_report}"
+    );
 
     let defender_report = joined_report_containing(&results, "Planet captured by");
     assert!(
@@ -2092,9 +2102,17 @@ fn maint_rust_invasion_success_reports_armies_for_attacker_and_defender() {
         defender_report.contains("20BB, 20CA, 20DD"),
         "{defender_report}"
     );
-    assert!(defender_report.contains("2TT*"), "{defender_report}");
+    assert!(defender_report.contains("120TT*"), "{defender_report}");
     assert!(
         defender_report.contains("Our defenses: 15 ground batteries and 142 armies"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("Orbital softening losses:71 armies"),
+        "{defender_report}"
+    );
+    assert!(
+        defender_report.contains("Ground battle losses:71 armies"),
         "{defender_report}"
     );
 

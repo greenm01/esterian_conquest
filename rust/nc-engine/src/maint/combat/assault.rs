@@ -141,11 +141,17 @@ fn apply_planet_suppression_damage(planet: &mut nc_data::PlanetRecord, mut hits:
     planet.set_ground_batteries_raw(planet.ground_batteries_raw().saturating_sub(battery_loss));
 }
 
-/// Soften damage during invasion: only targets armies.
-/// Factories and stored goods are preserved to keep the planet valuable for capture.
-fn apply_planet_soften_damage(planet: &mut nc_data::PlanetRecord, hits: u32) {
-    let army_loss = hits.min(planet.army_count_raw() as u32) as u8;
+fn apply_capped_invasion_soften_damage(
+    planet: &mut nc_data::PlanetRecord,
+    hits: u32,
+    initial_armies: u8,
+) -> u8 {
+    let max_soften_losses = u32::from(initial_armies / 2);
+    let army_loss = hits
+        .min(planet.army_count_raw() as u32)
+        .min(max_soften_losses) as u8;
     planet.set_army_count_raw(planet.army_count_raw().saturating_sub(army_loss));
+    army_loss
 }
 
 /// Full bombardment cascade: stardock -> batteries -> armies -> stored goods -> factories.
@@ -672,9 +678,10 @@ pub(crate) fn process_planetary_assaults(
                     );
                     // Soften targets armies only — factories and stored goods are
                     // preserved so the captured planet retains its production value.
-                    apply_planet_soften_damage(
+                    let soften_army_losses = apply_capped_invasion_soften_damage(
                         &mut game_data.planets.records[planet_idx],
                         scalar_hits_with_critical(soft_exchange),
+                        pre_armies,
                     );
 
                     let attacking_armies: u32 = winner_fleets
@@ -772,6 +779,7 @@ pub(crate) fn process_planetary_assaults(
                                 .saturating_sub(attacker_survivors),
                             transport_army_losses: 0,
                             defender_battery_losses,
+                            defender_army_losses_softening: soften_army_losses,
                             defender_army_losses,
                             outcome: MissionOutcome::Succeeded,
                             stardate_week: None,
@@ -814,6 +822,7 @@ pub(crate) fn process_planetary_assaults(
                             attacker_army_losses: attacking_armies,
                             transport_army_losses: 0,
                             defender_battery_losses,
+                            defender_army_losses_softening: soften_army_losses,
                             defender_army_losses,
                             outcome: MissionOutcome::Failed,
                             stardate_week: None,
@@ -860,6 +869,7 @@ pub(crate) fn process_planetary_assaults(
                         defender_battery_losses: pre_batteries.saturating_sub(
                             game_data.planets.records[planet_idx].ground_batteries_raw(),
                         ),
+                        defender_army_losses_softening: 0,
                         defender_army_losses: 0,
                         outcome: MissionOutcome::Aborted,
                         stardate_week: None,
@@ -1018,6 +1028,7 @@ pub(crate) fn process_planetary_assaults(
                             .saturating_sub(attacker_survivors),
                         transport_army_losses: landing_army_losses,
                         defender_battery_losses,
+                        defender_army_losses_softening: 0,
                         defender_army_losses,
                         outcome: MissionOutcome::Succeeded,
                         stardate_week: None,
@@ -1060,6 +1071,7 @@ pub(crate) fn process_planetary_assaults(
                         attacker_army_losses: armies_after_landing,
                         transport_army_losses: landing_army_losses,
                         defender_battery_losses,
+                        defender_army_losses_softening: 0,
                         defender_army_losses,
                         outcome: MissionOutcome::Failed,
                         stardate_week: None,

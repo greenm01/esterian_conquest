@@ -260,14 +260,13 @@ fn fleet_destroyed_preview_surfaces_both_destroyed_and_survivor_wording() {
         attacker
             .reports
             .iter()
-            .any(|report| report.contains("We successfully intercepted")
-                || report.contains("We were attacked by"))
+            .any(|report| report.contains("ALERT: Enemy fleet contact!"))
     );
     assert!(
         defender
             .reports
             .iter()
-            .any(|report| report.contains("We lost all contact"))
+            .any(|report| report.contains("ALERT: Fleet contact lost!"))
     );
 }
 

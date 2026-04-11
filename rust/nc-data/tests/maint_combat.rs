@@ -1057,6 +1057,64 @@ fn canonical_invade_failure_removes_attacker_armies_and_holds_planet() {
 }
 
 #[test]
+fn canonical_invade_softening_caps_at_half_of_starting_armies() {
+    let mut game_data = configured_assault_state(7);
+
+    {
+        let attacker = &mut game_data.fleets.records[0];
+        attacker.set_battleship_count(20);
+        attacker.set_cruiser_count(20);
+        attacker.set_destroyer_count(20);
+        attacker.set_troop_transport_count(80);
+        attacker.set_army_count(80);
+    }
+    {
+        let target = &mut game_data.planets.records[13];
+        target.set_army_count_raw(62);
+        target.set_ground_batteries_raw(0);
+    }
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    let target = &game_data.planets.records[13];
+    let assault = &events.assault_report_events[0];
+    assert_eq!(target.owner_empire_slot_raw(), 1);
+    assert_eq!(assault.kind, Mission::InvadeWorld);
+    assert_eq!(assault.outcome, MissionOutcome::Succeeded);
+    assert_eq!(assault.defender_armies_initial, 62);
+    assert_eq!(assault.defender_army_losses_softening, 31);
+    assert_eq!(assault.defender_army_losses, 62);
+}
+
+#[test]
+fn canonical_invade_softening_leaves_majority_on_odd_army_counts() {
+    let mut game_data = configured_assault_state(7);
+
+    {
+        let attacker = &mut game_data.fleets.records[0];
+        attacker.set_battleship_count(20);
+        attacker.set_cruiser_count(20);
+        attacker.set_destroyer_count(20);
+        attacker.set_troop_transport_count(20);
+        attacker.set_army_count(20);
+    }
+    {
+        let target = &mut game_data.planets.records[13];
+        target.set_army_count_raw(5);
+        target.set_ground_batteries_raw(0);
+    }
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    let assault = &events.assault_report_events[0];
+    assert_eq!(assault.kind, Mission::InvadeWorld);
+    assert_eq!(assault.outcome, MissionOutcome::Succeeded);
+    assert_eq!(assault.defender_armies_initial, 5);
+    assert_eq!(assault.defender_army_losses_softening, 2);
+    assert_eq!(assault.defender_army_losses, 5);
+}
+
+#[test]
 fn canonical_blitz_success_transfers_surviving_batteries() {
     let mut game_data = configured_assault_state(8);
 

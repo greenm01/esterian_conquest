@@ -1,5 +1,5 @@
 use super::format::{join_report_parts, ship_loss_summary, unit_count_text};
-use nc_data::{MaintenanceEvents, ShipLosses};
+use nc_data::{MaintenanceEvents, Mission, MissionOutcome, ShipLosses};
 
 pub fn enemy_losses_sentence(losses: ShipLosses) -> String {
     let summary = ship_loss_summary(losses);
@@ -256,6 +256,43 @@ pub fn assault_friendly_losses_summary(
 
 pub fn assault_enemy_losses_summary(batteries: u8, armies: u8) -> String {
     ground_losses_summary(batteries, armies).unwrap_or_else(|| "none".to_string())
+}
+
+pub fn invasion_softening_losses_summary(event: &nc_data::AssaultReportEvent) -> Option<String> {
+    if event.kind != Mission::InvadeWorld
+        || event.outcome == MissionOutcome::Aborted
+        || event.defender_armies_initial == 0
+    {
+        return None;
+    }
+    Some(if event.defender_army_losses_softening > 0 {
+        unit_count_text(
+            u32::from(event.defender_army_losses_softening),
+            "army",
+            "armies",
+        )
+    } else {
+        "none".to_string()
+    })
+}
+
+pub fn invasion_ground_battle_losses_summary(
+    event: &nc_data::AssaultReportEvent,
+) -> Option<String> {
+    if event.kind != Mission::InvadeWorld
+        || event.outcome == MissionOutcome::Aborted
+        || event.defender_armies_initial == 0
+    {
+        return None;
+    }
+    let losses = event
+        .defender_army_losses
+        .saturating_sub(event.defender_army_losses_softening);
+    Some(if losses > 0 {
+        unit_count_text(u32::from(losses), "army", "armies")
+    } else {
+        "none".to_string()
+    })
 }
 
 pub fn roe_retreat_loss_clause(losses: ShipLosses) -> String {

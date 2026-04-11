@@ -255,6 +255,18 @@ pub fn push_intel_entries(
                 label: LABEL_ENEMY_LOSSES.to_string(),
                 value: ship_loss_summary(assault.attacker_ship_losses),
             });
+            if let Some(softening_losses) = invasion_softening_losses_summary(assault) {
+                outcome_rows.push(StructuredBodyItem::Label {
+                    label: "Orbital softening losses:".to_string(),
+                    value: softening_losses,
+                });
+            }
+            if let Some(ground_battle_losses) = invasion_ground_battle_losses_summary(assault) {
+                outcome_rows.push(StructuredBodyItem::Label {
+                    label: "Ground battle losses:".to_string(),
+                    value: ground_battle_losses,
+                });
+            }
             structured_combat_body(
                 structured_capture_alert(assault.kind),
                 context_rows,

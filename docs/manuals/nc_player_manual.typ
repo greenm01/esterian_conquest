@@ -581,7 +581,7 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Each turn your fleet bombards, the engine runs three rounds of fire. In rounds 1 and 2, your ships exchange fire with ground batteries --- hits destroy stardock contents first, then batteries, but armies, stored goods, and industry are shielded behind the battery wall. In round 3, if batteries have been eliminated, your firepower breaks through to armies, stored goods, and finally industry. If batteries still stand after round 2, round 3 is another suppression exchange and the planet's production survives. Bombardment persists each turn until you issue new orders. Use it to grind down a world's defenses before invasion, or to deny resources to an enemy over time.
 
-*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- industry and stored goods are preserved because the goal is to capture the planet with its production intact. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
+*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- industry and stored goods are preserved because the goal is to capture the planet with its production intact. However, orbital softening can destroy at most *half* of the defending army stack; at least half of the original defenders must still be fought on the ground. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
 
 *Mission 8: Blitz a World.* Transports drop armies immediately in a fast assault that bypasses the full orbital suppression sequence. Escorting combat ships provide brief cover fire, but surviving batteries fire directly on descending transports, causing heavy losses. Landed armies fight defenders immediately, and the defender receives a defensive bonus. If you take the planet, surviving ground batteries transfer intact to your control. The blitz preserves industry but carries high risk to your armies and transports --- a 2:1 army advantage or better is recommended. Choose blitz when the planet has few or no batteries and you want to preserve its industry, or when speed matters more than casualties.
 
@@ -938,8 +938,10 @@ Each bombardment turn runs three rounds:
 
 Invasion uses one suppression exchange against batteries. If batteries are
 cleared, the softening pass targets armies only --- industry and stored goods
-are not damaged during invasion. Ground combat in invasion and blitz uses the
-same CRT framework, with defender ties winning by default.
+are not damaged during invasion. Orbital softening may destroy at most half of
+the defender's starting armies, ensuring a meaningful landing battle whenever a
+world began the assault with a garrison. Ground combat in invasion and blitz
+uses the same CRT framework, with defender ties winning by default.
 
 #pagebreak()
 

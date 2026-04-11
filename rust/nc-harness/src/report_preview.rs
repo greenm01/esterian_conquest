@@ -592,6 +592,11 @@ fn build_assault_preview(
         attacker_army_losses,
         transport_army_losses: attacker_ship_losses.transports * 2,
         defender_battery_losses,
+        defender_army_losses_softening: if mission == Mission::InvadeWorld {
+            defender_army_losses / 2
+        } else {
+            0
+        },
         defender_army_losses,
         outcome,
         stardate_week: week,
@@ -1047,6 +1052,11 @@ fn build_ownership_change_preview(
         attacker_army_losses: u32::from(rng.range_u8(0, 2)),
         transport_army_losses: 0,
         defender_battery_losses: defense_batteries,
+        defender_army_losses_softening: if mission == Mission::InvadeWorld {
+            defense_armies / 2
+        } else {
+            0
+        },
         defender_army_losses: defense_armies,
         outcome: MissionOutcome::Succeeded,
         stardate_week: week,

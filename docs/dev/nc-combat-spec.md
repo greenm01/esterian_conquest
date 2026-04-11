@@ -187,7 +187,8 @@ same turn.
 1. **Orbital suppression:** Ships exchange fire with batteries (1 exchange).
 2. **Softening fire:** If batteries cleared, orbital fire targets armies only.
    Factories and stored goods are not damaged during invasion --- the goal is
-   to capture the planet with its production intact.
+   to capture the planet with its production intact. Softening may destroy at
+   most half of the defender's starting armies.
 3. **Landing battle:** Armies vs armies. Defender wins ties.
 
 ## Fleet Combat Sequence

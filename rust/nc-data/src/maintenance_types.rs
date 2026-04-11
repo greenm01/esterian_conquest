@@ -82,6 +82,8 @@ pub struct AssaultReportEvent {
     pub transport_army_losses: u32,
     /// Defender battery losses.
     pub defender_battery_losses: u8,
+    /// Defender army losses caused by invasion softening fire before landing.
+    pub defender_army_losses_softening: u8,
     /// Defender army losses.
     pub defender_army_losses: u8,
     /// Final mission outcome.
