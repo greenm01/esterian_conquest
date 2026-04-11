@@ -4015,3 +4015,163 @@ fn maint_rust_destroyed_fleet_abort_is_suppressed() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn maint_rust_bombard_destruction_emits_lost_contact_telemetry() {
+    let target = unique_temp_dir("nc-cli-maint-rust-bombard-destroyed-telemetry");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        25,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::BombardWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(0);
+    attacker.set_army_count(0);
+    attacker.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("ALERT: Fleet contact lost!"), "{text}");
+    assert!(text.contains("Alien forces: 15 ground batteries and 25 armies"), "{text}");
+    assert!(text.contains("ALERT: Orbital bombardment underway!"), "{text}");
+    assert!(
+        text.contains("Hostile return fire destroyed the bombardment force."),
+        "{text}"
+    );
+    assert!(
+        !text.contains("We are maintaining bombardment position and will continue next turn."),
+        "{text}"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_invasion_destruction_emits_lost_contact_telemetry() {
+    let target = unique_temp_dir("nc-cli-maint-rust-invade-destroyed-telemetry");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        25,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(5);
+    attacker.set_army_count(5);
+    attacker.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("ALERT: Fleet contact lost!"), "{text}");
+    assert!(text.contains("Alien forces: 15 ground batteries and 25 armies"), "{text}");
+    assert!(
+        text.contains("ALERT: Planetary invasion blocked!")
+            || text.contains("ALERT: Planetary invasion repulsed!"),
+        "{text}"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_blitz_destruction_emits_lost_contact_telemetry() {
+    let target = unique_temp_dir("nc-cli-maint-rust-blitz-destroyed-telemetry");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        25,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(5);
+    attacker.set_army_count(5);
+    attacker.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("ALERT: Fleet contact lost!"), "{text}");
+    assert!(text.contains("Alien forces: 15 ground batteries and 25 armies"), "{text}");
+    assert!(
+        text.contains("ALERT: Blitz assault blocked!")
+            || text.contains("ALERT: Blitz assault failed!"),
+        "{text}"
+    );
+
+    cleanup_dir(&target);
+}

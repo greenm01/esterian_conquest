@@ -306,8 +306,8 @@ fn nc_sysop_maint_persists_bombardment_report_and_runtime_damage() {
         .expect("bombard target world should remain present");
 
     assert!(runtime.report_block_rows.iter().any(|row| {
-        row.decoded_text.contains("Bombardment report")
-            || row.decoded_text.contains("Bombardment mission report")
+        row.decoded_text
+            .contains("ALERT: Orbital bombardment underway!")
     }));
     assert!(
         runtime
@@ -360,8 +360,10 @@ fn nc_sysop_maint_persists_join_host_destroyed_report_and_runtime_state() {
     let joiner = &runtime.game_data.fleets.records[0];
 
     assert!(runtime.report_block_rows.iter().any(|row| {
-        row.decoded_text
-            .contains("Join mission report: Our intended host fleet (1st Fleet) was destroyed.")
+        row.decoded_text.contains("Join mission summary")
+            && row
+                .decoded_text
+                .contains("Lost hosts: Fleet 2 lost host Fleet 1 and is holding position.")
     }));
     assert_eq!(joiner.standing_order_kind(), Order::HoldPosition);
     assert_eq!(joiner.current_speed(), 0);
@@ -534,8 +536,8 @@ fn nc_sysop_maint_multi_turn_canary_preserves_playability_invariants() {
 
         for row in &runtime.report_block_rows {
             saw_view |= row.decoded_text.contains("Viewing mission report");
-            saw_bombard |= row.decoded_text.contains("Bombardment");
-            saw_join |= row.decoded_text.contains("Join mission report");
+            saw_bombard |= row.decoded_text.to_ascii_lowercase().contains("bombardment");
+            saw_join |= row.decoded_text.contains("Join mission summary");
             saw_colonize |= row.decoded_text.contains("terraformed");
         }
     }

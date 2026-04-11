@@ -85,6 +85,8 @@ Rules:
   `Attacker:`, `Invader:`, and `Target world:` in the context section
 - for Fleet Command Center destruction telemetry, prefer `destroyed by ...`
   or `destroyed while intercepting ...` over `was attacked by ...`
+- emit the same lost-contact telemetry family when a bombardment, invasion, or
+  blitz assault force is completely destroyed
 - when all initial planetary defenses are eliminated, prefer
   `All planetary defenses were destroyed.`
 

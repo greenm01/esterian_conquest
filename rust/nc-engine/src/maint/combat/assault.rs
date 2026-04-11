@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 
 use crate::{
-    AssaultReportEvent, BombardEvent, CoreGameData, Mission, MissionEvent, MissionOutcome, Order,
-    PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, ProductionItemKind,
-    STARDOCK_SLOT_COUNT, ShipLosses,
+    AssaultReportEvent, BombardEvent, CoreGameData, FleetDestroyedEvent, Mission, MissionEvent,
+    MissionOutcome, Order, PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent,
+    ProductionItemKind, STARDOCK_SLOT_COUNT, ShipLosses,
 };
 
 use super::super::hostile_order_ready_for_execution;
@@ -33,6 +33,7 @@ enum MissionClass {
 #[derive(Debug, Default)]
 pub(crate) struct AssaultEvents {
     pub bombard_events: Vec<BombardEvent>,
+    pub fleet_destroyed_events: Vec<FleetDestroyedEvent>,
     pub assault_report_events: Vec<AssaultReportEvent>,
     pub planet_intel_events: Vec<PlanetIntelEvent>,
     pub ownership_change_events: Vec<PlanetOwnershipChangeEvent>,
@@ -54,6 +55,52 @@ fn hold_bombardment_station(game_data: &mut CoreGameData, fleet_indices: &[usize
         fleet.set_transit_ready_flag_raw(0x80);
         nc_data::fleet_motion_state::clear_exact_position(fleet);
     }
+}
+
+fn assault_force_destroyed(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
+    !fleet_indices.is_empty()
+        && fleet_indices.iter().all(|&idx| {
+            game_data
+                .fleets
+                .records
+                .get(idx)
+                .is_none_or(|fleet| !fleet.has_any_force())
+        })
+}
+
+fn push_assault_destroyed_fleet_event(
+    events: &mut AssaultEvents,
+    game_data: &CoreGameData,
+    fleet_indices: &[usize],
+    coords: [u8; 2],
+    friendly_initial: ShipLosses,
+    friendly_loaded_armies_initial: u32,
+    enemy_ground_batteries_initial: u8,
+    enemy_ground_armies_initial: u8,
+    enemy_ground_battery_losses: u8,
+    enemy_ground_army_losses: u8,
+    primary_enemy_empire_raw: u8,
+) {
+    events.fleet_destroyed_events.push(FleetDestroyedEvent {
+        reporting_empire_raw: game_data.fleets.records[fleet_indices[0]].owner_empire_raw(),
+        fleet_number: preferred_reporting_fleet_number(game_data, fleet_indices).unwrap_or(0),
+        coords,
+        was_intercepting: false,
+        friendly_initial,
+        friendly_loaded_armies_initial,
+        enemy_initial: ShipLosses::default(),
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 0,
+        enemy_ground_batteries_initial,
+        enemy_ground_armies_initial,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
+        enemy_ground_battery_losses,
+        enemy_ground_army_losses,
+        primary_enemy_empire_raw: (primary_enemy_empire_raw != 0).then_some(primary_enemy_empire_raw),
+        primary_enemy_fleet_number: None,
+        stardate_week: None,
+    });
 }
 
 fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, order: Order) -> bool {
@@ -653,6 +700,21 @@ pub(crate) fn process_planetary_assaults(
                         .saturating_sub(post_planet.factories_word_raw()),
                     stardate_week: None,
                 });
+                if assault_force_destroyed(game_data, &winner_fleets) {
+                    push_assault_destroyed_fleet_event(
+                        &mut events,
+                        game_data,
+                        &winner_fleets,
+                        coords,
+                        ship_counts_from_state(&before),
+                        0,
+                        pre_batteries,
+                        pre_armies,
+                        pre_batteries.saturating_sub(post_planet.ground_batteries_raw()),
+                        pre_armies.saturating_sub(post_planet.army_count_raw()),
+                        defender_empire,
+                    );
+                }
                 for &fleet_idx in &winner_fleets {
                     if bombard_set.contains(&fleet_idx) {
                         events.mission_events.push(MissionEvent {
@@ -842,6 +904,21 @@ pub(crate) fn process_planetary_assaults(
                             outcome: MissionOutcome::Succeeded,
                             stardate_week: None,
                         });
+                        if assault_force_destroyed(game_data, &winner_fleets) {
+                            push_assault_destroyed_fleet_event(
+                                &mut events,
+                                game_data,
+                                &winner_fleets,
+                                coords,
+                                ship_counts_from_state(&before),
+                                initial_attacking_armies,
+                                pre_batteries,
+                                pre_armies,
+                                defender_battery_losses,
+                                defender_army_losses,
+                                previous_owner,
+                            );
+                        }
                     } else {
                         game_data.planets.records[planet_idx]
                             .set_army_count_raw(defender_survivors.min(255) as u8);
@@ -885,6 +962,21 @@ pub(crate) fn process_planetary_assaults(
                             outcome: MissionOutcome::Failed,
                             stardate_week: None,
                         });
+                        if assault_force_destroyed(game_data, &winner_fleets) {
+                            push_assault_destroyed_fleet_event(
+                                &mut events,
+                                game_data,
+                                &winner_fleets,
+                                coords,
+                                ship_counts_from_state(&before),
+                                initial_attacking_armies,
+                                pre_batteries,
+                                pre_armies,
+                                defender_battery_losses,
+                                defender_army_losses,
+                                previous_owner,
+                            );
+                        }
                     }
                 } else {
                     for &idx in &winner_fleets {
@@ -932,6 +1024,23 @@ pub(crate) fn process_planetary_assaults(
                         outcome: MissionOutcome::Aborted,
                         stardate_week: None,
                     });
+                    if assault_force_destroyed(game_data, &winner_fleets) {
+                        push_assault_destroyed_fleet_event(
+                            &mut events,
+                            game_data,
+                            &winner_fleets,
+                            coords,
+                            ship_counts_from_state(&before),
+                            initial_attacking_armies,
+                            pre_batteries,
+                            pre_armies,
+                            pre_batteries.saturating_sub(
+                                game_data.planets.records[planet_idx].ground_batteries_raw(),
+                            ),
+                            0,
+                            previous_owner,
+                        );
+                    }
                 }
 
                 let intel_source = if game_data.planets.records[planet_idx].owner_empire_slot_raw()
@@ -1075,6 +1184,21 @@ pub(crate) fn process_planetary_assaults(
                         outcome: MissionOutcome::Succeeded,
                         stardate_week: None,
                     });
+                    if assault_force_destroyed(game_data, &winner_fleets) {
+                        push_assault_destroyed_fleet_event(
+                            &mut events,
+                            game_data,
+                            &winner_fleets,
+                            coords,
+                            ship_counts_from_state(&cover_state),
+                            attacking_armies,
+                            pre_batteries,
+                            pre_armies,
+                            defender_battery_losses,
+                            defender_army_losses,
+                            previous_owner,
+                        );
+                    }
                 } else {
                     game_data.planets.records[planet_idx]
                         .set_army_count_raw(defender_survivors.min(255) as u8);
@@ -1118,6 +1242,21 @@ pub(crate) fn process_planetary_assaults(
                         outcome: MissionOutcome::Failed,
                         stardate_week: None,
                     });
+                    if assault_force_destroyed(game_data, &winner_fleets) {
+                        push_assault_destroyed_fleet_event(
+                            &mut events,
+                            game_data,
+                            &winner_fleets,
+                            coords,
+                            ship_counts_from_state(&cover_state),
+                            attacking_armies,
+                            pre_batteries,
+                            pre_armies,
+                            defender_battery_losses,
+                            defender_army_losses,
+                            previous_owner,
+                        );
+                    }
                 }
 
                 let intel_source = if game_data.planets.records[planet_idx].owner_empire_slot_raw()

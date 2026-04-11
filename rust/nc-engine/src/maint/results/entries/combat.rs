@@ -296,16 +296,12 @@ pub fn push_combat_entries(
             },
             StructuredBodyItem::Label {
                 label: LABEL_ALIEN_FORCES.to_string(),
-                value: fleet_force_summary_with_starbases(
-                    event.enemy_initial,
-                    event.enemy_loaded_armies_initial,
-                    event.enemy_initial_starbases,
-                ),
+                value: destroyed_fleet_enemy_force_value(event),
             },
         ];
         let outcome_rows = vec![StructuredBodyItem::Label {
             label: LABEL_ENEMY_LOSSES.to_string(),
-            value: combat_losses_value(event.enemy_losses, event.enemy_starbases_destroyed),
+            value: destroyed_fleet_enemy_losses_value(event),
         }];
         let items = structured_combat_body(
             structured_fleet_destroyed_alert(),

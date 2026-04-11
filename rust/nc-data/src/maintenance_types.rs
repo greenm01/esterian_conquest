@@ -206,10 +206,18 @@ pub struct FleetDestroyedEvent {
     pub enemy_initial_starbases: u32,
     /// Loaded armies aboard the hostile force at battle start.
     pub enemy_loaded_armies_initial: u32,
+    /// Initial hostile ground batteries observed at contact, if any.
+    pub enemy_ground_batteries_initial: u8,
+    /// Initial hostile armies observed at contact, if any.
+    pub enemy_ground_armies_initial: u8,
     /// Observed hostile losses before contact was lost.
     pub enemy_losses: ShipLosses,
     /// Hostile starbases destroyed before contact was lost.
     pub enemy_starbases_destroyed: u32,
+    /// Hostile ground batteries destroyed before contact was lost.
+    pub enemy_ground_battery_losses: u8,
+    /// Hostile armies destroyed before contact was lost.
+    pub enemy_ground_army_losses: u8,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
     /// Hostile fleet number if one specific enemy fleet can be named.

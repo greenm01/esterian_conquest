@@ -136,6 +136,52 @@ pub fn combat_losses_value(losses: ShipLosses, starbases: u32) -> String {
     combat_loss_summary(losses, starbases, "none")
 }
 
+pub fn destroyed_fleet_enemy_force_value(event: &nc_data::FleetDestroyedEvent) -> String {
+    let mut parts = Vec::new();
+    let fleet_summary = fleet_force_summary_with_starbases(
+        event.enemy_initial,
+        event.enemy_loaded_armies_initial,
+        event.enemy_initial_starbases,
+    );
+    if fleet_summary != "no ships" {
+        parts.push(fleet_summary);
+    }
+    if let Some(ground_summary) = ground_force_summary(
+        event.enemy_ground_batteries_initial,
+        event.enemy_ground_armies_initial,
+    ) {
+        parts.push(ground_summary);
+    }
+    if parts.is_empty() {
+        "none".to_string()
+    } else {
+        join_report_parts(&parts)
+    }
+}
+
+pub fn destroyed_fleet_enemy_losses_value(event: &nc_data::FleetDestroyedEvent) -> String {
+    let mut parts = Vec::new();
+    let ship_summary = combat_loss_summary(
+        event.enemy_losses,
+        event.enemy_starbases_destroyed,
+        "no ship losses",
+    );
+    if ship_summary != "no ship losses" {
+        parts.push(ship_summary);
+    }
+    if let Some(ground_summary) = ground_losses_summary(
+        event.enemy_ground_battery_losses,
+        event.enemy_ground_army_losses,
+    ) {
+        parts.push(ground_summary);
+    }
+    if parts.is_empty() {
+        "none".to_string()
+    } else {
+        join_report_parts(&parts)
+    }
+}
+
 pub fn ground_force_value(batteries: u8, armies: u8, none_value: &str) -> String {
     ground_force_summary(batteries, armies).unwrap_or_else(|| none_value.to_string())
 }

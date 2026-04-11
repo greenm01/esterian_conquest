@@ -531,7 +531,11 @@ pub fn run_maintenance_turn_with_context_and_seed(
         },
         ownership_change_events: assault_events.ownership_change_events,
         fleet_battle_events: fleet_battle_phase_events.fleet_battle_events,
-        fleet_destroyed_events: fleet_battle_phase_events.fleet_destroyed_events,
+        fleet_destroyed_events: {
+            let mut events = fleet_battle_phase_events.fleet_destroyed_events;
+            events.extend(assault_events.fleet_destroyed_events);
+            events
+        },
         starbase_destroyed_events: fleet_battle_phase_events.starbase_destroyed_events,
         assault_report_events: assault_events.assault_report_events,
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,

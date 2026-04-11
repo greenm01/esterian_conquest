@@ -1317,9 +1317,13 @@ pub(crate) fn process_fleet_battles(
                     enemy_initial: ship_counts_from_state(&enemy_before),
                     enemy_initial_starbases: enemy_before.counts[IDX_SB],
                     enemy_loaded_armies_initial,
+                    enemy_ground_batteries_initial: 0,
+                    enemy_ground_armies_initial: 0,
                     enemy_losses,
                     enemy_starbases_destroyed: enemy_before.counts[IDX_SB]
                         .saturating_sub(enemy_after.counts[IDX_SB]),
+                    enemy_ground_battery_losses: 0,
+                    enemy_ground_army_losses: 0,
                     primary_enemy_empire_raw,
                     primary_enemy_fleet_number,
                     stardate_week: None,

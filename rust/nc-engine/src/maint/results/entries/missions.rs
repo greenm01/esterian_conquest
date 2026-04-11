@@ -462,6 +462,12 @@ pub fn push_mission_entries(
                     bombard.planet_idx == event.planet_idx.unwrap_or(usize::MAX)
                         && bombard.attacker_empire_raw == event.owner_empire_raw
                 });
+                let bombard_force_destroyed = event.location_coords.is_some_and(|coords| {
+                    events.fleet_destroyed_events.iter().any(|destroyed| {
+                        destroyed.reporting_empire_raw == event.owner_empire_raw
+                            && destroyed.coords == coords
+                    })
+                });
                 let body = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         let context_rows = vec![StructuredBodyItem::Label {
@@ -523,10 +529,13 @@ pub fn push_mission_entries(
                                 .map(StructuredBodyItem::Text),
                             );
                         }
-                        outcome_rows.push(StructuredBodyItem::Text(
+                        outcome_rows.push(StructuredBodyItem::Text(if bombard_force_destroyed {
+                            "Hostile return fire destroyed the bombardment force."
+                                .to_string()
+                        } else {
                             "We are maintaining bombardment position and will continue next turn."
-                                .to_string(),
-                        ));
+                                .to_string()
+                        }));
                         MissionReportBody::Structured(structured_combat_body(
                             structured_bombardment_alert(),
                             context_rows,
