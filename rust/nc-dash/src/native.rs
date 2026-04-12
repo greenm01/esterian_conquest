@@ -3,15 +3,24 @@ use nc_ui::native::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     terminal_grid_for_pixels,
 };
+use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{Event, MouseButton as WinitMouseButton, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::ModifiersState;
 use winit::window::{Fullscreen, WindowBuilder};
 
-use crate::app::state::DashApp;
+pub(crate) trait NativeApp {
+    fn window_title(&self) -> &'static str;
+    fn geometry(&self) -> ScreenGeometry;
+    fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent);
+    fn dispatch_mouse_event(&mut self, mouse: MouseEvent);
+    fn resize_canvas(&mut self, cols: u16, rows: u16);
+    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>>;
+    fn should_quit(&self) -> bool;
+    fn set_should_quit(&mut self, should_quit: bool);
+}
 
-const WINDOW_TITLE: &str = "Nostrian Conquest Dashboard";
 const OUTSIDE_MOUSE_COORD: u16 = u16::MAX;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -21,7 +30,7 @@ enum PendingPointer {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum DashMsg {
+enum NativeMsg {
     CloseRequested,
     KeyInput(crossterm::event::KeyEvent),
     ModifiersChanged(ModifiersState),
@@ -38,13 +47,13 @@ enum DashMsg {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum DashEffect {
+enum NativeEffect {
     Exit,
     RequestRedraw,
 }
 
-struct NativeDashShell {
-    app: DashApp,
+struct NativeShell<T: NativeApp> {
+    app: T,
     window_pixel_width: u32,
     window_pixel_height: u32,
     modifiers: ModifiersState,
@@ -55,8 +64,8 @@ struct NativeDashShell {
     redraw_requested: bool,
 }
 
-impl NativeDashShell {
-    fn new(app: DashApp, window_pixel_width: u32, window_pixel_height: u32) -> Self {
+impl<T: NativeApp> NativeShell<T> {
+    fn new(app: T, window_pixel_width: u32, window_pixel_height: u32) -> Self {
         Self {
             app,
             window_pixel_width: window_pixel_width.max(1),
@@ -70,21 +79,21 @@ impl NativeDashShell {
         }
     }
 
-    fn update(&mut self, msg: DashMsg) -> Vec<DashEffect> {
+    fn update(&mut self, msg: NativeMsg) -> Vec<NativeEffect> {
         let mut effects = Vec::new();
         match msg {
-            DashMsg::CloseRequested => {
-                self.app.should_quit = true;
-                effects.push(DashEffect::Exit);
+            NativeMsg::CloseRequested => {
+                self.app.set_should_quit(true);
+                effects.push(NativeEffect::Exit);
             }
-            DashMsg::KeyInput(key) => {
+            NativeMsg::KeyInput(key) => {
                 self.app.dispatch_key_event(key);
                 self.push_state_effects(&mut effects, true);
             }
-            DashMsg::ModifiersChanged(modifiers) => {
+            NativeMsg::ModifiersChanged(modifiers) => {
                 self.modifiers = modifiers;
             }
-            DashMsg::MouseButton { button, pressed } => {
+            NativeMsg::MouseButton { button, pressed } => {
                 if self.flush_pointer(false) {
                     self.push_state_effects(&mut effects, false);
                 }
@@ -105,7 +114,7 @@ impl NativeDashShell {
                     self.push_state_effects(&mut effects, true);
                 }
             }
-            DashMsg::QueuePointer(pointer) => {
+            NativeMsg::QueuePointer(pointer) => {
                 coalesce_pointer_move(&mut self.pending_pointer, pointer);
                 if self.left_mouse_down
                     && next_pointer_dispatch(self.current_pointer, self.pending_pointer).is_some()
@@ -113,12 +122,12 @@ impl NativeDashShell {
                     self.push_state_effects(&mut effects, true);
                 }
             }
-            DashMsg::FlushPointer => {
+            NativeMsg::FlushPointer => {
                 if self.flush_pointer(true) {
                     self.push_state_effects(&mut effects, true);
                 }
             }
-            DashMsg::WindowResized {
+            NativeMsg::WindowResized {
                 pixel_width,
                 pixel_height,
             } => {
@@ -159,13 +168,13 @@ impl NativeDashShell {
         pointer_coords(self.current_pointer).1
     }
 
-    fn push_state_effects(&mut self, effects: &mut Vec<DashEffect>, redraw: bool) {
+    fn push_state_effects(&mut self, effects: &mut Vec<NativeEffect>, redraw: bool) {
         if redraw {
             self.needs_redraw = true;
-            effects.push(DashEffect::RequestRedraw);
+            effects.push(NativeEffect::RequestRedraw);
         }
-        if self.app.should_quit {
-            effects.push(DashEffect::Exit);
+        if self.app.should_quit() {
+            effects.push(NativeEffect::Exit);
         }
     }
 
@@ -173,8 +182,9 @@ impl NativeDashShell {
         let pixel_width = pixel_width.max(1);
         let pixel_height = pixel_height.max(1);
         let (cols, rows) = terminal_grid_for_pixels(pixel_width, pixel_height);
-        let geometry_changed = self.app.geometry.width() != cols as usize
-            || self.app.geometry.height() != rows as usize;
+        let geometry = self.app.geometry();
+        let geometry_changed =
+            geometry.width() != cols as usize || geometry.height() != rows as usize;
         if self.window_pixel_width == pixel_width
             && self.window_pixel_height == pixel_height
             && !geometry_changed
@@ -189,13 +199,14 @@ impl NativeDashShell {
     }
 }
 
-pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
-    let logical_width = (app.geometry.width() * nc_ui::native::DEFAULT_CELL_WIDTH) as f64;
-    let logical_height = (app.geometry.height() * nc_ui::native::DEFAULT_CELL_HEIGHT) as f64;
+    let geometry = app.geometry();
+    let logical_width = (geometry.width() * nc_ui::native::DEFAULT_CELL_WIDTH) as f64;
+    let logical_height = (geometry.height() * nc_ui::native::DEFAULT_CELL_HEIGHT) as f64;
     let window = Box::new(
         WindowBuilder::new()
-            .with_title(WINDOW_TITLE)
+            .with_title(app.window_title())
             .with_inner_size(LogicalSize::new(logical_width, logical_height))
             .with_fullscreen(Some(Fullscreen::Borderless(None)))
             .with_resizable(true)
@@ -204,11 +215,11 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
     let window: &'static winit::window::Window = Box::leak(window);
     let mut renderer = CellGridWindowRenderer::new(window)?;
     let initial_size = window.inner_size();
-    let mut shell = NativeDashShell::new(app, initial_size.width, initial_size.height);
+    let mut shell = NativeShell::new(app, initial_size.width, initial_size.height);
     dispatch(
         &mut shell,
         window,
-        DashMsg::WindowResized {
+        NativeMsg::WindowResized {
             pixel_width: initial_size.width,
             pixel_height: initial_size.height,
         },
@@ -220,13 +231,13 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
-                    dispatch(&mut shell, window, DashMsg::CloseRequested, true);
+                    dispatch(&mut shell, window, NativeMsg::CloseRequested, true);
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
                     dispatch(
                         &mut shell,
                         window,
-                        DashMsg::ModifiersChanged(modifiers.state()),
+                        NativeMsg::ModifiersChanged(modifiers.state()),
                         false,
                     );
                 }
@@ -234,7 +245,7 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                     dispatch(
                         &mut shell,
                         window,
-                        DashMsg::WindowResized {
+                        NativeMsg::WindowResized {
                             pixel_width: size.width,
                             pixel_height: size.height,
                         },
@@ -246,7 +257,7 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                     dispatch(
                         &mut shell,
                         window,
-                        DashMsg::WindowResized {
+                        NativeMsg::WindowResized {
                             pixel_width: size.width,
                             pixel_height: size.height,
                         },
@@ -255,13 +266,13 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     let pointer = pointer_from_position(&shell, position);
-                    dispatch(&mut shell, window, DashMsg::QueuePointer(pointer), false);
+                    dispatch(&mut shell, window, NativeMsg::QueuePointer(pointer), false);
                 }
                 WindowEvent::CursorLeft { .. } => {
                     dispatch(
                         &mut shell,
                         window,
-                        DashMsg::QueuePointer(PendingPointer::Outside),
+                        NativeMsg::QueuePointer(PendingPointer::Outside),
                         false,
                     );
                 }
@@ -269,7 +280,7 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                     dispatch(
                         &mut shell,
                         window,
-                        DashMsg::MouseButton {
+                        NativeMsg::MouseButton {
                             button,
                             pressed: state.is_pressed(),
                         },
@@ -280,13 +291,13 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                     let Some(key) = crossterm_key_event_from_winit(&event, shell.modifiers) else {
                         return;
                     };
-                    dispatch(&mut shell, window, DashMsg::KeyInput(key), true);
+                    dispatch(&mut shell, window, NativeMsg::KeyInput(key), true);
                 }
                 WindowEvent::RedrawRequested => {
                     shell.redraw_requested = false;
                     sync_window_size(&mut shell, window);
                     let _ = shell.flush_pointer(false);
-                    if shell.app.should_quit {
+                    if shell.app.should_quit() {
                         elwt.exit();
                         return;
                     }
@@ -313,9 +324,9 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
             Event::AboutToWait => {
                 sync_window_size(&mut shell, window);
                 if !shell.redraw_requested {
-                    dispatch(&mut shell, window, DashMsg::FlushPointer, false);
+                    dispatch(&mut shell, window, NativeMsg::FlushPointer, false);
                 }
-                if shell.app.should_quit {
+                if shell.app.should_quit() {
                     elwt.exit();
                 } else if shell.needs_redraw && !shell.redraw_requested {
                     window.request_redraw();
@@ -329,29 +340,27 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn dispatch(
-    shell: &mut NativeDashShell,
+fn dispatch<T: NativeApp>(
+    shell: &mut NativeShell<T>,
     window: &winit::window::Window,
-    msg: DashMsg,
+    msg: NativeMsg,
     exit_immediately: bool,
 ) {
     let effects = shell.update(msg);
     apply_effects(shell, window, effects, exit_immediately);
 }
 
-fn apply_effects(
-    shell: &mut NativeDashShell,
+fn apply_effects<T: NativeApp>(
+    shell: &mut NativeShell<T>,
     window: &winit::window::Window,
-    effects: Vec<DashEffect>,
+    effects: Vec<NativeEffect>,
     exit_immediately: bool,
 ) {
     for effect in effects {
         match effect {
-            DashEffect::RequestRedraw => shell.needs_redraw = true,
-            DashEffect::Exit if exit_immediately => {
-                shell.app.should_quit = true;
-            }
-            DashEffect::Exit => {}
+            NativeEffect::RequestRedraw => shell.needs_redraw = true,
+            NativeEffect::Exit if exit_immediately => shell.app.set_should_quit(true),
+            NativeEffect::Exit => {}
         }
     }
     if shell.needs_redraw && !shell.redraw_requested {
@@ -360,20 +369,21 @@ fn apply_effects(
     }
 }
 
-fn sync_window_size(shell: &mut NativeDashShell, window: &winit::window::Window) {
+fn sync_window_size<T: NativeApp>(shell: &mut NativeShell<T>, window: &winit::window::Window) {
     let size = window.inner_size();
     if shell.resize_to_window_pixels(size.width, size.height) {
         shell.needs_redraw = true;
     }
 }
 
-fn pointer_from_position(
-    shell: &NativeDashShell,
+fn pointer_from_position<T: NativeApp>(
+    shell: &NativeShell<T>,
     position: PhysicalPosition<f64>,
 ) -> PendingPointer {
+    let geometry = shell.app.geometry();
     cell_position_at_pixel(
-        shell.app.geometry.width(),
-        shell.app.geometry.height(),
+        geometry.width(),
+        geometry.height(),
         shell.window_pixel_width,
         shell.window_pixel_height,
         position,
@@ -435,7 +445,7 @@ fn key_modifiers(modifiers: ModifiersState) -> KeyModifiers {
 #[cfg(test)]
 mod tests {
     use super::{
-        DashEffect, DashMsg, NativeDashShell, PendingPointer, coalesce_pointer_move,
+        NativeEffect, NativeMsg, NativeShell, PendingPointer, coalesce_pointer_move,
         next_pointer_dispatch, pointer_coords, pointer_event_kind,
     };
     use crossterm::event::MouseEventKind;
@@ -513,9 +523,9 @@ mod tests {
         shell.left_mouse_down = true;
         shell.current_pointer = Some(PendingPointer::Cell(3, 1));
 
-        let effects = shell.update(DashMsg::QueuePointer(PendingPointer::Cell(7, 2)));
+        let effects = shell.update(NativeMsg::QueuePointer(PendingPointer::Cell(7, 2)));
 
-        assert_eq!(effects, vec![DashEffect::RequestRedraw]);
+        assert_eq!(effects, vec![NativeEffect::RequestRedraw]);
         assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(3, 1)));
         assert_eq!(shell.pending_pointer, Some(PendingPointer::Cell(7, 2)));
     }
@@ -526,8 +536,8 @@ mod tests {
         shell.left_mouse_down = true;
         shell.current_pointer = Some(PendingPointer::Cell(3, 1));
 
-        shell.update(DashMsg::QueuePointer(PendingPointer::Cell(4, 1)));
-        shell.update(DashMsg::QueuePointer(PendingPointer::Cell(8, 2)));
+        shell.update(NativeMsg::QueuePointer(PendingPointer::Cell(4, 1)));
+        shell.update(NativeMsg::QueuePointer(PendingPointer::Cell(8, 2)));
 
         assert!(shell.flush_pointer(false));
         assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(8, 2)));
@@ -540,7 +550,7 @@ mod tests {
         shell.left_mouse_down = true;
         shell.current_pointer = Some(PendingPointer::Cell(3, 1));
 
-        let effects = shell.update(DashMsg::QueuePointer(PendingPointer::Cell(3, 1)));
+        let effects = shell.update(NativeMsg::QueuePointer(PendingPointer::Cell(3, 1)));
 
         assert!(effects.is_empty());
         assert_eq!(shell.pending_pointer, Some(PendingPointer::Cell(3, 1)));
@@ -550,7 +560,7 @@ mod tests {
         app_geometry: ScreenGeometry,
         window_pixel_width: u32,
         window_pixel_height: u32,
-    ) -> NativeDashShell {
+    ) -> NativeShell<DashApp> {
         let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -566,6 +576,6 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        NativeDashShell::new(app, window_pixel_width, window_pixel_height)
+        NativeShell::new(app, window_pixel_width, window_pixel_height)
     }
 }

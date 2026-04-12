@@ -26,6 +26,7 @@ use state::{
 
 use crate::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::layout::dashboard;
+use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
@@ -1675,6 +1676,40 @@ impl DashApp {
         sync_scroll_to_cursor(&mut self.inbox_overlay.scroll, matched.index, 10);
         self.inbox_overlay.preview_scroll = 0;
         matched.is_terminal_exact_match
+    }
+}
+
+impl NativeApp for DashApp {
+    fn window_title(&self) -> &'static str {
+        "Nostrian Conquest Dashboard"
+    }
+
+    fn geometry(&self) -> ScreenGeometry {
+        self.geometry
+    }
+
+    fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {
+        Self::dispatch_key_event(self, key);
+    }
+
+    fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
+        Self::dispatch_mouse_event(self, mouse);
+    }
+
+    fn resize_canvas(&mut self, cols: u16, rows: u16) {
+        Self::resize_canvas(self, cols, rows);
+    }
+
+    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        Self::render_playfield(self)
+    }
+
+    fn should_quit(&self) -> bool {
+        self.should_quit
+    }
+
+    fn set_should_quit(&mut self, should_quit: bool) {
+        self.should_quit = should_quit;
     }
 }
 
