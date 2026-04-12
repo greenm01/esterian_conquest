@@ -143,12 +143,7 @@ impl LobbyApp {
     fn render_modal_route(&self, buffer: &mut PlayfieldBuffer) {
         match self.state.route {
             LobbyRoute::Home => self.render_home(buffer),
-            LobbyRoute::HostedGame => {
-                let body = Rect::new(0, 1, buffer.width() as u16, buffer.height().saturating_sub(2) as u16);
-                if let Some(hosted) = self.state.hosted_game.as_ref() {
-                    hosted::view::render(buffer, body, hosted);
-                }
-            }
+            LobbyRoute::HostedGame => {}
             LobbyRoute::FirstRun => {
                 let _ = render_modal_box(
                     buffer,

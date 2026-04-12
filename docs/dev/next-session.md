@@ -26,6 +26,8 @@ Keep this file short. Historical detail belongs in
   JSON blobs on the Rust side.
 - `nc-dash` hosted-game route now builds and renders a real `DashApp` from
   typed hosted snapshots instead of using the old separate mini summary view.
+- The old hosted mini-view path has been removed; hosted play now enters the
+  real dashboard shell through the shared launch path.
 - `nc-host` now exists as the relay-native hosted server name and localhost dev lab target.
 - `nc-host` now exposes `notices` and `threads` operator commands for the
   hosted lobby communication surfaces.

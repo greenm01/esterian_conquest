@@ -24,7 +24,10 @@ impl DashApp {
 
     pub(crate) fn save_and_refresh_runtime(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(store) = self.campaign_store.clone() else {
-            return Err("dashboard campaign store unavailable".into());
+            return Err(
+                "hosted dashboard editing is not wired yet; use T to submit hosted turn text"
+                    .into(),
+            );
         };
         let access_mode = player_access_mode(
             self.player_record_index_1_based,
