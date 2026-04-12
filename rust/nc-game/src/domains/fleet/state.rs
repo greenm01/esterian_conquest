@@ -1,6 +1,6 @@
 use crate::domains::fleet::screens::fleet::{
-    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetListFilter,
-    FleetListFilterPromptMode, FleetListSort, FleetSingleOrderMode, FleetTransferMode,
+    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetListFilter, FleetListFilterPromptMode,
+    FleetListSort, FleetSingleOrderMode, FleetTransferMode,
 };
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{PlanetTransportMode, SortDirection};

@@ -12,7 +12,7 @@ use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
 use crate::terminal::door::{DoorTerminal, DoorTransport};
 use crate::terminal::stdout::StdoutTerminal;
-use nc_data::{BbsGameConfig, CampaignStore};
+use nc_data::{BbsGameConfig, CampaignStore, CampaignStoreError};
 use nc_session::launch::{
     LaunchBindingRequest, LaunchPlayerBinding, LaunchPlayerBindingSource,
     resolve_launch_player_binding as shared_resolve_launch_player_binding,
@@ -48,6 +48,33 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         return crate::submit_turn::run_submit_turn_args(&parsed_args[2..]);
     }
     let parsed = parse_args(&parsed_args)?;
+    let mut app = match prepare_launch(&parsed) {
+        Ok(app) => app,
+        Err(err) => {
+            show_door_startup_error(&parsed, err.as_ref());
+            return Err(err);
+        }
+    };
+    let mut terminal = build_terminal(&parsed)?;
+
+    let stdout_is_terminal = std::io::stdout().is_terminal();
+    let stdin_is_terminal = std::io::stdin().is_terminal();
+    let interactive_terminal = should_use_interactive_loop(&parsed, stdout_is_terminal);
+    let enable_raw_mode = stdin_is_terminal && stdout_is_terminal;
+    let emit_local_exit_attribution =
+        should_emit_local_exit_attribution(&parsed, stdout_is_terminal);
+    let result = if interactive_terminal {
+        run_interactive(&mut app, terminal.as_mut(), enable_raw_mode)
+    } else {
+        render_with_logging(&mut app, terminal.as_mut())
+    };
+    if result.is_ok() && emit_local_exit_attribution {
+        emit_local_exit_lines();
+    }
+    result
+}
+
+fn prepare_launch(parsed: &ParsedLaunchArgs) -> Result<App, Box<dyn std::error::Error>> {
     if let Some(log_file) = &parsed.log_file {
         nc_log::init_file_logging(log_file, parsed.log_level)?;
         tracing::info!(
@@ -60,7 +87,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     let campaign_store = CampaignStore::open_default_in_dir(&parsed.game_dir)?;
     let game_config = load_runtime_game_config(&parsed.game_dir, &campaign_store)?;
     validate_runtime_game_config(&campaign_store, &game_config)?;
-    let launch_binding = resolve_launch_player_binding(&parsed, &game_config, &campaign_store)?;
+    let launch_binding = resolve_launch_player_binding(parsed, &game_config, &campaign_store)?;
     let player_record_index_1_based = launch_binding.player_record_index_1_based().unwrap_or(1);
     let config = AppConfig {
         game_dir: parsed.game_dir.clone(),
@@ -79,45 +106,85 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         dropfile_alias = parsed.dropfile_alias.as_deref().unwrap_or(""),
         "loaded nc-game app"
     );
-    apply_launch_context(
-        &mut app,
-        &parsed,
-        launch_binding,
-    )?;
+    apply_launch_context(&mut app, parsed, launch_binding)?;
     if app.door_mode {
         crate::theme::apply_door_theme();
     }
-    let mut terminal: Box<dyn Terminal> = if parsed.use_door_terminal {
-        Box::new(DoorTerminal::with_transport_and_color_mode(
-            parsed.encoding,
-            parsed.color_mode,
-            parsed.screen_geometry,
-            parsed.door_transport,
-        )?)
-    } else {
-        Box::new(StdoutTerminal::with_encoding_and_color_mode(
-            parsed.encoding,
-            parsed.color_mode,
-        ))
-    };
-
-    let stdout_is_terminal = std::io::stdout().is_terminal();
-    let stdin_is_terminal = std::io::stdin().is_terminal();
-    let interactive_terminal = should_use_interactive_loop(&parsed, stdout_is_terminal);
-    let enable_raw_mode = stdin_is_terminal && stdout_is_terminal;
-    let emit_local_exit_attribution = should_emit_local_exit_attribution(&parsed, stdout_is_terminal);
-    let result = if interactive_terminal {
-        run_interactive(&mut app, terminal.as_mut(), enable_raw_mode)
-    } else {
-        render_with_logging(&mut app, terminal.as_mut())
-    };
-    if result.is_ok() && emit_local_exit_attribution {
-        emit_local_exit_lines();
-    }
-    result
+    Ok(app)
 }
 
-fn should_emit_local_exit_attribution(parsed: &ParsedLaunchArgs, interactive_terminal: bool) -> bool {
+fn build_terminal(
+    parsed: &ParsedLaunchArgs,
+) -> Result<Box<dyn Terminal>, Box<dyn std::error::Error>> {
+    if parsed.use_door_terminal {
+        Ok(Box::new(build_door_terminal(parsed)?))
+    } else {
+        Ok(Box::new(StdoutTerminal::with_encoding_and_color_mode(
+            parsed.encoding,
+            parsed.color_mode,
+        )))
+    }
+}
+
+fn build_door_terminal(parsed: &ParsedLaunchArgs) -> io::Result<DoorTerminal> {
+    DoorTerminal::with_transport_and_color_mode(
+        parsed.encoding,
+        parsed.color_mode,
+        parsed.screen_geometry,
+        parsed.door_transport,
+    )
+}
+
+fn show_door_startup_error(parsed: &ParsedLaunchArgs, error: &(dyn std::error::Error + 'static)) {
+    if !parsed.use_door_terminal {
+        return;
+    }
+    let Ok(mut terminal) = build_door_terminal(parsed) else {
+        return;
+    };
+    let message = format_door_startup_error(error);
+    if terminal.dump_text_capture(&message).is_ok() {
+        match terminal.read_key() {
+            Ok(_) => {}
+            Err(err) if is_closed_input_error(err.as_ref()) => {}
+            Err(_) => {}
+        }
+    }
+    let _ = terminal.clear_and_restore();
+}
+
+fn format_door_startup_error(error: &(dyn std::error::Error + 'static)) -> String {
+    let mut lines = vec!["NOSTRIAN CONQUEST DOOR ERROR".to_string(), String::new()];
+    match error.downcast_ref::<CampaignStoreError>() {
+        Some(CampaignStoreError::SchemaVersionMismatch { expected, found }) => {
+            lines.push("This game directory does not match this build.".to_string());
+            match found {
+                Some(found) => lines.push(format!(
+                    "Found runtime schema {found}, but this build expects {expected}."
+                )),
+                None => {
+                    lines.push(
+                        "This game directory is missing a supported runtime schema.".to_string(),
+                    );
+                    lines.push(format!("This build expects runtime schema {expected}."));
+                }
+            }
+            lines.push("Recreate or refresh ncgame.db before launching again.".to_string());
+        }
+        _ => {
+            lines.push("The door could not start.".to_string());
+            lines.push(error.to_string());
+        }
+    }
+    lines.push(String::new());
+    lines.push("(slap a key)".to_string());
+    lines.join("\r\n")
+}
+
+fn should_emit_local_exit_attribution(
+    parsed: &ParsedLaunchArgs,
+    interactive_terminal: bool,
+) -> bool {
     interactive_terminal && !parsed.use_door_terminal
 }
 
@@ -736,8 +803,9 @@ fn humanize_slug(slug: &str) -> String {
 mod tests {
     use super::{
         LOOPBACK_DOOR_HOST, LaunchPlayerBinding, LaunchPlayerBindingSource, ParsedLaunchArgs,
-        apply_launch_context, local_exit_lines, resolve_launch_player_binding,
-        run_interactive_inner, select_door_transport, should_emit_local_exit_attribution,
+        apply_launch_context, format_door_startup_error, local_exit_lines,
+        resolve_launch_player_binding, run_interactive_inner, select_door_transport,
+        should_emit_local_exit_attribution,
     };
     use crate::app::{App, AppConfig, RuntimeConfig};
     use crate::domains::fleet::state::FleetCommandContext;
@@ -1107,9 +1175,18 @@ mod tests {
 
     #[test]
     fn attribution_only_emits_for_local_interactive_stdout_sessions() {
-        assert!(should_emit_local_exit_attribution(&parsed_args(false), true));
-        assert!(!should_emit_local_exit_attribution(&parsed_args(true), true));
-        assert!(!should_emit_local_exit_attribution(&parsed_args(false), false));
+        assert!(should_emit_local_exit_attribution(
+            &parsed_args(false),
+            true
+        ));
+        assert!(!should_emit_local_exit_attribution(
+            &parsed_args(true),
+            true
+        ));
+        assert!(!should_emit_local_exit_attribution(
+            &parsed_args(false),
+            false
+        ));
     }
 
     #[test]
@@ -1223,17 +1300,27 @@ mod tests {
         let mut parsed = parsed_args(true);
         parsed.dropfile_alias = Some("RIVAL".to_string());
 
-        apply_launch_context(
-            &mut app,
-            &parsed,
-            LaunchPlayerBinding::UnboundDropfile,
-        )
-        .expect("launch context should apply");
+        apply_launch_context(&mut app, &parsed, LaunchPlayerBinding::UnboundDropfile)
+            .expect("launch context should apply");
 
         assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
         assert!(app.startup_state.unbound_bbs_caller);
         assert_eq!(app.startup_state.caller_alias.as_deref(), Some("RIVAL"));
 
         let _ = fs::remove_dir_all(&game_dir);
+    }
+
+    #[test]
+    fn schema_mismatch_startup_error_mentions_expected_refresh_and_dismiss() {
+        let message =
+            format_door_startup_error(&nc_data::CampaignStoreError::SchemaVersionMismatch {
+                expected: 12,
+                found: Some(7),
+            });
+
+        assert!(message.contains("This game directory does not match this build."));
+        assert!(message.contains("Found runtime schema 7, but this build expects 12."));
+        assert!(message.contains("Recreate or refresh ncgame.db before launching again."));
+        assert!(message.contains("(slap a key)"));
     }
 }

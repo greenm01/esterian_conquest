@@ -335,7 +335,9 @@ impl App {
 
     pub fn toggle_fleet_group_order_selection(&mut self) {
         let row = match self.current_screen {
-            ScreenId::FleetGroupOrder if self.fleet.group_mode == FleetGroupOrderMode::SelectingFleets => {
+            ScreenId::FleetGroupOrder
+                if self.fleet.group_mode == FleetGroupOrderMode::SelectingFleets =>
+            {
                 let rows = self.fleet_rows();
                 rows.get(self.fleet.group_cursor).cloned()
             }

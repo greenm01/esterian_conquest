@@ -27,3 +27,4 @@ winresource = "0.1"
 
 [dev-dependencies]
 nc-compat = { path = "../nc-compat" }
+rusqlite = { version = "0.31", features = ["bundled"] }

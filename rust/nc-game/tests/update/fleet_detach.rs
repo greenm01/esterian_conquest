@@ -48,11 +48,7 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
     assert!(terminal.line(6).starts_with(" Target: "));
     assert_eq!(terminal.line(7).trim_end(), " Speed: 0");
     assert_eq!(terminal.line(8).trim_end(), " ROE: 0");
-    assert!(
-        terminal
-            .line(10)
-            .contains("Ships: SC CA 4DD 4TT*")
-    );
+    assert!(terminal.line(10).contains("Ships: SC CA 4DD 4TT*"));
     assert!(!terminal.line(10).contains("AR="));
     assert_eq!(terminal.line(12).trim_end(), "<C>ommission, <X> Cancel");
     assert!(

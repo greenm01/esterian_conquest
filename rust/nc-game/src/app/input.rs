@@ -392,7 +392,9 @@ impl App {
         key: crossterm::event::KeyEvent,
     ) -> Option<Action> {
         let action = match self.current_screen {
-            ScreenId::FleetListFilterPrompt if self.fleet.list_filter_prompt_dismiss_message.is_some() => {
+            ScreenId::FleetListFilterPrompt
+                if self.fleet.list_filter_prompt_dismiss_message.is_some() =>
+            {
                 Some(Action::Fleet(
                     crate::domains::fleet::FleetAction::DismissListFilterPromptNotice,
                 ))

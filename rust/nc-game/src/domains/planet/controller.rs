@@ -18,33 +18,153 @@ use nc_ui::table_filter::{
 };
 
 const PLANET_LIST_FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
-    TableFilterColumn { code: "bdg", label: "Budget", aliases: &["bdgt", "bgdt"], kind: FilterKind::Number },
-    TableFilterColumn { code: "rev", label: "Revenue", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "gro", label: "Growth", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "bui", label: "Build", aliases: &["queue"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sta", label: "Dock", aliases: &["stardock"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
+    TableFilterColumn {
+        code: "coo",
+        label: "Coord",
+        aliases: &["coordinates", "location"],
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "pla",
+        label: "Planet",
+        aliases: &["name"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "max",
+        label: "Max",
+        aliases: &["maximum", "potential"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "cur",
+        label: "Current",
+        aliases: &["currentprod", "production", "current production"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "trs",
+        label: "Treasury",
+        aliases: &["points", "treasury points"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "bdg",
+        label: "Budget",
+        aliases: &["bdgt", "bgdt"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "rev",
+        label: "Revenue",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "gro",
+        label: "Growth",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "bui",
+        label: "Build",
+        aliases: &["queue"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sta",
+        label: "Dock",
+        aliases: &["stardock"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sbs",
+        label: "Starbase",
+        aliases: &["starbases"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "ars",
+        label: "Armies",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "gbs",
+        label: "Batteries",
+        aliases: &["groundbatteries"],
+        kind: FilterKind::Number,
+    },
 ];
 
 const PLANET_DATABASE_FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
-    TableFilterColumn { code: "own", label: "Owner", aliases: &["empire"], kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
-    TableFilterColumn { code: "see", label: "Seen", aliases: &["year", "yearseen", "seenyear"], kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sco", label: "Scout", aliases: &["scoutyear"], kind: FilterKind::Number },
+    TableFilterColumn {
+        code: "coo",
+        label: "Coord",
+        aliases: &["coordinates", "location"],
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "pla",
+        label: "Planet",
+        aliases: &["name"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "own",
+        label: "Owner",
+        aliases: &["empire"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "max",
+        label: "Max",
+        aliases: &["maximum", "potential"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "see",
+        label: "Seen",
+        aliases: &["year", "yearseen", "seenyear"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "ars",
+        label: "Armies",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "gbs",
+        label: "Batteries",
+        aliases: &["groundbatteries"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sbs",
+        label: "Starbase",
+        aliases: &["starbases"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "cur",
+        label: "Current",
+        aliases: &["currentprod", "production", "current production"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "trs",
+        label: "Treasury",
+        aliases: &["points", "treasury points"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sco",
+        label: "Scout",
+        aliases: &["scoutyear"],
+        kind: FilterKind::Number,
+    },
 ];
 
 const fn planet_list_sort_code(sort: PlanetListSort) -> &'static str {
@@ -166,7 +286,9 @@ fn planet_row_sort_metrics(
         .unwrap_or(0);
     let docked = app.planet_list_docked_units(row);
     let armies = planet.map(|planet| planet.army_count_raw()).unwrap_or(0);
-    let batteries = planet.map(|planet| planet.ground_batteries_raw()).unwrap_or(0);
+    let batteries = planet
+        .map(|planet| planet.ground_batteries_raw())
+        .unwrap_or(0);
     (treasury, budget, build_queue, docked, armies, batteries)
 }
 
@@ -221,9 +343,8 @@ fn planet_list_clause_matches(
                     (0..10)
                         .map(|slot| {
                             let points = u32::from(planet.build_count_raw(slot));
-                            let kind = nc_data::ProductionItemKind::from_raw(
-                                planet.build_kind_raw(slot),
-                            );
+                            let kind =
+                                nc_data::ProductionItemKind::from_raw(planet.build_kind_raw(slot));
                             kind.build_cost().map(|cost| points / cost).unwrap_or(0)
                         })
                         .sum::<u32>() as i64
@@ -236,12 +357,12 @@ fn planet_list_clause_matches(
         "sbs" => clause
             .predicate
             .matches_number(Some(i64::from(u8::from(row.has_friendly_starbase)))),
-        "ars" => clause.predicate.matches_number(
-            planet.map(|planet| i64::from(planet.army_count_raw())),
-        ),
-        "gbs" => clause.predicate.matches_number(
-            planet.map(|planet| i64::from(planet.ground_batteries_raw())),
-        ),
+        "ars" => clause
+            .predicate
+            .matches_number(planet.map(|planet| i64::from(planet.army_count_raw()))),
+        "gbs" => clause
+            .predicate
+            .matches_number(planet.map(|planet| i64::from(planet.ground_batteries_raw()))),
         _ => true,
     }
 }
@@ -261,13 +382,13 @@ fn planet_database_clause_matches(row: &PlanetDatabaseRow, clause: &TableFilterC
             TableFilterPredicate::Unknown => row.name_label.trim() == "?",
             predicate => predicate.matches_text(Some(&row.name_label)),
         },
-        "own" => clause.predicate.matches_text(
-            if row.known_owner_empire_id.is_some() {
+        "own" => clause
+            .predicate
+            .matches_text(if row.known_owner_empire_id.is_some() {
                 Some(&row.owner_label)
             } else {
                 None
-            },
-        ),
+            }),
         "max" => clause
             .predicate
             .matches_number(row.known_max_production.map(i64::from)),
@@ -672,8 +793,11 @@ impl App {
                     self.planet.list_filter_pending_column = Some(column);
                     self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::ValueInput;
                     self.planet.list_prompt_input.clear();
-                    self.planet.list_prompt_default_value =
-                        format!("{},{}", self.default_planet_prompt_coords()[0], self.default_planet_prompt_coords()[1]);
+                    self.planet.list_prompt_default_value = format!(
+                        "{},{}",
+                        self.default_planet_prompt_coords()[0],
+                        self.default_planet_prompt_coords()[1]
+                    );
                     self.planet.list_prompt_status = None;
                 }
                 PlanetListFilterMode::Starbase => {
@@ -707,7 +831,8 @@ impl App {
                 match parse_column_code(PLANET_LIST_FILTER_COLUMNS, raw) {
                     Ok(column) => {
                         self.planet.list_filter_pending_column = Some(column);
-                        self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::ValueInput;
+                        self.planet.list_filter_prompt_mode =
+                            PlanetListFilterPromptMode::ValueInput;
                         self.planet.list_prompt_input.clear();
                         self.planet.list_prompt_default_value =
                             self.planet_list_filter_default_value(mode, column);
@@ -716,11 +841,10 @@ impl App {
                     }
                     Err(ColumnCodeParseError::Ambiguous(codes)) => {
                         self.planet.list_prompt_input.clear();
-                        self.planet.list_prompt_status =
-                            Some(format!(
-                                " {}",
-                                format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
-                            ));
+                        self.planet.list_prompt_status = Some(format!(
+                            " {}",
+                            format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                        ));
                         self.planet.list_prompt_dismiss_message = None;
                     }
                     Err(ColumnCodeParseError::Unknown) => {
@@ -967,21 +1091,20 @@ impl App {
         };
         let allow_char = match self.current_screen {
             ScreenId::PlanetDatabaseList => is_coordinate_input_char(ch),
-            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => match self
-                .planet
-                .database_prompt_mode
-            {
-                PlanetDatabasePromptMode::SortRangeInput => is_coordinate_input_char(ch),
-                PlanetDatabasePromptMode::FilterMenu | PlanetDatabasePromptMode::SortMenu => {
-                    is_filter_column_char(ch)
+            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => {
+                match self.planet.database_prompt_mode {
+                    PlanetDatabasePromptMode::SortRangeInput => is_coordinate_input_char(ch),
+                    PlanetDatabasePromptMode::FilterMenu | PlanetDatabasePromptMode::SortMenu => {
+                        is_filter_column_char(ch)
+                    }
+                    PlanetDatabasePromptMode::FilterValueInput => {
+                        matches!(
+                            ch,
+                            ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
+                        ) || ch.is_ascii_alphanumeric()
+                    }
                 }
-                PlanetDatabasePromptMode::FilterValueInput => {
-                    matches!(
-                        ch,
-                        ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
-                    ) || ch.is_ascii_alphanumeric()
-                }
-            },
+            }
             _ => false,
         };
         if accepts_input && self.planet.database_input.len() < 16 && allow_char {
@@ -1127,7 +1250,8 @@ impl App {
                 match parse_column_code(PLANET_DATABASE_FILTER_COLUMNS, raw) {
                     Ok(column) => {
                         self.planet.database_pending_column = Some(column);
-                        self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterValueInput;
+                        self.planet.database_prompt_mode =
+                            PlanetDatabasePromptMode::FilterValueInput;
                         self.planet.database_input.clear();
                         self.planet.database_prompt_default_value =
                             self.planet_database_filter_default_value(column);
@@ -1136,11 +1260,10 @@ impl App {
                     }
                     Err(ColumnCodeParseError::Ambiguous(codes)) => {
                         self.planet.database_input.clear();
-                        self.planet.database_status =
-                            Some(format!(
-                                " {}",
-                                format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
-                            ));
+                        self.planet.database_status = Some(format!(
+                            " {}",
+                            format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                        ));
                         self.planet.database_prompt_dismiss_message = None;
                     }
                     Err(ColumnCodeParseError::Unknown) => {
@@ -1807,7 +1930,8 @@ impl App {
             .then_with(|| left.coords.cmp(&right.coords)),
             PlanetDatabaseSort::CurrentProduction => apply_sort_direction(
                 self.planet.database_sort_direction,
-                left.known_current_production.cmp(&right.known_current_production),
+                left.known_current_production
+                    .cmp(&right.known_current_production),
             )
             .then_with(|| left.coords.cmp(&right.coords)),
             PlanetDatabaseSort::Treasury => apply_sort_direction(

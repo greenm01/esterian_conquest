@@ -2187,6 +2187,7 @@ dependencies = [
  "nc-log",
  "nc-session",
  "nc-ui",
+ "rusqlite",
  "tracing",
  "winresource",
 ]

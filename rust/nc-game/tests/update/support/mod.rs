@@ -10,8 +10,8 @@ pub(crate) use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState
 pub(crate) use nc_compat::{decode_report_block_rows, import_directory_snapshot};
 pub(crate) use nc_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot,
-    ProductionItemKind, QueuedPlayerMail, SeatReservation, map_size_for_player_count,
+    EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot, ProductionItemKind,
+    QueuedPlayerMail, SeatReservation, map_size_for_player_count,
 };
 pub(crate) use nc_engine::yearly_tax_revenue;
 pub(crate) use nc_game::app::{

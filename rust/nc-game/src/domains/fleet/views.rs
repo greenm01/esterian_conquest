@@ -77,24 +77,24 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FleetListFilterPrompt => app
             .fleet_list
             .render_filter_prompt_with_selected_filter_clause(
-            frame.geometry,
-            &app.fleet_list_rows(),
-            &app.fleet.group_selected_fleets,
-            app.fleet.list_sort,
-            app.fleet.list_sort_direction,
-            app.fleet.list_filter,
-            app.fleet.list_filter_clause.as_ref(),
-            app.fleet.scroll_offset,
-            app.fleet.cursor,
-            app.fleet.list_filter_prompt_mode,
-            &app.fleet.list_filter_prompt_default_value,
-            &app.fleet.list_filter_prompt_input,
-            app.fleet.list_filter_prompt_status.as_deref(),
-            app.fleet.list_filter_prompt_dismiss_message.as_deref(),
-            app.fleet
-                .list_filter_pending_column
-                .map(|column| column.code),
-        ),
+                frame.geometry,
+                &app.fleet_list_rows(),
+                &app.fleet.group_selected_fleets,
+                app.fleet.list_sort,
+                app.fleet.list_sort_direction,
+                app.fleet.list_filter,
+                app.fleet.list_filter_clause.as_ref(),
+                app.fleet.scroll_offset,
+                app.fleet.cursor,
+                app.fleet.list_filter_prompt_mode,
+                &app.fleet.list_filter_prompt_default_value,
+                &app.fleet.list_filter_prompt_input,
+                app.fleet.list_filter_prompt_status.as_deref(),
+                app.fleet.list_filter_prompt_dismiss_message.as_deref(),
+                app.fleet
+                    .list_filter_pending_column
+                    .map(|column| column.code),
+            ),
         ScreenId::FleetListSortPrompt => app.fleet_list.render_sort_prompt_with_filter_clause(
             frame.geometry,
             &app.fleet_list_rows(),

@@ -24,8 +24,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     assert_eq!(app.current_screen(), ScreenId::FleetList);
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal)
-        .expect("fleet list should render");
+    app.render(&mut terminal).expect("fleet list should render");
     let top_border_line = line_containing(&terminal, "┌");
     let header_line = line_containing(&terminal, "│ID");
     let command_line = line_containing(&terminal, "COMMAND <- ? F S O C E D M T L U SPACE <Q>");

@@ -1,13 +1,12 @@
 use crate::app::state::App;
 use crate::domains::startup::state::FirstTimeOnboardingMode;
+use crate::screen::layout::{PLAYFIELD_HEIGHT, draw_centered_text, new_playfield};
 use crate::screen::{
     CellStyle, GameColor, PlayfieldBuffer, ScreenFrame, ScreenId,
-    render_first_time_homeworld_confirm,
-    render_first_time_homeworld_name, render_first_time_join_name,
-    render_first_time_join_name_confirm, render_first_time_join_no_pending,
-    render_first_time_join_summary,
+    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
+    render_first_time_join_name, render_first_time_join_name_confirm,
+    render_first_time_join_no_pending, render_first_time_join_summary,
 };
-use crate::screen::layout::{PLAYFIELD_HEIGHT, draw_centered_text, new_playfield};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {

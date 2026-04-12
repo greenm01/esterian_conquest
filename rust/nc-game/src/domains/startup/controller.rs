@@ -1334,7 +1334,9 @@ impl App {
                 .enumerate()
                 .find_map(|(idx, _)| {
                     let seat = idx + 1;
-                    (runtime_state.game_data.player_slot_is_open_for_first_join(seat)
+                    (runtime_state
+                        .game_data
+                        .player_slot_is_open_for_first_join(seat)
                         && self.game_config.reservation_for_player(seat).is_none())
                     .then_some(seat)
                 })

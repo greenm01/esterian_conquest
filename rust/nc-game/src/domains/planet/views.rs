@@ -270,30 +270,28 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.list_prompt_status.as_deref(),
             app.planet.list_prompt_dismiss_message.as_deref(),
         ),
-        ScreenId::PlanetListFilterPrompt(mode) => app
-            .planet_list
-            .render_filter_prompt_with_filter_clause(
-            &frame,
-            mode,
-            &app.planet_list_rows(mode, app.planet.list_sort),
-            app.planet.list_sort,
-            app.planet.list_sort_direction,
-            app.planet.list_filter,
-            app.planet.list_filter_clause.as_ref(),
-            app.planet.brief_scroll_offset,
-            app.planet.brief_cursor,
-            app.planet.list_filter_prompt_mode,
-            &app.planet.list_prompt_default_value,
-            &app.planet.list_prompt_input,
-            app.planet.list_prompt_status.as_deref(),
-            app.planet.list_prompt_dismiss_message.as_deref(),
-            app.planet
-                .list_filter_pending_column
-                .map(|column| column.code),
-        ),
-        ScreenId::PlanetList(mode, sort) => app
-            .planet_list
-            .render_brief_list_with_filter_clause(
+        ScreenId::PlanetListFilterPrompt(mode) => {
+            app.planet_list.render_filter_prompt_with_filter_clause(
+                &frame,
+                mode,
+                &app.planet_list_rows(mode, app.planet.list_sort),
+                app.planet.list_sort,
+                app.planet.list_sort_direction,
+                app.planet.list_filter,
+                app.planet.list_filter_clause.as_ref(),
+                app.planet.brief_scroll_offset,
+                app.planet.brief_cursor,
+                app.planet.list_filter_prompt_mode,
+                &app.planet.list_prompt_default_value,
+                &app.planet.list_prompt_input,
+                app.planet.list_prompt_status.as_deref(),
+                app.planet.list_prompt_dismiss_message.as_deref(),
+                app.planet
+                    .list_filter_pending_column
+                    .map(|column| column.code),
+            )
+        }
+        ScreenId::PlanetList(mode, sort) => app.planet_list.render_brief_list_with_filter_clause(
             &frame,
             mode,
             &app.planet_list_rows(mode, sort),
@@ -307,8 +305,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.list_prompt_status.as_deref(),
             app.planet.auto_commission_prompt_active
                 && mode == crate::screen::PlanetListMode::Brief,
-            app.planet.build_abort_prompt_active
-                && mode == crate::screen::PlanetListMode::Brief,
+            app.planet.build_abort_prompt_active && mode == crate::screen::PlanetListMode::Brief,
             if mode == crate::screen::PlanetListMode::Brief {
                 list_transport_prompt_label.as_deref()
             } else {

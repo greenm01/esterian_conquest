@@ -39,12 +39,21 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("Enter", "review highlighted fleet"),
                 ("F", "filter the fleet list"),
                 ("S", "sort the fleet list"),
-                ("O", "assign orders to checked fleets, or the selected fleet"),
-                ("C", "change checked fleets: ROE or speed; selected fleet also allows ID"),
+                (
+                    "O",
+                    "assign orders to checked fleets, or the selected fleet",
+                ),
+                (
+                    "C",
+                    "change checked fleets: ROE or speed; selected fleet also allows ID",
+                ),
                 ("E", "calculate travel time (ETA) for selected fleet"),
                 ("D", "detach ships from selected fleet"),
                 ("M", "merge checked fleets, or merge the selected fleet"),
-                ("T", "transfer ships between checked fleets, or from the selected fleet"),
+                (
+                    "T",
+                    "transfer ships between checked fleets, or from the selected fleet",
+                ),
                 ("L", "load armies from selected fleet"),
                 ("U", "unload armies from selected fleet"),
                 ("Q", "return"),
@@ -57,10 +66,16 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Type", "enter a column code or unique prefix, then Enter"),
                 ("Codes", "id sel loc ord tar spd eta roe ars shi"),
-                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
+                (
+                    "Prefix",
+                    "ambiguous prefixes stay open and show matching codes",
+                ),
                 ("Order", "ord also accepts holding, moving, and combat"),
                 ("Selected", "sel accepts yes/no, selected, unselected, or x"),
-                ("Value", "enter text, a number test, or coords at the next prompt"),
+                (
+                    "Value",
+                    "enter text, a number test, or coords at the next prompt",
+                ),
                 ("all", "clear the current filter"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -72,7 +87,10 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Type", "enter a column code or unique prefix, then Enter"),
                 ("Codes", "id sel loc ord tar spd eta roe ars shi"),
-                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
+                (
+                    "Prefix",
+                    "ambiguous prefixes stay open and show matching codes",
+                ),
                 ("Repeat", "same sort flips ASC/DESC"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -166,8 +184,14 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             "SORT COMMANDS",
             &[
                 ("Type", "enter a column code or unique prefix, then Enter"),
-                ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
-                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
+                (
+                    "Codes",
+                    "coo pla max cur trs bdg rev gro bui sta sbs ars gbs",
+                ),
+                (
+                    "Prefix",
+                    "ambiguous prefixes stay open and show matching codes",
+                ),
                 ("Repeat", "same sort flips ASC/DESC"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -178,10 +202,19 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             "FILTER COMMANDS",
             &[
                 ("Type", "enter a column code or unique prefix, then Enter"),
-                ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
-                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
+                (
+                    "Codes",
+                    "coo pla max cur trs bdg rev gro bui sta sbs ars gbs",
+                ),
+                (
+                    "Prefix",
+                    "ambiguous prefixes stay open and show matching codes",
+                ),
                 ("Coords", "coo accepts xx,yy or xx,yy/r"),
-                ("Value", "text matches contain; numbers accept > >= < <= = !="),
+                (
+                    "Value",
+                    "text matches contain; numbers accept > >= < <= = !=",
+                ),
                 ("all", "clear the current filter"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -193,10 +226,16 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Type", "enter a column code or unique prefix, then Enter"),
                 ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
-                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
+                (
+                    "Prefix",
+                    "ambiguous prefixes stay open and show matching codes",
+                ),
                 ("Coords", "coo accepts xx,yy or xx,yy/r"),
                 ("Unknown", "use ? for unknown database values"),
-                ("Value", "text matches contain; numbers accept > >= < <= = !="),
+                (
+                    "Value",
+                    "text matches contain; numbers accept > >= < <= = !=",
+                ),
                 ("all", "clear the current filter"),
                 ("Q", "return"),
                 ("Esc", "return"),
@@ -209,7 +248,10 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("Type", "enter a column code or unique prefix, then Enter"),
                 ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
                 ("rng", "sort by range from a sector"),
-                ("Prefix", "ambiguous prefixes stay open and show matching codes"),
+                (
+                    "Prefix",
+                    "ambiguous prefixes stay open and show matching codes",
+                ),
                 ("Repeat", "same sort flips ASC/DESC"),
                 ("Q", "return"),
                 ("Esc", "return"),

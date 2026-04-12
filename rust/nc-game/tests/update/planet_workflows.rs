@@ -256,7 +256,10 @@ fn planet_list_abort_builds_prompt_stays_inline_and_clears_queue() {
         )
         .is_empty()
     );
-    assert_eq!(app.planet.list_prompt_status.as_deref(), Some("Build orders aborted."));
+    assert_eq!(
+        app.planet.list_prompt_status.as_deref(),
+        Some("Build orders aborted.")
+    );
 }
 
 #[test]
@@ -1990,7 +1993,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
     for ch in ['>', '=', '1', '0', '0'] {
@@ -2003,7 +2009,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
 
@@ -2040,7 +2049,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -2051,7 +2063,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
 
@@ -2083,7 +2098,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
     for ch in format!("{},{}", range_anchor[0], range_anchor[1]).chars() {
@@ -2105,7 +2123,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
 
@@ -2134,7 +2155,10 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilterPrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(

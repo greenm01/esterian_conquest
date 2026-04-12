@@ -68,10 +68,7 @@ fn fleet_list_repeated_sort_toggles_direction_and_updates_title() {
     );
 
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::SubmitListSortPrompt)
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitListSortPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetList);
@@ -110,14 +107,22 @@ fn fleet_list_sort_prompt_accepts_typed_column_codes() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetList);
-    assert_eq!(app.fleet.list_sort, nc_game::screen::FleetListSort::Location);
+    assert_eq!(
+        app.fleet.list_sort,
+        nc_game::screen::FleetListSort::Location
+    );
     assert_eq!(app.fleet.list_sort_direction, SortDirection::Asc);
 }
 
 #[test]
 fn fleet_list_sort_prompt_accepts_every_sort_column_code() {
     let cases = [
-        ("id", nc_game::screen::FleetListSort::Id, SortDirection::Asc, "ID"),
+        (
+            "id",
+            nc_game::screen::FleetListSort::Id,
+            SortDirection::Asc,
+            "ID",
+        ),
         (
             "sel",
             nc_game::screen::FleetListSort::Selected,
@@ -273,13 +278,28 @@ fn planet_list_sort_prompt_accepts_every_sort_column_code() {
     let cases = [
         ("coo", PlanetListSort::Location, SortDirection::Asc, "COO"),
         ("pla", PlanetListSort::PlanetName, SortDirection::Asc, "PLA"),
-        ("max", PlanetListSort::PotentialProduction, SortDirection::Desc, "MAX"),
-        ("cur", PlanetListSort::CurrentProduction, SortDirection::Asc, "CUR"),
+        (
+            "max",
+            PlanetListSort::PotentialProduction,
+            SortDirection::Desc,
+            "MAX",
+        ),
+        (
+            "cur",
+            PlanetListSort::CurrentProduction,
+            SortDirection::Asc,
+            "CUR",
+        ),
         ("trs", PlanetListSort::Treasury, SortDirection::Desc, "TRS"),
         ("bdg", PlanetListSort::Budget, SortDirection::Desc, "BDG"),
         ("rev", PlanetListSort::Revenue, SortDirection::Desc, "REV"),
         ("gro", PlanetListSort::Growth, SortDirection::Desc, "GRO"),
-        ("bui", PlanetListSort::BuildQueue, SortDirection::Desc, "BUI"),
+        (
+            "bui",
+            PlanetListSort::BuildQueue,
+            SortDirection::Desc,
+            "BUI",
+        ),
         ("sta", PlanetListSort::Stardock, SortDirection::Desc, "STA"),
         ("sbs", PlanetListSort::Starbase, SortDirection::Desc, "SBS"),
         ("ars", PlanetListSort::Armies, SortDirection::Desc, "ARS"),
@@ -389,7 +409,9 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Range)),
+            Action::Planet(PlanetAction::SubmitDatabaseSort(
+                PlanetDatabaseSortMode::Range
+            )),
         ),
         AppOutcome::Continue
     );
@@ -419,7 +441,9 @@ fn planet_database_same_range_anchor_toggles_and_new_anchor_resets() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Range)),
+            Action::Planet(PlanetAction::SubmitDatabaseSort(
+                PlanetDatabaseSortMode::Range
+            )),
         ),
         AppOutcome::Continue
     );
@@ -588,7 +612,9 @@ fn planet_database_sort_prompt_accepts_every_sort_column_code() {
 
 #[test]
 fn fleet_list_filter_prompt_accepts_every_appendix_e_column_code() {
-    let codes = ["id", "loc", "ord", "tar", "spd", "eta", "roe", "ars", "shi", "sel"];
+    let codes = [
+        "id", "loc", "ord", "tar", "spd", "eta", "roe", "ars", "shi", "sel",
+    ];
 
     for code in codes {
         let mut app = load_app_to_main_menu();
@@ -613,7 +639,8 @@ fn fleet_list_filter_prompt_accepts_every_appendix_e_column_code() {
         );
 
         let mut terminal = CaptureTerminal::new();
-        app.render(&mut terminal).expect("fleet filter prompt rerenders");
+        app.render(&mut terminal)
+            .expect("fleet filter prompt rerenders");
         assert_prompt_advances_to_filter_value(&terminal, code);
     }
 }
@@ -621,8 +648,7 @@ fn fleet_list_filter_prompt_accepts_every_appendix_e_column_code() {
 #[test]
 fn planet_list_filter_prompt_accepts_every_appendix_e_column_code() {
     let codes = [
-        "coo", "pla", "max", "cur", "trs", "bdg", "rev", "gro", "bui", "sta", "sbs", "ars",
-        "gbs",
+        "coo", "pla", "max", "cur", "trs", "bdg", "rev", "gro", "bui", "sta", "sbs", "ars", "gbs",
     ];
 
     for code in codes {
@@ -657,14 +683,17 @@ fn planet_list_filter_prompt_accepts_every_appendix_e_column_code() {
         );
 
         let mut terminal = CaptureTerminal::new();
-        app.render(&mut terminal).expect("planet filter prompt rerenders");
+        app.render(&mut terminal)
+            .expect("planet filter prompt rerenders");
         assert_prompt_advances_to_filter_value(&terminal, code);
     }
 }
 
 #[test]
 fn planet_database_filter_prompt_accepts_every_appendix_e_column_code() {
-    let codes = ["coo", "pla", "own", "max", "see", "ars", "gbs", "sbs", "cur", "trs", "sco"];
+    let codes = [
+        "coo", "pla", "own", "max", "see", "ars", "gbs", "sbs", "cur", "trs", "sco",
+    ];
 
     for code in codes {
         let mut app = load_app_to_main_menu();
@@ -836,7 +865,10 @@ fn sort_prompts_accept_natural_column_names() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.planet.database_sort, nc_game::screen::PlanetDatabaseSort::YearSeen);
+    assert_eq!(
+        app.planet.database_sort,
+        nc_game::screen::PlanetDatabaseSort::YearSeen
+    );
 }
 
 #[test]
@@ -861,7 +893,10 @@ fn filter_prompts_accept_natural_column_names() {
         AppOutcome::Continue
     );
     assert_eq!(
-        app.fleet.list_filter_pending_column.expect("pending fleet column").code,
+        app.fleet
+            .list_filter_pending_column
+            .expect("pending fleet column")
+            .code,
         "spd"
     );
 

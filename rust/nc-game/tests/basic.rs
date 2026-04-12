@@ -77,6 +77,19 @@ fn write_reserved_config(root: &Path, alias: &str, player: usize) {
         .expect("write settings");
 }
 
+fn set_runtime_schema_version(root: &Path, version: i64) {
+    let conn = rusqlite::Connection::open(root.join("ncgame.db")).expect("open runtime db");
+    let rows = conn
+        .execute(
+            "UPDATE campaign_metadata
+             SET int_value = ?1
+             WHERE key = 'runtime_schema_version'",
+            [version],
+        )
+        .expect("update runtime schema version");
+    assert_eq!(rows, 1, "runtime schema version row should exist");
+}
+
 fn copy_dir_all(src: &Path, dst: &Path) {
     fs::create_dir_all(dst).expect("create temp dir");
     for entry in fs::read_dir(src).expect("read src dir") {
@@ -454,6 +467,64 @@ fn nc_game_rejects_invalid_log_level() {
             .contains("unknown log level 'loud'; expected error, warn, info, debug, or trace"),
         "stderr={:?}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn nc_door_rejects_schema_mismatch_with_dismissible_error_screen() {
+    let fixture_dir = temp_fixture_copy();
+    set_runtime_schema_version(&fixture_dir, 7);
+    let dropfile = write_dropfile(&fixture_dir, "SYSOP");
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_nc-door"))
+        .args([
+            "--dir",
+            fixture_dir.to_str().expect("fixture path should be utf-8"),
+            "--dropfile",
+            dropfile.to_str().expect("dropfile path should be utf-8"),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("nc-door should start");
+
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let writer = thread::spawn(move || {
+        thread::sleep(Duration::from_millis(150));
+        stdin.write_all(b" ").expect("write dismiss key");
+        stdin.flush().expect("flush dismiss key");
+    });
+
+    let status = wait_for_exit(&mut child, Duration::from_secs(5));
+    writer.join().expect("writer thread should finish");
+    let output = child.wait_with_output().expect("collect child output");
+
+    assert!(!status.success(), "nc-door should reject stale schema");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("NOSTRIAN CONQUEST DOOR ERROR"),
+        "stdout={stdout:?}"
+    );
+    assert!(
+        stdout.contains("This game directory does not match this build."),
+        "stdout={stdout:?}"
+    );
+    assert!(
+        stdout.contains("Found runtime schema 7, but this build expects "),
+        "stdout={stdout:?}"
+    );
+    assert!(
+        stdout.contains("Recreate or refresh ncgame.db before launching again."),
+        "stdout={stdout:?}"
+    );
+    assert!(stdout.contains("(slap a key)"), "stdout={stdout:?}");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("runtime sqlite schema version 7 is unsupported; expected "),
+        "stderr={stderr:?}"
     );
 }
 

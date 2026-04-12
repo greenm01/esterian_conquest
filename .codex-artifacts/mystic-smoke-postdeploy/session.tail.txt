@@ -1,0 +1,92 @@
+--- connect ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[u
+
+--- wake ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[u
+
+--- username ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[u
+
+--- password ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[uASCII detected.
+
+(0) Ascii (No Color)
+(1) Ansi  (Color)
+
+Graphics Mode -> 
+
+--- enter ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[uASCII detected.
+
+(0) Ascii (No Color)
+(1) Ansi  (Color)
+
+Graphics Mode -> 
+
+--- doors ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[uASCII detected.
+
+(0) Ascii (No Color)
+(1) Ansi  (Color)
+
+Graphics Mode -> 
+
+--- nc ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[uASCII detected.
+
+(0) Ascii (No Color)
+(1) Ansi  (Color)
+
+Graphics Mode -> 
+
+--- post_nc ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[uASCII detected.
+
+(0) Ascii (No Color)
+(1) Ansi  (Color)
+
+Graphics Mode -> 
+
+--- quit ---
+[?1000h
+Mystic BBS Version 1.12 A48
+Copyright (C) 1997-2023 By James Coyle
+
+Detecting terminal emulation: [s[255B[255C[6n[uASCII detected.
+
+(0) Ascii (No Color)
+(1) Ansi  (Color)
+
+Graphics Mode -> 

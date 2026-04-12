@@ -8,8 +8,8 @@ use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetChangeField, FleetCommandContext, FleetMenuPromptMode};
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{
-    CommandMenu, FleetEtaMode, FleetListFilter, FleetListFilterPromptMode, FleetListSort,
-    FleetRow, PlanetTransportMode, ScreenId, SortDirection,
+    CommandMenu, FleetEtaMode, FleetListFilter, FleetListFilterPromptMode, FleetListSort, FleetRow,
+    PlanetTransportMode, ScreenId, SortDirection,
 };
 use nc_data::{FleetRecord, Order};
 use nc_engine::{
@@ -151,7 +151,9 @@ fn fleet_matches_clause(
     selected_fleet_record_indexes: &std::collections::BTreeSet<usize>,
 ) -> bool {
     match clause.column.code {
-        "id" => clause.predicate.matches_number(Some(i64::from(row.fleet_number))),
+        "id" => clause
+            .predicate
+            .matches_number(Some(i64::from(row.fleet_number))),
         "loc" => clause.predicate.matches_coord(row.coords),
         "ord" => match &clause.predicate {
             TableFilterPredicate::TextContains(value) if value == "holding" => {
@@ -702,8 +704,7 @@ impl App {
     }
 
     pub(crate) fn enforce_valid_fleet_filter(&mut self) {
-        if self.fleet.list_filter == FleetListFilter::All
-            && self.fleet.list_filter_clause.is_none()
+        if self.fleet.list_filter == FleetListFilter::All && self.fleet.list_filter_clause.is_none()
         {
             return;
         }
@@ -863,11 +864,10 @@ impl App {
                     }
                     Err(ColumnCodeParseError::Ambiguous(codes)) => {
                         self.fleet.list_filter_prompt_input.clear();
-                        self.fleet.list_filter_prompt_status =
-                            Some(format!(
-                                " {}",
-                                format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
-                            ));
+                        self.fleet.list_filter_prompt_status = Some(format!(
+                            " {}",
+                            format_column_code_error(&ColumnCodeParseError::Ambiguous(codes))
+                        ));
                         self.fleet.list_filter_prompt_dismiss_message = None;
                     }
                     Err(ColumnCodeParseError::Unknown) => {
@@ -1204,18 +1204,21 @@ impl App {
                             true,
                         );
                     } else {
-                        self.fleet.menu_prompt_status = self.show_fleet_prompt_feedback(
-                            PromptFeedback::error(format!(
+                        self.fleet.menu_prompt_status =
+                            self.show_fleet_prompt_feedback(PromptFeedback::error(format!(
                                 "Set ROE {} for {} fleets. {} {} remain selected: {}",
                                 roe,
                                 successful.len(),
                                 failure_count,
-                                if failure_count == 1 { "fleet" } else { "fleets" },
+                                if failure_count == 1 {
+                                    "fleet"
+                                } else {
+                                    "fleets"
+                                },
                                 failure_detail
                                     .as_deref()
                                     .unwrap_or("Some fleets could not be changed.")
-                            )),
-                        );
+                            )));
                     }
                 } else {
                     let row = self.prompt_context_fleet_row()?;
@@ -1333,22 +1336,29 @@ impl App {
                     if failure_count == 0 {
                         self.clear_checked_fleet_selection();
                         self.show_fleet_context_success(
-                            format!("Set speed {} for {} checked fleets.", speed, checked_rows.len()),
+                            format!(
+                                "Set speed {} for {} checked fleets.",
+                                speed,
+                                checked_rows.len()
+                            ),
                             true,
                         );
                     } else {
-                        self.fleet.menu_prompt_status = self.show_fleet_prompt_feedback(
-                            PromptFeedback::error(format!(
+                        self.fleet.menu_prompt_status =
+                            self.show_fleet_prompt_feedback(PromptFeedback::error(format!(
                                 "Set speed {} for {} fleets. {} {} remain selected: {}",
                                 speed,
                                 successful.len(),
                                 failure_count,
-                                if failure_count == 1 { "fleet" } else { "fleets" },
+                                if failure_count == 1 {
+                                    "fleet"
+                                } else {
+                                    "fleets"
+                                },
                                 failure_detail
                                     .as_deref()
                                     .unwrap_or("Some fleets could not be changed.")
-                            )),
-                        );
+                            )));
                     }
                 } else {
                     let row = self.prompt_context_fleet_row()?;
@@ -1504,9 +1514,7 @@ impl App {
         };
         let (allowed, max_len) = match mode {
             FleetMenuPromptMode::ChangeField => (ch.is_ascii_alphabetic(), 1),
-            FleetMenuPromptMode::MergeCheckedConfirm => {
-                (matches!(ch, 'y' | 'Y' | 'n' | 'N'), 1)
-            }
+            FleetMenuPromptMode::MergeCheckedConfirm => (matches!(ch, 'y' | 'Y' | 'n' | 'N'), 1),
             FleetMenuPromptMode::ChangeValue => {
                 let max_len = match self.fleet.menu_prompt_change_field {
                     Some(FleetChangeField::Roe) | Some(FleetChangeField::Speed) => 2,
@@ -1656,9 +1664,7 @@ impl App {
         let mut rows = self.fleet_rows();
         rows.retain(|row| fleet_matches_filter(row, self.fleet.list_filter));
         if let Some(clause) = &self.fleet.list_filter_clause {
-            rows.retain(|row| {
-                fleet_matches_clause(row, clause, &self.fleet.group_selected_fleets)
-            });
+            rows.retain(|row| fleet_matches_clause(row, clause, &self.fleet.group_selected_fleets));
         }
         rows.sort_by(|left, right| match self.fleet.list_sort {
             FleetListSort::Id => apply_sort_direction(
@@ -2385,30 +2391,32 @@ impl App {
                         self.show_fleet_prompt_feedback(PromptFeedback::error(err))
                 }
             },
-            FleetMenuPromptMode::MergeCheckedConfirm => match self.resolve_checked_merge_confirm() {
-                Ok(false) => {
-                    self.clear_fleet_menu_prompt();
-                    self.current_screen = ScreenId::FleetList;
-                }
-                Ok(true) => {
-                    let plan = match self.checked_merge_plan() {
-                        Ok(plan) => plan,
-                        Err(err) => {
+            FleetMenuPromptMode::MergeCheckedConfirm => {
+                match self.resolve_checked_merge_confirm() {
+                    Ok(false) => {
+                        self.clear_fleet_menu_prompt();
+                        self.current_screen = ScreenId::FleetList;
+                    }
+                    Ok(true) => {
+                        let plan = match self.checked_merge_plan() {
+                            Ok(plan) => plan,
+                            Err(err) => {
+                                self.fleet.menu_prompt_status =
+                                    self.show_fleet_prompt_feedback(PromptFeedback::error(err));
+                                return;
+                            }
+                        };
+                        if let Err(err) = self.submit_checked_fleet_merge(plan) {
                             self.fleet.menu_prompt_status =
                                 self.show_fleet_prompt_feedback(PromptFeedback::error(err));
-                            return;
                         }
-                    };
-                    if let Err(err) = self.submit_checked_fleet_merge(plan) {
+                    }
+                    Err(err) => {
                         self.fleet.menu_prompt_status =
-                            self.show_fleet_prompt_feedback(PromptFeedback::error(err));
+                            self.show_fleet_prompt_feedback(PromptFeedback::error(err))
                     }
                 }
-                Err(err) => {
-                    self.fleet.menu_prompt_status =
-                        self.show_fleet_prompt_feedback(PromptFeedback::error(err))
-                }
-            },
+            }
             FleetMenuPromptMode::TransferDonor => {
                 match self.resolve_fleet_menu_prompt_selection() {
                     Ok((_index, row)) => {

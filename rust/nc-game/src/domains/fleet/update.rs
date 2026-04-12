@@ -43,7 +43,9 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::AppendDetachChar(ch) => app.append_fleet_detach_char(ch),
         FleetAction::AppendEtaChar(ch) => app.append_fleet_eta_char(ch),
         FleetAction::BackspaceListInput => app.backspace_fleet_list_input(),
-        FleetAction::BackspaceListFilterPromptInput => app.backspace_fleet_list_filter_prompt_input(),
+        FleetAction::BackspaceListFilterPromptInput => {
+            app.backspace_fleet_list_filter_prompt_input()
+        }
         FleetAction::BackspaceMenuPromptInput => app.backspace_fleet_menu_prompt_input(),
         FleetAction::BackspaceOrderInput => app.backspace_fleet_order_input(),
         FleetAction::BackspaceGroupOrderInput => app.backspace_fleet_group_order_input(),

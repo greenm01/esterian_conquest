@@ -573,25 +573,23 @@ impl PlanetListScreen {
                 }
                 _ => Action::Noop,
             },
-            PlanetListFilterPromptMode::ValueInput => {
-                match key.code {
-                    KeyCode::Char('?') => Action::OpenPopupHelp,
-                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                        Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
-                    }
-                    KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilterPrompt(mode)),
-                    KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
-                    KeyCode::Char(ch)
-                        if matches!(
-                            ch,
-                            ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
-                        ) || ch.is_ascii_alphanumeric() =>
-                    {
-                        Action::Planet(PlanetAction::AppendListPromptChar(ch))
-                    }
-                    _ => Action::Noop,
+            PlanetListFilterPromptMode::ValueInput => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
                 }
-            }
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilterPrompt(mode)),
+                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
+                KeyCode::Char(ch)
+                    if matches!(
+                        ch,
+                        ' ' | '-' | '#' | '*' | '/' | '?' | '=' | '!' | '>' | '<' | '+' | ','
+                    ) || ch.is_ascii_alphanumeric() =>
+                {
+                    Action::Planet(PlanetAction::AppendListPromptChar(ch))
+                }
+                _ => Action::Noop,
+            },
         }
     }
 

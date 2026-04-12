@@ -1998,7 +1998,8 @@ fn defeated_player_with_pending_reports_uses_returning_review_flow() {
     let player_count = state.game_data.conquest.player_count();
     let planet_intel_by_viewer = (1..=player_count)
         .map(|viewer_empire_id| {
-            store.latest_planet_intel_for_viewer(viewer_empire_id)
+            store
+                .latest_planet_intel_for_viewer(viewer_empire_id)
                 .expect("load runtime intel")
                 .into_iter()
                 .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
@@ -2036,7 +2037,10 @@ fn defeated_player_with_pending_reports_uses_returning_review_flow() {
     })
     .expect("app should load");
 
-    assert_eq!(app.classic_login_state(), ClassicLoginState::ReturningPlayer);
+    assert_eq!(
+        app.classic_login_state(),
+        ClassicLoginState::ReturningPlayer
+    );
 
     let mut saw_review = false;
     for _ in 0..32 {
@@ -2067,7 +2071,8 @@ fn first_time_join_does_not_offer_spent_civil_disorder_seats() {
     let player_count = state.game_data.conquest.player_count();
     let planet_intel_by_viewer = (1..=player_count)
         .map(|viewer_empire_id| {
-            store.latest_planet_intel_for_viewer(viewer_empire_id)
+            store
+                .latest_planet_intel_for_viewer(viewer_empire_id)
                 .expect("load runtime intel")
                 .into_iter()
                 .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))

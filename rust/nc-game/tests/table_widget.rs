@@ -14,10 +14,9 @@ use nc_game::screen::table::{
 };
 use nc_game::screen::{
     CommandMenu, EmpireProfileScreen, EnemiesScreen, FleetListFilter, FleetListScreen,
-    FleetListSort, FleetRow, MessageComposeScreen,
-    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabasePromptMode,
-    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetDatabaseSort, PlanetListFilter,
-    PlanetListFilterPromptMode, PlanetListMode,
+    FleetListSort, FleetRow, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen, PlanetDatabasePromptMode, PlanetDatabaseRow, PlanetDatabaseScreen,
+    PlanetDatabaseSort, PlanetListFilter, PlanetListFilterPromptMode, PlanetListMode,
     PlanetListScreen, PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use nc_game::theme::classic;
@@ -1259,10 +1258,7 @@ fn filter_prompt_inline_status_stays_on_browse_footer_row_for_all_tables() {
         )
         .expect("render database filter prompt");
     assert_eq!(
-        line_index_containing(
-            &database_filter,
-            "COMMAND <- Ambiguous: see/sbs/sco"
-        ),
+        line_index_containing(&database_filter, "COMMAND <- Ambiguous: see/sbs/sco"),
         database_browse_row
     );
 }

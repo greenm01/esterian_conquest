@@ -7,15 +7,14 @@ use crate::screen::{
 };
 use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord};
 use nc_engine::{
-    resolve_checked_fleet_merge_plan, resolve_checked_fleet_transfer_plan,
     fleet_eta_label as engine_fleet_eta_label, fleet_list_eta_label as engine_fleet_list_eta_label,
-    fleet_record_supports_mission_code, fleet_target_eta_message,
+    fleet_record_supports_mission_code, fleet_target_eta_message, resolve_checked_fleet_merge_plan,
+    resolve_checked_fleet_transfer_plan,
 };
 
 impl App {
     pub(crate) fn checked_merge_plan(&self) -> Result<nc_engine::CheckedFleetMergePlan, String> {
-        resolve_checked_fleet_merge_plan(&self.checked_fleet_refs())
-            .map_err(|err| err.to_string())
+        resolve_checked_fleet_merge_plan(&self.checked_fleet_refs()).map_err(|err| err.to_string())
     }
 
     fn checked_transfer_plan(&self) -> Result<nc_engine::CheckedFleetTransferPlan, String> {
@@ -128,7 +127,8 @@ impl App {
                         self.clear_command_menu_notice();
                         self.fleet.list_input.clear();
                         self.clear_fleet_list_dismiss_message();
-                        self.fleet.menu_prompt_mode = Some(FleetMenuPromptMode::MergeCheckedConfirm);
+                        self.fleet.menu_prompt_mode =
+                            Some(FleetMenuPromptMode::MergeCheckedConfirm);
                         self.fleet.menu_prompt_input.clear();
                         self.fleet.menu_prompt_status = None;
                         self.fleet.menu_prompt_default_value = "Y".to_string();
