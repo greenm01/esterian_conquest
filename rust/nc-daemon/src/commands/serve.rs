@@ -1,5 +1,6 @@
 use crate::config::{daemon_config, identity, relay};
-use nostr_sdk::{Client, Filter, Kind, ToBech32, Keys};
+use crate::supervisor::routing;
+use nostr_sdk::{Client, Filter, Kind, ToBech32, Keys, RelayPoolNotification};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -114,7 +115,7 @@ async fn run_async_server(
     tracing::info!("Connecting to relay: {}", relay_config.url);
     client.connect().await;
 
-    let _games_root = Arc::new(config.games_root.clone());
+    let games_root = Arc::new(config.games_root.clone());
 
     let filter = Filter::new()
         .kind(Kind::Custom(30507))
@@ -127,16 +128,45 @@ async fn run_async_server(
     tracing::info!("Subscribed to kinds 30507, 30513, 30522");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
-    let mut counter = 0u32;
+    let mut notifications = client.notifications();
+
     loop {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("Shutting down...");
                 break;
             }
-            _ = tokio::time::sleep(tokio::time::Duration::from_secs(30)) => {
-                counter += 1;
-                tracing::debug!("Tick {} - waiting for events", counter);
+            notification = notifications.recv() => {
+                match notification {
+                    Ok(RelayPoolNotification::Event { event, .. }) => {
+                        let event = *event;
+                        tracing::debug!("Received event: kind={}", u16::from(event.kind));
+                        
+                        match routing::route_event(event, &games_root) {
+                            Ok(routed) => {
+                                let effects = routing::process_event(&routed);
+                                tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
+                                
+                                for effect in effects {
+                                    handle_effect(effect, &routed).await;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!("Routing error: {:?}", e);
+                            }
+                        }
+                    }
+                    Ok(RelayPoolNotification::Message { relay_url: _, message: _ }) => {
+                        // Ignore generic messages
+                    }
+                    Ok(RelayPoolNotification::Shutdown) => {
+                        tracing::info!("Relay pool shutdown");
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!("Notification error: {}", e);
+                    }
+                }
             }
         }
     }
@@ -144,6 +174,75 @@ async fn run_async_server(
     tracing::info!("Daemon stopped");
 
     Ok(())
+}
+
+async fn handle_effect(
+    effect: crate::game::effects::GameEffects,
+    routed: &routing::RoutedEvent,
+) {
+    match effect {
+        crate::game::effects::GameEffects::HandleInviteRequest { request, game_id } => {
+            tracing::info!("Handling invite request for game {} from {}", game_id, request.player_pubkey);
+            
+            if let Err(e) = nc_data::hosted::create_request(
+                routed.store.connection(),
+                &request.request_id,
+                &game_id,
+                &request.player_pubkey,
+                &request.message,
+            ) {
+                tracing::error!("Failed to store invite request: {}", e);
+                return;
+            }
+
+            tracing::info!("Invite request stored (publishing stub)");
+        }
+        crate::game::effects::GameEffects::HandleTurnCommands { commands, game_id } => {
+            tracing::info!("Handling turn commands for game {} turn {} from {}", game_id, commands.turn, commands.player_pubkey);
+            
+            let _seat = match nc_data::hosted::get_seat_by_pubkey(routed.store.connection(), &game_id, &commands.player_pubkey) {
+                Ok(Some(s)) => s,
+                Ok(None) => {
+                    tracing::warn!("Player {} has no claimed seat in game {}", commands.player_pubkey, game_id);
+                    return;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to lookup seat: {}", e);
+                    return;
+                }
+            };
+
+            if let Err(e) = nc_data::hosted::enqueue_turn(
+                routed.store.connection(),
+                &commands.submit_id,
+                &game_id,
+                commands.turn,
+                &commands.player_pubkey,
+                &commands.commands,
+            ) {
+                tracing::error!("Failed to enqueue turn: {}", e);
+                return;
+            }
+
+            tracing::info!("Turn commands enqueued (publishing stub)");
+        }
+        crate::game::effects::GameEffects::HandleStateRequest { request } => {
+            tracing::info!("Handling state request for game {} from {}", request.game_id, request.player_pubkey);
+            
+            let (year, turn) = match nc_data::hosted::get_settings(routed.store.connection(), &request.game_id) {
+                Ok(_settings) => (3000, 0),
+                Err(_) => (3000, 0),
+            };
+            
+            tracing::debug!("Would respond with year={}, turn={} state to {}", year, turn, request.player_pubkey);
+        }
+        crate::game::effects::GameEffects::InvalidEvent { reason } => {
+            tracing::warn!("Invalid event: {}", reason);
+        }
+        other => {
+            tracing::debug!("Unhandled effect: {:?}", other);
+        }
+    }
 }
 
 fn print_usage() {
