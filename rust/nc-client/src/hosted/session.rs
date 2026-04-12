@@ -7,11 +7,13 @@ use nc_nostr::game_definition::{GameDefinition, parse_game_definition};
 use nc_nostr::invite_request::{
     InviteDecisionPayload, InviteRequestReceipt,
 };
+use nc_nostr::lobby_notice::LobbyNotice;
 use nc_nostr::state_sync::{GameState, StateDelta};
+use nc_nostr::thread_message::{decrypt_thread_message, SenderRole, SysopThreadMessage};
 use nc_nostr::tags::tag_content;
 use nc_nostr::turn_commands::TurnReceipt;
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{Client, Event, EventBuilder, Filter, Kind, Keys, PublicKey, Tag, Timestamp};
+use nostr_sdk::{Client, Event, EventBuilder, Filter, Kind, Keys, PublicKey, Tag, Timestamp, ToBech32};
 
 #[derive(Debug, Clone)]
 pub struct HostedClientSession {
@@ -64,6 +66,45 @@ impl HostedClientSession {
                         definition,
                     })
                 })
+                .collect())
+        })
+    }
+
+    pub fn fetch_lobby_notices(
+        &self,
+        since_secs: u64,
+    ) -> Result<Vec<LobbyNotice>, Box<dyn std::error::Error>> {
+        self.with_client(async move |client| {
+            let events = client
+                .fetch_events(
+                    Filter::new()
+                        .kinds([Kind::Custom(30516)])
+                        .since(Timestamp::now() - Duration::from_secs(since_secs)),
+                    Duration::from_secs(8),
+                )
+                .await?;
+            Ok(events
+                .iter()
+                .filter_map(nc_nostr::lobby_notice::parse_lobby_notice)
+                .collect())
+        })
+    }
+
+    pub fn fetch_thread_messages(
+        &self,
+        since_secs: u64,
+    ) -> Result<Vec<SysopThreadMessage>, Box<dyn std::error::Error>> {
+        let player_pubkey = self.keys.public_key();
+        let secret_key = self.keys.secret_key().clone();
+        self.with_client(async move |client| {
+            let filter = Filter::new()
+                .kinds([Kind::Custom(30517)])
+                .pubkeys(vec![player_pubkey])
+                .since(Timestamp::now() - Duration::from_secs(since_secs));
+            let events = client.fetch_events(filter, Duration::from_secs(8)).await?;
+            Ok(events
+                .iter()
+                .filter_map(|event| decrypt_thread_message(&secret_key, event))
                 .collect())
         })
     }
@@ -152,6 +193,51 @@ impl HostedClientSession {
         )?;
         self.send_signed_event(event)?;
         Ok(request_id)
+    }
+
+    pub fn send_thread_message(
+        &self,
+        game_id: &str,
+        daemon_pubkey: &str,
+        body: &str,
+        handle: Option<&str>,
+    ) -> Result<SysopThreadMessage, Box<dyn std::error::Error>> {
+        let message_id = random_nonce_hex();
+        let keys = self.keys.clone();
+        let public_key = PublicKey::parse(daemon_pubkey)?;
+        let sender_npub = keys.public_key().to_bech32()?;
+        let payload = SysopThreadMessage {
+            message_id: message_id.clone(),
+            game_id: game_id.to_string(),
+            sender_role: SenderRole::Player,
+            sender_npub,
+            sender_handle: handle.map(str::trim).map(str::to_string).filter(|value| !value.is_empty()),
+            body: body.trim().to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs() as i64)
+                .unwrap_or(0),
+        };
+        let content = serde_json::to_string(&payload)?;
+        self.with_client(async move |client| {
+            let encrypted = nip44::encrypt(
+                keys.secret_key(),
+                &public_key,
+                &content,
+                nip44::Version::V2,
+            )
+            .map_err(|e| format!("NIP-44 encryption failed: {e:?}"))?;
+            let tags = vec![
+                Tag::parse(["d", &message_id])?,
+                Tag::parse(["p", &public_key.to_hex()])?,
+                Tag::parse(["game-id", game_id])?,
+            ];
+            let event = EventBuilder::new(Kind::Custom(30517), &encrypted)
+                .tags(tags)
+                .sign_with_keys(&keys)?;
+            client.send_event(&event).await?;
+            Ok(payload)
+        })
     }
 
     pub fn claim_invite(

@@ -16,7 +16,13 @@ Keep this file short. Historical detail belongs in
 - `nc-gate` is no longer part of the active Rust workspace build.
 - `nc-client` now exists as the shared hosted client core.
 - `nc-dash` now has a partial hosted lobby/client path in the same binary.
+- That hosted lobby path now covers public `30500` discovery, invite
+  request/decision, invite claim, runtime-backed `30520` state refresh,
+  turn submit/receipt, public `30516` notices, and encrypted `30517`
+  sysop thread messages.
 - `nc-host` now exists as the relay-native hosted server name and localhost dev lab target.
+- `nc-host` now exposes `notices` and `threads` operator commands for the
+  hosted lobby communication surfaces.
 - The BBS door client is verified on Mystic and ENiGMA½.
 - Latest local baselines after the hosted-path cut:
   - `cargo test -q -p nc-session`
@@ -36,6 +42,9 @@ Keep this file short. Historical detail belongs in
 - The main remaining risk is field bugs found by real BBS and localhost players.
 - The hosted `nc-host` / `nc-dash` track now exists locally, but it is still a
   dev-only path and not the public shipped product story.
+- The biggest remaining hosted client gap is replacing the hosted snapshot
+  viewer with the real dashboard state instead of maintaining a separate mini
+  hosted view.
 - The BBS door renderer still repaints full frames instead of using the
   retained-frame diffing already in local `nc-game`.
 

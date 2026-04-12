@@ -33,6 +33,8 @@ pub fn run_args(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::e
         "status" => commands::status::run(rest.as_slice()),
         "seats" => commands::seats::run(rest.as_slice()),
         "requests" => commands::requests::run(rest.as_slice()),
+        "notices" => commands::notices::run(rest.as_slice()),
+        "threads" => commands::threads::run(rest.as_slice()),
         "nostr" => commands::nostr::run(rest.as_slice()),
         _ => Err(format!("unknown subcommand: {cmd}").into()),
     }
@@ -97,5 +99,7 @@ fn print_usage() {
     println!("  status       Show host-wide hosted status");
     println!("  seats        Manage hosted seats and invite lifecycle");
     println!("  requests     Review or decide invite requests");
+    println!("  notices      Post public lobby notices");
+    println!("  threads      Review or send private sysop thread messages");
     println!("  nostr        Initialize host relay identity/config");
 }

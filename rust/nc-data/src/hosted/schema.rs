@@ -77,6 +77,18 @@ CREATE TABLE IF NOT EXISTS outbox (
     FOREIGN KEY (game_id) REFERENCES game_metadata(id)
 );
 
+CREATE TABLE IF NOT EXISTS thread_messages (
+    id TEXT PRIMARY KEY,
+    game_id TEXT NOT NULL,
+    player_pubkey TEXT NOT NULL,
+    sender_role TEXT NOT NULL,
+    sender_pubkey TEXT NOT NULL,
+    sender_handle TEXT,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (game_id) REFERENCES game_metadata(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_seats_game_id ON seats(game_id);
 CREATE INDEX IF NOT EXISTS idx_invite_requests_game_id ON invite_requests(game_id);
 CREATE INDEX IF NOT EXISTS idx_invite_requests_status ON invite_requests(status);
@@ -84,4 +96,6 @@ CREATE INDEX IF NOT EXISTS idx_turn_queue_game_id ON turn_queue(game_id);
 CREATE INDEX IF NOT EXISTS idx_turn_queue_turn ON turn_queue(game_id, turn);
 CREATE INDEX IF NOT EXISTS idx_outbox_game_id ON outbox(game_id);
 CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status);
+CREATE INDEX IF NOT EXISTS idx_thread_messages_game_player
+    ON thread_messages(game_id, player_pubkey, created_at);
 "#;

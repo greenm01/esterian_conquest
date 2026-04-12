@@ -12,6 +12,7 @@ pub enum LobbyRoute {
     Locked,
     Home,
     ComposeInvite,
+    ComposeThread,
     EditHandle,
     HostedGame,
     SubmitTurn,
@@ -117,6 +118,7 @@ impl LobbyState {
                 "Public notices and private sysop threads land in phase 2.",
             )],
             thread_messages: vec![ThreadMessage::incoming(
+                "lobby",
                 "nc-host",
                 "Thread messaging is not wired yet. Use invite requests from the lobby first.",
             )],
@@ -143,12 +145,18 @@ impl LobbyState {
         self.joined_games = loaded.joined_games;
         self.open_games = loaded.open_games;
         self.inbox = loaded.inbox;
+        self.notices = loaded.notices;
+        self.thread_messages = loaded.thread_messages;
         self.status_message = loaded.status_message;
         self.joined_selected = self
             .joined_selected
             .min(self.joined_games.len().saturating_sub(1));
         self.open_selected = self.open_selected.min(self.open_games.len().saturating_sub(1));
         self.inbox_selected = self.inbox_selected.min(self.inbox.len().saturating_sub(1));
+        self.notices_selected = self.notices_selected.min(self.notices.len().saturating_sub(1));
+        self.thread_selected = self
+            .thread_selected
+            .min(self.visible_thread_messages().len().saturating_sub(1));
         self.edit_handle_input = self.player_handle.clone().unwrap_or_default();
     }
 
@@ -168,6 +176,34 @@ impl LobbyState {
 
     pub fn selected_joined_game(&self) -> Option<&JoinedGameRow> {
         self.joined_games.get(self.joined_selected)
+    }
+
+    pub fn thread_context_game_id(&self) -> Option<&str> {
+        match self.focus {
+            LobbyFocus::JoinedGames => self.selected_joined_game().map(|row| row.game_id.as_str()),
+            LobbyFocus::Inbox => self.inbox.get(self.inbox_selected).map(|row| row.game_id.as_str()),
+            LobbyFocus::OpenGames => self.selected_open_game().map(|row| row.game_id.as_str()),
+            _ => self
+                .selected_joined_game()
+                .map(|row| row.game_id.as_str())
+                .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
+        }
+    }
+
+    pub fn thread_context_display(&self) -> String {
+        self.thread_context_game_id()
+            .map(str::to_string)
+            .unwrap_or_else(|| "no game selected".to_string())
+    }
+
+    pub fn visible_thread_messages(&self) -> Vec<&ThreadMessage> {
+        let Some(game_id) = self.thread_context_game_id() else {
+            return Vec::new();
+        };
+        self.thread_messages
+            .iter()
+            .filter(|message| message.game_id == game_id)
+            .collect()
     }
 }
 

@@ -347,13 +347,17 @@ nc-host requests list [--dir <path>]
 nc-host requests show --dir <path> --request <id>
 nc-host requests approve --dir <path> --request <id> --player N
 nc-host requests reject --dir <path> --request <id> --message "..."
+nc-host notices post --message "..." [--handle <name>]
+nc-host threads list --dir <path>
+nc-host threads show --dir <path> --player <npub>
+nc-host threads send --dir <path> --player <npub> --message "..." [--handle <name>]
 ```
 
 ### `nc-dash`
 
 ```text
-nc-dash --lobby
-nc-dash --lobby --relay <url>
+nc-dash
+nc-dash --relay <url>
 ```
 
 `nc-dash` is lobby-first for the hosted path. It keeps local keychain/cache

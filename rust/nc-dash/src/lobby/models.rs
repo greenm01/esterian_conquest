@@ -113,40 +113,53 @@ impl InboxItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LobbyNotice {
+    pub notice_id: String,
     pub sender: String,
     pub body: String,
+    pub created_at: String,
 }
 
 impl LobbyNotice {
     pub fn new(sender: &str, body: &str) -> Self {
         Self {
+            notice_id: format!("notice-{sender}"),
             sender: sender.to_string(),
             body: body.to_string(),
+            created_at: String::new(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThreadMessage {
+    pub message_id: String,
+    pub game_id: String,
     pub sender: String,
     pub body: String,
     pub outgoing: bool,
+    pub created_at: String,
 }
 
 impl ThreadMessage {
-    pub fn incoming(sender: &str, body: &str) -> Self {
+    pub fn incoming(game_id: &str, sender: &str, body: &str) -> Self {
         Self {
+            message_id: format!("thread-in-{game_id}"),
+            game_id: game_id.to_string(),
             sender: sender.to_string(),
             body: body.to_string(),
             outgoing: false,
+            created_at: String::new(),
         }
     }
 
-    pub fn outgoing(sender: &str, body: &str) -> Self {
+    pub fn outgoing(game_id: &str, sender: &str, body: &str) -> Self {
         Self {
+            message_id: format!("thread-out-{game_id}"),
+            game_id: game_id.to_string(),
             sender: sender.to_string(),
             body: body.to_string(),
             outgoing: true,
+            created_at: String::new(),
         }
     }
 }

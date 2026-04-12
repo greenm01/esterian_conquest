@@ -131,12 +131,13 @@ async fn run_async_server(
         .kind(Kind::Custom(30507))
         .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
+        .kind(Kind::Custom(30517))
         .kind(Kind::Custom(30522))
         .custom_tag(SingleLetterTag::lowercase(Alphabet::P), host_hex.as_str());
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30522");
+    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
@@ -167,7 +168,19 @@ async fn run_async_server(
                         
                         match routing::route_event(event.clone(), &games_root, &public_key) {
                             Ok(routed) => {
-                                let effects = routing::process_event(&routed);
+                                let effects = if event.kind.as_u16() == 30517 {
+                                    match nc_nostr::thread_message::decrypt_thread_message(keys.secret_key(), &event) {
+                                        Some(message) => vec![crate::game::effects::GameEffects::HandleThreadMessage {
+                                            message,
+                                            game_id: routed.game_id.clone(),
+                                        }],
+                                        None => vec![crate::game::effects::GameEffects::InvalidEvent {
+                                            reason: "failed to decrypt SysopThreadMessage".to_string(),
+                                        }],
+                                    }
+                                } else {
+                                    routing::process_event(&routed)
+                                };
                                 tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
                                 
                                 let worker_registry = worker_registry.clone();

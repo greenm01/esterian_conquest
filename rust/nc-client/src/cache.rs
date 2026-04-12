@@ -35,10 +35,33 @@ pub struct InboxEntry {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoticeEntry {
+    pub notice_id: String,
+    pub sender_npub: String,
+    pub sender_handle: Option<String>,
+    pub body: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThreadEntry {
+    pub message_id: String,
+    pub game_id: String,
+    pub sender_role: String,
+    pub sender_npub: String,
+    pub sender_handle: Option<String>,
+    pub body: String,
+    pub outgoing: bool,
+    pub created_at: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClientCache {
     pub games: Vec<CachedGame>,
     pub inbox: Vec<InboxEntry>,
+    pub notices: Vec<NoticeEntry>,
+    pub threads: Vec<ThreadEntry>,
 }
 
 impl ClientCache {
@@ -64,6 +87,34 @@ impl ClientCache {
         } else {
             self.inbox.push(entry);
         }
+    }
+
+    pub fn upsert_notice(&mut self, entry: NoticeEntry) {
+        if let Some(existing) = self
+            .notices
+            .iter_mut()
+            .find(|existing| existing.notice_id == entry.notice_id)
+        {
+            *existing = entry;
+        } else {
+            self.notices.push(entry);
+        }
+        self.notices
+            .sort_by(|left, right| left.created_at.cmp(&right.created_at));
+    }
+
+    pub fn upsert_thread(&mut self, entry: ThreadEntry) {
+        if let Some(existing) = self
+            .threads
+            .iter_mut()
+            .find(|existing| existing.message_id == entry.message_id)
+        {
+            *existing = entry;
+        } else {
+            self.threads.push(entry);
+        }
+        self.threads
+            .sort_by(|left, right| left.created_at.cmp(&right.created_at));
     }
 }
 
@@ -151,6 +202,27 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     updated_at: req_string(node, "updated-at", "inbox")?,
                 });
             }
+            "notice" => {
+                cache.notices.push(NoticeEntry {
+                    notice_id: req_string(node, "id", "notice")?,
+                    sender_npub: req_string(node, "sender-npub", "notice")?,
+                    sender_handle: opt_string(node, "sender-handle"),
+                    body: req_string(node, "body", "notice")?,
+                    created_at: req_string(node, "created-at", "notice")?,
+                });
+            }
+            "thread" => {
+                cache.threads.push(ThreadEntry {
+                    message_id: req_string(node, "id", "thread")?,
+                    game_id: req_string(node, "game-id", "thread")?,
+                    sender_role: req_string(node, "sender-role", "thread")?,
+                    sender_npub: req_string(node, "sender-npub", "thread")?,
+                    sender_handle: opt_string(node, "sender-handle"),
+                    body: req_string(node, "body", "thread")?,
+                    outgoing: opt_integer(node, "outgoing").unwrap_or(0) != 0,
+                    created_at: req_string(node, "created-at", "thread")?,
+                });
+            }
             _ => {}
         }
     }
@@ -207,6 +279,35 @@ pub fn render_cache(cache: &ClientCache) -> String {
         }
         if let Some(turn) = entry.turn {
             out.push_str(&format!(" turn={turn}"));
+        }
+        out.push('\n');
+    }
+    for notice in &cache.notices {
+        out.push_str(&format!(
+            "notice id=\"{}\" sender-npub=\"{}\" body=\"{}\" created-at=\"{}\"",
+            escape(&notice.notice_id),
+            escape(&notice.sender_npub),
+            escape(&notice.body),
+            escape(&notice.created_at),
+        ));
+        if let Some(sender_handle) = notice.sender_handle.as_deref() {
+            out.push_str(&format!(" sender-handle=\"{}\"", escape(sender_handle)));
+        }
+        out.push('\n');
+    }
+    for entry in &cache.threads {
+        out.push_str(&format!(
+            "thread id=\"{}\" game-id=\"{}\" sender-role=\"{}\" sender-npub=\"{}\" body=\"{}\" outgoing={} created-at=\"{}\"",
+            escape(&entry.message_id),
+            escape(&entry.game_id),
+            escape(&entry.sender_role),
+            escape(&entry.sender_npub),
+            escape(&entry.body),
+            if entry.outgoing { 1 } else { 0 },
+            escape(&entry.created_at),
+        ));
+        if let Some(sender_handle) = entry.sender_handle.as_deref() {
+            out.push_str(&format!(" sender-handle=\"{}\"", escape(sender_handle)));
         }
         out.push('\n');
     }

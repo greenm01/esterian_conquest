@@ -62,10 +62,11 @@ impl LobbyApp {
 
     fn render_footer(&self, buffer: &mut PlayfieldBuffer) {
         let footer = match self.state.route {
-            LobbyRoute::Home => "COMMANDS <- Tab Shift-Tab J K Enter N H R Q ->",
+            LobbyRoute::Home => "COMMANDS <- Tab Shift-Tab J K Enter N M H R Q ->",
             LobbyRoute::FirstRun => "FIRST RUN <- type handle/password Enter create Q quit ->",
             LobbyRoute::Locked => "LOCKED <- type password Enter unlock Q quit ->",
             LobbyRoute::ComposeInvite => "REQUEST INVITE <- type message Enter send Esc close ->",
+            LobbyRoute::ComposeThread => "THREAD MESSAGE <- type message Enter send Esc close ->",
             LobbyRoute::EditHandle => "EDIT HANDLE <- type handle Enter save Esc close ->",
             LobbyRoute::HostedGame => "HOSTED GAME <- R refresh T submit-turn Esc lobby ->",
             LobbyRoute::SubmitTurn => "SUBMIT TURN <- type commands Enter send Esc cancel ->",
@@ -178,6 +179,18 @@ impl LobbyApp {
                         ),
                         format!("Message : {}", self.state.compose_message_input),
                         "Enter sends a 30513 invite request.".to_string(),
+                    ],
+                    modal_theme(),
+                );
+            }
+            LobbyRoute::ComposeThread => {
+                let _ = render_modal_box(
+                    buffer,
+                    "PRIVATE THREAD",
+                    &vec![
+                        format!("Game    : {}", self.state.thread_context_display()),
+                        format!("Message : {}", self.state.compose_message_input),
+                        "Enter sends an encrypted 30517 sysop thread message.".to_string(),
                     ],
                     modal_theme(),
                 );

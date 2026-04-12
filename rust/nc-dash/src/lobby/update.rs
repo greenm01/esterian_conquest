@@ -7,6 +7,7 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::FirstRun => handle_first_run_key(app, key),
         LobbyRoute::Locked => handle_locked_key(app, key),
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
+        LobbyRoute::ComposeThread => handle_compose_thread_key(app, key),
         LobbyRoute::EditHandle => handle_edit_handle_key(app, key),
         LobbyRoute::HostedGame => handle_hosted_game_key(app, key),
         LobbyRoute::SubmitTurn => handle_submit_turn_key(app, key),
@@ -36,6 +37,10 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         KeyCode::Char('n' | 'N') => {
             app.state.compose_message_input.clear();
             app.state.route = LobbyRoute::ComposeInvite;
+        }
+        KeyCode::Char('m' | 'M') => {
+            app.state.compose_message_input.clear();
+            app.state.route = LobbyRoute::ComposeThread;
         }
         KeyCode::Char('h' | 'H') => {
             app.state.edit_handle_input = app.state.player_handle.clone().unwrap_or_default();
@@ -136,6 +141,37 @@ fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
             match app
                 .transport
                 .send_invite_request(&row, &app.state.compose_message_input)
+            {
+                Ok(loaded) => {
+                    app.state.apply_loaded(loaded);
+                    app.state.compose_message_input.clear();
+                    app.state.route = LobbyRoute::Home;
+                }
+                Err(err) => app.state.status_message = Some(err),
+            }
+        }
+        KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.state.compose_message_input.push(ch);
+        }
+        _ => {}
+    }
+}
+
+fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => app.state.route = LobbyRoute::Home,
+        KeyCode::Backspace => {
+            app.state.compose_message_input.pop();
+        }
+        KeyCode::Enter => {
+            let Some((game_id, daemon_pubkey)) = selected_thread_target(app) else {
+                app.state.status_message = Some("select an open or joined game first".to_string());
+                app.state.route = LobbyRoute::Home;
+                return;
+            };
+            match app
+                .transport
+                .send_thread_message(&game_id, &daemon_pubkey, &app.state.compose_message_input)
             {
                 Ok(loaded) => {
                     app.state.apply_loaded(loaded);
@@ -277,6 +313,13 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
 }
 
 fn move_selection(app: &mut LobbyApp, delta: isize) {
+    let len = match app.state.focus {
+        LobbyFocus::JoinedGames => app.state.joined_games.len(),
+        LobbyFocus::Inbox => app.state.inbox.len(),
+        LobbyFocus::OpenGames => app.state.open_games.len(),
+        LobbyFocus::Notices => app.state.notices.len(),
+        LobbyFocus::Thread => app.state.visible_thread_messages().len(),
+    };
     let selection = match app.state.focus {
         LobbyFocus::JoinedGames => &mut app.state.joined_selected,
         LobbyFocus::Inbox => &mut app.state.inbox_selected,
@@ -284,17 +327,26 @@ fn move_selection(app: &mut LobbyApp, delta: isize) {
         LobbyFocus::Notices => &mut app.state.notices_selected,
         LobbyFocus::Thread => &mut app.state.thread_selected,
     };
-    let len = match app.state.focus {
-        LobbyFocus::JoinedGames => app.state.joined_games.len(),
-        LobbyFocus::Inbox => app.state.inbox.len(),
-        LobbyFocus::OpenGames => app.state.open_games.len(),
-        LobbyFocus::Notices => app.state.notices.len(),
-        LobbyFocus::Thread => app.state.thread_messages.len(),
-    };
     if len == 0 {
         *selection = 0;
         return;
     }
     let next = (*selection as isize + delta).clamp(0, len.saturating_sub(1) as isize);
     *selection = next as usize;
+}
+
+fn selected_thread_target(app: &LobbyApp) -> Option<(String, String)> {
+    let game_id = app.state.thread_context_game_id()?;
+    app.state
+        .joined_games
+        .iter()
+        .find(|row| row.game_id == game_id)
+        .map(|row| (row.game_id.clone(), row.daemon_pubkey.clone()))
+        .or_else(|| {
+            app.state
+                .open_games
+                .iter()
+                .find(|row| row.game_id == game_id)
+                .map(|row| (row.game_id.clone(), row.daemon_pubkey.clone()))
+        })
 }

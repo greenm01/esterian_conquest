@@ -35,6 +35,9 @@ impl GameWorker {
             GameEffects::HandleTurnCommands { commands, .. } => {
                 self.handle_turn_commands(commands).await;
             }
+            GameEffects::HandleThreadMessage { message, .. } => {
+                self.handle_thread_message(message).await;
+            }
             GameEffects::QueueEvent { .. } => {}
             GameEffects::UpdateLobbyCatalog { .. } => {}
             GameEffects::NotifySysop { .. } => {}
@@ -387,6 +390,33 @@ impl GameWorker {
         };
 
         self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
+    }
+
+    async fn handle_thread_message(&self, message: nc_nostr::thread_message::SysopThreadMessage) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
+        if let Err(e) = crate::lobby::threads::store_player_message(&store, &self.game_id, &message) {
+            tracing::error!(
+                "Failed to store thread message {} for {}: {}",
+                message.message_id,
+                self.game_id,
+                e
+            );
+            return;
+        }
+
+        tracing::info!(
+            "Stored thread message {} for game {} from {}",
+            message.message_id,
+            self.game_id,
+            message.sender_npub
+        );
     }
 
     async fn publish_turn_receipt(&self, player_pubkey: &str, receipt: &TurnReceipt) {

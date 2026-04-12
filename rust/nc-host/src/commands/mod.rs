@@ -7,3 +7,5 @@ pub mod seats;
 pub mod serve;
 pub mod status;
 pub mod settings;
+pub mod threads;
+pub mod notices;

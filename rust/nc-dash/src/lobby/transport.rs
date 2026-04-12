@@ -1,4 +1,6 @@
-use nc_client::cache::{CachedGame, ClientCache, InboxEntry, load_cache, save_cache};
+use nc_client::cache::{
+    CachedGame, ClientCache, InboxEntry, NoticeEntry, ThreadEntry, load_cache, save_cache,
+};
 use nc_client::config::{ClientConfig, load_config};
 use nc_client::hosted::session::{CatalogGame, HostedClientSession, PlayerEventBatch};
 use nc_client::keychain::{
@@ -9,10 +11,12 @@ use nc_client::password::validate_new_password;
 use nc_client::relay::validate_relay_url;
 use nc_nostr::game_definition::{GameStatus, RecruitingMode};
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
+use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::state_sync::GameState;
+use nc_nostr::thread_message::SysopThreadMessage;
 use nc_nostr::turn_commands::TurnReceiptStatus;
 
-use super::models::{InboxItem, JoinedGameRow, OpenGameRow};
+use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
 
 #[derive(Debug, Clone)]
 pub struct LobbyLoadedState {
@@ -21,6 +25,8 @@ pub struct LobbyLoadedState {
     pub joined_games: Vec<JoinedGameRow>,
     pub open_games: Vec<OpenGameRow>,
     pub inbox: Vec<InboxItem>,
+    pub notices: Vec<LobbyNotice>,
+    pub thread_messages: Vec<ThreadMessage>,
     pub status_message: Option<String>,
 }
 
@@ -128,11 +134,20 @@ impl LobbyTransport {
             Vec::new()
         };
         apply_catalog(unlocked, &catalog);
-        if let Some(session) = unlocked.session.as_ref() {
+        let session = unlocked.session.clone();
+        if let Some(session) = session.as_ref() {
             let batch = session
                 .refresh_player_events(7 * 24 * 60 * 60)
                 .map_err(|err| err.to_string())?;
             apply_player_events(unlocked, batch, &catalog);
+            let notices = session
+                .fetch_lobby_notices(30 * 24 * 60 * 60)
+                .map_err(|err| err.to_string())?;
+            apply_notices(unlocked, notices);
+            let threads = session
+                .fetch_thread_messages(30 * 24 * 60 * 60)
+                .map_err(|err| err.to_string())?;
+            apply_threads(unlocked, threads);
         }
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(unlocked, catalog, None))
@@ -307,6 +322,38 @@ impl LobbyTransport {
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         self.refresh()
     }
+
+    pub fn send_thread_message(
+        &mut self,
+        game_id: &str,
+        daemon_pubkey: &str,
+        body: &str,
+    ) -> Result<LobbyLoadedState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let session = unlocked
+            .session
+            .as_ref()
+            .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+        let handle = current_handle(&unlocked.keychain);
+        let payload = session
+            .send_thread_message(game_id, daemon_pubkey, body, handle.as_deref())
+            .map_err(|err| err.to_string())?;
+        unlocked.cache.upsert_thread(ThreadEntry {
+            message_id: payload.message_id,
+            game_id: payload.game_id,
+            sender_role: payload.sender_role.as_str().to_string(),
+            sender_npub: payload.sender_npub,
+            sender_handle: payload.sender_handle,
+            body: payload.body,
+            outgoing: true,
+            created_at: payload.created_at.to_string(),
+        });
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        self.refresh()
+    }
 }
 
 fn effective_relay(
@@ -413,6 +460,33 @@ fn apply_player_events(
             invite_address: None,
             turn: Some(receipt.turn),
             updated_at: now_iso8601(),
+        });
+    }
+}
+
+fn apply_notices(unlocked: &mut UnlockedClient, notices: Vec<NoticePayload>) {
+    for notice in notices {
+        unlocked.cache.upsert_notice(NoticeEntry {
+            notice_id: notice.notice_id,
+            sender_npub: notice.sender_npub,
+            sender_handle: notice.sender_handle,
+            body: notice.body,
+            created_at: notice.created_at.to_string(),
+        });
+    }
+}
+
+fn apply_threads(unlocked: &mut UnlockedClient, messages: Vec<SysopThreadMessage>) {
+    for message in messages {
+        unlocked.cache.upsert_thread(ThreadEntry {
+            message_id: message.message_id,
+            game_id: message.game_id,
+            sender_role: message.sender_role.as_str().to_string(),
+            sender_npub: message.sender_npub,
+            sender_handle: message.sender_handle,
+            body: message.body,
+            outgoing: false,
+            created_at: message.created_at.to_string(),
         });
     }
 }
@@ -554,6 +628,38 @@ fn build_loaded_state(
         })
         .collect::<Vec<_>>();
 
+    let notices = unlocked
+        .cache
+        .notices
+        .iter()
+        .map(|entry| LobbyNotice {
+            notice_id: entry.notice_id.clone(),
+            sender: entry
+                .sender_handle
+                .clone()
+                .unwrap_or_else(|| entry.sender_npub.clone()),
+            body: entry.body.clone(),
+            created_at: entry.created_at.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    let thread_messages = unlocked
+        .cache
+        .threads
+        .iter()
+        .map(|entry| ThreadMessage {
+            message_id: entry.message_id.clone(),
+            game_id: entry.game_id.clone(),
+            sender: entry
+                .sender_handle
+                .clone()
+                .unwrap_or_else(|| entry.sender_role.clone()),
+            body: entry.body.clone(),
+            outgoing: entry.outgoing,
+            created_at: entry.created_at.clone(),
+        })
+        .collect::<Vec<_>>();
+
     LobbyLoadedState {
         relay_label: unlocked
             .relay_url
@@ -563,6 +669,8 @@ fn build_loaded_state(
         joined_games,
         open_games,
         inbox,
+        notices,
+        thread_messages,
         status_message: status_message.or_else(|| {
             if unlocked.session.is_some() {
                 Some("Hosted lobby connected.".to_string())

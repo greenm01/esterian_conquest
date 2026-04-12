@@ -4,6 +4,7 @@ pub mod schema;
 pub mod seats;
 pub mod settings;
 pub mod store;
+pub mod threads;
 pub mod turn_queue;
 
 pub use invite_requests::{
@@ -26,6 +27,7 @@ pub use settings::{
     RecruitingMode,
 };
 pub use store::HostedStore;
+pub use threads::{list_messages as list_thread_messages, list_thread_players, store_message as store_thread_message, ThreadMessage as HostedThreadMessage};
 pub use turn_queue::{
     accept_turn, count_pending_turns, enqueue_turn, get_pending_turn, list_pending_turns,
     mark_superseded, reject_turn, TurnSubmission, TurnSubmissionStatus,
