@@ -25,7 +25,7 @@ then persists the game locally once the in-game claim is confirmed.
 ```
 $ nc-connect
 [centered password window]
-This password encrypts your wallet.
+This password encrypts your keychain.
 If you lose it, you will be locked out.
 No IT support.
 New password: ********
@@ -84,7 +84,7 @@ COMMANDS <- J K ^U ^D <N> <W> <I> <M> <L> <Q> ->
 ```
 
 `J` and `K` move the selection, and the arrow keys also work. `Enter`
-connects. `W` opens the wallet screen. `L` locks immediately, and `Alt-L`
+connects. `W` opens the keychain screen. `L` locks immediately, and `Alt-L`
 also works from text-entry prompts. `Q` now asks for confirmation before
 exiting the local shell, `Esc` mirrors `Q` implicitly, and `?` opens a
 screen-specific help popup that explains the visible command-line buttons.
@@ -113,7 +113,7 @@ the maps are available locally during turn 1. If that proactive save fails,
 `nc-connect` falls back to a best-effort pull and the player can still retry
 later from the picker. Invalid invite codes stay in the prompt and show an
 error notice instead of dropping out of the shell.
-If the player later deletes the local picker row but still has the same wallet
+If the player later deletes the local picker row but still has the same keychain
 identity active, pressing `N` and reusing the original invite code restores the
 joined game entry and reconnects to that already-claimed seat.
 
@@ -139,36 +139,36 @@ Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
 ## Identity Management
 
-The `W` wallet screen in the packaged GUI is intentionally single-identity.
+The `W` keychain screen in the packaged GUI is intentionally single-identity.
 On first launch it creates one local identity automatically. Later, `R`
 replaces that current identity: paste an `nsec` to import one you already
 saved elsewhere, or leave the field blank to generate a fresh local identity.
-In the wallet detail popup, `Ctrl-P` copies the full `npub` and `Ctrl-S`
+In the keychain detail popup, `Ctrl-P` copies the full `npub` and `Ctrl-S`
 copies the full `nsec`. The CLI companion remains available from Cargo/source
 builds for advanced multi-identity and automation-heavy workflows.
 
-On first wallet creation from `nc-connect id new` or `nc-connect id import`,
-the CLI prints the same left-justified wallet-loss warning before asking for
+On first keychain creation from `nc-connect id new` or `nc-connect id import`,
+the CLI prints the same left-justified keychain-loss warning before asking for
 `New password:` and `Confirm password:` with masked input.
 
-### Wallet
+### Keychain
 
-Player identities are stored in an encrypted wallet at:
+Player identities are stored in an encrypted keychain at:
 
 ```
-~/.local/share/nc/wallet.kdl
+~/.local/share/nc/keychain.kdl
 ```
 
 The packaged GUI keeps exactly one identity active at a time and treats
-imports as replacement. The wallet is encrypted with ChaCha20-Poly1305 using
+imports as replacement. The keychain is encrypted with ChaCha20-Poly1305 using
 a key derived from the player's password via PBKDF2-HMAC-SHA256.
 
-This wallet is local player state, not authoritative hosted game state.
+This keychain is local player state, not authoritative hosted game state.
 
-Decrypted wallet format:
+Decrypted keychain format:
 
 ```kdl
-wallet active="0"
+keychain active="0"
 identity nsec="nsec1..." type="local" created="2026-03-26T12:00:00Z"
 ```
 
@@ -184,8 +184,8 @@ Identity types:
 ```
 nc-connect-cli id              Show active identity (npub)
 nc-connect-cli id --secret     Show active identity (npub + nsec for backup)
-nc-connect-cli id list         List all wallet identities
-nc-connect-cli id new          Generate a new keypair in the wallet
+nc-connect-cli id list         List all keychain identities
+nc-connect-cli id new          Generate a new keypair in the keychain
 nc-connect-cli id import       Import an existing nsec (bech32 or hex)
 nc-connect-cli id switch N     Switch active identity to index N
 ```
@@ -204,13 +204,13 @@ private key.
 ### Key Backup and Recovery
 
 The player's nsec is the only thing that binds them to their game seats.
-If the wallet is lost and the nsec is not backed up, the player is
+If the keychain is lost and the nsec is not backed up, the player is
 permanently locked out of all games joined with that identity. The admin
 can reissue an invite code for the seat, but the old identity's history
 is orphaned.
 
 Players should back up their nsec to a password manager or other secure
-storage. In the packaged GUI player, the wallet detail popup shows the full
+storage. In the packaged GUI player, the keychain detail popup shows the full
 `npub` and `nsec` and can copy them directly to the clipboard. In the
 Cargo/source companion CLI, `nc-connect-cli id --secret` displays the active
 identity's `npub` and `nsec` for the same purpose.
@@ -323,7 +323,7 @@ After a successful hosted session ends, `nc-connect` performs one lightweight
 30507 state refresh so the cached `player-name` can pick up changes made
 inside `nc-game`, such as first-time empire naming. If that refresh fails on a
 returning reconnect, the existing cache row is kept as-is. The `npub` comes
-from the active wallet identity. `relay-url` is copied from the resolved
+from the active keychain identity. `relay-url` is copied from the resolved
 target used for the successful handshake so picker reconnects can reuse the
 same relay even when it is not the derived default. If an older cached row
 still has no saved `relay-url` and the player's config also has no default
@@ -409,7 +409,7 @@ prompting the player to join a game.
 | `J` | Enter invite code to join a new game |
 | `M` | Open the maps popup to change the default save location and re-download the selected game's static starmap bundle |
 | `R` | Edit the default relay URL used for joins and legacy cache rows |
-| `I` | Show active identity (npub, number of identities in wallet) |
+| `I` | Show active identity (npub, number of identities in keychain) |
 | `Q` / Esc | Quit |
 
 ### Join Prompt
@@ -440,7 +440,7 @@ Pressing `I` shows a brief overlay or status line:
  Identity: npub1aaa...xyz (local)   [1 of 2 identities]
 ```
 
-Full packaged-player identity management lives under the `W` wallet screen.
+Full packaged-player identity management lives under the `W` keychain screen.
 The detail popup shows the complete `npub` and `nsec` and supports clipboard
 copy for backup. Importing a different identity replaces the current one and
 clears cached picker rows for the old `npub`.
@@ -523,7 +523,7 @@ Connecting...
 
 ### Connect
 
-1. Read and decrypt wallet (prompt for password if not cached).
+1. Read and decrypt keychain (prompt for password if not cached).
 2. Resolve server hostname and relay URL. If the server argument is a
    bookmark, look it up in config. Otherwise use the hostname directly
    and resolve the relay via the priority chain.
@@ -631,13 +631,13 @@ hosts use `wss://`.
 ## File Locations
 
 By default, `nc-connect` stores maps under the platform's real Documents
-folder and keeps its wallet/cache files in the platform-appropriate
+folder and keeps its keychain/cache files in the platform-appropriate
 config/data locations.
 
 | File | Default Linux-style path | Purpose |
 |------|------|---------|
 | Config | `~/.config/nc/config.kdl` | Server bookmarks, default relay, optional `maps-dir` override |
-| Wallet | `~/.local/share/nc/wallet.kdl` | Encrypted identity store |
+| Keychain | `~/.local/share/nc/keychain.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/nc/cache.kdl` | Joined games and connection history |
 | Maps root | `~/Documents/nc/maps/` | Downloaded static map bundles |
 
@@ -668,9 +668,9 @@ root for the rest of the current picker session.
 | `russh` | SSH client: ephemeral key auth, channel I/O, window resize |
 | `ratatui` | Picker screen TUI rendering |
 | `crossterm` | Local terminal: raw mode, resize detection, ratatui backend |
-| `chacha20poly1305` | Wallet encryption (or via nostr-sdk's crypto) |
-| `pbkdf2` | Password-based key derivation for wallet |
-| `kdl` | Wallet, config, and cache file parsing |
+| `chacha20poly1305` | Keychain encryption (or via nostr-sdk's crypto) |
+| `pbkdf2` | Password-based key derivation for keychain |
+| `kdl` | Keychain, config, and cache file parsing |
 | `dirs` | Platform-appropriate config/data directory resolution |
 | `tokio` | Async runtime for relay + SSH I/O |
 | `clap` | CLI argument parsing |

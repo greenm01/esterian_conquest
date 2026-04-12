@@ -41,6 +41,8 @@ deduplication key unless a later implementation constraint proves otherwise.
 | `30513` | `InviteRequest` | `nc-dash` | None | Ask the sysop for an invite |
 | `30514` | `InviteRequestReceipt` | `nc-daemon` | NIP-44 | Request accepted or immediately rejected |
 | `30515` | `InviteDecision` | `nc-daemon` | NIP-44 | Final sysop approval or rejection |
+| `30516` | `LobbyNotice` | `nc-daemon` | None | Public daemon-wide notice board item |
+| `30517` | `SysopThreadMessage` | `nc-daemon` / `nc-dash` | NIP-44 | Encrypted per-game sysop thread message |
 | `30520` | `GameState` | `nc-daemon` | NIP-44 | Full fog-of-war-filtered state snapshot |
 | `30521` | `StateDelta` | `nc-daemon` | NIP-44 | Incremental state update |
 | `30522` | `TurnCommands` | `nc-dash` | None | Submitted player turn orders |
@@ -201,6 +203,53 @@ Rules:
 - approval should mint or reissue a seat code as part of the same game-level
   transaction that records the decision
 - rejection never leaks seat or roster internals
+
+## 7A. 30516 `LobbyNotice`
+
+`LobbyNotice` is the public daemon-wide notice board event shown in
+`nc-lobby`.
+
+Required tags:
+
+- `d`: notice id
+
+Rules:
+
+- published by the daemon/sysop only
+- readable by all lobby users on that daemon
+- used for announcements, recruiting notices, and outages
+- not a public player chat surface in v1
+
+## 7B. 30517 `SysopThreadMessage`
+
+`SysopThreadMessage` is the encrypted per-game private thread event between a
+player and the daemon/sysop.
+
+Required tags:
+
+- `d`: thread message id
+- `p`: recipient pubkey
+- `game-id`
+
+Recommended payload fields:
+
+```json
+{
+  "message_id": "<thread-message-id>",
+  "game_id": "friday-night",
+  "sender_role": "player",
+  "sender_npub": "<player-npub>",
+  "sender_handle": "StarRider",
+  "body": "I can take the replacement seat and usually play evenings."
+}
+```
+
+Rules:
+
+- one persistent thread per player/game pair
+- available before approval and after join
+- sender handle is display metadata only and should be snapshotted at send time
+- pubkey plus `game-id` remain authoritative
 
 ## 8. 30510 `SeatClaimRequest`
 
@@ -392,6 +441,9 @@ Status values:
 The daemon side must:
 
 - persist invite requests before notifying the sysop
+- cache latest player display handle by pubkey from player-authored hosted
+  events
+- persist public notice posts and private thread messages before publishing
 - persist turn submissions before publishing receipts
 - route every inbound event to the correct game worker by `game-id`
 - keep retries in a per-game outbox
@@ -404,9 +456,15 @@ The daemon side must:
 
 - subscribe to `30500` for public recruiting games
 - render recruiting metadata only
+- keep its local keychain, cache, config, and settings in KDL files under
+  platform-specific user paths
+- encrypt the local keychain and cache with the user's password
+- prompt on first launch for player handle and keychain password
 - submit `30513` for invite requests
 - listen for `30514` and `30515`
-- store approved invite strings in the player keychain/cache
+- subscribe to public `30516` notice posts
+- send and receive encrypted `30517` per-game thread messages
+- store approved invite strings in the encrypted local cache
 - use `30507`, `30520`, `30521`, `30522`, and `30524` for live hosted play
 
 ## 15. Deferred
@@ -417,3 +475,4 @@ This draft intentionally defers:
 - relay federation
 - per-game relay overrides
 - automatic invite issuance for public seats
+- player-authored public lobby chat

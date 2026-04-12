@@ -19,7 +19,7 @@ nc-nostr = { path = "../nc-nostr" }
 # Nostr identity + relay handshake
 nostr-sdk = { version = "0.44", features = ["nip44"] }
 
-# Wallet encryption: ChaCha20-Poly1305 + PBKDF2-HMAC-SHA256
+# Keychain encryption: ChaCha20-Poly1305 + PBKDF2-HMAC-SHA256
 chacha20poly1305 = "0.10"
 pbkdf2 = { version = "0.12", features = ["hmac"] }
 sha2 = "0.10"
@@ -27,7 +27,7 @@ sha2 = "0.10"
 # Randomness (salt, nonce generation)
 rand = "0.8"
 
-# Config/wallet/cache file format
+# Config/keychain/cache file format
 kdl = "6"
 
 # Platform-appropriate config/data directories

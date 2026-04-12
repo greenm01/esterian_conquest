@@ -179,7 +179,7 @@ python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --ho
 That flow:
 
 - claims one hosted seat for the supplied identity
-- seeds an isolated wallet/cache/config tree under `/tmp`
+- seeds an isolated keychain/cache/config tree under `/tmp`
 - prints the exact `XDG_CONFIG_HOME=... XDG_DATA_HOME=... cargo run ...` command
 - is meant for returning-player reconnect testing, not first-join testing
 

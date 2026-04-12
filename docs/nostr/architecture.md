@@ -30,7 +30,7 @@ ratatui TUI application. When run with no arguments, it shows a game
 picker screen listing the player's joined games with options to connect,
 join new games, or manage identity. When run with a server bookmark or
 hostname, it connects directly without the picker. In both modes, it
-manages the player's Nostr identity (keypair wallet), handles the
+manages the player's Nostr identity (keypair keychain), handles the
 authentication handshake over a Nostr relay, and bridges the player's
 terminal to an SSH session on the server. The player never interacts with
 SSH directly. It works cross-platform on Linux, macOS, and Windows.
@@ -132,24 +132,24 @@ users can bring their existing identity.
 
 On first launch, `nc-connect` generates a secp256k1 keypair and encrypts
 it with a password chosen by the player. The keypair is stored in a local
-wallet file. The player never sees the words "Nostr," "npub," or "nsec"
+keychain file. The player never sees the words "Nostr," "npub," or "nsec"
 unless they go looking. They have a password-protected game identity and
 that is all they need to know.
 
 ### Imported Identity (Nostr User Path)
 
 A player who already has a Nostr keypair can import their nsec (bech32 or
-hex) into the wallet. They can also use a NIP-46 remote signer if they
+hex) into the keychain. They can also use a NIP-46 remote signer if they
 prefer not to paste their private key. This lets them use the same
 identity across EC servers, other Nostr applications, and any future
 relay-transport client.
 
-### Wallet Storage
+### Keychain Storage
 
-Both paths store the identity in the same wallet format at
-`~/.local/share/nc/wallet.kdl`. The wallet is encrypted with
+Both paths store the identity in the same keychain format at
+`~/.local/share/nc/keychain.kdl`. The keychain is encrypted with
 ChaCha20-Poly1305 using a key derived from the player's password via
-PBKDF2-HMAC-SHA256. This follows the same wallet model used by ec4x.
+PBKDF2-HMAC-SHA256. This follows the same keychain model used by ec4x.
 
 ## Invite Codes and Seat Assignment
 
@@ -264,11 +264,11 @@ locations:
 | File | Path | Purpose |
 |------|------|---------|
 | Config | `~/.config/nc/config.kdl` | Server bookmarks, default relay |
-| Wallet | `~/.local/share/nc/wallet.kdl` | Encrypted identity store |
+| Keychain | `~/.local/share/nc/keychain.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/nc/cache.kdl` | Joined games and connection history |
 | Maps | `~/Documents/nc/maps/` | Downloaded static starmap bundles |
 
-Config is user-edited (server bookmarks, relay preference). Wallet and
+Config is user-edited (server bookmarks, relay preference). Keychain and
 cache are managed by `nc-connect` and should not be hand-edited. They are
 local client state, not authoritative hosted game state.
 
@@ -296,7 +296,7 @@ relay-mediated turn submission and state sync. In that model:
 - Game state and turn results flow back as encrypted per-player events
 - `nc-gate` evolves into (or is replaced by) a headless game daemon that
   runs `ec-maint` on a schedule and publishes results to relays
-- The wallet, invite code system, hosted seat data, and local game cache
+- The keychain, invite code system, hosted seat data, and local game cache
   carry forward directly from this spec
 
 This spec is designed so that the identity infrastructure does not need

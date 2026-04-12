@@ -88,10 +88,10 @@ window event loop. **nc-connect** remains the dedicated utility for launching
 
 While `nc-connect` persists as the primary bridge for the SSH stack, its core logic will be "folded into" the broader `nc-dash` codebase to ensure a single source of truth for identity and discovery.
 
-- **nc-dash:** The primary modern client. Manages the Nostr wallet, provides
+- **nc-dash:** The primary modern client. Manages the Nostr keychain, provides
   the game picker, and renders the dashboard locally in a native window using
   Nostr state sync.
-- **nc-connect:** Maintained as the specialized bridge utility for the classic `nc-game` stack. Shares the same underlying identity (wallet) and discovery logic as `nc-dash`.
+- **nc-connect:** Maintained as the specialized bridge utility for the classic `nc-game` stack. Shares the same underlying identity (keychain) and discovery logic as `nc-dash`.
 
 ---
 
@@ -103,8 +103,8 @@ Expand `nc-gate` to push the full, fog-of-war filtered `PlayerState` via Nostr.
 - `nc-dash` receives these events and builds a robust local SQLite cache.
 
 ### Phase 2: Fold nc-connect Logic into nc-dash
-- Reorganize the workspace so `nc-dash` and `nc-connect` share the same library for wallet management, Nostr handshake, and SSH provisioning.
-- Both clients use `~/.local/share/nc/wallet.kdl` as the shared identity source.
+- Reorganize the workspace so `nc-dash` and `nc-connect` share the same library for keychain management, Nostr handshake, and SSH provisioning.
+- Both clients use `~/.local/share/nc/keychain.kdl` as the shared identity source.
 - Share the native cell-grid renderer/input layer out of `nc-ui` so both
   clients use one `PlayfieldBuffer`-driven window stack.
 

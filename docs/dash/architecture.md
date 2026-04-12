@@ -6,6 +6,9 @@
 preserves the terminal-style cell-grid look while running in a local native
 window instead of a PTY-bound terminal loop.
 
+Future hosted-first lobby behavior for the same binary is defined separately in
+[lobby-architecture.md](lobby-architecture.md).
+
 The legacy TUI (`nc-game`) remains unchanged for BBS door mode and players
 who prefer the classic interface. Both crates share the same game data model
 (`nc-data`), engine (`nc-engine`), and rendering primitives (`nc-ui`).

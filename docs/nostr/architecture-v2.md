@@ -14,6 +14,8 @@ The hosted Nostr path is a clean split from localhost/BBS play.
 - `nc-sysop` remains localhost/BBS-only.
 - `nc-daemon` owns relay-native hosted play.
 - `nc-dash` grows a hosted lobby plus hosted dashboard mode.
+- `nc-dash` keeps its own local keychain/cache/settings in platform-specific
+  user paths using KDL files.
 - Hosted storage does not reuse localhost/BBS `ncgame.db`.
 
 The daemon model is:
@@ -121,6 +123,32 @@ Players do not see:
 - hidden seat roster details
 - private per-player state
 
+The player client keeps minimal local state only:
+
+- encrypted keychain
+- encrypted joined-games and invite cache
+- relay/config/settings files
+
+These live in platform-specific user paths as KDL files and are not the
+authoritative hosted store.
+
+First launch flow:
+
+1. set player handle
+2. set keychain password
+3. generate one local identity
+4. write encrypted keychain/cache plus local config/settings files
+5. enter the lobby
+
+The handle is client-owned display metadata. It may be changed later. The
+daemon may cache the latest handle seen for a pubkey for lobby and thread
+display, but the pubkey remains authoritative.
+
+`nc-lobby` has two communication surfaces:
+
+- one daemon-wide public notice board, sysop-authored only
+- one persistent encrypted private per-game thread between player and sysop
+
 ## 6. Invite and Join Flow
 
 Hosted first joins still use old-style human-readable invite codes:
@@ -183,6 +211,8 @@ Hosted `nc-daemon` owns these kinds:
 | `30513` | `InviteRequest` | Player asks the sysop for an invite |
 | `30514` | `InviteRequestReceipt` | Daemon acknowledges receipt/rejection |
 | `30515` | `InviteDecision` | Sysop approval or rejection result |
+| `30516` | `LobbyNotice` | Public daemon-wide notice board post |
+| `30517` | `SysopThreadMessage` | Private per-game player/sysop thread |
 | `30520` | `GameState` | Full fog-of-war-filtered snapshot |
 | `30521` | `StateDelta` | Incremental hosted update |
 | `30522` | `TurnCommands` | Submitted player orders |
@@ -326,8 +356,11 @@ nc-dash --lobby
 nc-dash --lobby --relay <url>
 ```
 
-`nc-dash` remains the direct dashboard client for the hosted path; it does not
-launch an SSH/PTy bridge.
+`nc-dash` is lobby-first for the hosted path. It keeps local keychain/cache
+state in platform-specific KDL files and does not launch an SSH/PTy bridge.
+
+See [../dash/lobby-architecture.md](../dash/lobby-architecture.md) for the
+client-side hosted UI/state architecture.
 
 ## 12. Explicit Non-Goals
 
@@ -337,6 +370,7 @@ The first hosted spec does not require:
 - per-game relay overrides
 - a shared multi-tenant control DB
 - direct player-to-player diplomacy events
+- player-authored public lobby chat
 - auto-issuing invites for public seats
 - early auto-resolve when all turns are submitted
 
