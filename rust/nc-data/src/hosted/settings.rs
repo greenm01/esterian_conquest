@@ -82,6 +82,34 @@ pub fn get_settings(conn: &Connection, game_id: &str) -> SqliteResult<GameSettin
     })
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GameMetadata {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub current_year: u32,
+    pub current_turn: u32,
+    pub players: u32,
+}
+
+pub fn get_game_metadata(conn: &Connection, game_id: &str) -> SqliteResult<GameMetadata> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, status, current_year, current_turn, players
+         FROM game_metadata WHERE id = ?1",
+    )?;
+
+    stmt.query_row(params![game_id], |row| {
+        Ok(GameMetadata {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            status: row.get(2)?,
+            current_year: row.get(3)?,
+            current_turn: row.get(4)?,
+            players: row.get(5)?,
+        })
+    })
+}
+
 pub fn update_settings(
     conn: &Connection,
     game_id: &str,

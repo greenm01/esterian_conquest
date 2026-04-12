@@ -20,7 +20,10 @@ pub use seats::{
     claim_seat, close_seat, create_seats, find_seat_by_invite_hash, get_seat_by_number,
     get_seat_by_pubkey, list_seats, open_seat, reissue_seat, reset_seat, Seat, SeatStatus,
 };
-pub use settings::{get_settings, update_settings, GameSettings, LobbyVisibility, RecruitingMode};
+pub use settings::{
+    get_game_metadata, get_settings, update_settings, GameMetadata, GameSettings, LobbyVisibility,
+    RecruitingMode,
+};
 pub use store::HostedStore;
 pub use turn_queue::{
     accept_turn, enqueue_turn, get_pending_turn, list_pending_turns, mark_superseded, reject_turn,

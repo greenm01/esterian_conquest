@@ -1,4 +1,6 @@
-use nc_data::hosted::{get_settings, list_seats, HostedStore, RecruitingMode as HostedRecruiting};
+use nc_data::hosted::{
+    get_game_metadata, get_settings, list_seats, HostedStore, RecruitingMode as HostedRecruiting,
+};
 use nc_nostr::game_definition::{
     GameDefinition, GameStatus, RecruitingMode as NostrRecruiting, SeatSlot, SeatStatus,
 };

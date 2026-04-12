@@ -1,6 +1,6 @@
 use crate::game::effects::GameEffects;
 use nc_data::hosted::HostedStore;
-use nostr_sdk::Event;
+use nostr_sdk::{Event, PublicKey};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,6 +9,7 @@ pub enum RoutingError {
     UnknownGame(String),
     StoreError(String),
     InvalidEvent(String),
+    NotAddressedToDaemon,
 }
 
 pub struct RoutedEvent {
@@ -17,7 +18,22 @@ pub struct RoutedEvent {
     pub event: Event,
 }
 
-pub fn route_event(event: Event, games_root: &PathBuf) -> Result<RoutedEvent, RoutingError> {
+pub fn route_event(
+    event: Event,
+    games_root: &PathBuf,
+    daemon_pubkey: &PublicKey,
+) -> Result<RoutedEvent, RoutingError> {
+    let daemon_hex = daemon_pubkey.to_hex();
+
+    let addressed_to_daemon = event.tags.iter().any(|tag| {
+        let values = tag.clone().to_vec();
+        values.get(0) == Some(&"p".to_string()) && values.get(1) == Some(&daemon_hex)
+    });
+
+    if !addressed_to_daemon {
+        return Err(RoutingError::NotAddressedToDaemon);
+    }
+
     let game_id = extract_game_id(&event)
         .ok_or_else(|| RoutingError::InvalidEvent("missing game-id tag".to_string()))?;
 
@@ -86,15 +102,7 @@ pub fn process_event(routed: &RoutedEvent) -> Vec<GameEffects> {
                 }]
             }
         }
-        30510 => match nc_nostr::claim::parse_seat_claim_request(&routed.event) {
-            Ok(req) => vec![GameEffects::HandleSeatClaim {
-                request: req,
-                game_id: routed.game_id.clone(),
-            }],
-            Err(e) => vec![GameEffects::InvalidEvent {
-                reason: format!("failed to parse SeatClaim: {}", e),
-            }],
-        },
+
         _ => {
             vec![GameEffects::InvalidEvent {
                 reason: format!("unsupported event kind: {}", kind),

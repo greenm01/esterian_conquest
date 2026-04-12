@@ -121,14 +121,12 @@ async fn run_async_server(
 
     let filter = Filter::new()
         .kind(Kind::Custom(30507))
-        .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
-        .kind(Kind::Custom(30522))
-        .pubkey(public_key);
+        .kind(Kind::Custom(30522));
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30522");
+    tracing::info!("Subscribed to kinds 30507, 30513, 30522");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
@@ -153,7 +151,7 @@ async fn run_async_server(
                         let event = *event;
                         tracing::debug!("Received event: kind={}", u16::from(event.kind));
                         
-                        match routing::route_event(event, &games_root) {
+                        match routing::route_event(event, &games_root, &public_key) {
                             Ok(routed) => {
                                 let effects = routing::process_event(&routed);
                                 tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
@@ -329,69 +327,6 @@ async fn handle_effect(
                 tracing::info!("Published encrypted state to {}", request.player_pubkey);
             }
         }
-        crate::game::effects::GameEffects::HandleSeatClaim { request, game_id } => {
-            tracing::info!("Handling seat claim for game {} from {}", game_id, request.player_pubkey);
-            
-            let invite_hash = blake3::hash(request.invite_code.as_bytes()).to_hex().to_string();
-            
-            let seat = match nc_data::hosted::find_seat_by_invite_hash(routed.store.connection(), &game_id, &invite_hash) {
-                Ok(Some(s)) => s,
-                Ok(None) => {
-                    tracing::warn!("Invalid invite code for game {}", game_id);
-                    send_claim_error(publisher, &request.player_pubkey, &request.nonce, "invalid_invite", "The invite code is invalid.").await;
-                    return;
-                }
-                Err(e) => {
-                    tracing::error!("Failed to lookup seat: {}", e);
-                    return;
-                }
-            };
-            
-            if seat.status != nc_data::hosted::SeatStatus::Pending {
-                tracing::warn!("Seat {} already claimed in game {}", seat.seat_number, game_id);
-                send_claim_error(publisher, &request.player_pubkey, &request.nonce, "seat_unavailable", "This seat has already been claimed.").await;
-                return;
-            }
-            
-            if let Err(e) = nc_data::hosted::claim_seat(routed.store.connection(), &game_id, seat.seat_number, &request.player_pubkey) {
-                tracing::error!("Failed to claim seat: {}", e);
-                send_claim_error(publisher, &request.player_pubkey, &request.nonce, "claim_failed", "Failed to claim seat.").await;
-                return;
-            }
-            
-            tracing::info!("Player {} claimed seat {} in game {}", request.player_pubkey, seat.seat_number, game_id);
-            
-            let response = serde_json::json!({
-                "seat": seat.seat_number,
-                "game_id": game_id,
-                "status": "claimed",
-            });
-            
-            let content = serde_json::to_string(&response).unwrap_or_default();
-            let gid_tag = game_id.clone();
-            let seat_str = seat.seat_number.to_string();
-            let tag_refs: Vec<(&str, &str)> = vec![
-                ("d", &request.nonce),
-                ("game-id", &gid_tag),
-                ("seat", &seat_str),
-            ];
-            
-            if let Err(e) = publisher.publish_to_pubkey(&request.player_pubkey, 30511, &content, tag_refs).await {
-                tracing::error!("Failed to publish claim confirmation: {}", e);
-            } else {
-                tracing::info!("Published seat claim confirmation to {}", request.player_pubkey);
-            }
-
-            if let Ok(Some(def)) = crate::lobby::catalog_publish::publish_game_definition(routed.store.as_ref(), &game_id, None) {
-                let def_content = serde_json::to_string(&def).unwrap_or_default();
-                let def_tags = vec![("d", game_id.as_str())];
-                if let Err(e) = publisher.publish(30500, &def_content, def_tags).await {
-                    tracing::error!("Failed to publish updated game definition: {}", e);
-                } else {
-                    tracing::info!("Published updated game definition for {}", game_id);
-                }
-            }
-        }
         crate::game::effects::GameEffects::InvalidEvent { reason } => {
             tracing::warn!("Invalid event: {}", reason);
         }
@@ -436,23 +371,65 @@ async fn publish_lobby_catalog(
     publisher: &EventPublisher,
     games_root: &std::sync::Arc<std::path::PathBuf>,
 ) {
-    use crate::lobby::catalog_publish::collect_lobby_games;
-    match collect_lobby_games(games_root) {
-        Ok(games) => {
-            if games.is_empty() {
-                tracing::debug!("No public games to publish to lobby");
-                return;
+    use crate::lobby::catalog_publish::publish_game_definition;
+    use nc_data::hosted::{get_settings, HostedStore, LobbyVisibility, RecruitingMode};
+
+    if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
             }
-            let content = serde_json::to_string(&games).unwrap_or_default();
-            let tag_refs: Vec<(&str, &str)> = vec![("d", "lobby-catalog"), ("limit", "100")];
-            if let Err(e) = publisher.publish(30500, &content, tag_refs).await {
-                tracing::error!("Failed to publish lobby catalog: {}", e);
-            } else {
-                tracing::info!("Published lobby catalog with {} games", games.len());
+            
+            let db_path = path.join("hosted.db");
+            if !db_path.exists() {
+                continue;
             }
-        }
-        Err(e) => {
-            tracing::error!("Failed to collect lobby games: {}", e);
+            
+            let Some(game_id) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            
+            let store = match HostedStore::open(&db_path) {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!("Failed to open game {}: {}", game_id, e);
+                    continue;
+                }
+            };
+            
+            let settings = match get_settings(store.connection(), game_id) {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!("Failed to get settings for {}: {}", game_id, e);
+                    continue;
+                }
+            };
+            
+            if settings.lobby_visibility != LobbyVisibility::Public {
+                continue;
+            }
+            if settings.recruiting == RecruitingMode::None {
+                continue;
+            }
+            
+            match publish_game_definition(&store, game_id, settings.host_alias.as_deref()) {
+                Ok(Some(def)) => {
+                    let content = serde_json::to_string(&def).unwrap_or_default();
+                    let tags = vec![("d", game_id)];
+                    if let Err(e) = publisher.publish(30500, &content, tags).await {
+                        tracing::error!("Failed to publish 30500 for {}: {}", game_id, e);
+                    } else {
+                        tracing::info!("Published 30500 for game {}", game_id);
+                    }
+                }
+                Ok(None) => {
+                    tracing::debug!("Skipped non-public game {}", game_id);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to build game definition for {}: {}", game_id, e);
+                }
+            }
         }
     }
 }
