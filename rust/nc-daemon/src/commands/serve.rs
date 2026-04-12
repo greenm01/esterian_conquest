@@ -1,6 +1,6 @@
 use crate::config::{daemon_config, identity, relay};
-use crate::supervisor::routing;
 use crate::lobby::publish::EventPublisher;
+use crate::supervisor::routing;
 use nostr_sdk::{Client, Filter, Kind, ToBech32, Keys, RelayPoolNotification};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -53,6 +53,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
         let default = daemon_config::DaemonConfig {
             games_root: games_root.clone(),
             relay_url: "wss://relay.example.com".to_string(),
+            invite_relay_host: "relay.example.com".to_string(),
             identity_path: PathBuf::from("/etc/nc-daemon/daemon.nsec"),
             sysop_contact_npub: String::new(),
         };
@@ -121,18 +122,18 @@ async fn run_async_server(
     
     let worker_registry = Arc::new(crate::supervisor::worker_registry::WorkerRegistry::new(
         (*publisher).clone(),
-        keys,
         config.games_root.clone(),
     ));
 
     let filter = Filter::new()
         .kind(Kind::Custom(30507))
+        .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
         .kind(Kind::Custom(30522));
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30513, 30522");
+    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30522");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
@@ -161,15 +162,13 @@ async fn run_async_server(
                         let event = *event;
                         tracing::debug!("Received event: kind={}", u16::from(event.kind));
                         
-                        match routing::route_event(event, &games_root, &public_key) {
+                        match routing::route_event(event.clone(), &games_root, &public_key) {
                             Ok(routed) => {
                                 let effects = routing::process_event(&routed);
                                 tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
                                 
                                 let worker_registry = worker_registry.clone();
                                 let game_id = routed.game_id.clone();
-                                let publisher = publisher.clone();
-                                
                                 tokio::spawn(async move {
                                     let worker = worker_registry.get_or_create(game_id).await;
                                     
@@ -180,6 +179,21 @@ async fn run_async_server(
                                         }
                                     }
                                 });
+                            }
+                            Err(routing::RoutingError::UnknownGame(game_id)) => {
+                                tracing::warn!("Routing error: unknown game {}", game_id);
+                                if let Some(request) = nc_nostr::invite_request::parse_invite_request(&event) {
+                                    publish_invite_request_receipt(
+                                        &publisher,
+                                        &request.player_pubkey,
+                                        &nc_nostr::invite_request::InviteRequestReceipt {
+                                            request_id: request.request_id,
+                                            game_id: game_id.clone(),
+                                            status: nc_nostr::invite_request::InviteRequestReceiptStatus::UnknownGame,
+                                            message: format!("Unknown game: {}", game_id),
+                                        },
+                                    ).await;
+                                }
                             }
                             Err(e) => {
                                 tracing::warn!("Routing error: {:?}", e);
@@ -203,160 +217,6 @@ async fn run_async_server(
 
     Ok(())
 }
-
-async fn handle_effect(
-    effect: crate::game::effects::GameEffects,
-    routed: &routing::RoutedEvent,
-    publisher: &EventPublisher,
-) {
-    match effect {
-        crate::game::effects::GameEffects::HandleInviteRequest { request, game_id } => {
-            tracing::info!("Handling invite request for game {} from {}", game_id, request.player_pubkey);
-            
-            if let Err(e) = nc_data::hosted::create_request(
-                routed.store.connection(),
-                &request.request_id,
-                &game_id,
-                &request.player_pubkey,
-                &request.message,
-            ) {
-                tracing::error!("Failed to store invite request: {}", e);
-                return;
-            }
-
-            let receipt = nc_nostr::invite_request::InviteRequestReceipt {
-                request_id: request.request_id.clone(),
-                game_id: game_id.clone(),
-                status: nc_nostr::invite_request::InviteRequestReceiptStatus::Received,
-                message: "Your request has been queued for the sysop.".to_string(),
-            };
-
-            let content = serde_json::to_string(&receipt).unwrap_or_default();
-
-            let d_tag = request.request_id.clone();
-            let gid_tag = game_id.clone();
-            let tag_refs: Vec<(&str, &str)> = vec![
-                ("d", &d_tag),
-                ("game-id", &gid_tag),
-                ("status", "received"),
-            ];
-            
-            if let Err(e) = publisher.publish_encrypted(&request.player_pubkey, 30514, &content, tag_refs).await {
-                tracing::error!("Failed to publish invite receipt: {}", e);
-            } else {
-                tracing::info!("Published encrypted invite request receipt to {}", request.player_pubkey);
-            }
-        }
-        crate::game::effects::GameEffects::HandleTurnCommands { commands, game_id } => {
-            tracing::info!("Handling turn commands for game {} turn {} from {}", game_id, commands.turn, commands.player_pubkey);
-            
-            let _seat = match nc_data::hosted::get_seat_by_pubkey(routed.store.connection(), &game_id, &commands.player_pubkey) {
-                Ok(Some(s)) => s,
-                Ok(None) => {
-                    tracing::warn!("Player {} has no claimed seat in game {}", commands.player_pubkey, game_id);
-                    return;
-                }
-                Err(e) => {
-                    tracing::error!("Failed to lookup seat: {}", e);
-                    return;
-                }
-            };
-
-            if let Err(e) = nc_data::hosted::enqueue_turn(
-                routed.store.connection(),
-                &commands.submit_id,
-                &game_id,
-                commands.turn,
-                &commands.player_pubkey,
-                &commands.commands,
-            ) {
-                tracing::error!("Failed to enqueue turn: {}", e);
-                return;
-            }
-
-            let receipt = nc_nostr::turn_commands::TurnReceipt {
-                submit_id: commands.submit_id.clone(),
-                game_id: game_id.clone(),
-                turn: commands.turn,
-                status: nc_nostr::turn_commands::TurnReceiptStatus::Accepted,
-                message: Some("Orders staged for the next maintenance run.".to_string()),
-                errors: vec![],
-            };
-
-            let content = serde_json::to_string(&receipt).unwrap_or_default();
-
-            let d_tag = commands.submit_id.clone();
-            let gid_tag = game_id.clone();
-            let turn_str = commands.turn.to_string();
-            let tag_refs: Vec<(&str, &str)> = vec![
-                ("d", &d_tag),
-                ("game-id", &gid_tag),
-                ("turn", &turn_str),
-                ("status", "accepted"),
-            ];
-            
-            if let Err(e) = publisher.publish_encrypted(&commands.player_pubkey, 30524, &content, tag_refs).await {
-                tracing::error!("Failed to publish turn receipt: {}", e);
-            } else {
-                tracing::info!("Published encrypted turn receipt to {}", commands.player_pubkey);
-            }
-        }
-        crate::game::effects::GameEffects::HandleStateRequest { request } => {
-            tracing::info!("Handling state request for game {} from {}", request.game_id, request.player_pubkey);
-            
-            let turn: u32 = 0;
-            let year: u32 = 3000;
-            
-            let state_hash = blake3::hash(format!("{}:{}:{}", request.game_id, turn, "player").as_bytes()).to_hex().to_string();
-            
-            if let (Some(last_hash), Some(last_turn)) = (&request.last_hash, request.last_turn) {
-                if last_hash == &state_hash && last_turn == turn {
-                    tracing::debug!("Client already has current state (turn {}, hash {})", turn, state_hash);
-                } else {
-                    tracing::debug!("Client has stale state (requested turn {}, last_hash matches: {})", 
-                        last_turn, last_hash == &state_hash);
-                }
-            }
-            
-            let state_payload = serde_json::json!({
-                "game_id": request.game_id,
-                "turn": turn,
-                "year": year,
-                "player_seat": 1,
-                "player_name": "Player 1",
-                "state_hash": state_hash,
-                "state": serde_json::Value::Null,
-                "queued_mail": Vec::<serde_json::Value>::new(),
-                "report_blocks": Vec::<serde_json::Value>::new(),
-            });
-            
-            let content = serde_json::to_string(&state_payload).unwrap_or_default();
-            
-            let gid_tag = request.game_id.clone();
-            let turn_str = turn.to_string();
-            let year_str = year.to_string();
-            let tag_refs: Vec<(&str, &str)> = vec![
-                ("game-id", &gid_tag),
-                ("turn", &turn_str),
-                ("year", &year_str),
-                ("hash", &state_hash),
-            ];
-            
-            if let Err(e) = publisher.publish_encrypted(&request.player_pubkey, 30520, &content, tag_refs).await {
-                tracing::error!("Failed to publish state: {}", e);
-            } else {
-                tracing::info!("Published encrypted state to {}", request.player_pubkey);
-            }
-        }
-        crate::game::effects::GameEffects::InvalidEvent { reason } => {
-            tracing::warn!("Invalid event: {}", reason);
-        }
-        other => {
-            tracing::debug!("Unhandled effect: {:?}", other);
-        }
-    }
-}
-
 fn print_usage() {
     println!("Usage: nc-daemon serve --root <games-root> [--config <path>]");
     println!();
@@ -366,12 +226,39 @@ fn print_usage() {
     println!("  --identity <path> Identity nsec file (default: from config)");
 }
 
+async fn publish_invite_request_receipt(
+    publisher: &EventPublisher,
+    player_pubkey: &str,
+    receipt: &nc_nostr::invite_request::InviteRequestReceipt,
+) {
+    let content = match serde_json::to_string(receipt) {
+        Ok(content) => content,
+        Err(e) => {
+            tracing::error!("Failed to serialize invite receipt: {}", e);
+            return;
+        }
+    };
+
+    let tags = nc_nostr::invite_request::build_invite_request_receipt_tags(receipt)
+        .into_iter()
+        .map(|(key, value)| vec![key.to_string(), value])
+        .collect();
+
+    if let Err(e) = publisher
+        .publish_encrypted_multi(player_pubkey, 30514, &content, tags)
+        .await
+    {
+        tracing::error!("Failed to publish invite receipt to {}: {}", player_pubkey, e);
+    }
+}
+
 async fn publish_lobby_catalog(
     publisher: &EventPublisher,
     games_root: &std::sync::Arc<std::path::PathBuf>,
     force: bool,
 ) {
     use crate::lobby::catalog_publish::publish_game_definition;
+    use nc_nostr::game_definition::build_game_definition_tags;
     use nc_data::hosted::{clear_catalog_dirty, get_catalog_dirty_since, get_settings, HostedStore, LobbyVisibility, RecruitingMode};
 
     if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
@@ -399,8 +286,8 @@ async fn publish_lobby_catalog(
             };
             
             if !force {
-                if let Ok(Some(_)) = get_catalog_dirty_since(store.connection(), game_id) {
-                    tracing::debug!("Skipping {} (not dirty, use --force to republish all)", game_id);
+                if let Ok(None) = get_catalog_dirty_since(store.connection(), game_id) {
+                    tracing::debug!("Skipping {} (catalog clean)", game_id);
                     continue;
                 }
             }
@@ -422,9 +309,8 @@ async fn publish_lobby_catalog(
             
             match publish_game_definition(&store, game_id, settings.host_alias.as_deref()) {
                 Ok(Some(def)) => {
-                    let content = serde_json::to_string(&def).unwrap_or_default();
-                    let tags = vec![("d", game_id)];
-                    if let Err(e) = publisher.publish(30500, &content, tags).await {
+                    let tags = build_game_definition_tags(&def);
+                    if let Err(e) = publisher.publish_multi(30500, "", tags).await {
                         tracing::error!("Failed to publish 30500 for {}: {}", game_id, e);
                     } else {
                         tracing::info!("Published 30500 for game {}", game_id);

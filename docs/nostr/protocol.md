@@ -36,6 +36,8 @@ deduplication key unless a later implementation constraint proves otherwise.
 |------|------|-----------|------------|---------|
 | `30500` | `GameDefinition` | `nc-daemon` | None | Public recruiting-game catalog row |
 | `30507` | `StateRequest` | `nc-dash` | None | Request a fresh snapshot or delta decision |
+| `30510` | `SeatClaimRequest` | `nc-dash` | None | Redeem an approved invite |
+| `30511` | `SeatClaimResult` | `nc-daemon` | NIP-44 | First-join success or failure |
 | `30513` | `InviteRequest` | `nc-dash` | None | Ask the sysop for an invite |
 | `30514` | `InviteRequestReceipt` | `nc-daemon` | NIP-44 | Request accepted or immediately rejected |
 | `30515` | `InviteDecision` | `nc-daemon` | NIP-44 | Final sysop approval or rejection |
@@ -200,7 +202,47 @@ Rules:
   transaction that records the decision
 - rejection never leaks seat or roster internals
 
-## 8. 30507 `StateRequest`
+## 8. 30510 `SeatClaimRequest`
+
+After approval, the player redeems the invite string with a claim request.
+
+Required tags:
+
+- `d`: nonce
+- `p`: daemon pubkey
+- `game-id`
+
+Rules:
+
+- the content carries the full invite string, such as
+  `amber-river@relay.example.com`
+- the daemon validates only the invite token portion against the stored seat
+  hash
+- first successful claim binds the seat to the player pubkey
+
+## 9. 30511 `SeatClaimResult`
+
+The daemon returns an encrypted claim result for the nonce from `30510`.
+
+Example payload:
+
+```json
+{
+  "nonce": "<claim-nonce>",
+  "game_id": "friday-night",
+  "status": "claimed",
+  "message": "Seat 4 claimed.",
+  "seat": 4
+}
+```
+
+Possible `status` values:
+
+- `claimed`
+- `invalid_invite`
+- `already_claimed`
+
+## 10. 30507 `StateRequest`
 
 The client requests a refresh after joining or reconnecting.
 
@@ -223,7 +265,7 @@ Example:
 
 The daemon chooses whether to respond with `30520` or `30521`.
 
-## 9. 30520 `GameState`
+## 11. 30520 `GameState`
 
 `GameState` sends a full fog-of-war-filtered snapshot.
 
@@ -249,7 +291,7 @@ Rules:
 - authoritative snapshot comes from the owning game worker
 - payload includes a deterministic `state_hash` for cache validation
 
-## 10. 30521 `StateDelta`
+## 12. 30521 `StateDelta`
 
 `StateDelta` sends an incremental hosted update when a full snapshot is not
 needed.

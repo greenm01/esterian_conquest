@@ -13,6 +13,32 @@ pub struct SeatClaimRequest {
     pub game_id: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum SeatClaimStatus {
+    Claimed,
+    InvalidInvite,
+    AlreadyClaimed,
+}
+
+impl SeatClaimStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Claimed => "claimed",
+            Self::InvalidInvite => "invalid_invite",
+            Self::AlreadyClaimed => "already_claimed",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SeatClaimResultPayload {
+    pub nonce: String,
+    pub game_id: Option<String>,
+    pub status: SeatClaimStatus,
+    pub message: String,
+    pub seat: Option<u32>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseSeatClaimError {
     WrongKind(u16),
@@ -125,4 +151,17 @@ pub fn build_seat_claim_error_event(
     Ok(EventBuilder::new(Kind::Custom(30511), encrypted)
         .tags(tags)
         .sign_with_keys(gate_keys)?)
+}
+
+pub fn build_seat_claim_result_tags(payload: &SeatClaimResultPayload) -> Vec<(&'static str, String)> {
+    let mut tags = vec![
+        ("d", payload.nonce.clone()),
+        ("status", payload.status.as_str().to_string()),
+    ];
+
+    if let Some(game_id) = &payload.game_id {
+        tags.push(("game-id", game_id.clone()));
+    }
+
+    tags
 }

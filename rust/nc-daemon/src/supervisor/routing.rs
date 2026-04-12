@@ -90,6 +90,17 @@ pub fn process_event(routed: &RoutedEvent) -> Vec<GameEffects> {
                 }]
             }
         }
+        30510 => {
+            match nc_nostr::claim::parse_seat_claim_request(&routed.event) {
+                Ok(req) => vec![GameEffects::HandleSeatClaim {
+                    request: req,
+                    game_id: routed.game_id.clone(),
+                }],
+                Err(err) => vec![GameEffects::InvalidEvent {
+                    reason: format!("failed to parse SeatClaimRequest: {}", err),
+                }],
+            }
+        }
         30522 => {
             if let Some(cmds) = nc_nostr::turn_commands::parse_turn_commands(&routed.event) {
                 vec![GameEffects::HandleTurnCommands {

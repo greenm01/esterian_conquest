@@ -2,52 +2,40 @@ use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::lobby::publish::EventPublisher;
 use nc_data::hosted::{self, HostedStore};
+use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
 use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus};
-use nc_nostr::state_sync::StateRequest;
-use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptStatus};
-use nostr_sdk::Keys;
+use nc_nostr::state_sync::{GameState, StateRequest};
+use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use std::fmt;
+use tokio::sync::mpsc;
 
 pub struct GameWorker {
     game_id: String,
     db_path: PathBuf,
     publisher: EventPublisher,
-    keys: Arc<Keys>,
 }
 
 impl GameWorker {
-    pub fn new(
-        game_id: String,
-        db_path: PathBuf,
-        publisher: EventPublisher,
-        keys: Arc<Keys>,
-    ) -> Self {
+    pub fn new(game_id: String, db_path: PathBuf, publisher: EventPublisher) -> Self {
         Self {
             game_id,
             db_path,
             publisher,
-            keys,
         }
     }
 
     pub async fn handle_effect(&self, effect: GameEffects) {
-        let store = match HostedStore::open(&self.db_path) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::error!("Failed to open store for {}: {}", self.game_id, e);
-                return;
-            }
-        };
-
         match effect {
             GameEffects::HandleStateRequest { request } => {
                 self.handle_state_request(request).await;
             }
             GameEffects::HandleInviteRequest { request, .. } => {
                 self.handle_invite_request(request).await;
+            }
+            GameEffects::HandleSeatClaim { request, .. } => {
+                self.handle_seat_claim(request).await;
             }
             GameEffects::HandleTurnCommands { commands, .. } => {
                 self.handle_turn_commands(commands).await;
@@ -63,38 +51,82 @@ impl GameWorker {
     }
 
     async fn handle_state_request(&self, request: StateRequest) {
-        let turn: u32 = 0;
-        let year: u32 = 3000;
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
+        let metadata = match hosted::get_game_metadata(store.connection(), &self.game_id) {
+            Ok(metadata) => metadata,
+            Err(e) => {
+                tracing::error!("Failed to load metadata for {}: {}", self.game_id, e);
+                return;
+            }
+        };
+
+        let seat = match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &request.player_pubkey) {
+            Ok(Some(seat)) => seat,
+            Ok(None) => {
+                tracing::warn!(
+                    "Ignoring state request for unclaimed player {} in {}",
+                    request.player_pubkey,
+                    self.game_id
+                );
+                return;
+            }
+            Err(e) => {
+                tracing::error!("Failed to lookup player seat: {}", e);
+                return;
+            }
+        };
 
         let state_hash = blake3::hash(
-            format!("{}:{}:{}", self.game_id, turn, "player").as_bytes()
-        ).to_hex().to_string();
+            format!(
+                "{}:{}:{}:{}",
+                self.game_id, metadata.current_turn, metadata.current_year, seat.seat_number
+            )
+            .as_bytes(),
+        )
+        .to_hex()
+        .to_string();
 
-        let state_payload = serde_json::json!({
-            "game_id": self.game_id,
-            "turn": turn,
-            "year": year,
-            "player_seat": 1,
-            "player_name": "Player 1",
-            "state_hash": state_hash,
-            "state": serde_json::Value::Null,
-            "queued_mail": Vec::<serde_json::Value>::new(),
-            "report_blocks": Vec::<serde_json::Value>::new(),
-        });
+        let state_payload = GameState {
+            game_id: self.game_id.clone(),
+            turn: metadata.current_turn,
+            year: metadata.current_year,
+            player_seat: seat.seat_number,
+            player_name: format!("Seat {}", seat.seat_number),
+            state_hash: state_hash.clone(),
+            state: serde_json::json!({
+                "status": metadata.status,
+                "seat": seat.seat_number,
+                "players": metadata.players,
+            }),
+            queued_mail: vec![],
+            report_blocks: vec![],
+        };
 
-        let content = serde_json::to_string(&state_payload).unwrap_or_default();
-        
-        let gid_tag = self.game_id.clone();
-        let turn_str = turn.to_string();
-        let year_str = year.to_string();
-        let tag_refs: Vec<(&str, &str)> = vec![
-            ("game-id", &gid_tag),
-            ("turn", &turn_str),
-            ("year", &year_str),
-            ("hash", &state_hash),
-        ];
+        let content = match serde_json::to_string(&state_payload) {
+            Ok(content) => content,
+            Err(e) => {
+                tracing::error!("Failed to serialize state payload: {}", e);
+                return;
+            }
+        };
 
-        if let Err(e) = self.publisher.publish_encrypted(&request.player_pubkey, 30520, &content, tag_refs).await {
+        let tags = nc_nostr::state_sync::build_state_response_tags(&state_payload)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+
+        if let Err(e) = self
+            .publisher
+            .publish_encrypted_multi(&request.player_pubkey, 30520, &content, tags)
+            .await
+        {
             tracing::error!("Failed to publish state: {}", e);
         } else {
             tracing::info!("Published encrypted state to {}", request.player_pubkey);
@@ -110,38 +142,195 @@ impl GameWorker {
             }
         };
 
-        if let Err(e) = hosted::create_request(
-            store.connection(),
-            &request.request_id,
-            &self.game_id,
-            &request.player_pubkey,
-            &request.message,
-        ) {
-            tracing::error!("Failed to store invite request: {}", e);
-            return;
-        }
-
-        let receipt = InviteRequestReceipt {
-            request_id: request.request_id.clone(),
-            game_id: self.game_id.clone(),
-            status: InviteRequestReceiptStatus::Received,
-            message: "Your request has been queued for the sysop.".to_string(),
+        let metadata = match hosted::get_game_metadata(store.connection(), &self.game_id) {
+            Ok(metadata) => metadata,
+            Err(e) => {
+                tracing::error!("Failed to load metadata for {}: {}", self.game_id, e);
+                return;
+            }
+        };
+        let settings = match hosted::get_settings(store.connection(), &self.game_id) {
+            Ok(settings) => settings,
+            Err(e) => {
+                tracing::error!("Failed to load settings for {}: {}", self.game_id, e);
+                return;
+            }
         };
 
-        let content = serde_json::to_string(&receipt).unwrap_or_default();
+        let receipt = if metadata.status == "finished" {
+            InviteRequestReceipt {
+                request_id: request.request_id.clone(),
+                game_id: self.game_id.clone(),
+                status: InviteRequestReceiptStatus::GameClosed,
+                message: "This game is closed to new invite requests.".to_string(),
+            }
+        } else if settings.recruiting == hosted::RecruitingMode::None {
+            InviteRequestReceipt {
+                request_id: request.request_id.clone(),
+                game_id: self.game_id.clone(),
+                status: InviteRequestReceiptStatus::NotRecruiting,
+                message: "This game is not recruiting right now.".to_string(),
+            }
+        } else {
+            match hosted::get_pending_request_count(
+                store.connection(),
+                &self.game_id,
+                &request.player_pubkey,
+            ) {
+                Ok(count) if count > 0 => InviteRequestReceipt {
+                    request_id: request.request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: InviteRequestReceiptStatus::RateLimited,
+                    message: "You already have a pending invite request for this game.".to_string(),
+                },
+                Ok(_) => {
+                    if let Err(e) = hosted::create_request(
+                        store.connection(),
+                        &request.request_id,
+                        &self.game_id,
+                        &request.player_pubkey,
+                        &request.message,
+                    ) {
+                        tracing::error!("Failed to store invite request: {}", e);
+                        return;
+                    }
 
-        let d_tag = request.request_id.clone();
-        let gid_tag = self.game_id.clone();
-        let tag_refs: Vec<(&str, &str)> = vec![
-            ("d", &d_tag),
-            ("game-id", &gid_tag),
-            ("status", "received"),
-        ];
-        
-        if let Err(e) = self.publisher.publish_encrypted(&request.player_pubkey, 30514, &content, tag_refs).await {
+                    InviteRequestReceipt {
+                        request_id: request.request_id.clone(),
+                        game_id: self.game_id.clone(),
+                        status: InviteRequestReceiptStatus::Received,
+                        message: "Your request has been queued for the sysop.".to_string(),
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to check pending request count: {}", e);
+                    return;
+                }
+            }
+        };
+
+        let content = match serde_json::to_string(&receipt) {
+            Ok(content) => content,
+            Err(e) => {
+                tracing::error!("Failed to serialize invite receipt: {}", e);
+                return;
+            }
+        };
+
+        let tags = nc_nostr::invite_request::build_invite_request_receipt_tags(&receipt)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+
+        if let Err(e) = self
+            .publisher
+            .publish_encrypted_multi(&request.player_pubkey, 30514, &content, tags)
+            .await
+        {
             tracing::error!("Failed to publish invite receipt: {}", e);
         } else {
             tracing::info!("Published encrypted invite request receipt to {}", request.player_pubkey);
+        }
+    }
+
+    async fn handle_seat_claim(&self, request: SeatClaimRequest) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
+        let invite_token = request
+            .invite_code
+            .split_once('@')
+            .map(|(token, _)| token)
+            .unwrap_or(request.invite_code.as_str())
+            .trim()
+            .to_ascii_lowercase();
+
+        let invite_hash = blake3::hash(invite_token.as_bytes()).to_hex().to_string();
+        let result = match hosted::find_seat_by_invite_hash(store.connection(), &self.game_id, &invite_hash) {
+            Ok(Some(seat)) if seat.status == hosted::SeatStatus::Pending => {
+                match hosted::claim_seat(
+                    store.connection(),
+                    &self.game_id,
+                    seat.seat_number,
+                    &request.player_pubkey,
+                ) {
+                    Ok(()) => {
+                        let _ = hosted::mark_catalog_dirty(store.connection(), &self.game_id);
+                        SeatClaimResultPayload {
+                            nonce: request.nonce.clone(),
+                            game_id: Some(self.game_id.clone()),
+                            status: SeatClaimStatus::Claimed,
+                            message: format!("Seat {} claimed.", seat.seat_number),
+                            seat: Some(seat.seat_number),
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to claim seat {}: {}", seat.seat_number, e);
+                        SeatClaimResultPayload {
+                            nonce: request.nonce.clone(),
+                            game_id: Some(self.game_id.clone()),
+                            status: SeatClaimStatus::AlreadyClaimed,
+                            message: "That invite is no longer available.".to_string(),
+                            seat: Some(seat.seat_number),
+                        }
+                    }
+                }
+            }
+            Ok(Some(seat)) => {
+                let same_player = seat.player_pubkey.as_deref() == Some(request.player_pubkey.as_str());
+                SeatClaimResultPayload {
+                    nonce: request.nonce.clone(),
+                    game_id: Some(self.game_id.clone()),
+                    status: if same_player {
+                        SeatClaimStatus::Claimed
+                    } else {
+                        SeatClaimStatus::AlreadyClaimed
+                    },
+                    message: if same_player {
+                        format!("Seat {} already claimed by this player.", seat.seat_number)
+                    } else {
+                        "That invite has already been claimed.".to_string()
+                    },
+                    seat: Some(seat.seat_number),
+                }
+            }
+            Ok(None) => SeatClaimResultPayload {
+                nonce: request.nonce.clone(),
+                game_id: Some(self.game_id.clone()),
+                status: SeatClaimStatus::InvalidInvite,
+                message: "Unknown invite code.".to_string(),
+                seat: None,
+            },
+            Err(e) => {
+                tracing::error!("Failed to lookup invite hash: {}", e);
+                return;
+            }
+        };
+
+        let content = match serde_json::to_string(&result) {
+            Ok(content) => content,
+            Err(e) => {
+                tracing::error!("Failed to serialize seat claim result: {}", e);
+                return;
+            }
+        };
+
+        let tags = nc_nostr::claim::build_seat_claim_result_tags(&result)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+
+        if let Err(e) = self
+            .publisher
+            .publish_encrypted_multi(&request.player_pubkey, 30511, &content, tags)
+            .await
+        {
+            tracing::error!("Failed to publish seat claim result: {}", e);
         }
     }
 
@@ -157,7 +346,18 @@ impl GameWorker {
         let _seat = match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &commands.player_pubkey) {
             Ok(Some(s)) => s,
             Ok(None) => {
-                tracing::warn!("Player {} has no claimed seat in game {}", commands.player_pubkey, self.game_id);
+                let receipt = TurnReceipt {
+                    submit_id: commands.submit_id.clone(),
+                    game_id: self.game_id.clone(),
+                    turn: commands.turn,
+                    status: TurnReceiptStatus::NotClaimed,
+                    message: Some("Player has not claimed a seat in this hosted game.".to_string()),
+                    errors: vec![TurnReceiptError {
+                        path: "player".to_string(),
+                        message: "unclaimed_seat".to_string(),
+                    }],
+                };
+                self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
                 return;
             }
             Err(e) => {
@@ -175,6 +375,18 @@ impl GameWorker {
             &commands.commands,
         ) {
             tracing::error!("Failed to enqueue turn: {}", e);
+            let receipt = TurnReceipt {
+                submit_id: commands.submit_id.clone(),
+                game_id: self.game_id.clone(),
+                turn: commands.turn,
+                status: TurnReceiptStatus::Rejected,
+                message: Some("Failed to stage turn commands.".to_string()),
+                errors: vec![TurnReceiptError {
+                    path: "commands".to_string(),
+                    message: e.to_string(),
+                }],
+            };
+            self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
             return;
         }
 
@@ -187,22 +399,33 @@ impl GameWorker {
             errors: vec![],
         };
 
-        let content = serde_json::to_string(&receipt).unwrap_or_default();
+        self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
+    }
 
-        let d_tag = commands.submit_id.clone();
-        let gid_tag = self.game_id.clone();
-        let turn_str = commands.turn.to_string();
-        let tag_refs: Vec<(&str, &str)> = vec![
-            ("d", &d_tag),
-            ("game-id", &gid_tag),
-            ("turn", &turn_str),
-            ("status", "accepted"),
+    async fn publish_turn_receipt(&self, player_pubkey: &str, receipt: &TurnReceipt) {
+        let content = match serde_json::to_string(receipt) {
+            Ok(content) => content,
+            Err(e) => {
+                tracing::error!("Failed to serialize turn receipt: {}", e);
+                return;
+            }
+        };
+
+        let tags = vec![
+            vec!["d".to_string(), receipt.submit_id.clone()],
+            vec!["game-id".to_string(), receipt.game_id.clone()],
+            vec!["turn".to_string(), receipt.turn.to_string()],
+            vec!["status".to_string(), receipt.status.as_str().to_string()],
         ];
-        
-        if let Err(e) = self.publisher.publish_encrypted(&commands.player_pubkey, 30524, &content, tag_refs).await {
+
+        if let Err(e) = self
+            .publisher
+            .publish_encrypted_multi(player_pubkey, 30524, &content, tags)
+            .await
+        {
             tracing::error!("Failed to publish turn receipt: {}", e);
         } else {
-            tracing::info!("Published encrypted turn receipt to {}", commands.player_pubkey);
+            tracing::info!("Published encrypted turn receipt to {}", player_pubkey);
         }
     }
 }
@@ -231,11 +454,10 @@ pub fn spawn_worker(
     game_id: String,
     db_path: PathBuf,
     publisher: EventPublisher,
-    keys: Arc<Keys>,
 ) -> GameWorkerHandle {
     let (tx, mut rx) = mpsc::channel::<GameMsg>(100);
     
-    let worker = GameWorker::new(game_id.clone(), db_path, publisher, keys);
+    let worker = GameWorker::new(game_id.clone(), db_path, publisher);
     let worker = Arc::new(worker);
     
     let game_id_clone = game_id.clone();

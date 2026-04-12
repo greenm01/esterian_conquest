@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use rusqlite::{params, Connection, Result as SqliteResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,16 +217,23 @@ pub fn close_seat(conn: &Connection, game_id: &str, seat_number: u32) -> SqliteR
     Ok(())
 }
 
-pub fn create_seats(conn: &Connection, game_id: &str, player_count: u32) -> SqliteResult<()> {
+pub fn create_seats(conn: &Connection, game_id: &str, invite_codes: &[String]) -> SqliteResult<()> {
     let now = chrono::Utc::now().timestamp();
-    for i in 1..=player_count {
-        let invite_code = uuid::Uuid::new_v4().to_string();
+    let mut seen = HashSet::new();
+
+    for (index, invite_code) in invite_codes.iter().enumerate() {
+        if !seen.insert(invite_code.as_str()) {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "duplicate invite code".to_string(),
+            ));
+        }
+
         let hash = blake3::hash(invite_code.as_bytes()).to_hex().to_string();
         conn.execute(
             "INSERT INTO seats (game_id, seat_number, invite_code, invite_code_hash,
              player_pubkey, status, claimed_at, created_at)
              VALUES (?1, ?2, ?3, ?4, NULL, 'pending', NULL, ?5)",
-            params![game_id, i, invite_code, hash, now],
+            params![game_id, (index + 1) as u32, invite_code, hash, now],
         )?;
     }
     Ok(())

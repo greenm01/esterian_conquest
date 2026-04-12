@@ -124,6 +124,43 @@ pub fn approve_request(
     Ok(())
 }
 
+pub fn approve_request_for_seat(
+    conn: &Connection,
+    request_id: &str,
+    game_id: &str,
+    seat_number: u32,
+    invite_token: &str,
+    issued_invite: &str,
+    decision_message: &str,
+) -> SqliteResult<()> {
+    conn.execute_batch("BEGIN IMMEDIATE")?;
+
+    let seat_exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM seats WHERE game_id = ?1 AND seat_number = ?2)",
+        params![game_id, seat_number],
+        |row| row.get(0),
+    )?;
+
+    let result = if seat_exists {
+        super::seats::reissue_seat(conn, game_id, seat_number, invite_token)
+    } else {
+        super::seats::open_seat(conn, game_id, seat_number, invite_token)
+    }
+    .and_then(|_| approve_request(conn, request_id, decision_message, issued_invite))
+    .and_then(|_| super::settings::mark_catalog_dirty(conn, game_id));
+
+    match result {
+        Ok(()) => {
+            conn.execute_batch("COMMIT")?;
+            Ok(())
+        }
+        Err(err) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            Err(err)
+        }
+    }
+}
+
 pub fn reject_request(conn: &Connection, id: &str, decision_message: &str) -> SqliteResult<()> {
     let now = chrono::Utc::now().timestamp();
     conn.execute(

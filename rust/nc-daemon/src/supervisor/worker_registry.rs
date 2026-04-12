@@ -1,24 +1,20 @@
 use crate::game::worker::{spawn_worker, GameWorkerHandle};
 use crate::lobby::publish::EventPublisher;
-use nostr_sdk::Keys;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct WorkerRegistry {
     workers: RwLock<HashMap<String, GameWorkerHandle>>,
     publisher: EventPublisher,
-    keys: Arc<Keys>,
     games_root: PathBuf,
 }
 
 impl WorkerRegistry {
-    pub fn new(publisher: EventPublisher, keys: Keys, games_root: PathBuf) -> Self {
+    pub fn new(publisher: EventPublisher, games_root: PathBuf) -> Self {
         Self {
             workers: RwLock::new(HashMap::new()),
             publisher,
-            keys: Arc::new(keys),
             games_root,
         }
     }
@@ -36,7 +32,6 @@ impl WorkerRegistry {
             game_id.clone(),
             db_path,
             self.publisher.clone(),
-            Arc::clone(&self.keys),
         );
         
         workers.insert(game_id.clone(), handle.clone());
@@ -67,7 +62,6 @@ impl Clone for WorkerRegistry {
         Self {
             workers: RwLock::new(HashMap::new()),
             publisher: self.publisher.clone(),
-            keys: Arc::clone(&self.keys),
             games_root: self.games_root.clone(),
         }
     }

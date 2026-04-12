@@ -5,7 +5,7 @@ use nc_data::hosted::SeatStatus;
 
 #[test]
 fn test_create_seats() {
-    let (_temp, game_dir, store) = create_test_game("seat-claim-test-1", 4);
+    let (_temp, _game_dir, store) = create_test_game("seat-claim-test-1", 4);
     let game_id = "seat-claim-test-1";
 
     let seats = nc_data::hosted::list_seats(store.connection(), game_id).expect("should list");
@@ -16,12 +16,15 @@ fn test_create_seats() {
         assert!(seats
             .iter()
             .any(|s| s.seat_number == i && s.status == SeatStatus::Pending));
+        let seat = seats.iter().find(|s| s.seat_number == i).expect("seat should exist");
+        assert!(seat.invite_code.contains('-'));
+        assert!(!seat.invite_code.contains('@'));
     }
 }
 
 #[test]
 fn test_find_seat_by_invite_hash() {
-    let (_temp, game_dir, store) = create_test_game("seat-claim-test-2", 4);
+    let (_temp, _game_dir, store) = create_test_game("seat-claim-test-2", 4);
     let game_id = "seat-claim-test-2";
 
     let invite_code = "test-invite-code-123";
@@ -40,7 +43,7 @@ fn test_find_seat_by_invite_hash() {
 
 #[test]
 fn test_claim_seat() {
-    let (_temp, game_dir, store) = create_test_game("seat-claim-test-3", 4);
+    let (_temp, _game_dir, store) = create_test_game("seat-claim-test-3", 4);
     let game_id = "seat-claim-test-3";
 
     let invite_code = "claim-test-code";
@@ -95,7 +98,7 @@ fn test_claim_already_claimed_seat_no_op() {
 
 #[test]
 fn test_reset_seat() {
-    let (_temp, game_dir, store) = create_test_game("seat-claim-test-5", 4);
+    let (_temp, _game_dir, store) = create_test_game("seat-claim-test-5", 4);
     let game_id = "seat-claim-test-5";
 
     let invite_code = "reset-test-code";

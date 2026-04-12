@@ -1,11 +1,11 @@
 mod common;
 
-use common::{create_test_game, hash_invite_code};
-use nc_data::hosted::{InviteRequest, InviteRequestStatus};
+use common::create_test_game;
+use nc_data::hosted::InviteRequestStatus;
 
 #[test]
 fn test_create_invite_request() {
-    let (_temp, game_dir, store) = create_test_game("invite-test-1", 4);
+    let (_temp, _game_dir, store) = create_test_game("invite-test-1", 4);
     let game_id = "invite-test-1";
 
     let request_id = "req-001";
@@ -31,7 +31,7 @@ fn test_create_invite_request() {
 
 #[test]
 fn test_approve_request() {
-    let (_temp, game_dir, store) = create_test_game("invite-test-2", 4);
+    let (_temp, _game_dir, store) = create_test_game("invite-test-2", 4);
     let game_id = "invite-test-2";
 
     nc_data::hosted::create_request(
@@ -43,11 +43,14 @@ fn test_approve_request() {
     )
     .expect("request should be created");
 
-    nc_data::hosted::approve_request(
+    nc_data::hosted::approve_request_for_seat(
         store.connection(),
         "req-002",
+        game_id,
+        2,
+        "amber-river",
+        "amber-river@relay.example.com",
         "Approved for seat 1",
-        "invite-code-abc",
     )
     .expect("should approve");
 
@@ -60,13 +63,22 @@ fn test_approve_request() {
         req.decision_message,
         Some("Approved for seat 1".to_string())
     );
-    assert_eq!(req.issued_invite_code, Some("invite-code-abc".to_string()));
+    assert_eq!(
+        req.issued_invite_code,
+        Some("amber-river@relay.example.com".to_string())
+    );
     assert!(req.processed_at.is_some());
+
+    let seat = nc_data::hosted::get_seat_by_number(store.connection(), game_id, 2)
+        .expect("should get seat")
+        .expect("seat should exist");
+    assert_eq!(seat.invite_code, "amber-river");
+    assert_eq!(seat.player_pubkey, None);
 }
 
 #[test]
 fn test_reject_request() {
-    let (_temp, game_dir, store) = create_test_game("invite-test-3", 4);
+    let (_temp, _game_dir, store) = create_test_game("invite-test-3", 4);
     let game_id = "invite-test-3";
 
     nc_data::hosted::create_request(
@@ -91,7 +103,7 @@ fn test_reject_request() {
 
 #[test]
 fn test_list_pending_decisions() {
-    let (_temp, game_dir, store) = create_test_game("invite-test-4", 4);
+    let (_temp, _game_dir, store) = create_test_game("invite-test-4", 4);
     let game_id = "invite-test-4";
 
     nc_data::hosted::create_request(store.connection(), "req-004", game_id, "player1", "Hi")
@@ -116,7 +128,7 @@ fn test_list_pending_decisions() {
 
 #[test]
 fn test_mark_decision_published() {
-    let (_temp, game_dir, store) = create_test_game("invite-test-5", 4);
+    let (_temp, _game_dir, store) = create_test_game("invite-test-5", 4);
     let game_id = "invite-test-5";
 
     nc_data::hosted::create_request(store.connection(), "req-007", game_id, "player", "Hi")

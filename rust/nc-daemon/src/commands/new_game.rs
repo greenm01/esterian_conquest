@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::invite::generate_invite_code;
+
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     if args.is_empty() || args.iter().any(|arg| matches!(*arg, "--help" | "-h")) {
         print_usage();
@@ -87,15 +89,28 @@ fn create_game(
         rusqlite::params![game_id, name, now, players],
     )?;
 
-    nc_data::hosted::create_seats(store.connection(), &game_id, players)?;
+    let invite_codes = generate_invite_codes(players);
+    nc_data::hosted::create_seats(store.connection(), &game_id, &invite_codes)?;
+    nc_data::hosted::mark_catalog_dirty(store.connection(), &game_id)?;
 
-    if let Some(_seed) = seed {
-        store
-            .connection()
-            .execute("ALTER TABLE game_metadata ADD COLUMN seed INTEGER", [])?;
+    if seed.is_some() {
+        tracing::warn!("--seed is accepted but not yet persisted by hosted new-game");
     }
 
     Ok(())
+}
+
+fn generate_invite_codes(player_count: u32) -> Vec<String> {
+    let mut existing = std::collections::HashSet::new();
+    let mut invite_codes = Vec::with_capacity(player_count as usize);
+
+    for _ in 0..player_count {
+        let code = generate_invite_code(&existing);
+        existing.insert(code.clone());
+        invite_codes.push(code);
+    }
+
+    invite_codes
 }
 
 fn print_usage() {

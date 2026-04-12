@@ -5,6 +5,7 @@ use thiserror::Error;
 pub struct DaemonConfig {
     pub games_root: PathBuf,
     pub relay_url: String,
+    pub invite_relay_host: String,
     pub identity_path: PathBuf,
     pub sysop_contact_npub: String,
 }
@@ -49,6 +50,12 @@ impl DaemonConfig {
             .map(|s| s.to_string())
             .ok_or_else(|| ConfigError::MissingField("relay-url".to_string()))?;
 
+        let invite_relay_host = daemon
+            .get("invite-relay-host")
+            .and_then(|e| e.value().as_string())
+            .map(|s| s.to_string())
+            .ok_or_else(|| ConfigError::MissingField("invite-relay-host".to_string()))?;
+
         let identity_path = daemon
             .get("identity-path")
             .and_then(|e| e.value().as_string())
@@ -64,6 +71,7 @@ impl DaemonConfig {
         Ok(DaemonConfig {
             games_root,
             relay_url,
+            invite_relay_host,
             identity_path,
             sysop_contact_npub,
         })
@@ -78,6 +86,7 @@ pub fn generate_default_config() -> String {
     r#"daemon {
     games-root "/var/lib/nc-daemon/games"
     relay-url "wss://relay.example.com"
+    invite-relay-host "relay.example.com"
     identity-path "/etc/nc-daemon/daemon.nsec"
     sysop-contact-npub "npub1..."
 }

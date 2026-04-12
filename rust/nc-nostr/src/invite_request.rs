@@ -94,15 +94,11 @@ pub fn build_invite_decision_tags(decision: &InviteDecisionPayload) -> Vec<(&'st
         InviteDecision::Rejected => "rejected",
     };
 
-    let mut tags = vec![
+    let tags = vec![
         ("d", decision.request_id.clone()),
         ("game-id", decision.game_id.clone()),
         ("decision", decision_str.to_string()),
     ];
-
-    if let InviteDecision::Approved { ref invite } = decision.decision {
-        tags.push(("invite", invite.clone()));
-    }
 
     tags
 }

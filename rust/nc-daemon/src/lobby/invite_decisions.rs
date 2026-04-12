@@ -1,5 +1,5 @@
 use crate::lobby::publish::EventPublisher;
-use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
+use nc_nostr::invite_request::{build_invite_decision_tags, InviteDecision, InviteDecisionPayload};
 
 pub async fn publish_invite_decision(
     publisher: &EventPublisher,
@@ -18,13 +18,13 @@ pub async fn publish_invite_decision(
 
     let content = serde_json::to_string(&payload)?;
 
-    let tag_refs: Vec<(&str, &str)> = vec![
-        ("d", request_id),
-        ("game-id", game_id),
-    ];
+    let tags = build_invite_decision_tags(&payload)
+        .into_iter()
+        .map(|(key, value)| vec![key.to_string(), value])
+        .collect();
 
     publisher
-        .publish_encrypted(player_pubkey, 30515, &content, tag_refs)
+        .publish_encrypted_multi(player_pubkey, 30515, &content, tags)
         .await?;
 
     tracing::info!(

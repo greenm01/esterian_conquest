@@ -1,5 +1,4 @@
 use crate::game::effects::GameEffects;
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum GameMsg {

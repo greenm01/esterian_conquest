@@ -159,34 +159,34 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
     })
 }
 
-pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<(&'static str, String)> {
+pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<Vec<String>> {
     let mut tags = vec![
-        ("d", def.game_id.clone()),
-        ("name", def.game_name.clone()),
-        ("status", def.status.as_str().to_string()),
-        ("players", def.players.to_string()),
-        ("recruiting", def.recruiting.as_str().to_string()),
-        ("open-seats", def.open_seats.to_string()),
-        ("year", def.year.to_string()),
-        ("turn", def.turn.to_string()),
+        vec!["d".to_string(), def.game_id.clone()],
+        vec!["name".to_string(), def.game_name.clone()],
+        vec!["status".to_string(), def.status.as_str().to_string()],
+        vec!["players".to_string(), def.players.to_string()],
+        vec!["recruiting".to_string(), def.recruiting.as_str().to_string()],
+        vec!["open-seats".to_string(), def.open_seats.to_string()],
+        vec!["year".to_string(), def.year.to_string()],
+        vec!["turn".to_string(), def.turn.to_string()],
     ];
 
     if let Some(ref summary) = def.summary {
-        tags.push(("summary", summary.clone()));
+        tags.push(vec!["summary".to_string(), summary.clone()]);
     }
 
     if let Some(ref alias) = def.host_alias {
-        tags.push(("host-alias", alias.clone()));
+        tags.push(vec!["host-alias".to_string(), alias.clone()]);
     }
 
     for slot in &def.slots {
-        let tag_values = vec![
+        tags.push(vec![
+            "slot".to_string(),
             slot.seat.to_string(),
             slot.invite_code_hash.clone(),
             slot.player_npub.clone().unwrap_or_default(),
             slot.status.as_str().to_string(),
-        ];
-        tags.push(("slot", tag_values.join(" ")));
+        ]);
     }
 
     tags

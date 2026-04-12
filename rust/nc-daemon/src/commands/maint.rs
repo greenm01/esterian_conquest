@@ -65,15 +65,8 @@ fn run_maintenance(
     let pending_turns = nc_data::hosted::list_pending_turns(store.connection(), game_id, 0)?;
     println!("  Pending turns: {}", pending_turns.len());
 
-    let mut game_data = match CoreGameData::load(game_dir) {
-        Ok(data) => data,
-        Err(e) => {
-            println!("  Warning: Could not load game data: {}", e);
-            println!("  Creating new game state from defaults...");
-            nc_engine::build_seeded_new_game(4, 3000, 0)
-                .map_err(|e| format!("Failed to create new game: {}", e))?
-        }
-    };
+    let mut game_data = CoreGameData::load(game_dir)
+        .map_err(|e| format!("Failed to load authoritative game data from {}: {}", game_dir.display(), e))?;
 
     let current_turn = (game_data.conquest.game_year() - 3000) as u32;
 

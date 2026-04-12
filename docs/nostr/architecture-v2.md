@@ -138,8 +138,9 @@ But the public lobby never exposes those codes. The server flow is:
    sysop contact identity.
 5. The sysop approves or rejects the request through `nc-daemon`.
 6. If approved, the daemon privately sends the invite string to the player.
-7. The player joins with that invite.
-8. First join binds the claimed seat to the player's pubkey.
+7. The player redeems that invite with a hosted claim event.
+8. The daemon validates the invite token, binds the claimed seat to the
+   player's pubkey, and returns a private claim result.
 9. Later rejoin is by pubkey plus `game-id`, not by reusing the invite as the
    primary identity.
 
@@ -177,6 +178,8 @@ Hosted `nc-daemon` owns these kinds:
 |------|------|---------|
 | `30500` | `GameDefinition` | Public recruiting-game catalog row |
 | `30507` | `StateRequest` | Client requests a refresh |
+| `30510` | `SeatClaimRequest` | Player redeems an approved invite |
+| `30511` | `SeatClaimResult` | Daemon confirms or rejects first join |
 | `30513` | `InviteRequest` | Player asks the sysop for an invite |
 | `30514` | `InviteRequestReceipt` | Daemon acknowledges receipt/rejection |
 | `30515` | `InviteDecision` | Sysop approval or rejection result |
@@ -185,8 +188,8 @@ Hosted `nc-daemon` owns these kinds:
 | `30522` | `TurnCommands` | Submitted player orders |
 | `30524` | `TurnReceipt` | Turn accepted/rejected with details |
 
-Retired SSH bridge kinds `30501`/`30502`/`30503` are legacy reference only for
-the old `nc-connect` / `nc-gate` path.
+Retired SSH bridge kinds `30501`/`30502`/`30503` remain legacy reference only
+for the old `nc-connect` / `nc-gate` path.
 
 ## 9. `GameDefinition` Requirements
 

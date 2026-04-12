@@ -10,7 +10,7 @@ pub struct StateRequest {
     pub last_hash: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     pub game_id: String,
     pub turn: u32,
@@ -23,7 +23,7 @@ pub struct GameState {
     pub report_blocks: Vec<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StateDelta {
     pub game_id: String,
     pub turn: u32,
@@ -90,8 +90,6 @@ pub fn build_state_response_tags(state: &GameState) -> Vec<(&'static str, String
         ("game-id", state.game_id.clone()),
         ("turn", state.turn.to_string()),
         ("year", state.year.to_string()),
-        ("player-seat", state.player_seat.to_string()),
-        ("player-name", state.player_name.clone()),
         ("hash", state.state_hash.clone()),
     ]
 }

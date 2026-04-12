@@ -35,6 +35,26 @@ impl EventPublisher {
         Ok(())
     }
 
+    pub async fn publish_multi(
+        &self,
+        kind: u32,
+        content: &str,
+        tags: Vec<Vec<String>>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let tag_objects = tags
+            .into_iter()
+            .map(Tag::parse)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let event = EventBuilder::new(Kind::Custom(kind as u16), content)
+            .tags(tag_objects)
+            .sign_with_keys(self.keys.as_ref())?;
+
+        self.client.send_event(&event).await?;
+        tracing::info!("Published event kind {} to relay", kind);
+        Ok(())
+    }
+
     pub async fn publish_to_pubkey(
         &self,
         recipient_pubkey: &str,
@@ -84,6 +104,41 @@ impl EventPublisher {
         for (key, value) in tags {
             tag_objects.push(Tag::parse([key, value])?);
         }
+
+        let event = EventBuilder::new(Kind::Custom(kind as u16), &encrypted)
+            .tags(tag_objects)
+            .sign_with_keys(self.keys.as_ref())?;
+
+        self.client.send_event(&event).await?;
+        tracing::info!("Published encrypted event kind {} to {}", kind, recipient_pubkey);
+        Ok(())
+    }
+
+    pub async fn publish_encrypted_multi(
+        &self,
+        recipient_pubkey: &str,
+        kind: u32,
+        content: &str,
+        tags: Vec<Vec<String>>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        use nostr_sdk::nips::nip44;
+        use nostr_sdk::nips::nip44::Version;
+
+        let public_key = PublicKey::from_hex(recipient_pubkey)?;
+        let encrypted = nip44::encrypt(
+            self.keys.secret_key(),
+            &public_key,
+            content,
+            Version::V2,
+        )
+        .map_err(|e| format!("NIP-44 encryption failed: {:?}", e))?;
+
+        let mut tag_objects = vec![Tag::parse(["p", recipient_pubkey])?];
+        tag_objects.extend(
+            tags.into_iter()
+                .map(Tag::parse)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
 
         let event = EventBuilder::new(Kind::Custom(kind as u16), &encrypted)
             .tags(tag_objects)

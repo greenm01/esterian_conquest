@@ -1,6 +1,6 @@
 mod common;
 
-use common::{create_test_game, hash_invite_code};
+use common::create_test_game;
 use nc_data::hosted::TurnSubmissionStatus;
 
 #[test]

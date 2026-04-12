@@ -1,4 +1,5 @@
 use crate::invite::generate_invite_code;
+use crate::config::daemon_config::DaemonConfig;
 use nc_data::hosted::{list_seats, HostedStore};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let mut request_id = None;
     let mut player = None;
     let mut message: Option<String> = None;
+    let mut config_path = None;
 
     let mut i = 0;
     while i < args.len() {
@@ -46,6 +48,13 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
                 message = Some(args[i + 1].to_string());
                 i += 2;
             }
+            "--config" => {
+                if i + 1 >= args.len() {
+                    return Err("missing value for --config".into());
+                }
+                config_path = Some(PathBuf::from(args[i + 1]));
+                i += 2;
+            }
             _ => {
                 if subcmd.is_none() {
                     subcmd = Some(args[i]);
@@ -74,13 +83,17 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     match subcmd {
         Some("list") => run_list(&store, &game_id).map_err(|e| e.into()),
         Some("show") => run_show(&store, request_id.as_ref()).map_err(|e| e.into()),
-        Some("approve") => run_approve(
-            &store,
-            &game_id,
-            request_id.as_ref(),
-            player,
-            message.as_ref(),
-        ),
+        Some("approve") => {
+            let config = load_config(config_path.as_ref())?;
+            run_approve(
+                &store,
+                &game_id,
+                &config.invite_relay_host,
+                request_id.as_ref(),
+                player,
+                message.as_ref(),
+            )
+        }
         Some("reject") => run_reject(&store, &game_id, request_id.as_ref(), message.as_ref()),
         Some(cmd) => Err(format!("unknown subcommand: {}", cmd).into()),
         None => Err("missing subcommand".into()),
@@ -141,6 +154,7 @@ fn run_show(
 fn run_approve(
     store: &HostedStore,
     game_id: &str,
+    invite_relay_host: &str,
     request_id: Option<&String>,
     player: Option<u32>,
     message: Option<&String>,
@@ -153,13 +167,21 @@ fn run_approve(
         .iter()
         .map(|s| s.invite_code.clone())
         .collect();
-    let invite_code = generate_invite_code(&existing);
+    let invite_token = generate_invite_code(&existing);
+    let issued_invite = format!("{}@{}", invite_token, invite_relay_host);
 
-    nc_data::hosted::approve_request(store.connection(), request_id, message, &invite_code)?;
-    nc_data::hosted::mark_catalog_dirty(store.connection(), game_id)?;
+    nc_data::hosted::approve_request_for_seat(
+        store.connection(),
+        request_id,
+        game_id,
+        player,
+        &invite_token,
+        &issued_invite,
+        message,
+    )?;
 
     println!("Approved request {} for player seat {}", request_id, player);
-    println!("Invite code: {}", invite_code);
+    println!("Invite code: {}", issued_invite);
 
     Ok(())
 }
@@ -182,10 +204,22 @@ fn run_reject(
 
 fn print_usage() {
     println!("Usage:");
-    println!("  nc-daemon requests list --dir <path>");
-    println!("  nc-daemon requests show --dir <path> --request <id>");
+    println!("  nc-daemon requests list --dir <path> [--config <path>]");
+    println!("  nc-daemon requests show --dir <path> --request <id> [--config <path>]");
     println!(
-        "  nc-daemon requests approve --dir <path> --request <id> --player N [--message \"...\"]"
+        "  nc-daemon requests approve --dir <path> --request <id> --player N [--message \"...\"] [--config <path>]"
     );
-    println!("  nc-daemon requests reject --dir <path> --request <id> [--message \"...\"]");
+    println!("  nc-daemon requests reject --dir <path> --request <id> [--message \"...\"] [--config <path>]");
+}
+
+fn load_config(path: Option<&PathBuf>) -> Result<DaemonConfig, Box<dyn std::error::Error>> {
+    if let Some(path) = path {
+        return Ok(DaemonConfig::load(path)?);
+    }
+
+    if let Ok(path) = std::env::var("NC_DAEMON_CONFIG") {
+        return Ok(DaemonConfig::load(&PathBuf::from(path))?);
+    }
+
+    Ok(DaemonConfig::load(&DaemonConfig::default_config_path())?)
 }

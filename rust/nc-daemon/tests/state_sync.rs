@@ -41,7 +41,7 @@ fn test_state_sync_structs() {
 
 #[test]
 fn test_game_settings_for_state() {
-    let (_temp, game_dir, store) = create_test_game("state-sync-test", 4);
+    let (_temp, _game_dir, store) = create_test_game("state-sync-test", 4);
     let game_id = "state-sync-test";
 
     let settings = nc_data::hosted::get_settings(store.connection(), game_id).expect("should get");
@@ -56,7 +56,7 @@ fn test_game_settings_for_state() {
 
 #[test]
 fn test_seat_lookup_for_player() {
-    let (_temp, game_dir, store) = create_test_game("state-sync-seat", 4);
+    let (_temp, _game_dir, store) = create_test_game("state-sync-seat", 4);
     let game_id = "state-sync-seat";
 
     let player_pubkey = "test-player-npub-xyz";

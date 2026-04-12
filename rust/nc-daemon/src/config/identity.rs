@@ -61,7 +61,7 @@ pub fn save_identity(path: &PathBuf, identity: &DaemonIdentity) -> Result<(), Id
     }
 
     let content = format!(
-        "# nc-daemon identity\nnpub{}\n{}\n",
+        "# nc-daemon identity\n{}\n{}\n",
         identity.npub, identity.nsec
     );
     std::fs::write(path, content)?;

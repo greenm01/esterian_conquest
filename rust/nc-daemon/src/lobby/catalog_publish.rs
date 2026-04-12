@@ -19,6 +19,9 @@ pub fn publish_game_definition(
     if settings.lobby_visibility != nc_data::hosted::LobbyVisibility::Public {
         return Ok(None);
     }
+    if settings.recruiting == HostedRecruiting::None {
+        return Ok(None);
+    }
 
     let seats = list_seats(store.connection(), game_id)?;
     let open_seats = seats
@@ -75,7 +78,9 @@ pub fn publish_game_definition(
         year: metadata.as_ref().map(|m| m.current_year).unwrap_or(3000),
         turn: metadata.as_ref().map(|m| m.current_turn).unwrap_or(0),
         summary: settings.summary,
-        host_alias: host_alias.map(String::from),
+        host_alias: host_alias
+            .map(String::from)
+            .or_else(|| settings.host_alias.clone()),
         slots: slot_tags,
     };
 

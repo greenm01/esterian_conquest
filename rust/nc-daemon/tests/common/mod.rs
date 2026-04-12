@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use nc_daemon::invite::generate_invite_code;
 use blake3::Hasher;
 use nc_data::hosted::HostedStore;
 use std::fs;
@@ -50,7 +51,16 @@ pub fn create_test_game(game_id: &str, player_count: u32) -> (TempDir, PathBuf, 
         )
         .expect("game metadata should insert");
 
-    nc_data::hosted::create_seats(store.connection(), game_id, player_count)
+    let mut existing = std::collections::HashSet::new();
+    let invite_codes = (0..player_count)
+        .map(|_| {
+            let code = generate_invite_code(&existing);
+            existing.insert(code.clone());
+            code
+        })
+        .collect::<Vec<_>>();
+
+    nc_data::hosted::create_seats(store.connection(), game_id, &invite_codes)
         .expect("seats should create");
 
     nc_data::hosted::update_settings(
@@ -77,7 +87,6 @@ pub fn create_seat_with_code(
     seat_number: u32,
     invite_code: &str,
 ) {
-    let hash = blake3::hash(invite_code.as_bytes()).to_hex().to_string();
     nc_data::hosted::open_seat(store.connection(), game_id, seat_number, invite_code)
         .expect("seat should open");
     let seats = nc_data::hosted::list_seats(store.connection(), game_id).expect("should list");
