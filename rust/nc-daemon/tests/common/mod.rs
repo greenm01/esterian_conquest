@@ -3,6 +3,7 @@
 use nc_daemon::invite::generate_invite_code;
 use blake3::Hasher;
 use nc_data::hosted::HostedStore;
+use nc_data::{CampaignSettings, CampaignStore, ReportBlockRow, QueuedPlayerMail};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -110,4 +111,42 @@ pub fn create_seat_with_code(
 
 pub fn cleanup_temp_dir(temp: TempDir) {
     drop(temp);
+}
+
+pub fn seed_runtime_snapshot(
+    game_dir: &std::path::Path,
+    game_id: &str,
+    game_name: &str,
+    player_count: u8,
+    queued_mail: &[QueuedPlayerMail],
+    report_block_rows: &[ReportBlockRow],
+) {
+    let game_data = nc_engine::build_seeded_new_game(player_count, 3000, 12345)
+        .expect("game state should build");
+    game_data.save(game_dir).expect("game data should save");
+
+    let store = CampaignStore::open_default_in_dir(game_dir).expect("campaign store should open");
+    let intel_by_viewer = (1..=player_count)
+        .map(|viewer_empire_id| {
+            nc_data::merge_player_intel_from_runtime(
+                &game_data,
+                viewer_empire_id,
+                game_data.conquest.game_year(),
+                None,
+                None,
+            )
+        })
+        .collect::<Vec<_>>();
+    store
+        .save_runtime_state_structured_with_intel(
+            &game_data,
+            &std::collections::BTreeSet::new(),
+            report_block_rows,
+            queued_mail,
+            &intel_by_viewer,
+        )
+        .expect("runtime state should save");
+    store
+        .save_campaign_settings(&CampaignSettings::new(game_id, game_name))
+        .expect("campaign settings should save");
 }

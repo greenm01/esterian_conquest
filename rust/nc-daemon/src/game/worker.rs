@@ -4,7 +4,7 @@ use crate::game::outbox::enqueue_encrypted_event;
 use nc_data::hosted::{self, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
 use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus};
-use nc_nostr::state_sync::{GameState, StateRequest};
+use nc_nostr::state_sync::StateRequest;
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -54,14 +54,6 @@ impl GameWorker {
             }
         };
 
-        let metadata = match hosted::get_game_metadata(store.connection(), &self.game_id) {
-            Ok(metadata) => metadata,
-            Err(e) => {
-                tracing::error!("Failed to load metadata for {}: {}", self.game_id, e);
-                return;
-            }
-        };
-
         let seat = match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &request.player_pubkey) {
             Ok(Some(seat)) => seat,
             Ok(None) => {
@@ -78,30 +70,21 @@ impl GameWorker {
             }
         };
 
-        let state_hash = blake3::hash(
-            format!(
-                "{}:{}:{}:{}",
-                self.game_id, metadata.current_turn, metadata.current_year, seat.seat_number
-            )
-            .as_bytes(),
-        )
-        .to_hex()
-        .to_string();
+        let Some(game_dir) = self.db_path.parent() else {
+            tracing::error!("Hosted db path has no parent for {}", self.db_path.display());
+            return;
+        };
 
-        let state_payload = GameState {
-            game_id: self.game_id.clone(),
-            turn: metadata.current_turn,
-            year: metadata.current_year,
-            player_seat: seat.seat_number,
-            player_name: format!("Seat {}", seat.seat_number),
-            state_hash: state_hash.clone(),
-            state: serde_json::json!({
-                "status": metadata.status,
-                "seat": seat.seat_number,
-                "players": metadata.players,
-            }),
-            queued_mail: vec![],
-            report_blocks: vec![],
+        let state_payload = match crate::game::state::build_game_state_payload(
+            game_dir,
+            &self.game_id,
+            seat.seat_number,
+        ) {
+            Ok(payload) => payload,
+            Err(e) => {
+                tracing::error!("Failed to build game state payload for {}: {}", self.game_id, e);
+                return;
+            }
         };
 
         let content = match serde_json::to_string(&state_payload) {

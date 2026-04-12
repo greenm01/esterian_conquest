@@ -82,6 +82,9 @@ fn create_game(
         .to_string();
 
     let now = chrono::Utc::now().timestamp();
+    let seed = seed
+        .map(u64::from)
+        .unwrap_or_else(nc_data::generate_campaign_seed);
 
     store.connection().execute(
         "INSERT INTO game_metadata (id, name, status, created_at, updated_at, current_year, current_turn, players, recruiting, lobby_visibility, maintenance_enabled, maintenance_interval_minutes)
@@ -92,10 +95,14 @@ fn create_game(
     let invite_codes = generate_invite_codes(players);
     nc_data::hosted::create_seats(store.connection(), &game_id, &invite_codes)?;
     nc_data::hosted::mark_catalog_dirty(store.connection(), &game_id)?;
-
-    if seed.is_some() {
-        tracing::warn!("--seed is accepted but not yet persisted by hosted new-game");
-    }
+    crate::game::state::initialize_runtime_state(
+        dir,
+        &game_id,
+        name,
+        players as u8,
+        3000,
+        seed,
+    )?;
 
     Ok(())
 }
