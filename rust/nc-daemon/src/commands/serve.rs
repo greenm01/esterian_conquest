@@ -132,6 +132,7 @@ async fn run_async_server(
     let mut notifications = client.notifications();
     let mut catalog_interval = tokio::time::interval(std::time::Duration::from_secs(300));
     let mut decisions_interval = tokio::time::interval(std::time::Duration::from_secs(60));
+    let mut outbox_interval = tokio::time::interval(std::time::Duration::from_secs(30));
 
     loop {
         tokio::select! {
@@ -140,6 +141,9 @@ async fn run_async_server(
             }
             _ = decisions_interval.tick() => {
                 publish_pending_decisions(&publisher, &games_root).await;
+            }
+            _ = outbox_interval.tick() => {
+                process_outbox(&publisher, &games_root).await;
             }
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("Shutting down...");
@@ -487,6 +491,56 @@ async fn publish_pending_decisions(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+async fn process_outbox(
+    publisher: &EventPublisher,
+    games_root: &std::sync::Arc<std::path::PathBuf>,
+) {
+    use nc_data::hosted::{get_pending, mark_failed, mark_published, HostedStore};
+
+    if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+
+            let db_path = path.join("hosted.db");
+            if !db_path.exists() {
+                continue;
+            }
+
+            let Some(game_id) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+
+            let store = match HostedStore::open(&db_path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let pending = match get_pending(store.connection(), game_id, 10) {
+                Ok(items) => items,
+                Err(_) => continue,
+            };
+
+            for item in pending {
+                let tags: Vec<(&str, &str)> = serde_json::from_str(&item.tags).unwrap_or_default();
+
+                match publisher.publish(item.kind, &item.content, tags).await {
+                    Ok(_) => {
+                        let _ = mark_published(store.connection(), &item.id, "relay");
+                        tracing::debug!("Published outbox item {} for game {}", item.id, game_id);
+                    }
+                    Err(e) => {
+                        let _ = mark_failed(store.connection(), &item.id, &e.to_string());
+                        tracing::warn!("Failed to publish outbox item {}: {}", item.id, e);
                     }
                 }
             }
