@@ -1,0 +1,19 @@
+[package]
+name = "nc-daemon"
+version = "1.0.0-beta.2"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[[bin]]
+name = "nc-daemon"
+path = "src/main.rs"
+
+[dependencies]
+nc-data = { path = "../nc-data" }
+nc-engine = { path = "../nc-engine" }
+nc-log = { path = "../nc-log" }
+nc-nostr = { path = "../nc-nostr" }
+tracing = "0.1"
+
+[build-dependencies]
+winresource = "0.1"

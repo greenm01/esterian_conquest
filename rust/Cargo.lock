@@ -2142,6 +2142,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nc-daemon"
+version = "1.0.0-beta.2"
+dependencies = [
+ "nc-data",
+ "nc-engine",
+ "nc-log",
+ "nc-nostr",
+ "tracing",
+ "winresource",
+]
+
+[[package]]
 name = "nc-dash"
 version = "1.0.0-beta.2"
 dependencies = [
