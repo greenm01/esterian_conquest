@@ -1,49 +1,74 @@
-use std::collections::HashSet;
-use tokio::sync::RwLock;
+use crate::game::worker::{spawn_worker, GameWorkerHandle};
+use crate::lobby::publish::EventPublisher;
+use nostr_sdk::Keys;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub struct WorkerRegistry {
-    games: Arc<RwLock<HashSet<String>>>,
+    workers: RwLock<HashMap<String, GameWorkerHandle>>,
+    publisher: EventPublisher,
+    keys: Arc<Keys>,
+    games_root: PathBuf,
 }
 
 impl WorkerRegistry {
-    pub fn new() -> Self {
+    pub fn new(publisher: EventPublisher, keys: Keys, games_root: PathBuf) -> Self {
         Self {
-            games: Arc::new(RwLock::new(HashSet::new())),
+            workers: RwLock::new(HashMap::new()),
+            publisher,
+            keys: Arc::new(keys),
+            games_root,
         }
     }
 
-    pub async fn track_game(&self, game_id: String) {
-        let mut games = self.games.write().await;
-        games.insert(game_id);
+    pub async fn get_or_create(&self, game_id: String) -> GameWorkerHandle {
+        let mut workers = self.workers.write().await;
+        
+        if let Some(handle) = workers.get(&game_id) {
+            return handle.clone();
+        }
+
+        let db_path = self.games_root.join(&game_id).join("hosted.db");
+        
+        let handle = spawn_worker(
+            game_id.clone(),
+            db_path,
+            self.publisher.clone(),
+            Arc::clone(&self.keys),
+        );
+        
+        workers.insert(game_id.clone(), handle.clone());
+        tracing::debug!("Created new worker for game {}", game_id);
+        
+        handle
     }
 
-    pub async fn untrack_game(&self, game_id: &str) {
-        let mut games = self.games.write().await;
-        games.remove(game_id);
+    pub async fn remove(&self, game_id: &str) {
+        let mut workers = self.workers.write().await;
+        workers.remove(game_id);
+        tracing::debug!("Removed worker for game {}", game_id);
     }
 
     pub async fn list_games(&self) -> Vec<String> {
-        let games = self.games.read().await;
-        games.iter().cloned().collect()
+        let workers = self.workers.read().await;
+        workers.keys().cloned().collect()
     }
 
     pub async fn count(&self) -> usize {
-        let games = self.games.read().await;
-        games.len()
+        let workers = self.workers.read().await;
+        workers.len()
     }
 }
 
 impl Clone for WorkerRegistry {
     fn clone(&self) -> Self {
         Self {
-            games: Arc::clone(&self.games),
+            workers: RwLock::new(HashMap::new()),
+            publisher: self.publisher.clone(),
+            keys: Arc::clone(&self.keys),
+            games_root: self.games_root.clone(),
         }
-    }
-}
-
-impl Default for WorkerRegistry {
-    fn default() -> Self {
-        Self::new()
     }
 }

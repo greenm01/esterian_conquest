@@ -6,13 +6,14 @@ use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteReques
 use nc_nostr::state_sync::StateRequest;
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptStatus};
 use nostr_sdk::Keys;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use std::fmt;
 
 pub struct GameWorker {
     game_id: String,
-    store: Arc<HostedStore>,
+    db_path: PathBuf,
     publisher: EventPublisher,
     keys: Arc<Keys>,
 }
@@ -20,19 +21,27 @@ pub struct GameWorker {
 impl GameWorker {
     pub fn new(
         game_id: String,
-        store: Arc<HostedStore>,
+        db_path: PathBuf,
         publisher: EventPublisher,
         keys: Arc<Keys>,
     ) -> Self {
         Self {
             game_id,
-            store,
+            db_path,
             publisher,
             keys,
         }
     }
 
     pub async fn handle_effect(&self, effect: GameEffects) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store for {}: {}", self.game_id, e);
+                return;
+            }
+        };
+
         match effect {
             GameEffects::HandleStateRequest { request } => {
                 self.handle_state_request(request).await;
@@ -93,8 +102,16 @@ impl GameWorker {
     }
 
     async fn handle_invite_request(&self, request: InviteRequest) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
         if let Err(e) = hosted::create_request(
-            self.store.connection(),
+            store.connection(),
             &request.request_id,
             &self.game_id,
             &request.player_pubkey,
@@ -129,7 +146,15 @@ impl GameWorker {
     }
 
     async fn handle_turn_commands(&self, commands: TurnCommands) {
-        let _seat = match hosted::get_seat_by_pubkey(self.store.connection(), &self.game_id, &commands.player_pubkey) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
+        let _seat = match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &commands.player_pubkey) {
             Ok(Some(s)) => s,
             Ok(None) => {
                 tracing::warn!("Player {} has no claimed seat in game {}", commands.player_pubkey, self.game_id);
@@ -142,7 +167,7 @@ impl GameWorker {
         };
 
         if let Err(e) = hosted::enqueue_turn(
-            self.store.connection(),
+            store.connection(),
             &commands.submit_id,
             &self.game_id,
             commands.turn,
@@ -204,14 +229,14 @@ impl GameWorkerHandle {
 
 pub fn spawn_worker(
     game_id: String,
-    store: Arc<HostedStore>,
+    db_path: PathBuf,
     publisher: EventPublisher,
     keys: Arc<Keys>,
 ) -> GameWorkerHandle {
     let (tx, mut rx) = mpsc::channel::<GameMsg>(100);
     
-    let worker = GameWorker::new(game_id.clone(), store, publisher, keys);
-    let _worker = Arc::new(worker);
+    let worker = GameWorker::new(game_id.clone(), db_path, publisher, keys);
+    let worker = Arc::new(worker);
     
     let game_id_clone = game_id.clone();
     
@@ -227,6 +252,9 @@ pub fn spawn_worker(
                 }
                 GameMsg::ProcessTurnSubmission { submit_id } => {
                     tracing::debug!("Processing turn submission {} for {}", submit_id, game_id_clone);
+                }
+                GameMsg::HandleEffect(effect) => {
+                    worker.handle_effect(effect).await;
                 }
             }
         }

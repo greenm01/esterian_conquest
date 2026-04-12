@@ -119,7 +119,11 @@ async fn run_async_server(
     let publisher = Arc::new(EventPublisher::new(client.clone(), keys.clone()));
     let games_root = Arc::new(config.games_root.clone());
     
-    let worker_registry = Arc::new(crate::supervisor::worker_registry::WorkerRegistry::new());
+    let worker_registry = Arc::new(crate::supervisor::worker_registry::WorkerRegistry::new(
+        (*publisher).clone(),
+        keys,
+        config.games_root.clone(),
+    ));
 
     let filter = Filter::new()
         .kind(Kind::Custom(30507))
@@ -164,14 +168,18 @@ async fn run_async_server(
                                 
                                 let worker_registry = worker_registry.clone();
                                 let game_id = routed.game_id.clone();
+                                let publisher = publisher.clone();
                                 
                                 tokio::spawn(async move {
-                                    let _ = worker_registry.track_game(game_id).await;
+                                    let worker = worker_registry.get_or_create(game_id).await;
+                                    
+                                    for effect in effects {
+                                        let msg = crate::game::msg::GameMsg::HandleEffect(effect);
+                                        if let Err(e) = worker.send(msg).await {
+                                            tracing::error!("Failed to send effect to worker: {}", e);
+                                        }
+                                    }
                                 });
-                                
-                                for effect in effects {
-                                    handle_effect(effect, &routed, &publisher).await;
-                                }
                             }
                             Err(e) => {
                                 tracing::warn!("Routing error: {:?}", e);
