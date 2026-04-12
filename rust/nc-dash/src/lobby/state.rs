@@ -115,12 +115,12 @@ impl LobbyState {
             inbox: Vec::new(),
             notices: vec![LobbyNotice::new(
                 "nc-host",
-                "Public notices and private sysop threads land in phase 2.",
+                "Waiting for live public notices from nc-host.",
             )],
             thread_messages: vec![ThreadMessage::incoming(
                 "lobby",
                 "nc-host",
-                "Thread messaging is not wired yet. Use invite requests from the lobby first.",
+                "Select an open or joined game to load its private sysop thread.",
             )],
             joined_selected: 0,
             open_selected: 0,

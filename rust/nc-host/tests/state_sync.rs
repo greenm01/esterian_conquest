@@ -6,7 +6,10 @@ use nc_data::{QueuedPlayerMail, ReportBlockRow};
 
 #[test]
 fn test_state_sync_structs() {
-    use nc_nostr::state_sync::{GameState, StateDelta, StateDeltas};
+    use nc_nostr::state_sync::{
+        GameState, HostedPlayerState, HostedStatePayload, HostedStarmapState, StateDelta,
+        StateDeltas,
+    };
 
     let state = GameState {
         game_id: "test".to_string(),
@@ -15,7 +18,29 @@ fn test_state_sync_structs() {
         player_seat: 1,
         player_name: "Test Empire".to_string(),
         state_hash: "abc123".to_string(),
-        state: serde_json::json!({"planets": []}),
+        state: HostedStatePayload {
+            player: HostedPlayerState {
+                seat: 1,
+                empire_name: "Test Empire".to_string(),
+                handle: None,
+                mode: "active".to_string(),
+                tax_rate: 10,
+                planet_count: 1,
+                starbase_count: 0,
+                homeworld_planet_index: 1,
+                last_run_year: 3005,
+                diplomacy: Vec::new(),
+            },
+            starmap: HostedStarmapState {
+                map_width: 18,
+                map_height: 18,
+                viewer_empire_id: 1,
+                year: 3005,
+                worlds: Vec::new(),
+            },
+            owned_planets: Vec::new(),
+            owned_fleets: Vec::new(),
+        },
         queued_mail: vec![],
         report_blocks: vec![],
     };
@@ -113,18 +138,9 @@ fn test_build_game_state_payload_uses_runtime_snapshot() {
     assert_eq!(payload.queued_mail.len(), 1);
     assert_eq!(payload.report_blocks.len(), 1);
 
-    let state = payload.state.as_object().expect("state should be object");
-    assert!(state.contains_key("player"));
-    assert!(state.contains_key("starmap"));
-    assert!(state.contains_key("owned_planets"));
-    assert!(state.contains_key("owned_fleets"));
-
-    let owned_planets = state["owned_planets"]
-        .as_array()
-        .expect("owned_planets should be array");
-    let owned_fleets = state["owned_fleets"]
-        .as_array()
-        .expect("owned_fleets should be array");
-    assert!(!owned_planets.is_empty());
-    assert!(!owned_fleets.is_empty());
+    assert!(!payload.state.owned_planets.is_empty());
+    assert!(!payload.state.owned_fleets.is_empty());
+    assert_eq!(payload.state.player.seat, 1);
+    assert_eq!(payload.queued_mail[0].subject, "Scout Note");
+    assert_eq!(payload.report_blocks[0].decoded_text, "First report block");
 }

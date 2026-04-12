@@ -18,9 +18,9 @@ pub struct GameState {
     pub player_seat: u32,
     pub player_name: String,
     pub state_hash: String,
-    pub state: serde_json::Value,
-    pub queued_mail: Vec<serde_json::Value>,
-    pub report_blocks: Vec<serde_json::Value>,
+    pub state: HostedStatePayload,
+    pub queued_mail: Vec<HostedQueuedMail>,
+    pub report_blocks: Vec<HostedReportBlock>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,11 +35,130 @@ pub struct StateDelta {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct StateDeltas {
     #[serde(default)]
-    pub planets: Vec<serde_json::Value>,
+    pub planets: Vec<HostedOwnedPlanet>,
     #[serde(default)]
-    pub fleets: Vec<serde_json::Value>,
+    pub fleets: Vec<HostedOwnedFleet>,
     #[serde(default)]
-    pub events: Vec<serde_json::Value>,
+    pub events: Vec<HostedReportBlock>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedStatePayload {
+    pub player: HostedPlayerState,
+    pub starmap: HostedStarmapState,
+    pub owned_planets: Vec<HostedOwnedPlanet>,
+    pub owned_fleets: Vec<HostedOwnedFleet>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedPlayerState {
+    pub seat: u8,
+    pub empire_name: String,
+    pub handle: Option<String>,
+    pub mode: String,
+    pub tax_rate: u8,
+    pub planet_count: u8,
+    pub starbase_count: u8,
+    pub homeworld_planet_index: u16,
+    pub last_run_year: u16,
+    pub diplomacy: Vec<HostedDiplomacyState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedDiplomacyState {
+    pub empire_id: u8,
+    pub relation: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedStarmapState {
+    pub map_width: u8,
+    pub map_height: u8,
+    pub viewer_empire_id: u8,
+    pub year: u16,
+    pub worlds: Vec<HostedWorldState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedWorldState {
+    pub planet_index: usize,
+    pub coords: [u8; 2],
+    pub intel_tier: String,
+    pub known_name: Option<String>,
+    pub known_owner_empire_id: Option<u8>,
+    pub known_owner_empire_name: Option<String>,
+    pub known_potential_production: Option<u16>,
+    pub known_armies: Option<u8>,
+    pub known_ground_batteries: Option<u8>,
+    pub known_starbase_count: Option<u8>,
+    pub known_current_production: Option<u8>,
+    pub known_stored_points: Option<u16>,
+    pub known_docked_summary: Option<String>,
+    pub known_orbit_summary: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedOwnedPlanet {
+    pub planet_index: usize,
+    pub name: String,
+    pub coords: [u8; 2],
+    pub potential_production: u16,
+    pub current_production: u8,
+    pub stored_points: u16,
+    pub armies: u8,
+    pub ground_batteries: u8,
+    pub starbase_count: u8,
+    pub stardock: Vec<HostedStardockSlot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedStardockSlot {
+    pub slot: usize,
+    pub kind: String,
+    pub count: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedOwnedFleet {
+    pub fleet_id: u8,
+    pub local_slot: u8,
+    pub coords: [u8; 2],
+    pub target_coords: [u8; 2],
+    pub order: String,
+    pub order_summary: String,
+    pub rules_of_engagement: u8,
+    pub current_speed: u8,
+    pub max_speed: u8,
+    pub ships: HostedFleetShips,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedFleetShips {
+    pub scout: u16,
+    pub battleship: u16,
+    pub cruiser: u16,
+    pub destroyer: u16,
+    pub transport: u16,
+    pub army: u16,
+    pub etac: u16,
+    pub total_starships: u16,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedQueuedMail {
+    pub sender_empire_id: u8,
+    pub recipient_empire_id: u8,
+    pub year: u16,
+    pub subject: String,
+    pub body: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedReportBlock {
+    pub viewer_empire_id: u8,
+    pub block_index: usize,
+    pub decoded_text: String,
 }
 
 pub fn parse_state_request(event: &Event) -> Option<StateRequest> {

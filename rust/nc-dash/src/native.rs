@@ -17,6 +17,9 @@ pub(crate) trait NativeApp {
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent);
     fn resize_canvas(&mut self, cols: u16, rows: u16);
     fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>>;
+    fn on_idle(&mut self) -> bool {
+        false
+    }
     fn should_quit(&self) -> bool;
     fn set_should_quit(&mut self, should_quit: bool);
 }
@@ -325,6 +328,9 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                 sync_window_size(&mut shell, window);
                 if !shell.redraw_requested {
                     dispatch(&mut shell, window, NativeMsg::FlushPointer, false);
+                }
+                if shell.app.on_idle() {
+                    shell.needs_redraw = true;
                 }
                 if shell.app.should_quit() {
                     elwt.exit();

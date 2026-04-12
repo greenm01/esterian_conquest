@@ -20,6 +20,10 @@ Keep this file short. Historical detail belongs in
   request/decision, invite claim, runtime-backed `30520` state refresh,
   turn submit/receipt, public `30516` notices, and encrypted `30517`
   sysop thread messages.
+- `nc-dash` lobby now keeps a live hosted observer session instead of doing
+  full reconnect/fetch cycles for catalog, notice, thread, and inbox updates.
+- `30520 GameState` now uses typed hosted snapshot payloads instead of opaque
+  JSON blobs on the Rust side.
 - `nc-host` now exists as the relay-native hosted server name and localhost dev lab target.
 - `nc-host` now exposes `notices` and `threads` operator commands for the
   hosted lobby communication surfaces.
@@ -43,8 +47,8 @@ Keep this file short. Historical detail belongs in
 - The hosted `nc-host` / `nc-dash` track now exists locally, but it is still a
   dev-only path and not the public shipped product story.
 - The biggest remaining hosted client gap is replacing the hosted snapshot
-  viewer with the real dashboard state instead of maintaining a separate mini
-  hosted view.
+  viewer with the real shared dashboard core instead of maintaining a separate
+  hosted mini-view.
 - The BBS door renderer still repaints full frames instead of using the
   retained-frame diffing already in local `nc-game`.
 
@@ -58,3 +62,5 @@ Keep this file short. Historical detail belongs in
    use its own schema rather than reviving retired hosted tables in `ncgame.db`.
 5. Keep the localhost `nc-host` lab reproducible with the user-service install
    script and dev docs, but keep the public docs centered on local/BBS play.
+6. Bridge typed hosted `30520` snapshots into the real `nc-dash` dashboard
+   state so hosted play stops using the separate summary viewer.

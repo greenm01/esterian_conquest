@@ -13,7 +13,10 @@ use nc_nostr::thread_message::{decrypt_thread_message, SenderRole, SysopThreadMe
 use nc_nostr::tags::tag_content;
 use nc_nostr::turn_commands::TurnReceipt;
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{Client, Event, EventBuilder, Filter, Kind, Keys, PublicKey, Tag, Timestamp, ToBech32};
+use nostr_sdk::{
+    Alphabet, Client, Event, EventBuilder, Filter, Kind, Keys, PublicKey, SingleLetterTag, Tag,
+    Timestamp, ToBech32,
+};
 
 #[derive(Debug, Clone)]
 pub struct HostedClientSession {
@@ -94,12 +97,15 @@ impl HostedClientSession {
         &self,
         since_secs: u64,
     ) -> Result<Vec<SysopThreadMessage>, Box<dyn std::error::Error>> {
-        let player_pubkey = self.keys.public_key();
+        let player_pubkey_hex = self.keys.public_key().to_hex();
         let secret_key = self.keys.secret_key().clone();
         self.with_client(async move |client| {
             let filter = Filter::new()
                 .kinds([Kind::Custom(30517)])
-                .pubkeys(vec![player_pubkey])
+                .custom_tag(
+                    SingleLetterTag::lowercase(Alphabet::P),
+                    player_pubkey_hex.as_str(),
+                )
                 .since(Timestamp::now() - Duration::from_secs(since_secs));
             let events = client.fetch_events(filter, Duration::from_secs(8)).await?;
             Ok(events
@@ -113,7 +119,7 @@ impl HostedClientSession {
         &self,
         since_secs: u64,
     ) -> Result<PlayerEventBatch, Box<dyn std::error::Error>> {
-        let player_pubkey = self.keys.public_key();
+        let player_pubkey_hex = self.keys.public_key().to_hex();
         let secret_key = self.keys.secret_key().clone();
         self.with_client(async move |client| {
             let filter = Filter::new()
@@ -125,7 +131,10 @@ impl HostedClientSession {
                     Kind::Custom(30521),
                     Kind::Custom(30524),
                 ])
-                .pubkeys(vec![player_pubkey])
+                .custom_tag(
+                    SingleLetterTag::lowercase(Alphabet::P),
+                    player_pubkey_hex.as_str(),
+                )
                 .since(Timestamp::now() - Duration::from_secs(since_secs));
             let events = client.fetch_events(filter, Duration::from_secs(8)).await?;
             let mut batch = PlayerEventBatch::default();
@@ -249,6 +258,7 @@ impl HostedClientSession {
     ) -> Result<SeatClaimResultPayload, Box<dyn std::error::Error>> {
         let nonce = random_nonce_hex();
         let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let player_pubkey_hex = self.keys.public_key().to_hex();
         let result = self.with_client(async move |client| {
             let mut notifications = client.notifications();
             let subscription = client
@@ -256,7 +266,10 @@ impl HostedClientSession {
                     Filter::new()
                         .kinds([Kind::Custom(30511)])
                         .author(daemon_pubkey.clone())
-                        .pubkeys(vec![self.keys.public_key()])
+                        .custom_tag(
+                            SingleLetterTag::lowercase(Alphabet::P),
+                            player_pubkey_hex.as_str(),
+                        )
                         .since(Timestamp::now() - Duration::from_secs(15)),
                     None,
                 )
@@ -311,6 +324,7 @@ impl HostedClientSession {
     ) -> Result<GameState, Box<dyn std::error::Error>> {
         let request_id = random_nonce_hex();
         let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let player_pubkey_hex = self.keys.public_key().to_hex();
         self.with_client(async move |client| {
             let mut notifications = client.notifications();
             let subscription = client
@@ -318,7 +332,10 @@ impl HostedClientSession {
                     Filter::new()
                         .kinds([Kind::Custom(30520), Kind::Custom(30521)])
                         .author(daemon_pubkey.clone())
-                        .pubkeys(vec![self.keys.public_key()])
+                        .custom_tag(
+                            SingleLetterTag::lowercase(Alphabet::P),
+                            player_pubkey_hex.as_str(),
+                        )
                         .since(Timestamp::now() - Duration::from_secs(15)),
                     None,
                 )
@@ -377,6 +394,7 @@ impl HostedClientSession {
     ) -> Result<TurnReceipt, Box<dyn std::error::Error>> {
         let submit_id = random_nonce_hex();
         let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let player_pubkey_hex = self.keys.public_key().to_hex();
         self.with_client(async move |client| {
             let mut notifications = client.notifications();
             let subscription = client
@@ -384,7 +402,10 @@ impl HostedClientSession {
                     Filter::new()
                         .kinds([Kind::Custom(30524)])
                         .author(daemon_pubkey.clone())
-                        .pubkeys(vec![self.keys.public_key()])
+                        .custom_tag(
+                            SingleLetterTag::lowercase(Alphabet::P),
+                            player_pubkey_hex.as_str(),
+                        )
                         .since(Timestamp::now() - Duration::from_secs(15)),
                     None,
                 )

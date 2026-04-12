@@ -4,7 +4,9 @@ use common::create_test_game;
 use nc_host::lobby::catalog_publish::publish_game_definition;
 use nc_nostr::game_definition::build_game_definition_tags;
 use nc_nostr::invite_request::{build_invite_decision_tags, InviteDecision, InviteDecisionPayload};
-use nc_nostr::state_sync::{build_state_response_tags, GameState};
+use nc_nostr::state_sync::{
+    build_state_response_tags, GameState, HostedPlayerState, HostedStatePayload, HostedStarmapState,
+};
 
 #[test]
 fn game_definition_tags_are_per_field_and_slots_are_multivalue() {
@@ -50,7 +52,29 @@ fn state_response_tags_do_not_leak_player_identity() {
         player_seat: 4,
         player_name: "Fourth Empire".to_string(),
         state_hash: "abc123".to_string(),
-        state: serde_json::json!({}),
+        state: HostedStatePayload {
+            player: HostedPlayerState {
+                seat: 4,
+                empire_name: "Fourth Empire".to_string(),
+                handle: None,
+                mode: "active".to_string(),
+                tax_rate: 10,
+                planet_count: 1,
+                starbase_count: 0,
+                homeworld_planet_index: 1,
+                last_run_year: 3012,
+                diplomacy: Vec::new(),
+            },
+            starmap: HostedStarmapState {
+                map_width: 18,
+                map_height: 18,
+                viewer_empire_id: 4,
+                year: 3012,
+                worlds: Vec::new(),
+            },
+            owned_planets: Vec::new(),
+            owned_fleets: Vec::new(),
+        },
         queued_mail: vec![],
         report_blocks: vec![],
     };

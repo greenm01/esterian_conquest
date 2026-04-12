@@ -282,6 +282,21 @@ impl NativeApp for LobbyApp {
         Ok(buffer)
     }
 
+    fn on_idle(&mut self) -> bool {
+        match self.transport.poll_updates() {
+            Ok(Some(loaded)) => {
+                self.state.apply_loaded(loaded);
+                true
+            }
+            Ok(None) => false,
+            Err(err) => {
+                let changed = self.state.status_message.as_deref() != Some(err.as_str());
+                self.state.status_message = Some(err);
+                changed
+            }
+        }
+    }
+
     fn should_quit(&self) -> bool {
         self.should_quit
     }

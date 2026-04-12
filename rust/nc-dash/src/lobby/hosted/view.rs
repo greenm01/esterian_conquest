@@ -6,23 +6,10 @@ use crate::lobby::state::HostedGameView;
 
 pub fn render(buffer: &mut PlayfieldBuffer, rect: Rect, hosted: &HostedGameView) {
     let state = &hosted.snapshot.state;
-    let player = state.get("player").cloned().unwrap_or_default();
-    let worlds = state
-        .get("starmap")
-        .and_then(|starmap| starmap.get("worlds"))
-        .and_then(|worlds| worlds.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let planets = state
-        .get("owned_planets")
-        .and_then(|planets| planets.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let fleets = state
-        .get("owned_fleets")
-        .and_then(|fleets| fleets.as_array())
-        .cloned()
-        .unwrap_or_default();
+    let player = &state.player;
+    let worlds = &state.starmap.worlds;
+    let planets = &state.owned_planets;
+    let fleets = &state.owned_fleets;
 
     buffer.write_text_clipped(
         rect.y as usize,
@@ -38,25 +25,13 @@ pub fn render(buffer: &mut PlayfieldBuffer, rect: Rect, hosted: &HostedGameView)
     let rows = [
         format!(
             "Empire         : {}",
-            player
-                .get("empire_name")
-                .and_then(|value| value.as_str())
-                .unwrap_or("unknown")
+            player.empire_name
         ),
         format!(
             "Handle         : {}",
-            player
-                .get("handle")
-                .and_then(|value| value.as_str())
-                .unwrap_or("-")
+            player.handle.as_deref().unwrap_or("-")
         ),
-        format!(
-            "Tax Rate       : {}%",
-            player
-                .get("tax_rate")
-                .and_then(|value| value.as_u64())
-                .unwrap_or(0)
-        ),
+        format!("Tax Rate       : {}%", player.tax_rate),
         format!("Visible Worlds : {}", worlds.len()),
         format!("Owned Planets  : {}", planets.len()),
         format!("Owned Fleets   : {}", fleets.len()),
@@ -72,33 +47,14 @@ pub fn render(buffer: &mut PlayfieldBuffer, rect: Rect, hosted: &HostedGameView)
     buffer.write_text_clipped(line, rect.x as usize + 2, "PLANETS", classic::table_header_style());
     line += 1;
     for planet in planets.iter().take(6) {
-        let coords = planet
-            .get("coords")
-            .and_then(|coords| coords.as_array())
-            .map(|coords| {
-                format!(
-                    "{:02},{:02}",
-                    coords.first().and_then(|value| value.as_u64()).unwrap_or(0),
-                    coords.get(1).and_then(|value| value.as_u64()).unwrap_or(0)
-                )
-            })
-            .unwrap_or_else(|| "--,--".to_string());
+        let coords = format!("{:02},{:02}", planet.coords[0], planet.coords[1]);
         let row = format!(
             "{} | {} | prod {} / {} | store {}",
-            planet.get("name").and_then(|value| value.as_str()).unwrap_or("world"),
+            planet.name,
             coords,
-            planet
-                .get("current_production")
-                .and_then(|value| value.as_u64())
-                .unwrap_or(0),
-            planet
-                .get("potential_production")
-                .and_then(|value| value.as_u64())
-                .unwrap_or(0),
-            planet
-                .get("stored_points")
-                .and_then(|value| value.as_u64())
-                .unwrap_or(0)
+            planet.current_production,
+            planet.potential_production,
+            planet.stored_points
         );
         buffer.write_text_clipped(line, rect.x as usize + 2, &row, classic::table_body_style());
         line += 1;
@@ -108,30 +64,13 @@ pub fn render(buffer: &mut PlayfieldBuffer, rect: Rect, hosted: &HostedGameView)
     buffer.write_text_clipped(line, rect.x as usize + 2, "FLEETS", classic::table_header_style());
     line += 1;
     for fleet in fleets.iter().take(6) {
-        let coords = fleet
-            .get("coords")
-            .and_then(|coords| coords.as_array())
-            .map(|coords| {
-                format!(
-                    "{:02},{:02}",
-                    coords.first().and_then(|value| value.as_u64()).unwrap_or(0),
-                    coords.get(1).and_then(|value| value.as_u64()).unwrap_or(0)
-                )
-            })
-            .unwrap_or_else(|| "--,--".to_string());
+        let coords = format!("{:02},{:02}", fleet.coords[0], fleet.coords[1]);
         let row = format!(
             "#{} | {} | {} | {}",
-            fleet.get("fleet_id").and_then(|value| value.as_u64()).unwrap_or(0),
+            fleet.fleet_id,
             coords,
-            fleet
-                .get("order_summary")
-                .and_then(|value| value.as_str())
-                .unwrap_or("holding"),
-            fleet
-                .get("ships")
-                .and_then(|ships| ships.get("summary"))
-                .and_then(|value| value.as_str())
-                .unwrap_or("-")
+            fleet.order_summary,
+            fleet.ships.summary
         );
         buffer.write_text_clipped(line, rect.x as usize + 2, &row, classic::table_body_style());
         line += 1;

@@ -1,7 +1,9 @@
 use crate::game::effects::GameEffects;
 use nc_data::hosted::HostedStore;
-use nc_nostr::state_sync::StateRequest;
-use serde_json::{json, Value};
+use nc_nostr::state_sync::{
+    GameState, HostedPlayerState, HostedStatePayload, HostedStarmapState, StateRequest,
+};
+use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -87,17 +89,39 @@ impl StateSync {
         .to_hex()
         .to_string();
 
-        let state_payload = json!({
-            "game_id": self.game_id,
-            "turn": current_turn,
-            "year": current_year,
-            "player_seat": seat.seat_number,
-            "player_name": format!("Player {}", seat.seat_number),
-            "state_hash": state_hash,
-            "state": Value::Null,
-            "queued_mail": Vec::<Value>::new(),
-            "report_blocks": Vec::<Value>::new(),
-        });
+        let state_payload = GameState {
+            game_id: self.game_id.clone(),
+            turn: current_turn,
+            year: current_year,
+            player_seat: seat.seat_number,
+            player_name: format!("Player {}", seat.seat_number),
+            state_hash: state_hash.clone(),
+            state: HostedStatePayload {
+                player: HostedPlayerState {
+                    seat: seat.seat_number as u8,
+                    empire_name: format!("Player {}", seat.seat_number),
+                    handle: None,
+                    mode: "active".to_string(),
+                    tax_rate: 0,
+                    planet_count: 0,
+                    starbase_count: 0,
+                    homeworld_planet_index: 0,
+                    last_run_year: current_year as u16,
+                    diplomacy: Vec::new(),
+                },
+                starmap: HostedStarmapState {
+                    map_width: 0,
+                    map_height: 0,
+                    viewer_empire_id: seat.seat_number as u8,
+                    year: current_year as u16,
+                    worlds: Vec::new(),
+                },
+                owned_planets: Vec::new(),
+                owned_fleets: Vec::new(),
+            },
+            queued_mail: Vec::new(),
+            report_blocks: Vec::new(),
+        };
 
         GameEffects::QueueEvent {
             recipient_pubkey: request.player_pubkey.clone(),

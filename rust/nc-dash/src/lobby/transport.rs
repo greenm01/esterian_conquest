@@ -2,6 +2,7 @@ use nc_client::cache::{
     CachedGame, ClientCache, InboxEntry, NoticeEntry, ThreadEntry, load_cache, save_cache,
 };
 use nc_client::config::{ClientConfig, load_config};
+use nc_client::hosted::live::{HostedLiveSession, HostedSessionUpdate};
 use nc_client::hosted::session::{CatalogGame, HostedClientSession, PlayerEventBatch};
 use nc_client::keychain::{
     Keychain, active_keys, load_keychain, now_iso8601, push_new_identity, save_keychain,
@@ -30,12 +31,13 @@ pub struct LobbyLoadedState {
     pub status_message: Option<String>,
 }
 
-#[derive(Debug, Clone)]
 struct UnlockedClient {
     password: String,
     keychain: Keychain,
     cache: ClientCache,
+    catalog: Vec<CatalogGame>,
     session: Option<HostedClientSession>,
+    live_session: Option<HostedLiveSession>,
     relay_url: Option<String>,
 }
 
@@ -78,22 +80,28 @@ impl LobbyTransport {
         save_cache(&cache, password).map_err(|err| err.to_string())?;
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
-        let session = relay_url
-            .as_deref()
-            .map(|relay| {
-                active_keys(&keychain)
-                    .map(|keys| HostedClientSession::new(keys, relay.to_string()))
-                    .map_err(|err| err.to_string())
-            })
-            .transpose()?;
+        let (session, live_session) =
+            build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
             keychain,
             cache,
+            catalog: Vec::new(),
             session,
+            live_session,
             relay_url,
         });
-        self.refresh()
+        if let Some(unlocked) = self.unlocked.as_mut() {
+            if let Some(live_session) = unlocked.live_session.as_ref() {
+                live_session.refresh_backfill();
+            }
+            Ok(build_loaded_state(
+                unlocked,
+                Some("Hosted lobby connecting...".to_string()),
+            ))
+        } else {
+            Err("keychain setup failed".to_string())
+        }
     }
 
     pub fn unlock(&mut self, password: &str) -> Result<LobbyLoadedState, String> {
@@ -105,22 +113,28 @@ impl LobbyTransport {
             .unwrap_or_else(ClientCache::empty);
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
-        let session = relay_url
-            .as_deref()
-            .map(|relay| {
-                active_keys(&keychain)
-                    .map(|keys| HostedClientSession::new(keys, relay.to_string()))
-                    .map_err(|err| err.to_string())
-            })
-            .transpose()?;
+        let (session, live_session) =
+            build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
             keychain,
             cache,
+            catalog: Vec::new(),
             session,
+            live_session,
             relay_url,
         });
-        self.refresh()
+        if let Some(unlocked) = self.unlocked.as_mut() {
+            if let Some(live_session) = unlocked.live_session.as_ref() {
+                live_session.refresh_backfill();
+            }
+            Ok(build_loaded_state(
+                unlocked,
+                Some("Hosted lobby connecting...".to_string()),
+            ))
+        } else {
+            Err("keychain unlock failed".to_string())
+        }
     }
 
     pub fn refresh(&mut self) -> Result<LobbyLoadedState, String> {
@@ -128,29 +142,36 @@ impl LobbyTransport {
             .unlocked
             .as_mut()
             .ok_or_else(|| "keychain is locked".to_string())?;
-        let catalog = if let Some(session) = unlocked.session.as_ref() {
-            session.fetch_catalog().map_err(|err| err.to_string())?
-        } else {
-            Vec::new()
+        let changed = apply_live_updates(unlocked);
+        if changed {
+            save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+            return Ok(build_loaded_state(
+                unlocked,
+                Some("Hosted lobby synchronized.".to_string()),
+            ));
+        }
+        if let Some(live_session) = unlocked.live_session.as_ref() {
+            live_session.refresh_backfill();
+            return Ok(build_loaded_state(
+                unlocked,
+                Some("Refreshing hosted lobby...".to_string()),
+            ));
+        }
+        Ok(build_loaded_state(unlocked, None))
+    }
+
+    pub fn poll_updates(&mut self) -> Result<Option<LobbyLoadedState>, String> {
+        let Some(unlocked) = self.unlocked.as_mut() else {
+            return Ok(None);
         };
-        apply_catalog(unlocked, &catalog);
-        let session = unlocked.session.clone();
-        if let Some(session) = session.as_ref() {
-            let batch = session
-                .refresh_player_events(7 * 24 * 60 * 60)
-                .map_err(|err| err.to_string())?;
-            apply_player_events(unlocked, batch, &catalog);
-            let notices = session
-                .fetch_lobby_notices(30 * 24 * 60 * 60)
-                .map_err(|err| err.to_string())?;
-            apply_notices(unlocked, notices);
-            let threads = session
-                .fetch_thread_messages(30 * 24 * 60 * 60)
-                .map_err(|err| err.to_string())?;
-            apply_threads(unlocked, threads);
+        if !apply_live_updates(unlocked) {
+            return Ok(None);
         }
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        Ok(build_loaded_state(unlocked, catalog, None))
+        Ok(Some(build_loaded_state(
+            unlocked,
+            Some("Hosted lobby synchronized.".to_string()),
+        )))
     }
 
     pub fn save_handle(&mut self, handle: &str) -> Result<LobbyLoadedState, String> {
@@ -160,7 +181,10 @@ impl LobbyTransport {
             .ok_or_else(|| "keychain is locked".to_string())?;
         set_active_handle(&mut unlocked.keychain, Some(handle.trim().to_string()))?;
         save_keychain(&unlocked.keychain, &unlocked.password).map_err(|err| err.to_string())?;
-        self.refresh()
+        Ok(build_loaded_state(
+            unlocked,
+            Some("Handle updated locally. It will be sent on your next hosted action.".to_string()),
+        ))
     }
 
     pub fn send_invite_request(
@@ -206,7 +230,10 @@ impl LobbyTransport {
             updated_at,
         });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        self.refresh()
+        Ok(build_loaded_state(
+            unlocked,
+            Some("Invite request sent. Waiting for nc-host receipt.".to_string()),
+        ))
     }
 
     pub fn claim_invite(
@@ -249,7 +276,10 @@ impl LobbyTransport {
             unlocked.cache.upsert_game(updated);
         }
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        self.refresh()
+        Ok(build_loaded_state(
+            unlocked,
+            Some("Seat claim processed by nc-host.".to_string()),
+        ))
     }
 
     pub fn open_game(&mut self, row: &JoinedGameRow) -> Result<GameState, String> {
@@ -320,7 +350,10 @@ impl LobbyTransport {
             updated_at: now_iso8601(),
         });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        self.refresh()
+        Ok(build_loaded_state(
+            unlocked,
+            Some("Turn submitted. Waiting for nc-host receipt.".to_string()),
+        ))
     }
 
     pub fn send_thread_message(
@@ -352,7 +385,10 @@ impl LobbyTransport {
             created_at: payload.created_at.to_string(),
         });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        self.refresh()
+        Ok(build_loaded_state(
+            unlocked,
+            Some("Thread message sent to nc-host.".to_string()),
+        ))
     }
 }
 
@@ -375,8 +411,55 @@ fn current_handle(keychain: &Keychain) -> Option<String> {
         .and_then(|identity| identity.handle.clone())
 }
 
+fn build_sessions(
+    keychain: &Keychain,
+    relay_url: Option<&str>,
+) -> Result<(Option<HostedClientSession>, Option<HostedLiveSession>), Box<dyn std::error::Error>>
+{
+    let Some(relay_url) = relay_url else {
+        return Ok((None, None));
+    };
+    let keys = active_keys(keychain)?;
+    let session = HostedClientSession::new(keys.clone(), relay_url.to_string());
+    let live_session = HostedLiveSession::start(keys, relay_url.to_string());
+    Ok((Some(session), Some(live_session)))
+}
+
+fn apply_live_updates(unlocked: &mut UnlockedClient) -> bool {
+    let Some(live_session) = unlocked.live_session.as_ref() else {
+        return false;
+    };
+    let updates = live_session.drain_updates();
+    if updates.is_empty() {
+        return false;
+    }
+    for update in updates {
+        apply_live_update(unlocked, update);
+    }
+    true
+}
+
+fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate) {
+    if !update.catalog.is_empty() {
+        apply_catalog(unlocked, &update.catalog);
+    }
+    let catalog = unlocked.catalog.clone();
+    apply_player_events(unlocked, update.player_events, &catalog);
+    apply_notices(unlocked, update.notices);
+    apply_threads(unlocked, update.threads);
+}
+
 fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
     for catalog_game in catalog {
+        if let Some(existing) = unlocked
+            .catalog
+            .iter_mut()
+            .find(|existing| existing.definition.game_id == catalog_game.definition.game_id)
+        {
+            *existing = catalog_game.clone();
+        } else {
+            unlocked.catalog.push(catalog_game.clone());
+        }
         if let Some(cached) = unlocked
             .cache
             .games
@@ -560,10 +643,10 @@ fn apply_decision(
 
 fn build_loaded_state(
     unlocked: &UnlockedClient,
-    catalog: Vec<CatalogGame>,
     status_message: Option<String>,
 ) -> LobbyLoadedState {
-    let open_games = catalog
+    let open_games = unlocked
+        .catalog
         .iter()
         .filter(|game| game.definition.recruiting != RecruitingMode::None)
         .filter(|game| game.definition.status != GameStatus::Finished)
