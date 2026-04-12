@@ -15,8 +15,8 @@ pub fn render(
         .iter()
         .map(|row| {
             format!(
-                "{} | {} | {} seats | {} | {}",
-                row.game, row.host, row.open_seats, row.turn_summary, row.summary
+                "{} | {} | {} | {} seats | {}",
+                row.game, row.host, row.recruiting, row.open_seats, row.turn_summary
             )
         })
         .collect::<Vec<_>>();

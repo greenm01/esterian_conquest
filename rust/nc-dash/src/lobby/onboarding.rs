@@ -1,4 +1,5 @@
-use super::state::{LobbyRoute, LobbyState};
+use super::state::{FirstRunField, LobbyRoute, LobbyState};
+use nc_client::keychain::keychain_path;
 
 pub fn initial_route(keychain_exists: bool) -> LobbyRoute {
     if keychain_exists {
@@ -10,24 +11,55 @@ pub fn initial_route(keychain_exists: bool) -> LobbyRoute {
 
 pub fn first_run_lines(state: &LobbyState) -> Vec<String> {
     vec![
-        "First launch should collect a player handle and keychain password.".to_string(),
-        "This scaffold does not create keys or write encrypted files yet.".to_string(),
+        "Create your local hosted identity.".to_string(),
         format!(
-            "Default placeholder handle: {}",
-            state.player_handle.as_deref().unwrap_or("<unset>")
+            "{} Handle         : {}",
+            field_marker(state.first_run_field == FirstRunField::Handle),
+            display_or_cursor(&state.first_run_handle_input)
         ),
-        "Press Enter to continue into the stub lobby.".to_string(),
+        format!(
+            "{} Keychain pass  : {}",
+            field_marker(state.first_run_field == FirstRunField::Password),
+            masked_or_cursor(&state.first_run_password_input)
+        ),
+        format!(
+            "{} Confirm pass   : {}",
+            field_marker(state.first_run_field == FirstRunField::Confirm),
+            masked_or_cursor(&state.first_run_confirm_input)
+        ),
+        format!("Keychain path  : {}", keychain_path().display()),
+        "Tab moves between fields. Enter creates the encrypted keychain.".to_string(),
     ]
 }
 
 pub fn locked_lines(state: &LobbyState) -> Vec<String> {
     vec![
-        "A local keychain already exists for this client root.".to_string(),
-        "Unlock flow is stubbed in this pass.".to_string(),
+        "Unlock the local keychain.".to_string(),
         format!(
-            "Active placeholder handle: {}",
-            state.player_handle.as_deref().unwrap_or("<unset>")
+            "Password       : {}",
+            masked_or_cursor(&state.unlock_password_input)
         ),
-        "Press Enter to continue into the stub lobby.".to_string(),
+        format!("Keychain path  : {}", keychain_path().display()),
+        "Enter unlocks the hosted lobby.".to_string(),
     ]
+}
+
+fn masked_or_cursor(value: &str) -> String {
+    if value.is_empty() {
+        "_".to_string()
+    } else {
+        "*".repeat(value.chars().count())
+    }
+}
+
+fn display_or_cursor(value: &str) -> String {
+    if value.is_empty() {
+        "_".to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+fn field_marker(active: bool) -> &'static str {
+    if active { ">" } else { " " }
 }

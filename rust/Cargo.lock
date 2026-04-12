@@ -2201,6 +2201,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nc-client"
+version = "1.0.0-beta.2"
+dependencies = [
+ "chacha20poly1305",
+ "dirs",
+ "kdl 6.5.0",
+ "nc-nostr",
+ "nostr-sdk",
+ "pbkdf2",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nc-compat"
 version = "1.0.0-beta.2"
 dependencies = [
@@ -2242,42 +2260,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "nc-daemon"
-version = "1.0.0-beta.2"
-dependencies = [
- "blake3",
- "chrono",
- "hex",
- "kdl 4.7.1",
- "nc-data",
- "nc-engine",
- "nc-log",
- "nc-nostr",
- "nostr-sdk",
- "rand 0.8.5",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "url",
- "winresource",
-]
-
-[[package]]
 name = "nc-dash"
 version = "1.0.0-beta.2"
 dependencies = [
  "crossterm",
  "dirs",
  "kdl 6.5.0",
+ "nc-client",
  "nc-data",
  "nc-engine",
  "nc-log",
+ "nc-nostr",
  "nc-session",
  "nc-ui",
+ "serde_json",
  "tracing",
  "winit",
 ]
@@ -2329,6 +2325,31 @@ dependencies = [
  "nc-compat",
  "nc-data",
  "nc-engine",
+]
+
+[[package]]
+name = "nc-host"
+version = "1.0.0-beta.2"
+dependencies = [
+ "blake3",
+ "chrono",
+ "hex",
+ "kdl 4.7.1",
+ "nc-data",
+ "nc-engine",
+ "nc-log",
+ "nc-nostr",
+ "nostr-sdk",
+ "rand 0.8.5",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+ "winresource",
 ]
 
 [[package]]

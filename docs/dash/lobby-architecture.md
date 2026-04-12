@@ -28,7 +28,7 @@ topology and wire contract remain in:
 ## Local Client State
 
 `nc-lobby` keeps only client-owned state locally. Hosted game authority remains
-on `nc-daemon`.
+on `nc-host`.
 
 Required local files:
 
@@ -151,7 +151,7 @@ Primary actions:
 
 ### Public Notices
 
-The public area is one daemon-wide notice board.
+The public area is one host-wide notice board.
 
 - sysop-authored only
 - readable by all lobby users on that daemon
@@ -185,7 +185,7 @@ The structured invite workflow remains separate from freeform thread messages.
 - `30513 InviteRequest`: structured invite request
 - `30514 InviteRequestReceipt`: immediate daemon intake result
 - `30515 InviteDecision`: approval or rejection, including full invite string
-- `30516 LobbyNotice`: public daemon-wide notice post
+- `30516 LobbyNotice`: public host-wide notice post
 - `30517 SysopThreadMessage`: encrypted per-game private thread message
 - `30510 SeatClaimRequest`: claim approved invite
 - `30511 SeatClaimResult`: claim success/failure

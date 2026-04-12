@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use nostr_sdk::{Keys, ToBech32};
 
-use super::DaemonIdentity;
+use super::HostIdentity;
 
 /// Resolve the identity file path.
 ///
@@ -34,7 +34,7 @@ pub fn identity_path() -> PathBuf {
 }
 
 /// Load the daemon identity from `path`.
-pub fn load_identity(path: &Path) -> Result<DaemonIdentity, Box<dyn std::error::Error>> {
+pub fn load_identity(path: &Path) -> Result<HostIdentity, Box<dyn std::error::Error>> {
     let text =
         fs::read_to_string(path).map_err(|err| format!("cannot read {}: {err}", path.display()))?;
     parse_identity_str(&text)
@@ -74,7 +74,7 @@ pub fn save_identity(
 }
 
 /// Parse an identity from KDL source text.
-pub fn parse_identity_str(text: &str) -> Result<DaemonIdentity, String> {
+pub fn parse_identity_str(text: &str) -> Result<HostIdentity, String> {
     let document: kdl::KdlDocument = text
         .parse()
         .map_err(|err| format!("KDL parse error: {err}"))?;
@@ -82,7 +82,7 @@ pub fn parse_identity_str(text: &str) -> Result<DaemonIdentity, String> {
     let nsec = prop_str(node, "nsec")?;
     let created = prop_str(node, "created")?;
     let keys = Keys::parse(&nsec).map_err(|err| format!("invalid nsec: {err}"))?;
-    Ok(DaemonIdentity { keys, created })
+    Ok(HostIdentity { keys, created })
 }
 
 /// Render an identity to a KDL string.

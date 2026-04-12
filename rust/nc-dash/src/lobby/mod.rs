@@ -1,3 +1,4 @@
+pub mod hosted;
 pub mod models;
 pub mod onboarding;
 pub mod panels;
@@ -21,12 +22,12 @@ pub use self::state::LobbyApp;
 
 impl LobbyApp {
     pub fn new(options: LobbyStartupOptions) -> Self {
-        let route = onboarding::initial_route(storage::keychain::keychain_exists());
+        let route = onboarding::initial_route(nc_client::keychain::keychain_path().exists());
         Self {
             geometry: ScreenGeometry::new(120, 40),
             should_quit: false,
-            state: state::LobbyState::with_placeholder_data(options, route),
-            transport: transport::NoopLobbyTransport,
+            state: state::LobbyState::new(options.clone(), route),
+            transport: transport::LobbyTransport::new(options.relay_override),
         }
     }
 
@@ -34,11 +35,8 @@ impl LobbyApp {
         Self {
             geometry,
             should_quit: false,
-            state: state::LobbyState::with_placeholder_data(
-                LobbyStartupOptions::default(),
-                route,
-            ),
-            transport: transport::NoopLobbyTransport,
+            state: state::LobbyState::new(LobbyStartupOptions::default(), route),
+            transport: transport::LobbyTransport::new(None),
         }
     }
 
@@ -64,11 +62,13 @@ impl LobbyApp {
 
     fn render_footer(&self, buffer: &mut PlayfieldBuffer) {
         let footer = match self.state.route {
-            LobbyRoute::Home => "COMMANDS <- Tab Shift-Tab J K Enter N H Q ->",
-            LobbyRoute::FirstRun => "FIRST RUN <- Enter continue Q quit ->",
-            LobbyRoute::Locked => "LOCKED <- Enter unlock-stub Q quit ->",
-            LobbyRoute::ComposeInvite => "REQUEST INVITE <- Enter send-stub Esc close ->",
-            LobbyRoute::EditHandle => "EDIT HANDLE <- Enter save-stub Esc close ->",
+            LobbyRoute::Home => "COMMANDS <- Tab Shift-Tab J K Enter N H R Q ->",
+            LobbyRoute::FirstRun => "FIRST RUN <- type handle/password Enter create Q quit ->",
+            LobbyRoute::Locked => "LOCKED <- type password Enter unlock Q quit ->",
+            LobbyRoute::ComposeInvite => "REQUEST INVITE <- type message Enter send Esc close ->",
+            LobbyRoute::EditHandle => "EDIT HANDLE <- type handle Enter save Esc close ->",
+            LobbyRoute::HostedGame => "HOSTED GAME <- R refresh T submit-turn Esc lobby ->",
+            LobbyRoute::SubmitTurn => "SUBMIT TURN <- type commands Enter send Esc cancel ->",
         };
         let row = buffer.height().saturating_sub(1);
         buffer.write_text_clipped(row, 1, footer, classic::prompt_style());
@@ -142,6 +142,12 @@ impl LobbyApp {
     fn render_modal_route(&self, buffer: &mut PlayfieldBuffer) {
         match self.state.route {
             LobbyRoute::Home => self.render_home(buffer),
+            LobbyRoute::HostedGame => {
+                let body = Rect::new(0, 1, buffer.width() as u16, buffer.height().saturating_sub(2) as u16);
+                if let Some(hosted) = self.state.hosted_game.as_ref() {
+                    hosted::view::render(buffer, body, hosted);
+                }
+            }
             LobbyRoute::FirstRun => {
                 let _ = render_modal_box(
                     buffer,
@@ -163,9 +169,15 @@ impl LobbyApp {
                     buffer,
                     "REQUEST INVITE",
                     &vec![
-                        "Compose invite request is stubbed.".to_string(),
-                        "This scaffold only proves the lobby route.".to_string(),
-                        "Press Esc to return home.".to_string(),
+                        format!(
+                            "Game    : {}",
+                            self.state
+                                .selected_open_game()
+                                .map(|row| row.game.as_str())
+                                .unwrap_or("<none>")
+                        ),
+                        format!("Message : {}", self.state.compose_message_input),
+                        "Enter sends a 30513 invite request.".to_string(),
                     ],
                     modal_theme(),
                 );
@@ -182,8 +194,42 @@ impl LobbyApp {
                                 .as_deref()
                                 .unwrap_or("<unset>")
                         ),
-                        "Handle editing is stubbed in this pass.".to_string(),
-                        "Press Esc to return home.".to_string(),
+                        format!("New handle   : {}", self.state.edit_handle_input),
+                        "Enter saves the local keychain handle.".to_string(),
+                    ],
+                    modal_theme(),
+                );
+            }
+            LobbyRoute::SubmitTurn => {
+                let _ = render_modal_box(
+                    buffer,
+                    "SUBMIT TURN",
+                    &vec![
+                        format!(
+                            "Game     : {}",
+                            self.state
+                                .hosted_game
+                                .as_ref()
+                                .map(|hosted| hosted.row.game.as_str())
+                                .unwrap_or("<none>")
+                        ),
+                        format!(
+                            "Turn     : {}",
+                            self.state
+                                .hosted_game
+                                .as_ref()
+                                .map(|hosted| hosted.snapshot.turn.to_string())
+                                .unwrap_or_else(|| "-".to_string())
+                        ),
+                        format!(
+                            "Commands : {}",
+                            self.state
+                                .hosted_game
+                                .as_ref()
+                                .map(|hosted| hosted.submit_input.as_str())
+                                .unwrap_or("")
+                        ),
+                        "Enter sends raw 30522 turn text.".to_string(),
                     ],
                     modal_theme(),
                 );

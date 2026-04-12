@@ -10,17 +10,11 @@ pub fn render(
     focus: LobbyFocus,
 ) {
     draw_panel_frame(buffer, rect, "INBOX", focus == LobbyFocus::Inbox);
-    let mut rows = state
+    let rows = state
         .inbox
         .iter()
-        .map(|item| format!("{} | {} | {}", item.kind, item.game, item.status))
+        .map(|item| format!("{} | {} | {} | {}", item.kind, item.game, item.status, item.message))
         .collect::<Vec<_>>();
-    rows.extend(
-        state
-            .pending_requests
-            .iter()
-            .map(|item| format!("pending | {} | {}", item.game, item.status)),
-    );
     write_panel_rows(
         buffer,
         rect,

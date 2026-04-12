@@ -1,11 +1,10 @@
+use nc_nostr::state_sync::GameState;
 use nc_ui::ScreenGeometry;
 
 use crate::startup::LobbyStartupOptions;
 
-use super::models::{
-    InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, PendingRequestRow, ThreadMessage,
-};
-use super::transport::NoopLobbyTransport;
+use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
+use super::transport::LobbyTransport;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LobbyRoute {
@@ -14,6 +13,25 @@ pub enum LobbyRoute {
     Home,
     ComposeInvite,
     EditHandle,
+    HostedGame,
+    SubmitTurn,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FirstRunField {
+    Handle,
+    Password,
+    Confirm,
+}
+
+impl FirstRunField {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Handle => Self::Password,
+            Self::Password => Self::Confirm,
+            Self::Confirm => Self::Handle,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,15 +66,23 @@ impl LobbyFocus {
 }
 
 #[derive(Debug, Clone)]
+pub struct HostedGameView {
+    pub row: JoinedGameRow,
+    pub snapshot: GameState,
+    pub submit_input: String,
+    pub submit_status: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct LobbyState {
     pub route: LobbyRoute,
     pub focus: LobbyFocus,
     pub relay_override: Option<String>,
+    pub relay_label: Option<String>,
     pub player_handle: Option<String>,
     pub joined_games: Vec<JoinedGameRow>,
     pub open_games: Vec<OpenGameRow>,
     pub inbox: Vec<InboxItem>,
-    pub pending_requests: Vec<PendingRequestRow>,
     pub notices: Vec<LobbyNotice>,
     pub thread_messages: Vec<ThreadMessage>,
     pub joined_selected: usize,
@@ -65,63 +91,69 @@ pub struct LobbyState {
     pub notices_selected: usize,
     pub thread_selected: usize,
     pub status_message: Option<String>,
+    pub first_run_field: FirstRunField,
+    pub first_run_handle_input: String,
+    pub first_run_password_input: String,
+    pub first_run_confirm_input: String,
+    pub unlock_password_input: String,
+    pub compose_message_input: String,
+    pub edit_handle_input: String,
+    pub hosted_game: Option<HostedGameView>,
 }
 
 impl LobbyState {
-    pub fn with_placeholder_data(options: LobbyStartupOptions, route: LobbyRoute) -> Self {
+    pub fn new(options: LobbyStartupOptions, route: LobbyRoute) -> Self {
         Self {
             route,
             focus: LobbyFocus::OpenGames,
-            relay_override: options.relay_override,
-            player_handle: Some("StarRider".to_string()),
-            joined_games: vec![
-                JoinedGameRow::new("joined", "Friday Night NC", "Green Host", Some(2), "Y3012 T12"),
-                JoinedGameRow::new("approved", "Sunday Replacement", "Green Host", None, "Awaiting claim"),
-            ],
-            open_games: vec![
-                OpenGameRow::new(
-                    "Friday Night NC",
-                    "Green Host",
-                    "replacement",
-                    1,
-                    "Y3012 T12",
-                    "Veteran game seeking one replacement admiral.",
-                ),
-                OpenGameRow::new(
-                    "Nebula Sprint",
-                    "North Relay",
-                    "new",
-                    3,
-                    "Y3001 T02",
-                    "Fresh 4-player sprint with open seats.",
-                ),
-            ],
-            inbox: vec![
-                InboxItem::new("request", "Friday Night NC", "received"),
-                InboxItem::new("approval", "Sunday Replacement", "invite ready"),
-            ],
-            pending_requests: vec![PendingRequestRow::new("Friday Night NC", "received")],
-            notices: vec![
-                LobbyNotice::new("Green Host", "Friday Night NC needs one replacement."),
-                LobbyNotice::new("Green Host", "Relay maintenance window tonight at 22:00."),
-            ],
-            thread_messages: vec![
-                ThreadMessage::incoming("Green Host", "Seat 4 is still open if you want it."),
-                ThreadMessage::outgoing("StarRider", "I can usually play evenings EST."),
-            ],
+            relay_override: options.relay_override.clone(),
+            relay_label: options.relay_override.map(|relay| format!("relay: {relay}")),
+            player_handle: None,
+            joined_games: Vec::new(),
+            open_games: Vec::new(),
+            inbox: Vec::new(),
+            notices: vec![LobbyNotice::new(
+                "nc-host",
+                "Public notices and private sysop threads land in phase 2.",
+            )],
+            thread_messages: vec![ThreadMessage::incoming(
+                "nc-host",
+                "Thread messaging is not wired yet. Use invite requests from the lobby first.",
+            )],
             joined_selected: 0,
             open_selected: 0,
             inbox_selected: 0,
             notices_selected: 0,
             thread_selected: 0,
-            status_message: Some("Lobby scaffold active — transport is stubbed.".to_string()),
+            status_message: None,
+            first_run_field: FirstRunField::Handle,
+            first_run_handle_input: String::new(),
+            first_run_password_input: String::new(),
+            first_run_confirm_input: String::new(),
+            unlock_password_input: String::new(),
+            compose_message_input: String::new(),
+            edit_handle_input: String::new(),
+            hosted_game: None,
         }
     }
 
+    pub fn apply_loaded(&mut self, loaded: super::transport::LobbyLoadedState) {
+        self.relay_label = loaded.relay_label;
+        self.player_handle = loaded.player_handle;
+        self.joined_games = loaded.joined_games;
+        self.open_games = loaded.open_games;
+        self.inbox = loaded.inbox;
+        self.status_message = loaded.status_message;
+        self.joined_selected = self
+            .joined_selected
+            .min(self.joined_games.len().saturating_sub(1));
+        self.open_selected = self.open_selected.min(self.open_games.len().saturating_sub(1));
+        self.inbox_selected = self.inbox_selected.min(self.inbox.len().saturating_sub(1));
+        self.edit_handle_input = self.player_handle.clone().unwrap_or_default();
+    }
+
     pub fn relay_label(&self) -> Option<String> {
-        self.relay_override
-            .as_ref()
-            .map(|relay| format!("relay: {relay}"))
+        self.relay_label.clone()
     }
 
     pub fn player_handle_label(&self) -> Option<String> {
@@ -129,11 +161,19 @@ impl LobbyState {
             .as_ref()
             .map(|handle| format!("handle: {handle}"))
     }
+
+    pub fn selected_open_game(&self) -> Option<&OpenGameRow> {
+        self.open_games.get(self.open_selected)
+    }
+
+    pub fn selected_joined_game(&self) -> Option<&JoinedGameRow> {
+        self.joined_games.get(self.joined_selected)
+    }
 }
 
 pub struct LobbyApp {
     pub geometry: ScreenGeometry,
     pub state: LobbyState,
-    pub transport: NoopLobbyTransport,
+    pub transport: LobbyTransport,
     pub should_quit: bool,
 }

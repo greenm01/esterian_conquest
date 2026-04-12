@@ -1,6 +1,6 @@
 # Hosted Nostr Protocol
 
-> Status: future `nc-daemon` / `nc-dash` draft.
+> Status: future `nc-host` / `nc-dash` draft.
 >
 > This document supersedes the older SSH session handshake as the target hosted
 > direction. The retired `nc-connect` / `nc-gate` protocol remains historical
@@ -34,19 +34,19 @@ deduplication key unless a later implementation constraint proves otherwise.
 
 | Kind | Name | Publisher | Encryption | Purpose |
 |------|------|-----------|------------|---------|
-| `30500` | `GameDefinition` | `nc-daemon` | None | Public recruiting-game catalog row |
+| `30500` | `GameDefinition` | `nc-host` | None | Public recruiting-game catalog row |
 | `30507` | `StateRequest` | `nc-dash` | None | Request a fresh snapshot or delta decision |
 | `30510` | `SeatClaimRequest` | `nc-dash` | None | Redeem an approved invite |
-| `30511` | `SeatClaimResult` | `nc-daemon` | NIP-44 | First-join success or failure |
+| `30511` | `SeatClaimResult` | `nc-host` | NIP-44 | First-join success or failure |
 | `30513` | `InviteRequest` | `nc-dash` | None | Ask the sysop for an invite |
-| `30514` | `InviteRequestReceipt` | `nc-daemon` | NIP-44 | Request accepted or immediately rejected |
-| `30515` | `InviteDecision` | `nc-daemon` | NIP-44 | Final sysop approval or rejection |
-| `30516` | `LobbyNotice` | `nc-daemon` | None | Public daemon-wide notice board item |
-| `30517` | `SysopThreadMessage` | `nc-daemon` / `nc-dash` | NIP-44 | Encrypted per-game sysop thread message |
-| `30520` | `GameState` | `nc-daemon` | NIP-44 | Full fog-of-war-filtered state snapshot |
-| `30521` | `StateDelta` | `nc-daemon` | NIP-44 | Incremental state update |
+| `30514` | `InviteRequestReceipt` | `nc-host` | NIP-44 | Request accepted or immediately rejected |
+| `30515` | `InviteDecision` | `nc-host` | NIP-44 | Final sysop approval or rejection |
+| `30516` | `LobbyNotice` | `nc-host` | None | Public host-wide notice board item |
+| `30517` | `SysopThreadMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted per-game sysop thread message |
+| `30520` | `GameState` | `nc-host` | NIP-44 | Full fog-of-war-filtered state snapshot |
+| `30521` | `StateDelta` | `nc-host` | NIP-44 | Incremental state update |
 | `30522` | `TurnCommands` | `nc-dash` | None | Submitted player turn orders |
-| `30524` | `TurnReceipt` | `nc-daemon` | NIP-44 | Turn submission accepted or rejected |
+| `30524` | `TurnReceipt` | `nc-host` | NIP-44 | Turn submission accepted or rejected |
 
 Legacy SSH-oriented kinds `30501`/`30502`/`30503` and related map/session
 flows are intentionally outside this hosted v2 spec.
@@ -206,7 +206,7 @@ Rules:
 
 ## 7A. 30516 `LobbyNotice`
 
-`LobbyNotice` is the public daemon-wide notice board event shown in
+`LobbyNotice` is the public host-wide notice board event shown in
 `nc-lobby`.
 
 Required tags:

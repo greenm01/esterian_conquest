@@ -26,7 +26,7 @@ Keep this file short. Historical detail belongs in
 - Stabilize the localhost and BBS release surfaces for public beta use.
 - Fix real playtest bugs and workflow rough edges quickly.
 - Keep docs aligned with the local/BBS product story.
-- Treat future Nostr work as a separate `nc-daemon` / `nc-dash` track.
+- Treat future Nostr work as a separate `nc-host` / `nc-dash` track.
 
 ## Biggest Blockers
 
@@ -45,5 +45,5 @@ Keep this file short. Historical detail belongs in
    regressions.
 4. Keep the runtime DB scoped to localhost/BBS play; future hosted work should
    use its own schema rather than reviving retired hosted tables in `ncgame.db`.
-5. If hosted work resumes, do it as the new `nc-daemon` / `nc-dash` path, not
+5. If hosted work resumes, do it as the new `nc-host` / `nc-dash` path, not
    by reviving the retired SSH bridge stack.

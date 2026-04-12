@@ -4,7 +4,7 @@
 >
 > Today the supported public gameplay surfaces are `nc-game` (localhost),
 > `nc-door` (BBS), and `nc-sysop` (local/BBS administration). This document
-> defines the separate future hosted stack centered on `nc-daemon` and
+> defines the separate future hosted stack centered on `nc-host` and
 > `nc-dash`.
 
 ## 1. Core Direction
@@ -12,7 +12,7 @@
 The hosted Nostr path is a clean split from localhost/BBS play.
 
 - `nc-sysop` remains localhost/BBS-only.
-- `nc-daemon` owns relay-native hosted play.
+- `nc-host` owns relay-native hosted play.
 - `nc-dash` grows a hosted lobby plus hosted dashboard mode.
 - `nc-dash` keeps its own local keychain/cache/settings in platform-specific
   user paths using KDL files.
@@ -29,7 +29,7 @@ The daemon model is:
 
 ```text
 +-----------+      +-----------+      +---------------------------+
-|  nc-dash  | <--> |   relay   | <--> |        nc-daemon          |
+|  nc-dash  | <--> |   relay   | <--> |        nc-host          |
 |  lobby +  |      | (daemon-  |      | supervisor + game workers |
 | dashboard |      | dedicated)|      +---------------------------+
 +-----------+      +-----------+                    |
@@ -53,15 +53,15 @@ Each hosted game is fully self-contained under its own directory.
 Example:
 
 ```text
-/srv/nc-daemon/games/friday-night/
+/srv/nc-host/games/friday-night/
   hosted.db
 ```
 
 Daemon-global files live outside the games root:
 
 ```text
-/etc/nc-daemon/daemon.kdl
-/etc/nc-daemon/daemon.nsec
+/etc/nc-host/host.kdl
+/etc/nc-host/host.nsec
 ```
 
 `hosted.db` is the authoritative per-game store for:
@@ -146,7 +146,7 @@ display, but the pubkey remains authoritative.
 
 `nc-lobby` has two communication surfaces:
 
-- one daemon-wide public notice board, sysop-authored only
+- one host-wide public notice board, sysop-authored only
 - one persistent encrypted private per-game thread between player and sysop
 
 ## 6. Invite and Join Flow
@@ -159,12 +159,12 @@ Hosted first joins still use old-style human-readable invite codes:
 
 But the public lobby never exposes those codes. The server flow is:
 
-1. `nc-daemon` publishes a public `30500 GameDefinition` for recruiting games.
+1. `nc-host` publishes a public `30500 GameDefinition` for recruiting games.
 2. `nc-dash --lobby` lists those games.
 3. A player sends an invite request over Nostr to the daemon.
 4. The daemon stores the request in the target game's inbox and notifies the
    sysop contact identity.
-5. The sysop approves or rejects the request through `nc-daemon`.
+5. The sysop approves or rejects the request through `nc-host`.
 6. If approved, the daemon privately sends the invite string to the player.
 7. The player redeems that invite with a hosted claim event.
 8. The daemon validates the invite token, binds the claimed seat to the
@@ -200,7 +200,7 @@ submitted.
 
 ## 8. Nostr Event Surface
 
-Hosted `nc-daemon` owns these kinds:
+Hosted `nc-host` owns these kinds:
 
 | Kind | Name | Purpose |
 |------|------|---------|
@@ -211,7 +211,7 @@ Hosted `nc-daemon` owns these kinds:
 | `30513` | `InviteRequest` | Player asks the sysop for an invite |
 | `30514` | `InviteRequestReceipt` | Daemon acknowledges receipt/rejection |
 | `30515` | `InviteDecision` | Sysop approval or rejection result |
-| `30516` | `LobbyNotice` | Public daemon-wide notice board post |
+| `30516` | `LobbyNotice` | Public host-wide notice board post |
 | `30517` | `SysopThreadMessage` | Private per-game player/sysop thread |
 | `30520` | `GameState` | Full fog-of-war-filtered snapshot |
 | `30521` | `StateDelta` | Incremental hosted update |
@@ -254,7 +254,7 @@ Public events must never reveal raw invite codes.
 
 The hosted implementation should be split like this.
 
-### `nc-daemon`
+### `nc-host`
 
 - `src/main.rs`
 - `src/dispatch.rs`
@@ -268,7 +268,7 @@ The hosted implementation should be split like this.
   - `requests.rs`
   - `nostr.rs`
 - `src/config/`
-  - `daemon_config.rs`
+  - `host_config.rs`
   - `identity.rs`
   - `relay.rs`
   - `sysop_contact.rs`
@@ -326,27 +326,27 @@ The ownership rule is the same as the rest of the repo:
 
 ## 11. Command Surface
 
-### `nc-daemon`
+### `nc-host`
 
 ```text
-nc-daemon nostr init
-nc-daemon new-game <dir> [--players N] [--name "Name"] [--seed N]
-nc-daemon serve --root <games-root> [--config <path>]
-nc-daemon status [--config <path>] [--root <path>] [--json]
-nc-daemon games list
-nc-daemon games status [--dir <path>]
-nc-daemon maint <dir> [turns]
-nc-daemon settings show --dir <path>
-nc-daemon settings set --dir <path> ...
-nc-daemon seats list --dir <path>
-nc-daemon seats reissue --dir <path> --player N
-nc-daemon seats reset --dir <path> --player N
-nc-daemon seats open --dir <path> --player N
-nc-daemon seats close --dir <path> --player N
-nc-daemon requests list [--dir <path>]
-nc-daemon requests show --dir <path> --request <id>
-nc-daemon requests approve --dir <path> --request <id> --player N
-nc-daemon requests reject --dir <path> --request <id> --message "..."
+nc-host nostr init
+nc-host new-game <dir> [--players N] [--name "Name"] [--seed N]
+nc-host serve --root <games-root> [--config <path>]
+nc-host status [--config <path>] [--root <path>] [--json]
+nc-host games list
+nc-host games status [--dir <path>]
+nc-host maint <dir> [turns]
+nc-host settings show --dir <path>
+nc-host settings set --dir <path> ...
+nc-host seats list --dir <path>
+nc-host seats reissue --dir <path> --player N
+nc-host seats reset --dir <path> --player N
+nc-host seats open --dir <path> --player N
+nc-host seats close --dir <path> --player N
+nc-host requests list [--dir <path>]
+nc-host requests show --dir <path> --request <id>
+nc-host requests approve --dir <path> --request <id> --player N
+nc-host requests reject --dir <path> --request <id> --message "..."
 ```
 
 ### `nc-dash`

@@ -10,7 +10,7 @@ use nostr_sdk::Keys;
 pub use io::{identity_path, load_identity, save_identity};
 
 /// The daemon's Nostr identity, loaded from `identity.kdl`.
-pub struct DaemonIdentity {
+pub struct HostIdentity {
     /// The loaded keypair. Used to sign Nostr events.
     pub keys: Keys,
     /// ISO-8601 UTC timestamp recorded when the identity was first created.

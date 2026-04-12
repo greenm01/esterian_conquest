@@ -1,0 +1,19 @@
+[package]
+name = "nc-client"
+version = "1.0.0-beta.2"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[dependencies]
+chacha20poly1305 = "0.10"
+dirs = "5"
+kdl = "6"
+nc-nostr = { path = "../nc-nostr" }
+nostr-sdk = { version = "0.44", features = ["nip44"] }
+pbkdf2 = { version = "0.12", features = ["hmac"] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+url = "2"
