@@ -28,7 +28,8 @@ impl StateSync {
             request.player_pubkey
         );
 
-        let settings = match nc_data::hosted::get_settings(self.store.connection(), &self.game_id) {
+        let _settings = match nc_data::hosted::get_settings(self.store.connection(), &self.game_id)
+        {
             Ok(s) => s,
             Err(e) => {
                 tracing::error!("Failed to load game settings: {}", e);
