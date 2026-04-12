@@ -1,6 +1,7 @@
 use nc_nostr::state_sync::GameState;
 use nc_ui::ScreenGeometry;
 
+use crate::app::state::DashApp;
 use crate::startup::LobbyStartupOptions;
 
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
@@ -66,15 +67,14 @@ impl LobbyFocus {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct HostedGameView {
     pub row: JoinedGameRow,
     pub snapshot: GameState,
+    pub dashboard: DashApp,
     pub submit_input: String,
     pub submit_status: Option<String>,
 }
 
-#[derive(Debug, Clone)]
 pub struct LobbyState {
     pub route: LobbyRoute,
     pub focus: LobbyFocus,

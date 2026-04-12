@@ -264,13 +264,30 @@ impl NativeApp for LobbyApp {
         update::apply_key(self, key);
     }
 
-    fn dispatch_mouse_event(&mut self, _mouse: MouseEvent) {}
+    fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
+        if self.state.route == LobbyRoute::HostedGame {
+            if let Some(hosted) = self.state.hosted_game.as_mut() {
+                hosted.dashboard.dispatch_mouse_event(mouse);
+                if hosted.dashboard.should_quit {
+                    self.should_quit = true;
+                }
+            }
+        }
+    }
 
     fn resize_canvas(&mut self, cols: u16, rows: u16) {
         self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
+        if let Some(hosted) = self.state.hosted_game.as_mut() {
+            hosted.dashboard.resize_canvas(cols, rows);
+        }
     }
 
     fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        if self.state.route == LobbyRoute::HostedGame {
+            if let Some(hosted) = self.state.hosted_game.as_ref() {
+                return hosted.dashboard.render_playfield();
+            }
+        }
         let mut buffer = PlayfieldBuffer::new(
             self.geometry.width(),
             self.geometry.height(),

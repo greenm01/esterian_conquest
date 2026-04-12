@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use super::hosted::dashboard::build_hosted_dash_app;
 use super::state::{FirstRunField, HostedGameView, LobbyApp, LobbyFocus, LobbyRoute};
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -213,7 +214,14 @@ fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
         KeyCode::Esc => app.state.route = LobbyRoute::Home,
         KeyCode::Char('r' | 'R') => refresh_hosted_game(app),
         KeyCode::Char('t' | 'T') => app.state.route = LobbyRoute::SubmitTurn,
-        _ => {}
+        _ => {
+            if let Some(hosted) = app.state.hosted_game.as_mut() {
+                hosted.dashboard.dispatch_key_event(key);
+                if hosted.dashboard.should_quit {
+                    app.should_quit = true;
+                }
+            }
+        }
     }
 }
 
@@ -273,9 +281,21 @@ fn refresh_hosted_game(app: &mut LobbyApp) {
     };
     match app.transport.open_game(&row) {
         Ok(snapshot) => {
-            if let Some(hosted) = app.state.hosted_game.as_mut() {
-                hosted.snapshot = snapshot;
-                hosted.submit_status = Some("Hosted snapshot refreshed.".to_string());
+            let submit_status = Some("Hosted dashboard refreshed from nc-host.".to_string());
+            match build_hosted_dash_app(&snapshot, app.geometry) {
+                Ok(dashboard) => {
+                    if let Some(hosted) = app.state.hosted_game.as_mut() {
+                        hosted.snapshot = snapshot;
+                        hosted.dashboard = dashboard;
+                        hosted.submit_status = submit_status;
+                    }
+                }
+                Err(err) => {
+                    if let Some(hosted) = app.state.hosted_game.as_mut() {
+                        hosted.submit_status =
+                            Some(format!("Hosted dashboard refresh failed: {err}"));
+                    }
+                }
             }
         }
         Err(err) => {
@@ -300,13 +320,22 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
     }
     match app.transport.open_game(&row) {
         Ok(snapshot) => {
-            app.state.hosted_game = Some(HostedGameView {
-                row,
-                snapshot,
-                submit_input: String::new(),
-                submit_status: Some("Hosted snapshot loaded from nc-host.".to_string()),
-            });
-            app.state.route = LobbyRoute::HostedGame;
+            match build_hosted_dash_app(&snapshot, app.geometry) {
+                Ok(dashboard) => {
+                    app.state.hosted_game = Some(HostedGameView {
+                        row,
+                        snapshot,
+                        dashboard,
+                        submit_input: String::new(),
+                        submit_status: Some("Hosted dashboard loaded from nc-host.".to_string()),
+                    });
+                    app.state.route = LobbyRoute::HostedGame;
+                }
+                Err(err) => {
+                    app.state.status_message =
+                        Some(format!("Unable to build hosted dashboard: {err}"));
+                }
+            }
         }
         Err(err) => app.state.status_message = Some(err),
     }
