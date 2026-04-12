@@ -1,6 +1,7 @@
 use nostr_sdk::{Event, ToBech32};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnCommands {
     pub submit_id: String,
     pub game_id: String,
@@ -9,7 +10,7 @@ pub struct TurnCommands {
     pub commands: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TurnReceiptStatus {
     Accepted,
     Rejected,
@@ -41,13 +42,13 @@ impl TurnReceiptStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnReceiptError {
     pub path: String,
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnReceipt {
     pub submit_id: String,
     pub game_id: String,

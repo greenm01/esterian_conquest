@@ -1,6 +1,7 @@
 use nostr_sdk::{Event, ToBech32};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InviteRequest {
     pub request_id: String,
     pub game_id: String,
@@ -8,7 +9,7 @@ pub struct InviteRequest {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InviteRequestReceiptStatus {
     Received,
     NotRecruiting,
@@ -29,7 +30,7 @@ impl InviteRequestReceiptStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InviteRequestReceipt {
     pub request_id: String,
     pub game_id: String,
