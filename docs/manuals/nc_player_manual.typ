@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 11),
+  date: datetime(year: 2026, month: 4, day: 12),
 )
 
 #set page(
@@ -19,6 +19,7 @@
 )
 
 #show raw: set text(font: "IBM Plex Mono")
+#show table.cell: set par(justify: false)
 
 #set par(
   justify: true,
@@ -67,13 +68,13 @@
   #linebreak()
   #text(size: 16pt)[Player Manual]
   #v(1em)
-  #text(size: 10pt, style: "italic")[A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
+  #text(size: 10pt, style: "italic")[A Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Built for localhost, BBS, and the planned Nostr GameServer path. All code, UI, and assets are original.]
+  #text(size: 10pt, fill: luma(120))[Built for localhost and BBS play. A Nostr GameServer path is planned.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
+  #text(size: 10pt, fill: luma(120))[All code, UI, and assets in this edition are original. Not affiliated with any original release.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 11, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 12, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
 ]
@@ -117,7 +118,7 @@ You rise as one of the new Star Masters. From a single world and a few small fle
 
 Each maintenance marks the passage of a year. In that span, fleets cross the dark between stars, colonies grow or starve, alliances turn cold, and wars are decided by distance, industry, mathematics, and will.
 
-Nostrian Conquest is a from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. All code, UI, and assets in this edition are original, and it is not affiliated with any original release.
+Nostrian Conquest is a Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. All code, UI, and assets in this edition are original. It is not affiliated with any original release.
 
 In homage to the 1990s door-game pioneers and to the ancient dreamers, strategists, and storytellers whose visions of galactic dominion still light the way among these stars.
 
@@ -141,10 +142,8 @@ terminal client and launch the game from the doors menu. The sysop stages
 `nc-door` behind the BBS. If you are the sysop, see the *Sysop Manual* section
 *BBS Door Setup*.
 
-The planned modern path is *Nostr GameServer*. In that mode the player will
-use `nc-dash` against a Nostr-backed game server instead of a direct terminal
-session. That path is still under development, but it is the intended modern
-network way to play NC.
+The planned network path is *Nostr GameServer*. That path is still under
+development. For now, treat localhost and BBS as the normal ways to play.
 
 == Finding New Games
 
@@ -155,9 +154,8 @@ If you are joining a BBS campaign, connect to the bulletin board normally and
 launch the game from the doors menu. Your sysop may reserve a seat for your BBS
 alias, or may leave open seats available from the first-time join menu.
 
-If you are waiting for the Nostr GameServer path, watch the project release
-notes and main docs. That path is planned, but not yet the normal public join
-flow.
+If you are waiting for the Nostr GameServer path, watch the main project docs.
+It is planned, but it is not the normal join path yet.
 
 == Joining a Game
 
@@ -181,19 +179,22 @@ automatically.
 
 = Quick Start: Gameplay Basics
 
-=== Your Objective
+== Your Objective
 
 Your objective is simple: become Emperor by dominating rivals or eliminating every serious threat.
 
-You begin with one planet at 100 production and four fleets --- two carrying an ETAC and cruiser for colonization, and two single-destroyer scouts. Set a tax rate around 50--65% on your homeworld, and use the revenue to build ships, armies, batteries, and starbases. Keep taxes low on new colonies so they develop quickly.
+You begin with one planet at 100 production and four fleets --- two carrying an ETAC and cruiser for colonization, and two lone destroyers for screening and early contact. Set a tax rate around 50--65% on your homeworld, and use the revenue to build ships, armies, batteries, and starbases. Keep taxes low on new colonies so they develop quickly.
 
 Each round represents one year. You submit orders during the year, and maintenance resolves all empires simultaneously on an internal 52-week timeline. Reports are dated as `Stardate WK/YYYY` (week/year).
 
-=== Turn Progression
+== Turn Progression
 
-There is no "End Turn" button in Nostrian Conquest. Because all players submit orders simultaneously, the game does not wait for a player to explicitly pass the turn. Instead, you simply set your economy, assign fleet missions, and log off. The sysop (or an automated server schedule) determines when the "maintenance cycle" runs. When it does, the game engine processes everyone's orders, resolves battles, advances time by one year, and generates a new set of reports for you to read the next time you connect.
+There is no "End Turn" button. You set your economy, assign your missions, and
+log off. The sysop or schedule decides when maintenance runs. When it does, the
+game resolves every empire at once, advances the year, and writes your next set
+of reports.
 
-=== Assets You Can Build
+== Assets You Can Build
 
 The table below lists everything your planets can produce. *AS* is Attack Strength (firepower) and *DS* is Defense Strength (hull/shields).
 
@@ -205,7 +206,7 @@ The table below lists everything your planets can produce. *AS* is Attack Streng
     table.header(
       [Item], [Cost], [Size], [Speed], [AS], [DS], [Purpose],
     ),
-    [Destroyer],       [05], [S], [6], [10], [05], [Combat, scouting, defense],
+    [Destroyer],       [05], [S], [6], [10], [05], [Fast combat, screening, defense],
     [Cruiser],         [15], [M], [5], [30], [30], [Balanced combat],
     [Battleship],      [45], [L], [4], [90], [100], [Heavy combat],
     [Scout],           [15], [S], [6], [00], [10], [Reconnaissance],
@@ -217,9 +218,13 @@ The table below lists everything your planets can produce. *AS* is Attack Streng
   ),
 )
 
-=== Fleet Missions (Summary)
+== Fleet Missions (Summary)
 
-Fleet missions fall into three categories. _One-shot_ missions cause the fleet to travel, perform an action, and then revert to Hold Position --- you must issue new orders afterward. _Persistent_ missions remain active until you replace them or game rules invalidate them. _Hostile_ missions send the fleet to a target world where it waits; the assault executes on the _next_ maintenance tick after arrival, not immediately.
+Fleet missions fall into three classes. _One-shot_ missions travel, act, and
+then fall back to Hold Position. _Persistent_ missions stay in force until you
+replace them or game rules cancel them. _Hostile_ missions go to the target
+world and wait. The assault happens on the _next_ maintenance tick after
+arrival, not at once.
 
 #figure(
   table(
@@ -256,13 +261,13 @@ Fleet missions fall into three categories. _One-shot_ missions cause the fleet t
 
 You control five major force types: planets, ships, starbases, armies, and ground batteries.
 
-=== Planets
+== Planets
 
 Planets are the foundation of your empire. Each one has a *Potential Production* --- the ceiling it can reach at full efficiency, ranging from 10 to 150 across the galaxy --- and a *Production*, which is what the planet can actually deliver right now. Production grows toward Potential over time, and the speed of that growth depends heavily on your tax rate.
 
 Taxes convert Production into spendable build points each year. See @economy for the full tax rate, growth, and starbase economics model.
 
-=== Ships
+== Ships
 
 Ships operate in fleets. A fleet always moves at the speed of its slowest member and can hold anywhere from one to *3,000 ships* of mixed types.
 
@@ -274,7 +279,7 @@ Ships operate in fleets. A fleet always moves at the speed of its slowest member
     table.header(
       [Ship Type], [Cost], [Speed], [Size], [AS], [DS], [Tactical Role],
     ),
-    [*Destroyer*],  [05], [6], [S], [10], [05], [Fast, cheap screen. Escapes heavy fleets. Good for scouting.],
+    [*Destroyer*],  [05], [6], [S], [10], [05], [Fast, cheap screen. Escapes heavy fleets. Good for fast response and interception.],
     [*Cruiser*],    [15], [5], [M], [30], [30], [Balanced fighter. About 3x the power of a destroyer.],
     [*Battleship*], [45], [4], [L], [90], [100], [Heavy firepower anchor. About 3x the power of a cruiser. Slow but durable.],
     [*Scout*],      [15], [6], [S], [00], [10], [Stealthy spy. A lone scout is hardest to detect.],
@@ -283,15 +288,24 @@ Ships operate in fleets. A fleet always moves at the speed of its slowest member
   ),
 )
 
-=== Starbases
+== Starbases
 
-Starbases are large space fortresses (Cost: 50, AS: 100, DS: 120) that serve dual roles. In orbit around a planet, they provide a defensive combat bonus and significant economic benefits --- they help underdeveloped colonies grow faster at low and moderate tax rates, and they let a planet spend up to *5x* its current production on a single build when points have been accumulated (see @economy for details). They are not a free pass to run punitive tax rates forever. In deep space, they function as surveillance platforms with slightly more firepower than a battleship, though they move very slowly at just 1 sector per year.
+Starbases are large space fortresses (Cost: 50, AS: 100, DS: 120). In orbit,
+they strengthen a world's defense and economy. They help weak colonies grow at
+sensible tax rates, and they let a planet spend up to *5x* its Production in
+one turn when enough points have been saved (see @economy). They are not a
+license to tax a world to death. In deep space they serve as watch posts with
+slightly more firepower than a battleship, but they crawl at speed 1.
 
-Unlike ships, starbases are not assigned to fleets. They are commissioned individually from stardock and moved independently through the *Starbase Command* submenu. Older documentation sometimes says a starbase is "hauled," but in practice this is simply the normal move order for a very slow unit, likely implying tug support rather than a separate modeled mechanic. You can order combat fleets to escort a starbase using Mission 4 (Guard Starbase), but the starbase itself remains a separate unit.
+Unlike ships, starbases do not belong to fleets. You commission them one at a
+time from stardock and move them through the *Starbase Command* submenu. Older
+docs sometimes say a starbase is "hauled." In practice, that just means moving
+a very slow unit. You may order combat fleets to escort a starbase with
+Mission 4 (Guard Starbase), but the starbase remains its own unit.
 
 #admonition("NOTE")[Starbases must be commissioned from stardock before they can be moved or provide orbital benefits. An uncommissioned starbase sitting in stardock has no effect.]
 
-=== Ground Forces
+== Ground Forces
 
 *Armies* (Cost: 2, AS: 10, DS: 10) defend your planets from invasion and are the only way to capture enemy worlds. Each troop transport carries one army, and a successful invasion requires landing enough armies to overwhelm the defending garrison.
 
@@ -305,27 +319,28 @@ Unlike ships, starbases are not assigned to fleets. They are commissioned indivi
 
 Your empire runs on production. Every owned planet generates tax revenue each maintenance cycle, and that revenue pays for ships, defenses, and expansion. Managing the tension between short-term revenue and long-term growth is one of the deepest strategic challenges in the game.
 
-=== Key Terms
+== Key Terms
 
 Every planet has a *Potential Production* --- the maximum productive capacity it can ever reach --- and a *Production*, which is what it can deliver right now. Production grows toward Potential over time. Your empire's *Empire Revenue* is the sum of tax revenue across all your planets. Any revenue a planet does not spend accumulates on it as its *Treasury* --- the reserve of saved production points available to fund future builds. Each turn, how much of that treasury a planet can actually spend is limited by its *build capacity*; that per-turn spending limit is the planet's *Budget*.
 
-=== Tax Revenue
+== Tax Revenue
 
 The tax rate is empire-wide: you set one rate for all your planets. Revenue per
 planet per year is a fixed percentage of Production, and your empire's
 Empire Revenue is the sum of that revenue across all owned planets. See
 @appendix-economy for the exact formula.
 
-=== Growth Toward Potential
+== Growth Toward Potential
 
-Each maintenance turn, every owned planet grows its Production toward its Potential. Lower taxes produce faster growth --- a planet at 30% tax develops far faster than one at 60%. Growth also slows naturally as a planet approaches its ceiling. Even at punishingly high tax rates, a planet below its Potential always grows by at least 1 point per year.
+Each maintenance turn, every owned planet grows toward its Potential. Lower
+taxes grow faster. A planet at 30% tax develops far faster than one at 60%.
+Growth also slows as the planet nears its ceiling. Even at punishing tax
+rates, a planet below Potential still gains at least 1 point per year.
 
-The engine computes this from the remaining gap to Potential and the tax
-headroom, then clamps the result so a planet below Potential always grows by at
-least `1` and never grows by more than the remaining gap. See
+Growth is based on the gap to Potential and the remaining tax headroom. See
 @appendix-economy for the exact formula.
 
-=== The 65% Tax Threshold
+== The 65% Tax Threshold
 
 #admonition("WARNING")[Setting taxes above *65%* can directly _reduce_ Production on your planets, not just slow growth.]
 
@@ -334,7 +349,7 @@ Below 65%, growth is always positive --- lower is faster. Above 65%, a penalty k
 The recommended early-game rate is around 50--65%. Drop taxes on new colonies to accelerate their development.
 See @appendix-economy for the exact penalty and yearly update formulas.
 
-=== Starbase Economic Effects
+== Starbase Economic Effects
 
 A commissioned starbase in orbit provides two major benefits. First, the
 planet's yearly production growth gets a strong boost when taxes are modest ---
@@ -349,15 +364,15 @@ planet can only spend up to 1x its Production per turn. See
 
 #admonition("NOTE")[These bonuses require an active, commissioned starbase in orbit --- not an uncommissioned starbase sitting in stardock.]
 
-=== Treasury <treasury>
+== Treasury <treasury>
 
 Tax revenue that a planet does not spend accumulates in its *Treasury* --- the planet's savings reserve. The treasury is what allows starbase worlds to execute large builds: up to 5x Production in a single turn. Each turn, a planet's *Budget* is the lesser of its treasury and its build capacity. That is what the build screen shows as *BUDGET* --- how many production points remain uncommitted this turn. When maintenance processes a build queue, only the points actually spent that year are deducted from the treasury; unfinished builds keep their remaining cost for later turns.
 
-=== Newly Colonized Planets
+== Newly Colonized Planets
 
 A freshly colonized planet starts with Production far below its Potential and with no treasury. It does not collect revenue or growth on the same maintenance turn that establishes the colony. Growth begins on later turns, and because tax revenue is credited before growth is applied, a new colony can remain at zero budget for multiple turns even at reasonable tax rates. Keep taxes low on new colonies so they develop quickly.
 
-=== Conquered Planets
+== Conquered Planets
 
 When you capture an enemy planet by invasion or blitz, the planet's industry needs approximately *two turns* before it is fully converted and begins producing tax revenue for your empire. Plan your logistics around this delay.
 
@@ -367,34 +382,43 @@ When you capture an enemy planet by invasion or blitz, the planet's industry nee
 
 = Combat Mechanics
 
-While battle reports are simple summaries, the engine uses a sophisticated system behind the curtain. Inspired by the simultaneous-resolution combat model in Mark Herman's tabletop wargame _Empire of the Sun_, the Rust engine is deterministic and simultaneous rather than relying on opaque random number generation or arbitrary ship-vs-ship duels.
+Battle reports are short, but the fighting is not random brawling. Combat is
+simultaneous and rule-driven. Both sides fire in the same round. Losses are
+then applied. This keeps battle outcomes clear, severe, and consistent.
 
-=== The Rules of Battle
+== The Rules of Battle
 
 There is no "first strike" advantage. Each round, the total *Attack Strength (AS)* of each fleet is calculated and inflicted upon the enemy at the same instant. Rounds repeat until one side is destroyed, disengages, or only one hostile force remains.
 
 Damage reduces ships from "Nominal" to "Crippled" status before destroying them. All nominal ships must be crippled before any crippled ship is destroyed, and surviving crippled ships are repaired automatically after battle. Hits always target the combat line first --- destroyers, cruisers, battleships, and starbases. Scouts, transports, and ETACs are protected as long as any combat-line ships remain, which means your non-combat vessels survive as long as your warships hold the line.
 
-Mixed fleets containing destroyers, cruisers, _and_ battleships receive a *combined arms bonus* that improves their tactical effectiveness compared to single-type fleets. Always mix your composition when possible. A defending starbase at its own world provides an additional combat bonus to the defender. In a draw, the defender wins. See @appendix-combat for the exact ROE thresholds, combat values, force-ratio columns, CRT table, and assault formulas used by the current engine.
+Mixed fleets containing destroyers, cruisers, _and_ battleships receive a
+*combined arms bonus*. Always mix your composition when you can. A defending
+starbase at its own world gives the defender another combat bonus. In a draw,
+the defender wins. See @appendix-combat for the exact ROE thresholds, combat
+values, force-ratio columns, CRT table, and assault formulas.
 
-=== Tactical Roles and Split Fire
+== Tactical Roles and Split Fire
 
 Combat is more than just a numbers game. Different ship classes perform specific tactical roles based on how they deliver fire. Hits generated by a task force are split into two pools:
 
 *   *Suppression Fire (Cruisers and Battleships):* These heavy vessels provide volume and suppression. Their hits are dispersed across the enemy fleet, reducing nominal ships to a *crippled* state. This effectively knocks enemy guns offline and wins the immediate field, but it does not always result in permanent kills.
 *   *Execution Fire (Destroyers and Starbases):* These units use *focus fire* to eliminate specific targets. Their hits bypass the crippled state and allocate directly to the *destroyed* pool, paying the full 2x DS cost to blow ships up one by one.
 
-This creates a deadly synergy. A commander uses his heavy ships to suppress and soften the enemy line, while his destroyers and starbases pick off the survivors.
+This creates a deadly pair. Heavy ships soften the line. Destroyers and
+starbases finish it.
 
 #admonition("NOTE")[All planetary return fire from ground batteries is treated as *Execution Fire*. Fortified worlds do not "soften" an attacker; they destroy him.]
 
-=== Fleet Limits
+== Fleet Limits
 
 A fleet can contain as few as one ship and as many as *3,000 ships* of mixed types. A fleet always moves at the speed of its slowest member.
 
-=== Rules of Engagement (ROE)
+== Rules of Engagement (ROE)
 
-You assign an ROE level (0--10) to control when your fleet voluntarily engages hostile forces. ROE is a deterministic commitment rule based on force ratios, not random chance.
+You assign an ROE level (0--10) to control when your fleet voluntarily engages
+hostile forces. ROE is a fixed commitment rule based on force ratios, not
+chance.
 
 Before any fire is exchanged, your fleet performs a *pre-combat sensor check*. If the enemy force is overwhelming and violates his ROE, the commander will abort the engagement and "seek home" immediately. This clean retreat happens before the battle begins, allowing him to scout safely without being forced into a suicidal withdrawal exchange.
 
@@ -404,7 +428,7 @@ The full ROE threshold table is collected in @appendix-combat.
 
 Non-combat fleets (scouts, transports, ETACs only) are treated as ROE 0 automatically.
 
-=== Withdrawal and Retreat
+== Withdrawal and Retreat
 
 #admonition("IMPORTANT")[Low ROE does not guarantee safety once combat begins.]
 
@@ -412,7 +436,7 @@ If you choose to engage (or are forced to), your fleet is committed to the battl
 
 A fleet that breaks off after Round 3 does not escape cleanly. It suffers a *withdrawal exchange* --- the enemy fires on your retreating fleet, and your fleet fires back at reduced effectiveness. Only after absorbing that exchange does the fleet actually retreat and abort its current mission. After each round of combat from Round 4 onward, surviving fleets re-check their ROE. If the post-loss ratio no longer meets his threshold, the commander attempts to disengage and suffers the withdrawal exchange.
 
-=== Planetary Combat
+== Planetary Combat
 
 When fleets attack planets through bombardment, invasion, or blitz, different rules apply. Ground batteries are the planet's shield wall --- while they stand, they draw orbital fire and shoot back, protecting armies, production, and industry behind them. Only combat ships --- destroyers, cruisers, and battleships --- contribute bombardment firepower. Scouts, transports, and ETACs do not.
 
@@ -459,9 +483,9 @@ A fleet always has exactly one standing order. If you issue a new order before m
   ),
 )
 
-=== Mission Details
+== Mission Details
 
-==== One-Shot Missions
+=== One-Shot Missions
 
 *Mission 1: Move to Sector.* A simple transit order. The fleet travels to the destination sector at the speed of its slowest ship, then stops and reverts to Hold Position. You must issue new orders if you want it to do anything else.
 
@@ -473,7 +497,7 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Mission 15: Salvage.* The fleet travels to the specified planet and scraps its ships for approximately *50%* of the original build cost, returned to that planet's treasury. It reverts to Hold Position after scrapping.
 
-==== Persistent Standing Missions
+=== Persistent Standing Missions
 
 *Mission 0: Hold Position.* The default idle state. The fleet stays at its current location and takes defensive action based on ROE if hostile fleets approach.
 
@@ -487,7 +511,7 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Missions 13 and 14: Fleet Coordination.* Mission 13 (Join Fleet) causes the fleet to chase a specific host fleet and merge with it when they meet. If the host is destroyed before they rendezvous, the joining fleet abandons the mission. Mission 14 (Rendezvous) sends multiple fleets to a sector where the fleet with the lowest Fleet ID becomes the host of the combined force. The rendezvous point remains active so additional fleets can keep merging there.
 
-==== Hostile (Delayed-Resolution) Missions
+=== Hostile (Delayed-Resolution) Missions
 
 #admonition("IMPORTANT")[Hostile missions require the fleet to be *in orbit at the start of maintenance* to execute. A fleet that arrives at the target world this turn will carry out its assault *next turn*. This one-turn delay is a critical tactical consideration --- defend accordingly.]
 
@@ -505,30 +529,35 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 The game is organized around four primary menus. From the *Main Menu*, you access General Command (*G*) for autopilot, diplomacy, and reports; Planet Command (*P*) for economy and production; Fleet Command (*F*) for ship movement and missions; Information Database (*I*) to review known planet data; and View Starmap (*V*) for a graphic map of the galaxy.
 
-=== Visual Themes
+== Visual Themes
 
-The `nc-game` client is themable. Each campaign has a sysop-chosen default
-theme, and local-terminal players can open *C>olor Theme* from the Main Menu
-or First Time Menu to choose their own session palette from the bundled theme
-list. The shipped bundle includes `tokyo_night`, `mag16`, and several other
-built-in palettes, plus a monochrome `Mono` option in the picker. You can
-preview and apply these without leaving the client, and your last local theme
-choice is remembered for your empire in that campaign.
+The `nc-game` client supports several visual themes. In a local session, open
+*C>olor Theme* from the Main Menu or First Time Menu to choose one. Your last
+local choice is remembered for that empire in that campaign.
 
-In BBS door mode, `nc-game` instead keeps the classic *A>nsi color ON/OFF* toggle and always begins from the bundled `mag16` theme each session so classic ANSI16 terminals get a stable palette. Pressing *A* switches between that `mag16` view and a greyscale monochrome projection for the current session. Saved local theme preferences do not apply in door mode.
+In BBS door mode, the game keeps the classic *A>nsi color ON/OFF* toggle.
+Each session starts from the `mag16` theme so ANSI16 terminals stay
+stable. Press *A* to switch between that view and monochrome for the current
+session. Saved local theme preferences do not apply in door mode.
 
-=== General Command
+== General Command
 
-General Command handles empire-wide administration. Autopilot (*A*) lets the computer manage your defenses if you miss turns. By default, a Rust campaign turns autopilot on automatically after three consecutive missed turns, and the first real return that year --- logging into `nc-game`, entering through `nc-door`, or successfully submitting a turn file --- turns that inactivity-triggered autopilot back off. Manual autopilot stays manual until you change it yourself. Diplomacy (*E*) lets you declare other players as Neutral or Enemy --- neutral fleets will not attack unless provoked, while enemy fleets will attack on sight based on ROE. Messages (*C*) lets you send messages to other empires.
+General Command handles empire-wide business. Autopilot (*A*) lets the
+computer mind your defenses if you miss turns. By default, autopilot turns on
+after three missed turns. Your first real return that year --- logging into
+`nc-game`, entering through `nc-door`, or submitting a valid turn file ---
+turns that inactivity autopilot back off. Manual autopilot stays on until you
+change it yourself. Diplomacy (*E*) lets you mark other empires as Neutral or
+Enemy. Messages (*C*) lets you write to other empires.
 
 To keep messaging civil, you may send no more than three messages to any single opponent per turn. In a four-player game, for example, that is up to twelve outgoing messages in a turn. Messages and reports are never automatically purged --- they accumulate in your inbox across turns until you remove them yourself. The inbox supports type and year filters to help you find older items, and pressing *D* on a selected item prompts for deletion, defaulting to yes. General Command also offers a bulk delete to clear all messages at once. New reports and messages from the most recent maintenance turn are presented one by one through the scrolling intro review when you log in, giving you another opportunity to read and delete before reaching the main menu.
 
-The empire rankings table shows each joined empire in one of three public
+The empire rankings table shows each joined empire in one of three
 states: *Active*, *MIA*, or *Defeated*. *MIA* means inactivity autopilot is
 currently running because that player missed three consecutive turns.
 *Defeated* means the empire has been eliminated from active command.
 
-=== Defeat, Recovery, and Victory
+== Defeat, Recovery, and Victory
 
 Losing your last planet does not always defeat you immediately. If you still
 have a recovery path, you remain *Active* and receive a *three-turn recovery
@@ -553,13 +582,13 @@ inspect the final state of the galaxy, but may not issue orders or submit
 turns. All other players receive one final review-only pass and are then
 blocked from further play.
 
-=== Planet Command
+== Planet Command
 
 Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. From the main Planet Command menu, Scorch Earth (*S*) destroys your own industry to deny it to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. *Mass Commission* (*M*) commissions every ship and starbase currently waiting in stardock. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.
 
 The *Planet List* is the fast row-centric operations screen for owned worlds. Once you open it, the highlighted planet becomes the working row for the most common actions: Build (*B*), Display Queue (*D*), Abort Builds (*A*), Mass Commission (*M*), Commission (*C*), Load / Unload armies (*L* / *U*), and Scorch Earth (*X*). On that screen, *S* is reserved for *Sort*, while *I* or *Enter* opens planet information for the selected row. Owned-planet information includes the planet's *Budget* as well as its *Treasury*.
 
-=== Fleet Command
+== Fleet Command
 
 Fleet Command controls your ships in space. Mission (*O*) assigns missions 0--15. ROE (*C*) changes a fleet's rules of engagement. Merge (*M*) combines fleets that are in the same sector. Transfer (*T*) moves individual ships between fleets.
 
@@ -571,7 +600,7 @@ Fleet ID as the host, and *T* opens ship transfer for a checked pair. Row-based
 commands such as *Review*, *ETA*, *Detach*, *Load*, and *Unload* still use the
 highlighted fleet.
 
-=== Building and Commissioning
+== Building and Commissioning
 
 Each planet has a *10-slot build queue*. During maintenance, a planet processes as many queued build points as its current per-turn build capacity allows. Small orders may finish in one maintenance turn, while larger ones can stay queued across multiple years until the remaining cost reaches zero. As enough points are applied to complete individual units, ships and starbases move to *Stardock* --- a holding area on the planet where they sit idle and vulnerable until commissioned --- even if other units from the same order remain queued. Ships are commissioned into numbered fleets, while starbases are commissioned individually and managed through their own Starbase Command submenu. Armies and ground batteries, by contrast, deploy directly to the planet surface and do not pass through stardock.
 
@@ -591,15 +620,15 @@ A planet without a starbase can spend up to its Production in a single turn. A p
 
 = Strategy
 
-=== Early Game: The Land Grab
+== Early Game: The Land Grab
 
-The opening turns are a race for territory. ETACs are your most valuable early asset --- grab every raw planet you can find before your rivals do. Send single destroyers ahead as scouts to locate neighbors before they locate you. Keep your tax rate at or below 65% to avoid damaging production, and drop taxes even lower on new colonies so they develop quickly. The temptation to tax at 100% for immediate cash is strong, but it cripples long-term growth.
+The opening turns are a race for territory. ETACs are your most valuable early asset --- grab every raw planet you can find before your rivals do. Push lone destroyers forward as pickets to make early contact, but use true Scouts when you need stealth reconnaissance. Keep your tax rate at or below 65% to avoid damaging production, and drop taxes even lower on new colonies so they develop quickly. The temptation to tax at 100% for immediate cash is strong, but it cripples long-term growth.
 
-=== Mid-Game: Consolidation
+== Mid-Game: Consolidation
 
 Once the easy colonies are claimed, the game shifts to fortification and intelligence. Build starbases on your best worlds to boost both defense and production capacity. Never attack a planet blindly --- use Scout ships on Mission 11 to count enemy batteries and garrison strength before committing forces. This is the "get tough" phase: when raw planets are gone, the only way to grow is war.
 
-=== Late Game: Total War
+== Late Game: Total War
 
 In the endgame, fleet composition and denial matter more than raw numbers. Mix destroyers, cruisers, and battleships in every fleet to trigger the combined arms bonus and distribute damage across hull types --- pure battleship fleets are expensive and miss the bonus. If you cannot hold a planet, scorch it. If you cannot take a planet, blockade or bombard it into uselessness. And in a 25-player galaxy, diplomacy is not optional: you cannot fight everyone at once. Form alliances, even temporary ones, and break them only when the timing is right.
 
@@ -616,13 +645,12 @@ The original game emerged between 1990 and 1992 as a "door game" for Bulletin Bo
 Most multiplayer games of the era demanded constant attention. Esterian Conquest was different. You checked in once a day, submitted your orders, and went about your life. Overnight, the engine processed every empire simultaneously --- fleets moved, economies grew, battles resolved, and alliances were tested. When you logged in the next day, a stack of reports was waiting. Campaigns ran for months, and the stories they produced --- surprise invasions, desperate blockades, betrayals at the worst possible moment --- were the kind that stuck with players for years.
 
 *The Rust Port (2026)* \
-This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, preserves classic compatibility at the import/export and oracle boundary, and is honest about what was recovered versus what was rebuilt. If you played the original game on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
-
-The project has now reached a real beta stage. The Rust player, connection,
-and sysop tools cover the core campaign workflow, and the main work from here
-is broad playtesting, collecting feedback, and fixing the rough edges and bugs
-that only show up in live games while preserving the classic experience for
-local players, BBS sysops, and the planned Nostr GameServer path.
+This edition rebuilds the game for modern machines while keeping the old
+campaign rhythm intact. The core rules were recovered from the original game
+and manuals, then rewritten into a clear modern engine. Where the old game
+hid things behind opaque internals, this edition uses explicit documented
+rules instead. If you played the original game on a BBS, it should feel
+familiar. If you are new to it, this manual gives you the rules straight.
 
 #pagebreak()
 
@@ -632,10 +660,9 @@ local players, BBS sysops, and the planned Nostr GameServer path.
 
 = Appendix A: Economy Formula Reference <appendix-economy>
 
-This appendix collects the current engine's exact economy formulas in one
-place.
+This appendix collects the exact economy formulas in one place.
 
-=== Yearly Tax Revenue
+== Yearly Tax Revenue
 
 #align(left)[
   #stack(
@@ -648,7 +675,7 @@ place.
 Your empire's Empire Revenue is the sum of this value across all owned
 planets.
 
-=== Base Growth Toward Potential
+== Base Growth Toward Potential
 
 #align(left)[
   #stack(
@@ -663,7 +690,7 @@ planets.
 Then clamp the result so a planet below Potential always grows by at least `1`
 and never grows by more than the remaining `gap`.
 
-=== High-Tax Penalty Above 65%
+== High-Tax Penalty Above 65%
 
 #align(left)[
   #stack(
@@ -684,7 +711,7 @@ Final yearly Production is:
   )
 ]
 
-=== Starbase Growth Bonus
+== Starbase Growth Bonus
 
 A commissioned starbase boosts growth at low and moderate tax rates, but the
 bonus tapers away completely by `65%`.
@@ -700,7 +727,7 @@ bonus tapers away completely by `65%`.
   )
 ]
 
-=== Build Capacity, Treasury, and Budget
+== Build Capacity, Treasury, and Budget
 
 Per-turn build capacity is:
 
@@ -735,10 +762,9 @@ later turns, and blocked builds do not consume the treasury.
 
 = Appendix B: Combat Tables and Formula Reference <appendix-combat>
 
-This appendix collects the current engine's combat reference tables in one
-place.
+This appendix collects the combat reference tables in one place.
 
-=== Rules of Engagement Thresholds
+== Rules of Engagement Thresholds
 
 #figure(
   table(
@@ -762,11 +788,10 @@ place.
   ),
 )
 
-=== Unit Combat Values
+== Unit Combat Values
 
-The Rust engine uses a *10x internal scale* for combat values to ensure
-high-precision damage resolution. This ensures that crippled light ships
-continue to contribute fire and that attrition is granular.
+The combat tables use a *10x internal scale*. That keeps attrition granular and
+lets crippled light ships keep contributing fire.
 
 #figure(
   table(
@@ -788,7 +813,7 @@ continue to contribute fire and that attrition is granular.
   ),
 )
 
-=== Force Ratio to CRT Column
+== Force Ratio to CRT Column
 
 #figure(
   table(
@@ -806,7 +831,7 @@ continue to contribute fire and that attrition is granular.
   ),
 )
 
-=== Space / Orbital CRT
+== Space / Orbital CRT
 
 #figure(
   table(
@@ -829,7 +854,7 @@ continue to contribute fire and that attrition is granular.
   ),
 )
 
-=== Column Shifts and Hit Formula
+== Column Shifts and Hit Formula
 
 - Mixed `DD/CA/BB` fleet: `+1` CRT column
 - Defending starbase in orbital combat: `+1` CRT column
@@ -847,7 +872,7 @@ continue to contribute fire and that attrition is granular.
 An unmodified `9` on the `d10` is a critical hit and forces one extra bypass
 loss allocation.
 
-=== Bombardment and Planetary Fire
+== Bombardment and Planetary Fire
 
 Only destroyers, cruisers, and battleships contribute bombardment attack
 strength:
@@ -891,59 +916,14 @@ defender.
 
 #pagebreak()
 
-// ─── Appendix C. Mission / Order Quick Reference ───────────────────────
+// ─── Appendix C. Preservation and Original Sources ─────────────────────
 
-= Appendix C: Mission / Order Quick Reference <appendix-orders>
+= Appendix C: Preservation and Original Sources <appendix-preservation>
 
-This appendix is the compact lookup version of the mission system. For full
-behavior explanations, examples, and tactical notes, see @missions.
+This edition preserves the game in a playable modern form. The aim is simple:
+keep the campaign rules legible, playable, and documented.
 
-#figure(
-  table(
-    columns: (auto, auto, auto, auto, auto, 1fr),
-    align: (right, left, left, left, left, left),
-    inset: 6pt,
-    table.header(
-      [No], [Abbr], [Mission], [Class], [Trigger], [Summary],
-    ),
-    [00], [Hd], [Hold Position], [Persistent], [Immediate], [Idle standing order; remains at current location.],
-    [01], [Mv], [Move Fleet], [One-shot], [Arrive], [Travel to target sector, then stop and revert to Hold.],
-    [02], [Sk], [Seek Home], [One-shot], [Arrive], [Travel to nearest owned world; retarget if it is lost en route.],
-    [03], [Pa], [Patrol], [Persistent], [Arrive], [Occupy deep-space patrol sector and intercept by ROE.],
-    [04], [Gs], [Guard Starbase], [Persistent], [Arrive], [Escort a starbase and remain assigned to its defense.],
-    [05], [Gb], [Blockade], [Persistent], [Arrive], [Guard a world, interfere with launches and hostile access.],
-    [06], [Bo], [Bombard], [Hostile], [Next maintenance tick], [Ready bombardment destroys stardock contents, defenses, armies, goods, and production.],
-    [07], [In], [Invade], [Hostile], [Next maintenance tick], [Suppress batteries, soften the world, then land armies.],
-    [08], [Bz], [Blitz], [Hostile], [Next maintenance tick], [Fast direct landing with higher transport and army risk.],
-    [09], [Vw], [View], [One-shot], [Arrive], [Long-range scan from system edge; reports and reverts to Hold.],
-    [10], [Ss], [Scout Sector], [One-shot], [Arrive], [Stealth deep-space observation; requires a Scout.],
-    [11], [Sy], [Scout System], [One-shot], [Arrive], [Spy run into a world; requires a Scout.],
-    [12], [Co], [Colonize], [One-shot], [Arrive], [Claim an unowned world with an ETAC; ETAC survives.],
-    [13], [Jn], [Join Fleet], [Persistent], [Merge], [Chase and merge with a host fleet; abort if host is destroyed.],
-    [14], [Rz], [Rendezvous], [Persistent], [Merge], [Gather fleets in one sector; lowest Fleet ID becomes host.],
-    [15], [Sa], [Salvage], [One-shot], [Arrive], [Scrap ships at a world for roughly 50% of build cost.],
-  ),
-)
-
-Category key:
-
-- *One-shot*: travel, perform an action, then revert to Hold Position.
-- *Persistent*: remain armed until you replace the order or game rules invalidate it.
-- *Hostile*: travel to the target world, then execute on the next maintenance tick after arrival.
-
-#pagebreak()
-
-// ─── Appendix D. Preservation and Original Sources ─────────────────────
-
-= Appendix D: Preservation and Original Sources <appendix-preservation>
-
-This edition is a playable modern Rust version of Nostrian Conquest, built
-with preservation discipline. The goal is to keep the original gameplay
-legible and playable on modern systems while documenting the exact engine
-rules that matter to players, operators, client authors, and future
-maintainers.
-
-=== Source Hierarchy
+== Source Hierarchy
 
 This manual is the authoritative player manual for the Rust edition of
 Nostrian Conquest.
@@ -955,47 +935,41 @@ an ambiguity fallback:
 - `ECPLAYER.DOC` --- Detailed player manual
 - `ECREADME.DOC` --- Release and package information
 - `ECGAME.EXE` --- The original 1992 player client
-- `ECMAINT.EXE` --- The original yearly maintenance oracle
+- `ECMAINT.EXE` --- The original yearly maintenance program
 - `ECUTIL.EXE` --- The original sysop utility for game initialization and management
 
-=== Preservation Policy
+== Preservation Policy
 
 - This manual is the authoritative player-facing manual for the Rust edition.
 - The original manuals are preserved historical references and an ambiguity
   fallback for classic intent and terminology.
-- The original DOS binaries are the acceptance oracle for compatibility work.
-- The Rust engine preserves player-visible classic behavior where it matters,
-  but it does not chase hidden byte-for-byte quirks when they do not materially
-  affect gameplay.
-- When an exact classic formula remains unrecovered, this manual documents the
-  current engine rule explicitly rather than pretending the original value is
-  known.
+- The original DOS binaries remain the final compatibility check.
+- This edition keeps the player-visible classic behavior that matters.
+- When an exact classic formula is still unknown, this manual states the rule
+  plainly instead of pretending otherwise.
 - When the preserved originals clarify an ambiguity, that clarification should
   be folded back into the current manuals/specs rather than left only in the
   legacy `.DOC` set.
 
-=== BBS Drop File Compatibility
+== BBS Drop File Compatibility
 
-Modern Rust BBS hosting uses `nc-door`, not the old DOS binary path. The Rust
-door reads modern drop files directly, supports `DOOR32.SYS`, `DOOR.SYS`, and
-`CHAIN.TXT`, and avoids the brittle DOS-era parser behavior that used to make
-classic BBS setup so fragile. If you are a player, the practical point is
-simple: log into the board, launch the door, and play. If you are the sysop,
-see the *Sysop Manual* for host setup details.
+Rust BBS hosting uses `nc-door`, not the old DOS binary path. It reads
+`DOOR32.SYS`, `DOOR.SYS`, and `CHAIN.TXT` directly. For a player, the practical
+point is simple: log into the board, launch the door, and play. If you are the
+sysop, see the *Sysop Manual* for setup details.
 
-=== This Manual
+== This Manual
 
-This manual combines and polishes the original documentation with the current
-engine reference tables in @appendix-economy, @appendix-combat,
-@appendix-orders, and @appendix-table-ui. The body text stays strategy-first;
-the appendices collect the exact formulas and lookup tables for readers who
-want the implementation-level reference.
+This manual combines the original player guidance with the appendix reference
+tables in @appendix-economy, @appendix-combat, and @appendix-table-ui. The
+main body stays player-facing. The appendices collect formulas, tables, and
+list-screen codes.
 
 #pagebreak()
 
-// ─── Appendix E. Table Filtering and Sorting ───────────────────────────
+// ─── Appendix D. Table Filtering and Sorting ───────────────────────────
 
-= Appendix E: Table Filtering and Sorting <appendix-table-ui>
+= Appendix D: Table Filtering and Sorting <appendix-table-ui>
 
 The main list screens all use the same command-line filter system. This lets
 you cut a long table down to the exact rows you want instead of paging
@@ -1005,7 +979,7 @@ One filter is active at a time on each table. If you choose a new filter, it
 replaces the old one. If a filter matches nothing, the table stays filtered
 and tells you no rows match.
 
-=== Filtering Procedure
+== Filtering Procedure
 
 1. Open the table you want.
 2. Press `F`.
@@ -1020,7 +994,7 @@ active filter.
 If your prefix matches more than one code, the command line stays open and
 shows the matching codes so you can narrow the entry.
 
-=== Value Rules
+== Value Rules
 
 - *Text columns:* Enter plain text. Matching is case-insensitive and looks for
   that text anywhere in the cell.
@@ -1040,7 +1014,7 @@ Examples:
 - Total planet database, `own`: `#3`
 - Total planet database, `max`: `>=100`
 
-=== Sorting Procedure
+== Sorting Procedure
 
 1. Open the table you want.
 2. Press `S`.
@@ -1054,7 +1028,7 @@ sort prompt to sort by distance from a chosen sector.
 
 The active sort and active filter both appear in the table title.
 
-=== Fleet List Codes
+== Fleet List Codes
 
 #figure(
   table(
@@ -1077,7 +1051,7 @@ The active sort and active filter both appear in the table title.
   ),
 )
 
-=== Planet List Codes
+== Planet List Codes
 
 #figure(
   table(
@@ -1103,7 +1077,7 @@ The active sort and active filter both appear in the table title.
   ),
 )
 
-=== Total Planet Database Codes
+== Total Planet Database Codes
 
 #figure(
   table(
