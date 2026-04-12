@@ -133,11 +133,15 @@ async fn run_async_server(
 
     let mut notifications = client.notifications();
     let mut catalog_interval = tokio::time::interval(std::time::Duration::from_secs(300));
+    let mut decisions_interval = tokio::time::interval(std::time::Duration::from_secs(60));
 
     loop {
         tokio::select! {
             _ = catalog_interval.tick() => {
                 publish_lobby_catalog(&publisher, &games_root).await;
+            }
+            _ = decisions_interval.tick() => {
+                publish_pending_decisions(&publisher, &games_root).await;
             }
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("Shutting down...");
@@ -218,10 +222,10 @@ async fn handle_effect(
                 ("status", "received"),
             ];
             
-            if let Err(e) = publisher.publish_to_pubkey(&request.player_pubkey, 30514, &content, tag_refs).await {
+            if let Err(e) = publisher.publish_encrypted(&request.player_pubkey, 30514, &content, tag_refs).await {
                 tracing::error!("Failed to publish invite receipt: {}", e);
             } else {
-                tracing::info!("Published invite request receipt to {}", request.player_pubkey);
+                tracing::info!("Published encrypted invite request receipt to {}", request.player_pubkey);
             }
         }
         crate::game::effects::GameEffects::HandleTurnCommands { commands, game_id } => {
@@ -272,10 +276,10 @@ async fn handle_effect(
                 ("status", "accepted"),
             ];
             
-            if let Err(e) = publisher.publish_to_pubkey(&commands.player_pubkey, 30524, &content, tag_refs).await {
+            if let Err(e) = publisher.publish_encrypted(&commands.player_pubkey, 30524, &content, tag_refs).await {
                 tracing::error!("Failed to publish turn receipt: {}", e);
             } else {
-                tracing::info!("Published turn receipt to {}", commands.player_pubkey);
+                tracing::info!("Published encrypted turn receipt to {}", commands.player_pubkey);
             }
         }
         crate::game::effects::GameEffects::HandleStateRequest { request } => {
@@ -285,6 +289,15 @@ async fn handle_effect(
             let year: u32 = 3000;
             
             let state_hash = blake3::hash(format!("{}:{}:{}", request.game_id, turn, "player").as_bytes()).to_hex().to_string();
+            
+            if let (Some(last_hash), Some(last_turn)) = (&request.last_hash, request.last_turn) {
+                if last_hash == &state_hash && last_turn == turn {
+                    tracing::debug!("Client already has current state (turn {}, hash {})", turn, state_hash);
+                } else {
+                    tracing::debug!("Client has stale state (requested turn {}, last_hash matches: {})", 
+                        last_turn, last_hash == &state_hash);
+                }
+            }
             
             let state_payload = serde_json::json!({
                 "game_id": request.game_id,
@@ -310,10 +323,10 @@ async fn handle_effect(
                 ("hash", &state_hash),
             ];
             
-            if let Err(e) = publisher.publish_to_pubkey(&request.player_pubkey, 30520, &content, tag_refs).await {
+            if let Err(e) = publisher.publish_encrypted(&request.player_pubkey, 30520, &content, tag_refs).await {
                 tracing::error!("Failed to publish state: {}", e);
             } else {
-                tracing::info!("Published state to {}", request.player_pubkey);
+                tracing::info!("Published encrypted state to {}", request.player_pubkey);
             }
         }
         crate::game::effects::GameEffects::HandleSeatClaim { request, game_id } => {
@@ -367,6 +380,16 @@ async fn handle_effect(
                 tracing::error!("Failed to publish claim confirmation: {}", e);
             } else {
                 tracing::info!("Published seat claim confirmation to {}", request.player_pubkey);
+            }
+
+            if let Ok(Some(def)) = crate::lobby::catalog_publish::publish_game_definition(routed.store.as_ref(), &game_id, None) {
+                let def_content = serde_json::to_string(&def).unwrap_or_default();
+                let def_tags = vec![("d", game_id.as_str())];
+                if let Err(e) = publisher.publish(30500, &def_content, def_tags).await {
+                    tracing::error!("Failed to publish updated game definition: {}", e);
+                } else {
+                    tracing::info!("Published updated game definition for {}", game_id);
+                }
             }
         }
         crate::game::effects::GameEffects::InvalidEvent { reason } => {
@@ -430,6 +453,79 @@ async fn publish_lobby_catalog(
         }
         Err(e) => {
             tracing::error!("Failed to collect lobby games: {}", e);
+        }
+    }
+}
+
+async fn publish_pending_decisions(
+    publisher: &EventPublisher,
+    games_root: &std::sync::Arc<std::path::PathBuf>,
+) {
+    use crate::lobby::invite_decisions::publish_invite_decision;
+    use nc_data::hosted::{list_pending_decisions, mark_decision_published, HostedStore};
+    use nc_nostr::invite_request::InviteDecision;
+
+    if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let db_path = path.join("hosted.db");
+                if db_path.exists() {
+                    if let Some(game_id) = path.file_name().and_then(|n| n.to_str()) {
+                        let store = match HostedStore::open(&db_path) {
+                            Ok(s) => s,
+                            Err(_) => continue,
+                        };
+
+                        let pending = match list_pending_decisions(store.connection(), game_id) {
+                            Ok(p) => p,
+                            Err(_) => continue,
+                        };
+
+                        for request in pending {
+                            let decision = if request.status == nc_data::hosted::InviteRequestStatus::Approved {
+                                let invite = request.issued_invite_code.clone().unwrap_or_default();
+                                InviteDecision::Approved { invite }
+                            } else {
+                                InviteDecision::Rejected
+                            };
+
+                            let message = request.decision_message.as_deref().unwrap_or("");
+
+                            match publish_invite_decision(
+                                publisher,
+                                &request.player_pubkey,
+                                &request.id,
+                                &request.game_id,
+                                decision,
+                                message,
+                            )
+                            .await
+                            {
+                                Ok(_) => {
+                                    let _ = mark_decision_published(store.connection(), &request.id);
+                                    tracing::info!(
+                                        "Published invite decision {} for request {}",
+                                        if request.status == nc_data::hosted::InviteRequestStatus::Approved {
+                                            "approved"
+                                        } else {
+                                            "rejected"
+                                        },
+                                        request.id
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        "Failed to publish invite decision {}: {}",
+                                        request.id,
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

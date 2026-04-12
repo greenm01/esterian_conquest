@@ -11,6 +11,7 @@ pub struct InviteRequest {
     pub processed_at: Option<i64>,
     pub decision_message: Option<String>,
     pub issued_invite_code: Option<String>,
+    pub decision_published_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,7 +59,7 @@ pub fn create_request(
 pub fn list_requests(conn: &Connection, game_id: &str) -> SqliteResult<Vec<InviteRequest>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, player_pubkey, message, status, created_at, processed_at,
-                decision_message, issued_invite_code
+                decision_message, issued_invite_code, decision_published_at
          FROM invite_requests WHERE game_id = ?1 ORDER BY created_at DESC",
     )?;
 
@@ -74,6 +75,7 @@ pub fn list_requests(conn: &Connection, game_id: &str) -> SqliteResult<Vec<Invit
             processed_at: row.get(6)?,
             decision_message: row.get(7)?,
             issued_invite_code: row.get(8)?,
+            decision_published_at: row.get(9)?,
         })
     })?;
 
@@ -83,7 +85,7 @@ pub fn list_requests(conn: &Connection, game_id: &str) -> SqliteResult<Vec<Invit
 pub fn get_request(conn: &Connection, id: &str) -> SqliteResult<Option<InviteRequest>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, player_pubkey, message, status, created_at, processed_at,
-                decision_message, issued_invite_code
+                decision_message, issued_invite_code, decision_published_at
          FROM invite_requests WHERE id = ?1",
     )?;
 
@@ -100,6 +102,7 @@ pub fn get_request(conn: &Connection, id: &str) -> SqliteResult<Option<InviteReq
             processed_at: row.get(6)?,
             decision_message: row.get(7)?,
             issued_invite_code: row.get(8)?,
+            decision_published_at: row.get(9)?,
         }))
     } else {
         Ok(None)
@@ -141,4 +144,44 @@ pub fn get_pending_request_count(
          WHERE game_id = ?1 AND player_pubkey = ?2 AND status = 'pending'",
     )?;
     stmt.query_row(params![game_id, player_pubkey], |row| row.get(0))
+}
+
+pub fn list_pending_decisions(
+    conn: &Connection,
+    game_id: &str,
+) -> SqliteResult<Vec<InviteRequest>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, game_id, player_pubkey, message, status, created_at, processed_at,
+                decision_message, issued_invite_code, decision_published_at
+         FROM invite_requests
+         WHERE game_id = ?1 AND status IN ('approved', 'rejected') AND decision_published_at IS NULL
+         ORDER BY processed_at ASC",
+    )?;
+
+    let requests = stmt.query_map(params![game_id], |row| {
+        Ok(InviteRequest {
+            id: row.get(0)?,
+            game_id: row.get(1)?,
+            player_pubkey: row.get(2)?,
+            message: row.get(3)?,
+            status: InviteRequestStatus::from_str(&row.get::<_, String>(4)?)
+                .unwrap_or(InviteRequestStatus::Pending),
+            created_at: row.get(5)?,
+            processed_at: row.get(6)?,
+            decision_message: row.get(7)?,
+            issued_invite_code: row.get(8)?,
+            decision_published_at: row.get(9)?,
+        })
+    })?;
+
+    requests.collect()
+}
+
+pub fn mark_decision_published(conn: &Connection, id: &str) -> SqliteResult<()> {
+    let now = chrono::Utc::now().timestamp();
+    conn.execute(
+        "UPDATE invite_requests SET decision_published_at = ?1 WHERE id = ?2",
+        params![now, id],
+    )?;
+    Ok(())
 }

@@ -38,13 +38,13 @@ pub struct InviteRequestReceipt {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum InviteDecision {
     Approved { invite: String },
     Rejected,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct InviteDecisionPayload {
     pub request_id: String,
     pub game_id: String,

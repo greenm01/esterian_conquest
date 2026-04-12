@@ -1,5 +1,6 @@
 pub mod catalog_publish;
 pub mod catalog_view;
+pub mod invite_decisions;
 pub mod invite_requests;
 pub mod notify_sysop;
 pub mod publish;

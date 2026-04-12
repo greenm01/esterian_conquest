@@ -7,8 +7,9 @@ pub mod store;
 pub mod turn_queue;
 
 pub use invite_requests::{
-    approve_request, create_request, get_pending_request_count, get_request, list_requests,
-    reject_request, InviteRequest, InviteRequestStatus,
+    approve_request, create_request, get_pending_request_count, get_request,
+    list_pending_decisions, list_requests, mark_decision_published, reject_request, InviteRequest,
+    InviteRequestStatus,
 };
 pub use outbox::{
     delete_published_older_than, enqueue, get_pending, increment_retry, mark_failed,
