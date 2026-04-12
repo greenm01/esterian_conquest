@@ -57,15 +57,23 @@ pub fn publish_game_definition(
         })
         .collect();
 
+    let metadata = get_game_metadata(store.connection(), game_id).ok();
+
     let def = GameDefinition {
         game_id: game_id.to_string(),
-        game_name: game_id.to_string(),
+        game_name: metadata
+            .as_ref()
+            .map(|m| m.name.clone())
+            .unwrap_or_else(|| game_id.to_string()),
         status,
-        players: seats.len() as u32,
+        players: metadata
+            .as_ref()
+            .map(|m| m.players)
+            .unwrap_or(seats.len() as u32),
         recruiting,
         open_seats,
-        year: 3000,
-        turn: 0,
+        year: metadata.as_ref().map(|m| m.current_year).unwrap_or(3000),
+        turn: metadata.as_ref().map(|m| m.current_turn).unwrap_or(0),
         summary: settings.summary,
         host_alias: host_alias.map(String::from),
         slots: slot_tags,

@@ -1,4 +1,6 @@
-use nc_data::hosted::HostedStore;
+use crate::invite::generate_invite_code;
+use nc_data::hosted::{list_seats, HostedStore};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
@@ -147,7 +149,11 @@ fn run_approve(
     let player = player.ok_or("missing --player argument")?;
     let message = message.map(|s| s.as_str()).unwrap_or("Approved");
 
-    let invite_code = uuid::Uuid::new_v4().to_string();
+    let existing: HashSet<String> = list_seats(store.connection(), game_id)?
+        .iter()
+        .map(|s| s.invite_code.clone())
+        .collect();
+    let invite_code = generate_invite_code(&existing);
 
     nc_data::hosted::approve_request(store.connection(), request_id, message, &invite_code)?;
 
@@ -159,7 +165,7 @@ fn run_approve(
 
 fn run_reject(
     store: &HostedStore,
-    game_id: &str,
+    _game_id: &str,
     request_id: Option<&String>,
     message: Option<&String>,
 ) -> Result<(), Box<dyn std::error::Error>> {

@@ -25,6 +25,7 @@ thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 blake3 = "1"
+rand = "0.8"
 hex = "0.4"
 url = "2"
 

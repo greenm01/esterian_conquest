@@ -345,28 +345,6 @@ fn print_usage() {
     println!("  --identity <path> Identity nsec file (default: from config)");
 }
 
-async fn send_claim_error(
-    publisher: &EventPublisher,
-    player_pubkey: &str,
-    nonce: &str,
-    error: &str,
-    message: &str,
-) {
-    let payload = serde_json::json!({
-        "error": error,
-        "message": message,
-    });
-    let content = serde_json::to_string(&payload).unwrap_or_default();
-    let tag_refs: Vec<(&str, &str)> = vec![
-        ("d", nonce),
-        ("error", error),
-    ];
-    
-    if let Err(e) = publisher.publish_to_pubkey(player_pubkey, 30511, &content, tag_refs).await {
-        tracing::error!("Failed to publish claim error: {}", e);
-    }
-}
-
 async fn publish_lobby_catalog(
     publisher: &EventPublisher,
     games_root: &std::sync::Arc<std::path::PathBuf>,
