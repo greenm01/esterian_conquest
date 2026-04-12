@@ -47,6 +47,8 @@ These docs explain how to work in the repo and how to structure the Rust side.
   - DOSBox-based oracle/dynamic investigation workflow
 - [fixtures.md](fixtures.md)
   - fixture layout and intended usage
+- [localhost-nc-host.md](localhost-nc-host.md)
+  - dev-only localhost hosted lab for `nc-host` + `nc-dash`
 - [harness/README.md](harness/README.md)
   - typed KDL and CLI workflow for campaign play, runtime scenarios, combat scenarios, and combat sweeps
 - [harness/campaign-play.md](harness/campaign-play.md)

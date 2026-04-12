@@ -14,7 +14,9 @@ Keep this file short. Historical detail belongs in
   `--session-token` or `--hosted-invite-code`.
 - `ncgame.db` has dropped the retired hosted/session tables entirely.
 - `nc-gate` is no longer part of the active Rust workspace build.
-- `nc-dash` is still the native dashboard client, but not yet the hosted lobby.
+- `nc-client` now exists as the shared hosted client core.
+- `nc-dash` now has a partial hosted lobby/client path in the same binary.
+- `nc-host` now exists as the relay-native hosted server name and localhost dev lab target.
 - The BBS door client is verified on Mystic and ENiGMA½.
 - Latest local baselines after the hosted-path cut:
   - `cargo test -q -p nc-session`
@@ -32,8 +34,8 @@ Keep this file short. Historical detail belongs in
 
 - No known major engine/storage blocker remains.
 - The main remaining risk is field bugs found by real BBS and localhost players.
-- `nc-dash` still needs its future lobby/hosted architecture if hosted play is
-  revisited.
+- The hosted `nc-host` / `nc-dash` track now exists locally, but it is still a
+  dev-only path and not the public shipped product story.
 - The BBS door renderer still repaints full frames instead of using the
   retained-frame diffing already in local `nc-game`.
 
@@ -45,5 +47,5 @@ Keep this file short. Historical detail belongs in
    regressions.
 4. Keep the runtime DB scoped to localhost/BBS play; future hosted work should
    use its own schema rather than reviving retired hosted tables in `ncgame.db`.
-5. If hosted work resumes, do it as the new `nc-host` / `nc-dash` path, not
-   by reviving the retired SSH bridge stack.
+5. Keep the localhost `nc-host` lab reproducible with the user-service install
+   script and dev docs, but keep the public docs centered on local/BBS play.

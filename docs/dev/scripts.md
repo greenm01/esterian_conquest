@@ -1,7 +1,36 @@
 # Dev Scripts
 
-This note covers the local developer-facing bootstrap script used to create a
-busy Rust-native campaign for TUI testing.
+This note covers the local developer-facing bootstrap scripts used for both the
+Rust-native TUI test flow and the dev-only localhost hosted lab.
+
+## Localhost Hosted Lab
+
+Use [scripts/install_nc_host_user_service.sh](../../scripts/install_nc_host_user_service.sh)
+when you want a stable localhost `nc-host` + `nc-dash` user-service setup.
+
+It installs and refreshes:
+
+- `~/.config/nc-host/host.kdl`
+- `~/.config/nc-host/host.nsec`
+- `~/.config/systemd/user/nc-host.service`
+- `~/.local/share/nc-host/games`
+
+Run from the repo root:
+
+```bash
+./scripts/install_nc_host_user_service.sh
+```
+
+This script is dev-only. It is not the public production deployment path.
+
+Useful validation commands:
+
+```bash
+systemctl --user status nostr-relay.service
+systemctl --user status nc-host.service
+cd rust
+cargo run -q -p nc-host -- status --config ~/.config/nc-host/host.kdl --root ~/.local/share/nc-host/games
+```
 
 ## Player 1 TUI Stress Game
 

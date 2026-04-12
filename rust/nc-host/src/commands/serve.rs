@@ -1,7 +1,9 @@
 use crate::config::{host_config, host_identity, relay};
 use crate::lobby::publish::EventPublisher;
 use crate::supervisor::routing;
-use nostr_sdk::{Client, Filter, Kind, ToBech32, Keys, RelayPoolNotification};
+use nostr_sdk::{
+    Alphabet, Client, Filter, Keys, Kind, RelayPoolNotification, SingleLetterTag, ToBech32,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -105,6 +107,7 @@ async fn run_async_server(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let keys = Keys::parse(&identity.nsec)?;
     let public_key = keys.public_key();
+    let host_hex = public_key.to_hex();
     let npub = public_key.to_bech32()?;
 
     tracing::info!("Public key: {}", npub);
@@ -128,7 +131,8 @@ async fn run_async_server(
         .kind(Kind::Custom(30507))
         .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
-        .kind(Kind::Custom(30522));
+        .kind(Kind::Custom(30522))
+        .custom_tag(SingleLetterTag::lowercase(Alphabet::P), host_hex.as_str());
 
     let _ = client.subscribe(filter, None).await;
 
@@ -193,6 +197,9 @@ async fn run_async_server(
                                         },
                                     ).await;
                                 }
+                            }
+                            Err(routing::RoutingError::NotAddressedToHost) => {
+                                tracing::debug!("Ignoring event not addressed to this host");
                             }
                             Err(e) => {
                                 tracing::warn!("Routing error: {:?}", e);

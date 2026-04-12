@@ -36,6 +36,39 @@ The scripts expect:
 - `cargo` available in `PATH`
 - the repo workspace intact under `rust/`
 
+## Localhost Hosted Lab
+
+### `install_nc_host_user_service.sh`
+
+Dev-only localhost installer for the relay-native hosted lab.
+
+It:
+
+- builds `target/debug/nc-host`
+- writes `~/.config/nc-host/host.kdl`
+- writes `~/.config/nc-host/host.nsec` if missing
+- installs `~/.config/systemd/user/nc-host.service`
+- uses `~/.local/share/nc-host/games` as the local hosted games root
+- removes stale `ec-gate.service` and `ec4x-daemon.service` if present
+- reloads `systemd --user`
+- restarts `nostr-relay.service`
+- enables and starts `nc-host.service`
+
+Example:
+
+```bash
+./scripts/install_nc_host_user_service.sh
+```
+
+Override the local hosted games root:
+
+```bash
+./scripts/install_nc_host_user_service.sh --games-root /tmp/nc-host-games
+```
+
+Use this when you want a stable localhost `nc-host` + `nc-dash` lab instead of
+manually restarting binaries in separate terminals.
+
 ## Available Scripts
 
 ### `install_vps.sh`
@@ -212,8 +245,10 @@ Use this when you want:
 
 ### `start_local_gui_hosted_test.sh`
 
-Starts a local `nc-sysop nostr serve` instance for a stress-test game so the
-standalone `nc-connect` GUI can join it through the real invite-code path.
+Legacy helper for the retired `nc-sysop` / `nc-connect` hosted path.
+
+It starts a local `nc-sysop nostr serve` instance for a stress-test game so the
+standalone `nc-connect` GUI can join it through the old invite-code path.
 
 Example:
 
@@ -234,8 +269,9 @@ It:
 - prints claimed seat identities for returning-player fixture checks
 - runs `nc-sysop nostr serve` in the foreground
 
-Use this when you want to test the real localhost GUI invite flow instead of
-launching `nc-game` directly.
+Use this only when you are deliberately testing the old retired hosted path.
+For the current relay-native localhost lab, use
+`install_nc_host_user_service.sh` with `nc-host` and `nc-dash` instead.
 
 For same-machine hosted play, the intended normal command is the plain example
 above; `sudo` should not be necessary unless your SSH setup is unusual.
