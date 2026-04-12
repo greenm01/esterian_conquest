@@ -16,8 +16,8 @@ pub use outbox::{
 };
 pub use schema::INIT_SQL;
 pub use seats::{
-    claim_seat, close_seat, create_seats, get_seat_by_number, get_seat_by_pubkey, list_seats,
-    open_seat, reissue_seat, reset_seat, Seat, SeatStatus,
+    claim_seat, close_seat, create_seats, find_seat_by_invite_hash, get_seat_by_number,
+    get_seat_by_pubkey, list_seats, open_seat, reissue_seat, reset_seat, Seat, SeatStatus,
 };
 pub use settings::{get_settings, update_settings, GameSettings, LobbyVisibility, RecruitingMode};
 pub use store::HostedStore;

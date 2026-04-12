@@ -118,6 +118,35 @@ pub fn get_seat_by_pubkey(
     }
 }
 
+pub fn find_seat_by_invite_hash(
+    conn: &Connection,
+    game_id: &str,
+    invite_code_hash: &str,
+) -> SqliteResult<Option<Seat>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, game_id, seat_number, invite_code, invite_code_hash, player_pubkey,
+                status, claimed_at, created_at
+         FROM seats WHERE game_id = ?1 AND invite_code_hash = ?2",
+    )?;
+
+    let mut rows = stmt.query(params![game_id, invite_code_hash])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(Seat {
+            id: row.get(0)?,
+            game_id: row.get(1)?,
+            seat_number: row.get(2)?,
+            invite_code: row.get(3)?,
+            invite_code_hash: row.get(4)?,
+            player_pubkey: row.get(5)?,
+            status: SeatStatus::from_str(&row.get::<_, String>(6)?).unwrap_or(SeatStatus::Pending),
+            claimed_at: row.get(7)?,
+            created_at: row.get(8)?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn claim_seat(
     conn: &Connection,
     game_id: &str,

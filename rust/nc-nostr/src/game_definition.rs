@@ -1,6 +1,7 @@
 use nostr_sdk::Event;
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GameDefinition {
     pub game_id: String,
     pub game_name: String,
@@ -15,7 +16,7 @@ pub struct GameDefinition {
     pub slots: Vec<SeatSlot>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum GameStatus {
     Setup,
     Active,
@@ -41,7 +42,7 @@ impl GameStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RecruitingMode {
     None,
     NewPlayers,
@@ -67,7 +68,7 @@ impl RecruitingMode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SeatSlot {
     pub seat: u32,
     pub invite_code_hash: String,
@@ -75,7 +76,7 @@ pub struct SeatSlot {
     pub status: SeatStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SeatStatus {
     Pending,
     Claimed,

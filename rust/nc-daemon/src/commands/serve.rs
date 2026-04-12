@@ -116,24 +116,29 @@ async fn run_async_server(
     tracing::info!("Connecting to relay: {}", relay_config.url);
     client.connect().await;
 
-    let publisher = Arc::new(EventPublisher::new(client.clone()));
+    let publisher = Arc::new(EventPublisher::new(client.clone(), keys));
     let games_root = Arc::new(config.games_root.clone());
 
     let filter = Filter::new()
         .kind(Kind::Custom(30507))
+        .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
         .kind(Kind::Custom(30522))
         .pubkey(public_key);
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30513, 30522");
+    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30522");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
+    let mut catalog_interval = tokio::time::interval(std::time::Duration::from_secs(300));
 
     loop {
         tokio::select! {
+            _ = catalog_interval.tick() => {
+                publish_lobby_catalog(&publisher, &games_root).await;
+            }
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("Shutting down...");
                 break;
@@ -311,6 +316,59 @@ async fn handle_effect(
                 tracing::info!("Published state to {}", request.player_pubkey);
             }
         }
+        crate::game::effects::GameEffects::HandleSeatClaim { request, game_id } => {
+            tracing::info!("Handling seat claim for game {} from {}", game_id, request.player_pubkey);
+            
+            let invite_hash = blake3::hash(request.invite_code.as_bytes()).to_hex().to_string();
+            
+            let seat = match nc_data::hosted::find_seat_by_invite_hash(routed.store.connection(), &game_id, &invite_hash) {
+                Ok(Some(s)) => s,
+                Ok(None) => {
+                    tracing::warn!("Invalid invite code for game {}", game_id);
+                    send_claim_error(publisher, &request.player_pubkey, &request.nonce, "invalid_invite", "The invite code is invalid.").await;
+                    return;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to lookup seat: {}", e);
+                    return;
+                }
+            };
+            
+            if seat.status != nc_data::hosted::SeatStatus::Pending {
+                tracing::warn!("Seat {} already claimed in game {}", seat.seat_number, game_id);
+                send_claim_error(publisher, &request.player_pubkey, &request.nonce, "seat_unavailable", "This seat has already been claimed.").await;
+                return;
+            }
+            
+            if let Err(e) = nc_data::hosted::claim_seat(routed.store.connection(), &game_id, seat.seat_number, &request.player_pubkey) {
+                tracing::error!("Failed to claim seat: {}", e);
+                send_claim_error(publisher, &request.player_pubkey, &request.nonce, "claim_failed", "Failed to claim seat.").await;
+                return;
+            }
+            
+            tracing::info!("Player {} claimed seat {} in game {}", request.player_pubkey, seat.seat_number, game_id);
+            
+            let response = serde_json::json!({
+                "seat": seat.seat_number,
+                "game_id": game_id,
+                "status": "claimed",
+            });
+            
+            let content = serde_json::to_string(&response).unwrap_or_default();
+            let gid_tag = game_id.clone();
+            let seat_str = seat.seat_number.to_string();
+            let tag_refs: Vec<(&str, &str)> = vec![
+                ("d", &request.nonce),
+                ("game-id", &gid_tag),
+                ("seat", &seat_str),
+            ];
+            
+            if let Err(e) = publisher.publish_to_pubkey(&request.player_pubkey, 30511, &content, tag_refs).await {
+                tracing::error!("Failed to publish claim confirmation: {}", e);
+            } else {
+                tracing::info!("Published seat claim confirmation to {}", request.player_pubkey);
+            }
+        }
         crate::game::effects::GameEffects::InvalidEvent { reason } => {
             tracing::warn!("Invalid event: {}", reason);
         }
@@ -327,4 +385,51 @@ fn print_usage() {
     println!("  --root <path>     Games root directory (required)");
     println!("  --config <path>  Config file path (default: /etc/nc-daemon/daemon.kdl)");
     println!("  --identity <path> Identity nsec file (default: from config)");
+}
+
+async fn send_claim_error(
+    publisher: &EventPublisher,
+    player_pubkey: &str,
+    nonce: &str,
+    error: &str,
+    message: &str,
+) {
+    let payload = serde_json::json!({
+        "error": error,
+        "message": message,
+    });
+    let content = serde_json::to_string(&payload).unwrap_or_default();
+    let tag_refs: Vec<(&str, &str)> = vec![
+        ("d", nonce),
+        ("error", error),
+    ];
+    
+    if let Err(e) = publisher.publish_to_pubkey(player_pubkey, 30511, &content, tag_refs).await {
+        tracing::error!("Failed to publish claim error: {}", e);
+    }
+}
+
+async fn publish_lobby_catalog(
+    publisher: &EventPublisher,
+    games_root: &std::sync::Arc<std::path::PathBuf>,
+) {
+    use crate::lobby::catalog_publish::collect_lobby_games;
+    match collect_lobby_games(games_root) {
+        Ok(games) => {
+            if games.is_empty() {
+                tracing::debug!("No public games to publish to lobby");
+                return;
+            }
+            let content = serde_json::to_string(&games).unwrap_or_default();
+            let tag_refs: Vec<(&str, &str)> = vec![("d", "lobby-catalog"), ("limit", "100")];
+            if let Err(e) = publisher.publish(30500, &content, tag_refs).await {
+                tracing::error!("Failed to publish lobby catalog: {}", e);
+            } else {
+                tracing::info!("Published lobby catalog with {} games", games.len());
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to collect lobby games: {}", e);
+        }
+    }
 }
