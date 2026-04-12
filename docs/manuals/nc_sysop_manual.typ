@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 11),
+  date: datetime(year: 2026, month: 4, day: 12),
 )
 
 #set page(
@@ -59,11 +59,11 @@
   #v(0.5em)
   #text(size: 18pt)[Sysop Manual]
   #v(1em)
-  #text(size: 10pt, style: "italic")[A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
+  #text(size: 10pt, style: "italic")[A Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
   #v(2em)
   #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: April 11, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: April 12, 2026]
 ]
 
 #pagebreak()
@@ -100,26 +100,22 @@
 = Introduction
 
 Nostrian Conquest is a multi-player strategy game inspired by a DOS-era BBS
-classic and reimplemented in Rust for modern systems. The Rust-native stack
-provides the game engine, player client, and admin tooling for modern hosts.
+classic. This Rust edition gives the sysop a direct player client, a BBS door,
+and the tools needed to run a campaign.
 
-This manual is for the *sysop* — the person responsible for hosting a game
-instance. It covers:
+This manual is for the *sysop* --- the man who hosts the game. It covers:
 
-- choosing the right deployment path
-- creating and maintaining a DB-only game
-- understanding the planned Nostr GameServer path
+- choosing the live deployment path
+- creating and maintaining a game directory
 - running a local game
 - putting `nc-door` on a BBS
 - managing players and yearly maintenance
 
 For player-facing rules and gameplay, see the *Player Manual*.
 
-This manual is the authoritative sysop manual for the Rust edition of
-Nostrian Conquest. The preserved original `.DOC` set in `original/v1.5/`
-remains historical reference material and an ambiguity fallback for classic
-operator intent, not a higher-authority replacement for the current Rust
-manuals.
+This manual is the authoritative sysop manual for the Rust edition. The
+preserved `.DOC` files in `original/v1.5/` remain historical reference
+material and an ambiguity fallback for classic operator intent.
 
 
 // ─── 2. Getting Started: Hosting a Campaign ───────────────────────────────────
@@ -138,17 +134,19 @@ manuals.
 
 From the repository root:
 
-```
+```bash
+cd rust
 cargo build --release -p nc-sysop -p nc-game
 ```
 
-The release binaries will be in `target/release/`.
+The release binaries will be in `rust/target/release/`.
 
-== Current Beta Distribution
+#admonition("IMPORTANT")[If you update to a newer build and the game reports that the runtime schema is unsupported, the `ncgame.db` in that directory is stale for that build. Recreate or refresh `ncgame.db` before launching again. `nc-door` now shows this as an in-app error screen instead of dropping straight back to the shell.]
 
-During the current beta, public GitHub Releases include Windows x64, Windows
-x86 (32-bit), Windows 7+ x86 (32-bit), and Linux x64 `nc-sysop` BBS/sysop
-packages.
+== Package Distribution
+
+BBS sysops may use a packaged `nc-sysop` archive or build from source.
+Localhost sysops build from source and run `nc-game` directly.
 
 Keep the binary roles straight.
 
@@ -156,24 +154,17 @@ Keep the binary roles straight.
 entrypoint on Windows and Linux. `nc-sysop` is the administrator's tool for
 creation, settings, reservations, and maintenance.
 
-For the Rust edition:
-
-1. BBS sysops can use the public `nc-sysop` package on Linux x64 or Windows
-   x64, or build from tagged source with Cargo.
-2. Localhost sysops build from tagged source with Cargo and run `nc-game`
-   directly.
-
 The public Nostrian packages do not bundle preserved Esterian Conquest
 executables, manuals, or DOS helper assets.
 
 == Choose Your Deployment
 
-NC has three practical deployment paths.
+Use one of these live paths today.
 
 === Localhost Session
 
-Use this when a sysop wants direct same-machine play for himself, hotseat
-testing, or a small trusted session.
+Use this for direct same-machine play, hotseat testing, or a small trusted
+session.
 
 1. Build the binaries from source.
 2. Create a game directory with `nc-sysop new-game`.
@@ -182,14 +173,14 @@ testing, or a small trusted session.
 
 The simplest localhost setup is:
 
-```
+```text
 nc-sysop new-game /home/sysop/nc-games/friday-night --name "Friday Night NC" --players 4
 nc-game --dir /home/sysop/nc-games/friday-night --player 1
 ```
 
 === BBS Door Host
 
-Use this when the sysop wants `nc-door` as a door under Mystic, ENiGMA½, or a
+Use this when you want `nc-door` under Mystic, ENiGMA½, Synchronet, WWIV, or a
 similar BBS.
 
 1. Create the game directory.
@@ -200,18 +191,9 @@ similar BBS.
 5. Keep maintenance outside the door. Run `nc-sysop maint` from the host or
    the BBS event runner.
 
-For BBS hosting, use the public `nc-sysop` package or build from source.
-Localhost play remains a source-build path.
+For BBS hosting, use the packaged `nc-sysop` archive or build from source.
 
-=== Nostr GameServer
-
-This is the planned modern network path. In that model, players use `nc-dash`
-and the sysop runs the Nostr GameServer stack instead of handing out direct
-terminal access. That path is still under development, but it is the intended
-modern way to host NC over the network.
-
-For now, use localhost or BBS hosting for live games. Treat the Nostr docs as
-the design track for that planned deployment.
+#admonition("IMPORTANT")[A planned Nostr/GameServer path exists, but it is not part of the live `nc-sysop` workflow today. For live games, use localhost or BBS hosting.]
 
 For the exact launcher setups, see:
 
@@ -255,7 +237,7 @@ For BBS door campaigns, write `config.kdl` first and then initialize with:
 nc-sysop new-game --bbs /path/to/mygame
 ```
 
-The supported public creation flags are:
+Use these creation flags:
 
 - *`--name`:* String. Optional game title stored in `ncgame.db`. If omitted,
   `nc-sysop` derives a title from the directory slug.
@@ -276,38 +258,30 @@ The target directory basename becomes the stable game slug. It must use only
 lowercase ASCII letters, digits, and dashes. The slug is distinct from the
 human-readable `game_name`.
 
-== Nostr GameServer Status
-
-The planned Nostr GameServer path is not driven by the current `nc-sysop`
-command surface. `nc-sysop` is for localhost and BBS administration today.
-
-The Nostr/GameServer docs describe the planned modern network path and should
-be read as the design track for that deployment.
-
 // ─── 3. Game Directory Structure ─────────────────────────────────────────────
 
 = Game Directory Structure
 
-/ `ncgame.db`: The SQLite runtime database. All game state lives here. Do not
-  edit it by hand.
+- `ncgame.db`: The SQLite runtime database. All live game state is here. Do
+  not edit it by hand.
 
-/ `config.kdl`: Present only for BBS door campaigns. It holds `players` and
+- `config.kdl`: Present only for BBS door campaigns. It holds `players` and
   optional seat `reservations`.
 
 // ─── 4. Configuration ─────────────────────────────────────────────────────────
 
 = Configuration <configuration>
 
-Keep these two paths separate:
+Keep the live paths separate:
 
-=== Direct `nc-game`
+== Direct `nc-game`
 
 - Live state: per-game `ncgame.db`
 - Runtime path: `nc-game --dir ... --player ...` on localhost
 - Operator rule: use the normal `nc-sysop settings ...` surface and schedule
   `nc-sysop maint` yourself
 
-=== BBS Door Host
+== BBS Door Host
 
 - Live state: per-game `config.kdl` plus `ncgame.db`
 - Runtime path: `nc-door` with a dropfile; ENiGMA½ also passes `--socket-port`
@@ -328,7 +302,7 @@ For the full non-BBS settings reference, including the raw `settings show`
 shape and the advanced carried-forward state fields, see
 `docs/sysop/rust/campaign-settings.md`.
 
-=== BBS `config.kdl`
+== BBS `config.kdl`
 
 BBS campaigns use a minimal live per-game `config.kdl` instead of the non-BBS
 settings surface:
@@ -361,7 +335,7 @@ Do not put `game_name`, `theme`, `snoop`, `session`, `inactivity`, or
 `new-game` command line override, not live BBS config.
 
 For BBS campaigns, `nc-sysop settings reserve` and `settings unreserve` edit
-this file for you. `settings set` is a non-BBS command surface.
+this file for you. `settings set` is for non-BBS campaigns.
 
 == Display Defaults
 
@@ -373,7 +347,7 @@ stored in `ncgame.db` as a player preference.
 
 In BBS door mode, `nc-door` does not use `default_theme_key` at runtime. Door
 sessions always force the bundled `mag16` palette so ANSI16 terminals and BBS
-clients get a predictable color-safe baseline.
+clients get a predictable baseline.
 
 // ─── 6. Terminal Access ───────────────────────────────────────────────────────
 
@@ -391,31 +365,33 @@ Color mode is auto-detected from the environment:
 - Otherwise → 16-color ANSI fallback
 
 Force a specific mode with `--color-mode` if your terminal setup does not
-propagate
-`COLORTERM` reliably:
+propagate `COLORTERM` reliably:
 
 ```
 nc-game --dir /path/to/mygame --player 1 --color-mode 256
 ```
 
-UTF-8 encoding (the default) is correct for modern terminals. Use
-`--encoding cp437` only if you are proxying through a BBS or a CP437 terminal
-emulator over SSH.
+UTF-8 encoding (the default) is correct for normal terminals. Use
+`--encoding cp437` only when you are proxying through a BBS or a CP437
+terminal emulator over SSH.
 
 // ─── 7. Localhost Session Setup ───────────────────────────────────────────────
 
 = Localhost Session Setup
 
-Localhost play remains a fully supported mode for solo campaigns, hotseat
-sessions, and sysop testing. Run `nc-game` directly in your terminal:
+Use these steps for localhost play:
 
-```
+1. Create or choose a game directory.
+2. Run `nc-game` directly in your terminal:
+
+```text
 nc-game --dir /path/to/mygame --player 1
 ```
 
-Color mode and encoding default to `auto` / `utf8`, which is correct for
-modern terminal emulators. The client detects `COLORTERM` and `TERM`
-automatically.
+3. Run `nc-sysop maint /path/to/mygame` when you want the year to advance.
+
+Color mode and encoding default to `auto` / `utf8`. The client reads
+`COLORTERM` and `TERM` automatically.
 
 // ─── 8. BBS Door Setup ────────────────────────────────────────────────────────
 
@@ -492,7 +468,7 @@ dropfile-only door flow:
   binary.
 ]
 
-== Modern BBS Hosts
+== Verified BBS Hosts
 
 The native Rust `nc-door` binary is now verified on Mystic, ENiGMA½, and
 Synchronet, and WWIV now has a validated Linux path. The shared core launch
@@ -545,12 +521,17 @@ For the exact launcher setups, see
 
 = File-Based Turn Submission
 
-For localhost, shared-host, or custom-client workflows, players can submit
-orders by writing a KDL turn file and passing it to `nc-game submit-turn`.
-Use `--check` to validate without writing, then run without it to apply:
+Use this when a player needs to submit a KDL turn file directly:
 
-```
+1. Validate the file without writing:
+
+```text
 nc-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+```
+
+2. Apply it:
+
+```text
 nc-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
 ```
 
@@ -591,14 +572,14 @@ For the full node reference and schema, see `docs/sysop/rust/turn-kdl.md`.
 
 Run yearly maintenance with:
 
-```
+```text
 nc-sysop maint /path/to/mygame [turns]
 ```
 
 `nc-sysop maint` advances the campaign in `ncgame.db` immediately. It does not
-change the schedule fields. NC does not schedule maintenance by itself. For
-one direct localhost game or one BBS game, invoke
-`nc-sysop maint` from your own scheduler or event tooling:
+change the schedule fields. NC does not schedule maintenance by itself.
+
+Use one of these methods:
 
 - a `systemd` timer
 - `cron`
@@ -613,13 +594,13 @@ nc-sysop settings set --dir /srv/nc/games/friday-night --maintenance-enabled on 
 ```
 
 That example enables weekly scheduling. `10080` is seven days in minutes.
-`1775347200` is just a sample Unix timestamp. Replace it with the first due
+`1775347200` is only a sample Unix timestamp. Replace it with the first due
 time you actually want.
 
 Treat these schedule fields as optional metadata. They do not create their own
 timer. They are not BBS `config.kdl` fields. If you run a direct localhost
-game, you can ignore them and schedule `maint
-/path/to/mygame` yourself.
+game, you can ignore them and schedule `nc-sysop maint /path/to/mygame`
+yourself.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
 
@@ -630,11 +611,10 @@ inactivity-related state in `ncgame.db`. BBS door campaigns do not use a
 separate inactivity block in `config.kdl`; caller idle handling belongs to the
 BBS software.
 
-For direct DB-only campaigns, the default inactivity autopilot
-threshold is `3` turns. Set `inactivity_autopilot_after_turns=0` if you want
-that policy disabled. A player is treated as active for the year by either
-reaching the live `nc-game` menus or successfully applying a `submit-turn`
-file.
+For direct DB-only campaigns, the default inactivity autopilot threshold is
+`3` turns. Set `inactivity_autopilot_after_turns=0` if you want it disabled. A
+player counts as active for the year by either reaching the live `nc-game`
+menus or successfully applying a `submit-turn` file.
 
 == Reserving Seats
 
@@ -657,7 +637,7 @@ caller alias choose the empire automatically:
 nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 ```
 
-Important rules:
+IMPORTANT:
 
 - if the caller alias is reserved, `--dropfile` alone is enough
 - if the caller alias is not reserved and already matches a stored joined
@@ -668,11 +648,10 @@ Important rules:
 - if no open unreserved empires remain, `J` from the BBS first-time menu is
   refused and the caller stays on that menu
 
-Reserving a seat does not by itself join or pre-name the empire. It only
-routes the caller to the intended slot. The usual first-time join flow still
-claims an empire only on successful join confirmation, and that first
-successful join records the caller alias into the player record for later
-dropfile logins.
+Reserving a seat does not join or pre-name the empire by itself. It only routes
+the caller to the intended slot. The usual first-time join flow still claims an
+empire only on successful join confirmation, and that first successful join
+records the caller alias for later dropfile logins.
 
 For localhost and direct console play, use `nc-game` and follow the localhost
 setup section earlier in this manual instead of the BBS dropfile path.
@@ -681,26 +660,26 @@ setup section earlier in this manual instead of the BBS dropfile path.
 
 = Terminology
 
-/ game directory: The directory containing `ncgame.db` for one running game.
-  Passed to all tools with `--dir`.
+- *game directory:* The directory containing `ncgame.db` for one running game.
+  Pass it to all tools with `--dir`.
 
-/ `nc-sysop`: The public Rust command-line sysop tool for campaign creation,
+- *`nc-sysop`:* The Rust command-line sysop tool for campaign creation,
   maintenance, and settings management.
 
-/ `nc-game`: The Rust TUI player client for direct localhost sessions.
+- *`nc-game`:* The Rust TUI player client for direct localhost sessions.
 
-/ `nc-door`: The Rust BBS door entrypoint. It runs the same game flow as
+- *`nc-door`:* The Rust BBS door entrypoint. It runs the same game flow as
   `nc-game`, but it is the staged binary for Windows and Linux BBS hosts.
 
-/ `ncgame.db`: The SQLite database that is the runtime source of truth for the
+- *`ncgame.db`:* The SQLite database that is the runtime source of truth for the
   Rust engine.
 
-/ non-BBS campaign settings: The sysop-managed runtime policy rows stored in
+- *non-BBS campaign settings:* The sysop-managed runtime policy rows stored in
   `ncgame.db` for direct `nc-game` campaigns. They control game name, the
   default compiled-in color set, maintenance metadata, optional alias
   reservations, and a small set of carried-forward classic setup fields.
 
-/ `config.kdl`: Present only for BBS door campaigns. It holds `players` and
+- *`config.kdl`:* Present only for BBS door campaigns. It holds `players` and
   optional seat `reservations`.
 
 // ─── 13. CLI Reference ────────────────────────────────────────────────────────
@@ -709,7 +688,7 @@ setup section earlier in this manual instead of the BBS dropfile path.
 
 == nc-sysop
 
-```
+```text
 nc-sysop <subcommand> [options]
 ```
 
@@ -723,15 +702,15 @@ nc-sysop <subcommand> [options]
 
 == nc-game and nc-door
 
-```
+```text
 nc-game --dir <game_dir> [--player <1-based index>] [options]
 nc-door --dir <game_dir> --dropfile <path> [options]
 nc-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
 
-Use `nc-game` for direct localhost sessions. Use `nc-door` for BBS
-door launches. The interactive flags below apply to both binaries unless a host
-setup guide says otherwise.
+Use `nc-game` for direct localhost sessions. Use `nc-door` for BBS door
+launches. The interactive flags below apply to both unless a host guide says
+otherwise.
 
 Interactive client flags:
 
@@ -753,7 +732,7 @@ Interactive client flags:
 - *`--timeout <minutes>`:* Session time limit in minutes. It overrides any
   drop file value.
 - *`--export-root <path>`:* Optional map or export staging root for local or
-  BBS file handoff workflows.
+  BBS file handoff.
 - *`--queue-dir <path>`:* Override turn queue directory. Default:
   `<game_dir>/queue`.
 
