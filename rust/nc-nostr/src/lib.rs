@@ -1,9 +1,13 @@
 pub mod claim;
 pub mod discovery;
+pub mod game_definition;
 pub mod hash;
 pub mod hosted;
+pub mod invite_request;
 pub mod json;
 pub mod nonce;
 pub mod session;
+pub mod state_sync;
 pub mod tags;
 pub mod timing;
+pub mod turn_commands;
