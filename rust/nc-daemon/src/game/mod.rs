@@ -6,3 +6,4 @@ pub mod seats;
 pub mod state;
 pub mod turns;
 pub mod update;
+pub mod worker;
