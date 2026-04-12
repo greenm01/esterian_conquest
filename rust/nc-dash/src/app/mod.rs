@@ -1740,6 +1740,7 @@ impl DashApp {
         self.planet_overlay.scroll = 0;
     }
 
+    #[cfg(test)]
     fn apply_planet_overlay_filter(&mut self, filter: PlanetOverlayFilter) {
         let selected_record = planet_list::table_rows(self)
             .get(self.planet_overlay.selected)
@@ -1812,6 +1813,7 @@ impl DashApp {
         self.fleet_overlay.scroll = 0;
     }
 
+    #[cfg(test)]
     fn apply_fleet_overlay_filter(&mut self, filter: FleetOverlayFilter) {
         let selected_key = fleet_list::table_rows(self)
             .get(self.fleet_overlay.selected)
@@ -1894,6 +1896,7 @@ impl DashApp {
         );
     }
 
+    #[cfg(test)]
     fn apply_intel_overlay_filter(&mut self, filter: IntelOverlayFilter) {
         let selected_record = intel_database::table_rows(self)
             .get(self.intel_overlay.selected)

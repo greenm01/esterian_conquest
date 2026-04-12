@@ -81,6 +81,7 @@ pub fn map_center_style() -> CellStyle {
     classic::map_center_style()
 }
 
+#[cfg(test)]
 pub fn map_fleet_marker_style() -> CellStyle {
     on_body(classic::map_dot_style())
 }

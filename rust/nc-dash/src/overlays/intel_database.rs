@@ -615,6 +615,7 @@ pub(crate) fn intel_row_matches_clause(
     }
 }
 
+#[cfg(test)]
 fn sort_footer_label(app: &DashApp) -> String {
     format!("SORT {}", app.intel_overlay.sort_direction.label())
 }

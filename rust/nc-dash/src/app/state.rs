@@ -175,6 +175,7 @@ impl SortDirection {
         }
     }
 
+    #[cfg(test)]
     pub const fn label(self) -> &'static str {
         match self {
             Self::Asc => "ASC",
@@ -224,6 +225,7 @@ pub const fn default_planet_overlay_sort_direction(sort: PlanetOverlaySort) -> S
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetOverlayFilter {
     All,
@@ -379,6 +381,7 @@ pub const fn default_fleet_overlay_sort_direction(sort: FleetOverlaySort) -> Sor
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetOverlayFilter {
     All,
@@ -597,6 +600,7 @@ pub const fn default_intel_overlay_sort_direction(sort: IntelOverlaySort) -> Sor
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntelOverlayFilter {
     All,

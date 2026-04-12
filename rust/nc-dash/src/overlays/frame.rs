@@ -3,9 +3,10 @@
 #[cfg(test)]
 use nc_ui::modal::draw_modal_frame;
 use nc_ui::modal::{
-    ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent,
-    draw_modal_frame_in_parent_with_placement, placed_rect,
+    ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent_with_placement, placed_rect,
 };
+#[cfg(test)]
+use nc_ui::modal::draw_modal_frame_in_parent;
 use nc_ui::table::{
     TableFooter, draw_table_footer_in_span, table_footer_row_count, table_footer_scaffold_width,
 };
@@ -120,6 +121,7 @@ pub fn draw_overlay_frame(
     overlay_frame_from_popup(buf, popup, footer)
 }
 
+#[cfg(test)]
 pub fn draw_overlay_frame_in_map(
     buf: &mut PlayfieldBuffer,
     map_frame: MapWidgetFrame,
@@ -261,6 +263,7 @@ fn overlay_frame_from_popup(
     }
 }
 
+#[cfg(test)]
 pub fn draw_overlay_frame_for_body_in_map(
     buf: &mut PlayfieldBuffer,
     map_frame: MapWidgetFrame,
@@ -302,6 +305,7 @@ pub fn draw_overlay_frame_for_body_in_map_with_origin(
     )
 }
 
+#[cfg(test)]
 pub fn draw_overlay_frame_for_body_in_map_with_policy(
     buf: &mut PlayfieldBuffer,
     map_frame: MapWidgetFrame,
@@ -345,6 +349,7 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy_and_origin(
     )
 }
 
+#[cfg(test)]
 pub fn overlay_popup_rect_for_body_in_map(
     map_frame: MapWidgetFrame,
     title: &str,

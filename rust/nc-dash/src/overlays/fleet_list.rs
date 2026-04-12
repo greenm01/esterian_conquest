@@ -1727,6 +1727,7 @@ pub(crate) fn fleet_row_matches_clause(
     }
 }
 
+#[cfg(test)]
 fn sort_footer_label(app: &DashApp) -> String {
     format!("SORT {}", app.fleet_overlay.sort_direction.label())
 }

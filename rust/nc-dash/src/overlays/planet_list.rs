@@ -1093,6 +1093,7 @@ pub(crate) fn planet_row_matches_clause(
     }
 }
 
+#[cfg(test)]
 fn sort_footer_label(app: &DashApp) -> String {
     format!("SORT {}", app.planet_overlay.sort_direction.label())
 }
