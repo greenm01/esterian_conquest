@@ -8,12 +8,13 @@ use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptStatus};
 use nostr_sdk::Keys;
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use std::fmt;
 
 pub struct GameWorker {
     game_id: String,
     store: Arc<HostedStore>,
     publisher: EventPublisher,
-    keys: Keys,
+    keys: Arc<Keys>,
 }
 
 impl GameWorker {
@@ -21,7 +22,7 @@ impl GameWorker {
         game_id: String,
         store: Arc<HostedStore>,
         publisher: EventPublisher,
-        keys: Keys,
+        keys: Arc<Keys>,
     ) -> Self {
         Self {
             game_id,
@@ -181,9 +182,18 @@ impl GameWorker {
     }
 }
 
+#[derive(Clone)]
 pub struct GameWorkerHandle {
     pub game_id: String,
     sender: mpsc::Sender<GameMsg>,
+}
+
+impl fmt::Debug for GameWorkerHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GameWorkerHandle")
+            .field("game_id", &self.game_id)
+            .finish()
+    }
 }
 
 impl GameWorkerHandle {
@@ -196,12 +206,12 @@ pub fn spawn_worker(
     game_id: String,
     store: Arc<HostedStore>,
     publisher: EventPublisher,
-    keys: Keys,
+    keys: Arc<Keys>,
 ) -> GameWorkerHandle {
     let (tx, mut rx) = mpsc::channel::<GameMsg>(100);
     
     let worker = GameWorker::new(game_id.clone(), store, publisher, keys);
-    let worker = Arc::new(worker);
+    let _worker = Arc::new(worker);
     
     let game_id_clone = game_id.clone();
     

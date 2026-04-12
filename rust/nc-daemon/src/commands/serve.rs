@@ -116,8 +116,10 @@ async fn run_async_server(
     tracing::info!("Connecting to relay: {}", relay_config.url);
     client.connect().await;
 
-    let publisher = Arc::new(EventPublisher::new(client.clone(), keys));
+    let publisher = Arc::new(EventPublisher::new(client.clone(), keys.clone()));
     let games_root = Arc::new(config.games_root.clone());
+    
+    let worker_registry = Arc::new(crate::supervisor::worker_registry::WorkerRegistry::new());
 
     let filter = Filter::new()
         .kind(Kind::Custom(30507))
@@ -159,6 +161,13 @@ async fn run_async_server(
                             Ok(routed) => {
                                 let effects = routing::process_event(&routed);
                                 tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
+                                
+                                let worker_registry = worker_registry.clone();
+                                let game_id = routed.game_id.clone();
+                                
+                                tokio::spawn(async move {
+                                    let _ = worker_registry.track_game(game_id).await;
+                                });
                                 
                                 for effect in effects {
                                     handle_effect(effect, &routed, &publisher).await;
