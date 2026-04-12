@@ -95,6 +95,7 @@ fn run_reissue(
     let new_code = generate_invite_code(&existing);
 
     hosted::reissue_seat(store.connection(), game_id, seat_number, &new_code)?;
+    hosted::mark_catalog_dirty(store.connection(), game_id)?;
 
     println!(
         "Reissued seat {} with new invite code: {}",
@@ -111,6 +112,7 @@ fn run_reset(
     let seat_number = seat_number.ok_or("missing --player argument")?;
 
     hosted::reset_seat(store.connection(), game_id, seat_number)?;
+    hosted::mark_catalog_dirty(store.connection(), game_id)?;
 
     println!("Reset seat {}", seat_number);
     Ok(())
@@ -130,6 +132,7 @@ fn run_open(
     let new_code = generate_invite_code(&existing);
 
     hosted::open_seat(store.connection(), game_id, seat_number, &new_code)?;
+    hosted::mark_catalog_dirty(store.connection(), game_id)?;
 
     println!("Opened seat {} with invite code: {}", seat_number, new_code);
     Ok(())
@@ -143,6 +146,7 @@ fn run_close(
     let seat_number = seat_number.ok_or("missing --player argument")?;
 
     hosted::close_seat(store.connection(), game_id, seat_number)?;
+    hosted::mark_catalog_dirty(store.connection(), game_id)?;
 
     println!("Closed seat {}", seat_number);
     Ok(())

@@ -21,7 +21,8 @@ pub use seats::{
     get_seat_by_pubkey, list_seats, open_seat, reissue_seat, reset_seat, Seat, SeatStatus,
 };
 pub use settings::{
-    get_game_metadata, get_settings, update_settings, GameMetadata, GameSettings, LobbyVisibility,
+    clear_catalog_dirty, get_catalog_dirty_since, get_game_metadata, get_settings,
+    mark_catalog_dirty, update_settings, GameMetadata, GameSettings, LobbyVisibility,
     RecruitingMode,
 };
 pub use store::HostedStore;

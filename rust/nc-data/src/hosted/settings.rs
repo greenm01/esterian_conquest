@@ -140,3 +140,26 @@ pub fn update_settings(
     )?;
     Ok(())
 }
+
+pub fn mark_catalog_dirty(conn: &Connection, game_id: &str) -> SqliteResult<()> {
+    let now = chrono::Utc::now().timestamp();
+    conn.execute(
+        "UPDATE game_metadata SET catalog_dirty_since = ?1 WHERE id = ?2",
+        params![now, game_id],
+    )?;
+    Ok(())
+}
+
+pub fn get_catalog_dirty_since(conn: &Connection, game_id: &str) -> SqliteResult<Option<i64>> {
+    let mut stmt = conn.prepare("SELECT catalog_dirty_since FROM game_metadata WHERE id = ?1")?;
+    let result: Option<i64> = stmt.query_row(params![game_id], |row| row.get(0)).ok();
+    Ok(result)
+}
+
+pub fn clear_catalog_dirty(conn: &Connection, game_id: &str) -> SqliteResult<()> {
+    conn.execute(
+        "UPDATE game_metadata SET catalog_dirty_since = NULL WHERE id = ?1",
+        params![game_id],
+    )?;
+    Ok(())
+}

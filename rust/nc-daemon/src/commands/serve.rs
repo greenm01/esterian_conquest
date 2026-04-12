@@ -136,7 +136,7 @@ async fn run_async_server(
     loop {
         tokio::select! {
             _ = catalog_interval.tick() => {
-                publish_lobby_catalog(&publisher, &games_root).await;
+                publish_lobby_catalog(&publisher, &games_root, false).await;
             }
             _ = decisions_interval.tick() => {
                 publish_pending_decisions(&publisher, &games_root).await;
@@ -348,9 +348,10 @@ fn print_usage() {
 async fn publish_lobby_catalog(
     publisher: &EventPublisher,
     games_root: &std::sync::Arc<std::path::PathBuf>,
+    force: bool,
 ) {
     use crate::lobby::catalog_publish::publish_game_definition;
-    use nc_data::hosted::{get_settings, HostedStore, LobbyVisibility, RecruitingMode};
+    use nc_data::hosted::{clear_catalog_dirty, get_catalog_dirty_since, get_settings, HostedStore, LobbyVisibility, RecruitingMode};
 
     if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
         for entry in entries.flatten() {
@@ -376,6 +377,13 @@ async fn publish_lobby_catalog(
                 }
             };
             
+            if !force {
+                if let Ok(Some(_)) = get_catalog_dirty_since(store.connection(), game_id) {
+                    tracing::debug!("Skipping {} (not dirty, use --force to republish all)", game_id);
+                    continue;
+                }
+            }
+            
             let settings = match get_settings(store.connection(), game_id) {
                 Ok(s) => s,
                 Err(e) => {
@@ -399,6 +407,7 @@ async fn publish_lobby_catalog(
                         tracing::error!("Failed to publish 30500 for {}: {}", game_id, e);
                     } else {
                         tracing::info!("Published 30500 for game {}", game_id);
+                        let _ = clear_catalog_dirty(store.connection(), game_id);
                     }
                 }
                 Ok(None) => {

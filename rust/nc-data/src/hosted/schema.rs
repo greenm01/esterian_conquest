@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS game_metadata (
     summary TEXT,
     maintenance_enabled INTEGER NOT NULL DEFAULT 1,
     maintenance_interval_minutes INTEGER NOT NULL DEFAULT 1440,
-    maintenance_next_due_unix_seconds INTEGER
+    maintenance_next_due_unix_seconds INTEGER,
+    catalog_dirty_since INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS seats (

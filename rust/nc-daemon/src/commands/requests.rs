@@ -156,6 +156,7 @@ fn run_approve(
     let invite_code = generate_invite_code(&existing);
 
     nc_data::hosted::approve_request(store.connection(), request_id, message, &invite_code)?;
+    nc_data::hosted::mark_catalog_dirty(store.connection(), game_id)?;
 
     println!("Approved request {} for player seat {}", request_id, player);
     println!("Invite code: {}", invite_code);
