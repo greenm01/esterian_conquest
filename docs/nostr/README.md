@@ -27,6 +27,7 @@ If you are looking for current operator guidance, use these instead:
 If you are looking for future hosted direction, start with:
 
 - [architecture-v2.md](architecture-v2.md)
+- [protocol.md](protocol.md)
 
 Treat the remaining Nostr documents as non-current unless a file explicitly says
 otherwise.

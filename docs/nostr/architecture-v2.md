@@ -1,474 +1,340 @@
-# Nostrian Conquest Architecture v2
+# Nostrian Conquest Hosted Architecture v2
 
 > Status: future design draft, not the current shipped stack.
 >
-> Today’s supported gameplay surfaces are `nc-game` (localhost), `nc-door`
-> (BBS), and `nc-sysop` (local/BBS administration). This document describes a
-> future relay-native hosted architecture centered on `nc-daemon` and
-> `nc-dash`, not an implemented release.
+> Today the supported public gameplay surfaces are `nc-game` (localhost),
+> `nc-door` (BBS), and `nc-sysop` (local/BBS administration). This document
+> defines the separate future hosted stack centered on `nc-daemon` and
+> `nc-dash`.
 
-## 1. Overview
+## 1. Core Direction
 
-Nostrian Conquest (NC) may evolve to support fully decentralized Nostr-powered
-hosted games while preserving traditional localhost and BBS play modes.
+The hosted Nostr path is a clean split from localhost/BBS play.
 
-**Core vision:**
-- **Nostr-hosted:** Players discover and play games via Nostr protocol — no persistent VPS session required
-- **Local/BBS:** Traditional play via nc-game (localhost) or nc-door (BBS) with direct campaign store access
-- **Independent stacks:** nc-sysop (localhost/BBS) and nc-daemon (Nostr-hosted) are completely separate systems
+- `nc-sysop` remains localhost/BBS-only.
+- `nc-daemon` owns relay-native hosted play.
+- `nc-dash` grows a hosted lobby plus hosted dashboard mode.
+- Hosted storage does not reuse localhost/BBS `ncgame.db`.
 
----
+The daemon model is:
 
-## 2. Component Reference
+- one daemon process hosts many simultaneous games
+- one dedicated relay/node belongs to that daemon
+- one daemon identity keypair belongs to that daemon
+- each hosted game keeps its own self-contained directory and DB
 
-| Component | Description | Status |
-|-----------|-------------|--------|
-| `nc-sysop` | Game creation/management for localhost/BBS only (no Nostr) | Active |
-| `nc-game` | Localhost play TUI (direct ncgame.db access) | Active |
-| `nc-door` | nc-game packaged for BBS sysops | Active |
-| `nc-dash` | Dashboard UI (existing) + lobby mode (new) | Active |
-| `nc-lobby` | Game picker + keychain (integrated into nc-dash) | New |
-| `nc-daemon` | Nostr game server — game creation, hosting, state sync, turn submission | New |
-| `nc-connect` | SSH bridge to nc-game | Deprecated |
-| `nc-gate` | Nostr session provisioning daemon | Deprecated |
+## 2. Hosted Topology
 
----
-
-## 3. Play Modes
-
-### 3.1 Localhost / BBS Play
-
-```
-+--------+     +----------+     +-----------+
-| Player | --> | nc-game  | --> | ncgame.db |
-| Local  |     | nc-door  |     | (local)   |
-+--------+     +----------+     +-----------+
+```text
++-----------+      +-----------+      +---------------------------+
+|  nc-dash  | <--> |   relay   | <--> |        nc-daemon          |
+|  lobby +  |      | (daemon-  |      | supervisor + game workers |
+| dashboard |      | dedicated)|      +---------------------------+
++-----------+      +-----------+                    |
+                                                    v
+                                         <games-root>/<slug>/hosted.db
 ```
 
-**Workflow:**
-1. Sysop runs `nc-sysop new-game <dir> --players 4 --name "Game Name"`
-2. Player runs `nc-game` or connects via BBS door (nc-door)
-3. Player selects game directory, plays directly against local campaign store
+Localhost/BBS stays separate:
 
-**Commands:**
-```bash
-nc-sysop new-game <dir> [--players N] [--name "Name"] [--seed N]
-nc-sysop new-game --bbs <dir>           # BBS mode with config.kdl
-nc-sysop maint <dir> [turns]
-nc-sysop settings show <dir>
-nc-sysop settings set <dir> [--game-name "Name"] [--maintenance-enabled on|off]
-nc-sysop settings reserve <dir> --player N --alias "Name"]
+```text
++----------+     +----------+     +-----------+
+| nc-game  | --> | nc-door  | --> | ncgame.db |
+| nc-sysop |     |          |     |           |
++----------+     +----------+     +-----------+
 ```
 
-### 3.2 Nostr-Hosted Play
+## 3. Storage Boundary
 
-```
-+--------+     +---------+      +------------+     +-----------+
-| Player | --> | nc-dash | <--> |  Nostr    | --> | nc-daemon |
-| Local  |     | (lobby) |      |   Relay   |     |  (VPS)    |
-+--------+     +---------+      +------------+     +-----------+
-                                                      |
-                                                      v
-                                                   ncgame.db
-```
+Each hosted game is fully self-contained under its own directory.
 
-**Workflow:**
-1. Sysop runs `nc-daemon new-game <dir> --players 4 --name "Game Name"`
-2. nc-daemon creates game and publishes GameDefinition (30500) to relay
-3. Player opens nc-dash, enters lobby mode
-4. nc-dash scans relay for available games, displays game picker
-5. Player selects game, nc-dash connects via Nostr
-6. nc-daemon sends full state (30520), then deltas (30521)
-7. Player submits turn via 30522 TurnCommands
+Example:
 
-**Commands:**
-```bash
-# nc-daemon (server side)
-nc-daemon nostr init                      # Create daemon identity
-nc-daemon new-game <dir> [--players N] [--name "Name"] [--seed N]  # Create hosted game
-nc-daemon serve [--config <path>]         # Start Nostr event loop
-nc-daemon host status                     # Show all game status
-nc-daemon maint <dir> [turns]             # Run turn resolution
-nc-daemon settings show <dir>
-nc-daemon settings set <dir> [...]
-
-# nc-dash (client side)
-nc-dash --lobby                           # Enter lobby mode
-nc-dash --lobby --relay <url>             # Connect to specific relay
-nc-dash <game-dir>                        # Local dashboard (existing)
+```text
+/srv/nc-daemon/games/friday-night/
+  hosted.db
 ```
 
----
+Daemon-global files live outside the games root:
 
-## 4. Nostr Protocol (305xx Range)
-
-| Kind | Name | Direction | Purpose |
-|------|------|-----------|---------|
-| 30500 | GameDefinition | Server → Client | Published game metadata (name, players, status) |
-| 30501 | SessionRequest | Client → Server | Request session (deprecated, for SSH bridge) |
-| 30502 | SessionReady | Server → Client | Session approved (deprecated) |
-| 30503 | SessionError | Server → Client | Session rejected (deprecated) |
-| 30504 | MapRequest | Client → Server | Request player starmap |
-| 30505 | MapBundle | Server → Client | Starmap data (encrypted) |
-| 30506 | MapError | Server → Client | Map request failed |
-| 30507 | StateRequest | Client → Server | Request game state refresh |
-| 30508 | SessionStateReady | Server → Client | State data (metadata only) |
-| 30509 | SessionStateError | Server → Client | State request failed |
-| **30520** | **GameState** | **Server → Client** | **Full player-filtered state snapshot** |
-| **30521** | **StateDelta** | **Server → Client** | **Incremental state changes** |
-| **30522** | **TurnCommands** | **Client → Server** | **Player's turn orders** |
-| 30523 | PlayerMessage | Bidirectional | NIP-44 encrypted P2P diplomacy (future) |
-
-### 4.1 State Sync Flow (30520/30521)
-
-```
-Client (nc-dash)                    Server (nc-daemon)
-     |                                     |
-     |------ 30520 GameState (first) ----->|  # Full sync on connect
-     |<---- 30520 GameState (reply) -------|  # Fog-of-war filtered
-     |                                     |
-     |   [player's turn]                  |
-     |------ 30522 TurnCommands ---------->|  # Submit orders
-     |                                     |  # nc-engine resolves
-     |<---- 30521 StateDelta --------------|  # Incremental update
-     |                                     |
-     |   [repeat for each turn]           |
+```text
+/etc/nc-daemon/daemon.kdl
+/etc/nc-daemon/daemon.nsec
 ```
 
-### 4.2 Event Payloads (Draft)
+`hosted.db` is the authoritative per-game store for:
 
-**30520 GameState (server → client):**
-```json
-{
-  "game_id": "abc123",
-  "turn": 42,
-  "year": 3042,
-  "player_seat": 2,
-  "player_name": "Player 2 Empire",
-  "state": { /* full CoreGameData, fog-of-war filtered */ },
-  "queued_mail": [ /* pending reports */ ],
-  "report_blocks": [ /* turn report rows */ ]
-}
+- game metadata and lobby settings
+- seat roster and invite-code state
+- maintenance schedule state
+- pending turn submissions
+- outbound publish/outbox jobs
+- stored invite requests and audit trail
+
+The hosted stack does not revive retired hosted tables inside localhost/BBS
+`ncgame.db`.
+
+## 4. Runtime Model
+
+The daemon uses a hybrid TEA-style architecture.
+
+- the process-level supervisor owns relay connectivity, game catalog loading,
+  scheduling, and worker lifecycle
+- each game runs as its own worker with a typed loop:
+  `GameMsg -> update(GameRuntime, GameMsg) -> GameEffects`
+- all DB mutation for one game is serialized through that game worker
+- Nostr publishing is staged through a per-game outbox for retry-safe delivery
+
+This keeps the code lean:
+
+- no giant `serve.rs`
+- no catch-all runtime object with every feature jammed into one module
+- no shared multi-tenant mutation path across games
+
+## 5. Lobby Model
+
+`nc-dash --lobby` is the public hosted discovery surface.
+
+The public lobby shows only games that are both:
+
+- `lobby_visibility=public`
+- actively recruiting
+
+Recruiting values:
+
+- `none`
+- `new_players`
+- `replacement_players`
+
+Players see public recruiting metadata only:
+
+- game name
+- current year/turn
+- recruiting mode
+- open seat count
+- short lobby summary
+- host alias
+
+Players do not see:
+
+- raw invite codes
+- hidden seat roster details
+- private per-player state
+
+## 6. Invite and Join Flow
+
+Hosted first joins still use old-style human-readable invite codes:
+
+```text
+{token}@{relay-host[:port]}
 ```
 
-**30521 StateDelta (server → client):**
-```json
-{
-  "game_id": "abc123",
-  "turn": 43,
-  "deltas": {
-    "planets": [...],
-    "fleets": [...],
-    "events": [...]
-  }
-}
+But the public lobby never exposes those codes. The server flow is:
+
+1. `nc-daemon` publishes a public `30500 GameDefinition` for recruiting games.
+2. `nc-dash --lobby` lists those games.
+3. A player sends an invite request over Nostr to the daemon.
+4. The daemon stores the request in the target game's inbox and notifies the
+   sysop contact identity.
+5. The sysop approves or rejects the request through `nc-daemon`.
+6. If approved, the daemon privately sends the invite string to the player.
+7. The player joins with that invite.
+8. First join binds the claimed seat to the player's pubkey.
+9. Later rejoin is by pubkey plus `game-id`, not by reusing the invite as the
+   primary identity.
+
+Seat lifecycle is intentionally small:
+
+- `pending`
+- `claimed`
+
+Admin actions:
+
+- reissue invite
+- reset seat binding
+- open seat
+- close seat
+
+## 7. Hosted Turn Policy
+
+Hosted games default to wall-clock/manual resolution, not early auto-resolve.
+
+Per-game settings include:
+
+- `maintenance_enabled`
+- `maintenance_interval_minutes`
+- `maintenance_next_due_unix_seconds`
+
+The supervisor schedules due games and sends maintenance work to the owning
+game worker. The first spec does not auto-run turns merely because all players
+submitted.
+
+## 8. Nostr Event Surface
+
+Hosted `nc-daemon` owns these kinds:
+
+| Kind | Name | Purpose |
+|------|------|---------|
+| `30500` | `GameDefinition` | Public recruiting-game catalog row |
+| `30507` | `StateRequest` | Client requests a refresh |
+| `30513` | `InviteRequest` | Player asks the sysop for an invite |
+| `30514` | `InviteRequestReceipt` | Daemon acknowledges receipt/rejection |
+| `30515` | `InviteDecision` | Sysop approval or rejection result |
+| `30520` | `GameState` | Full fog-of-war-filtered snapshot |
+| `30521` | `StateDelta` | Incremental hosted update |
+| `30522` | `TurnCommands` | Submitted player orders |
+| `30524` | `TurnReceipt` | Turn accepted/rejected with details |
+
+Retired SSH bridge kinds `30501`/`30502`/`30503` are legacy reference only for
+the old `nc-connect` / `nc-gate` path.
+
+## 9. `GameDefinition` Requirements
+
+`30500 GameDefinition` is the public lobby catalog event.
+
+Required tags:
+
+- `d` game id
+- `name`
+- `status`
+- `players`
+- `recruiting`
+- `open-seats`
+- `year`
+- `turn`
+
+Optional tags:
+
+- `summary`
+- `host-alias`
+- `slot`
+
+`slot` remains hashed-only:
+
+```text
+["slot", "<seat>", "<invite-code-hash>", "<player-pubkey-or-empty>", "<status>"]
 ```
 
-**30522 TurnCommands (client → server):**
-```json
-{
-  "game_id": "abc123",
-  "turn": 43,
-  "orders": "fleet-move 1 5 10\nplanet-build 3 starbase\n..."
-}
-```
+Public events must never reveal raw invite codes.
 
----
+## 10. Module Layout
 
-## 5. Local Cache Design
+The hosted implementation should be split like this.
 
-### 5.1 Overview
+### `nc-daemon`
 
-nc-dash maintains a local SQLite cache per game for offline play and fast dashboard rendering. The cache is fog-of-war filtered — it contains only data the player is allowed to see.
+- `src/main.rs`
+- `src/dispatch.rs`
+- `src/commands/`
+  - `new_game.rs`
+  - `serve.rs`
+  - `maint.rs`
+  - `settings.rs`
+  - `games.rs`
+  - `seats.rs`
+  - `requests.rs`
+  - `nostr.rs`
+- `src/config/`
+  - `daemon_config.rs`
+  - `identity.rs`
+  - `relay.rs`
+  - `sysop_contact.rs`
+- `src/supervisor/`
+  - `catalog.rs`
+  - `runtime.rs`
+  - `scheduler.rs`
+  - `routing.rs`
+- `src/lobby/`
+  - `catalog_publish.rs`
+  - `catalog_view.rs`
+  - `invite_requests.rs`
+  - `notify_sysop.rs`
+  - `rate_limit.rs`
+- `src/game/`
+  - `msg.rs`
+  - `state.rs`
+  - `update.rs`
+  - `effects.rs`
+  - `maint.rs`
+  - `seats.rs`
+  - `turns.rs`
+  - `outbox.rs`
+- `src/support/`
 
-**Location:** `~/.local/share/nc/cache/<game-id>/cache.db`
+### `nc-data`
 
-### 5.2 Schema (Simplified for Client)
+- `src/hosted/`
+  - `store.rs`
+  - `schema.rs`
+  - `settings.rs`
+  - `seats.rs`
+  - `invite_requests.rs`
+  - `turn_queue.rs`
+  - `outbox.rs`
+  - `snapshots.rs`
 
-```sql
--- Game metadata
-CREATE TABLE game_meta (
-    game_id      TEXT PRIMARY KEY,
-    game_name   TEXT NOT NULL,
-    turn        INTEGER NOT NULL,
-    year        INTEGER NOT NULL,
-    player_seat INTEGER NOT NULL,
-    player_name TEXT,
-    state_hash  TEXT NOT NULL,        -- SHA256(state)
-    updated_at  INTEGER NOT NULL       -- Unix timestamp
-);
+### `nc-nostr`
 
--- Visible planets (fog-of-war filtered)
-CREATE TABLE planets (
-    id           INTEGER PRIMARY KEY,
-    name         TEXT NOT NULL,
-    x            INTEGER NOT NULL,
-    y            INTEGER NOT NULL,
-    owner_seat   INTEGER,              -- NULL = unclaimed
-    starbase     INTEGER DEFAULT 0,
-    population   INTEGER DEFAULT 0,
-    industry     INTEGER DEFAULT 0,
-    updated_at   INTEGER NOT NULL
-);
+- `game_definition.rs`
+- `seat_claim.rs`
+- `invite_request.rs`
+- `state_sync.rs`
+- `turn_commands.rs`
+- `turn_receipt.rs`
+- `tags.rs`
+- `json.rs`
 
--- Visible fleets
-CREATE TABLE fleets (
-    id           INTEGER PRIMARY KEY,
-    owner_seat   INTEGER NOT NULL,
-    x            INTEGER NOT NULL,
-    y            INTEGER NOT NULL,
-    mission      TEXT,                 -- "move", "attack", "patrol", etc.
-    warp         INTEGER DEFAULT 0,
-    updated_at   INTEGER NOT NULL
-);
+The ownership rule is the same as the rest of the repo:
 
--- Player's unsubmitted orders (local draft)
-CREATE TABLE pending_orders (
-    id           INTEGER PRIMARY KEY,
-    order_type   TEXT NOT NULL,        -- "fleet-move", "planet-build", etc.
-    target_id    INTEGER,
-    value        TEXT,
-    created_at   INTEGER NOT NULL
-);
+- command modules orchestrate
+- `nc-data` stores
+- `nc-nostr` defines wire shapes
+- `nc-engine` owns rules
 
--- Cached turn reports/mail
-CREATE TABLE reports (
-    id           INTEGER PRIMARY KEY,
-    turn         INTEGER NOT NULL,
-    report_type  TEXT NOT NULL,        -- "battle", "production", "diplomacy", etc.
-    subject      TEXT,
-    body         TEXT,
-    read         INTEGER DEFAULT 0,
-    created_at   INTEGER NOT NULL
-);
+## 11. Command Surface
 
--- Sync metadata
-CREATE TABLE sync_meta (
-    key         TEXT PRIMARY KEY,
-    value       TEXT
-);
-```
+### `nc-daemon`
 
-### 5.3 State Hash
-
-**Purpose:** Validate cache freshness without transferring full state
-
-**Calculation:**
-```
-state_hash = SHA256(
-    game_id ||
-    turn ||
-    player_seat ||
-    planet_state_checksum ||
-    fleet_state_checksum
-)
-```
-
-Where `*_state_checksum` is a deterministic hash of the fog-of-war filtered entities.
-
-### 5.4 Sync Flow
-
-```
-nc-dash (local cache)              nc-daemon (server)
-      |                                  |
-      |  CONNECT                         |
-      |  last_turn=N                    |
-      |  last_hash=XYZ                  |
-      |-------------------------------> |
-      |                                  |
-      |  If turn matches AND hash valid:|
-      |<----- 30521 StateDelta ----------|  # Incremental
-      |                                  |
-      |  If turn gap > 5 OR hash mismatch:
-      |<----- 30520 GameState ------------|  # Full sync
-      |                                  |
-      |  [merge into local cache]       |
-      |  [update state_hash]            |
-```
-
-### 5.5 Offline Mode
-
-**Fully offline operation:**
-1. On launch → load from local cache
-2. Player can view map, reports, status
-3. Player can draft orders (stored in `pending_orders`)
-4. When online → validate hash, sync deltas
-5. When reconnecting → submit `pending_orders` as 30522
-
-**No network detection:**
-- If relay unreachable → continue in offline mode
-- Show "OFFLINE" indicator in UI
-- Queue orders locally
-
-### 5.6 Cache Invalidation Triggers
-
-| Trigger | Action |
-|---------|--------|
-| First launch (no cache) | Request 30520 |
-| Turn gap > 5 | Request 30520 |
-| Hash mismatch | Request 30520 |
-| Hash matches, turn advances | Request 30521 |
-| Explicit "Refresh" | Request 30520 |
-
----
-
-## 6. Identity & Keychain
-
-All Nostr clients share the same identity store:
-
-**Location:** `~/.local/share/nc/wallet.kdl`
-
-**Format:**
-```kdl
-keychain {
-    active 0
-    identity nsec1..." {
-        nsec "nsec1..."
-        type "local"
-        created "2025-01-15T10:30:00Z"
-        alias "My Identity"
-    }
-}
-```
-
-**Protected by:** ChaCha20-Poly1305 + PBKDF2-HMAC-SHA256
-
----
-
-## 7. Data Flow Diagrams
-
-### 7.1 Full Architecture (Target State)
-
-```
-+----------------+      +------------------+      +----------------+
-|   VPS Host     |      |   Nostr Relay    |      |  Player Local  |
-+----------------+      +------------------+      +----------------+
-|                |      |                  |      |                |
-|  +-----------+ |      |                  |      |  +-----------+ |
-|  | nc-daemon | |<---->| 30500-30522     |<---->|  | nc-dash   | |
-|  |           | |      |                  |      |  | (lobby)   | |
-|  +-----------+ |      |                  |      |  +-----------+ |
-|        |       |      |                  |      |        |       |
-|        v       |      |                  |      |        v       |
-|   ncgame.db    |      |                  |      |   nc-dash     |
-|                |      |                  |      |   (dashboard)  |
-+----------------+      +------------------+      +----------------+
-
-
-+----------------+      +------------------+
-|  BBS/Local     |      |  Sysop Local     |
-+----------------+      +------------------+
-|                |      |                  |
-|  +-----------+ |      |  +-----------+  |
-|  | nc-door   | |      |  | nc-sysop  |  |
-|  | nc-game   | |      |  |           |  |
-|  +-----------+ |      |  +-----------+  |
-|        |       |      |        |         |
-|        v       |      |        v         |
-|   ncgame.db    |      |   ncgame.db      |
-|   (local)      |      |   (local)        |
-+----------------+      +------------------+
-```
-
-### 7.2 Lobby Mode Flow
-
-```
-nc-dash --lobby
-    |
-    +---> Unlock keychain (prompt password)
-    |
-    +---> Connect to relay(s)
-    |
-    +---> Subscribe to 30500 (GameDefinition)
-    |
-    +---> Display game picker
-    |         |
-    |         +---> [Select Game] ---> Connect to game
-    |         |                           |
-    |         |                           +---> Subscribe 30520/30521
-    |         |                           +---> Load local cache
-    |         |                           +---> Enter dashboard mode
-    |         |
-    |         +---> [Refresh] ---> Re-fetch 30500 events
-    |
-    +---> [Quit]
-```
-
----
-
-## 8. Migration Path
-
-### Phase 1: Create nc-daemon (Priority: High)
-- Implement 30520/30521/30522 protocol
-- Add `new-game` command (independent from nc-sysop)
-- Add `nostr init` and `serve` commands
-- Test state sync with isolated game
-
-### Phase 2: Integrate Lobby into nc-dash
-- Add keychain support to nc-dash
-- Add game picker UI (re-use nc-connect picker)
-- Add relay connection management
-- Add state sync client (30520/30521)
-
-### Phase 3: Turn Submission
-- Add turn builder UI in nc-dash
-- Implement 30522 client-side submission
-- Test full turn loop (submit → resolve → delta)
-
-### Phase 4: Deprecation
-- Mark nc-connect deprecated
-- Mark nc-gate deprecated
-- Update docs to point to nc-daemon
-- Remove from CI/release builds (after transition period)
-
-### Phase 5: Cleanup
-- Remove nc-gate code
-- Remove nc-connect code
-- Update architecture documentation
-
----
-
-## 9. Deferred / Future
-
-- **30523 PlayerMessage** — NIP-44 encrypted P2P diplomacy
-- **Relay federation** — Multiple relays, relay switching
-
----
-
-## 10. Command Reference
-
-### nc-sysop (localhost/BBS only)
-```bash
-nc-sysop new-game <dir> [--players N] [--name "Name"] [--seed N]
-nc-sysop new-game --bbs <dir>
-nc-sysop maint <dir> [turns]
-nc-sysop maint-all [--config <path>]
-nc-sysop settings show <dir>
-nc-sysop settings set <dir> [--game-name "Name"] [--maintenance-enabled on|off]
-nc-sysop settings reserve <dir> --player N --alias "Name"
-nc-sysop settings unreserve <dir> --player N
-```
-
-### nc-daemon (Nostr-hosted only)
-```bash
-nc-daemon nostr init [--identity <path>]
+```text
+nc-daemon nostr init
 nc-daemon new-game <dir> [--players N] [--name "Name"] [--seed N]
-nc-daemon serve [--config <path>] [--identity <path>]
-nc-daemon host status
+nc-daemon serve --root <games-root> [--config <path>]
+nc-daemon games list
+nc-daemon games status [--dir <path>]
 nc-daemon maint <dir> [turns]
-nc-daemon settings show <dir>
-nc-daemon settings set <dir> [...]
+nc-daemon settings show --dir <path>
+nc-daemon settings set --dir <path> ...
+nc-daemon seats list --dir <path>
+nc-daemon seats reissue --dir <path> --player N
+nc-daemon seats reset --dir <path> --player N
+nc-daemon seats open --dir <path> --player N
+nc-daemon seats close --dir <path> --player N
+nc-daemon requests list [--dir <path>]
+nc-daemon requests show --dir <path> --request <id>
+nc-daemon requests approve --dir <path> --request <id> --player N
+nc-daemon requests reject --dir <path> --request <id> --message "..."
 ```
 
-### nc-dash (modified)
-```bash
-nc-dash <game-dir>                    # Dashboard mode (existing)
-nc-dash --lobby                       # Lobby mode (new)
-nc-dash --lobby --relay <url>         # Lobby with specific relay
+### `nc-dash`
+
+```text
+nc-dash --lobby
+nc-dash --lobby --relay <url>
 ```
 
----
+`nc-dash` remains the direct dashboard client for the hosted path; it does not
+launch an SSH/PTy bridge.
 
-*Document Version: 2.0*  
-*Replaces: `docs/nostr/architecture-migration.md` (kept for historical context)*  
-*Status: Draft*
+## 12. Explicit Non-Goals
+
+The first hosted spec does not require:
+
+- relay federation
+- per-game relay overrides
+- a shared multi-tenant control DB
+- direct player-to-player diplomacy events
+- auto-issuing invites for public seats
+- early auto-resolve when all turns are submitted
+
+These can be added later without collapsing the per-game storage or per-game
+worker boundaries.
