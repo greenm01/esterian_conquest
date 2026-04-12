@@ -213,7 +213,7 @@ fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
     match key.code {
         KeyCode::Esc => app.state.route = LobbyRoute::Home,
         KeyCode::Char('r' | 'R') => refresh_hosted_game(app),
-        KeyCode::Char('t' | 'T') => app.state.route = LobbyRoute::SubmitTurn,
+        KeyCode::Char('t' | 'T') => open_submit_turn(app),
         _ => {
             if let Some(hosted) = app.state.hosted_game.as_mut() {
                 hosted.dashboard.dispatch_key_event(key);
@@ -223,6 +223,20 @@ fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
             }
         }
     }
+}
+
+fn open_submit_turn(app: &mut LobbyApp) {
+    let Some(hosted) = app.state.hosted_game.as_mut() else {
+        app.state.route = LobbyRoute::Home;
+        return;
+    };
+    hosted.submit_input = hosted.dashboard.hosted_turn_text().unwrap_or_default();
+    hosted.submit_status = if hosted.submit_input.is_empty() {
+        Some("No staged hosted orders yet.".to_string())
+    } else {
+        Some("Review the staged turn.kdl, then press Enter to send 30522.".to_string())
+    };
+    app.state.route = LobbyRoute::SubmitTurn;
 }
 
 fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -241,6 +255,13 @@ fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
             let row = hosted.row.clone();
             let turn = hosted.snapshot.turn;
             let commands = hosted.submit_input.clone();
+            if commands.trim().is_empty() {
+                if let Some(hosted) = app.state.hosted_game.as_mut() {
+                    hosted.submit_status = Some("No staged hosted orders to submit.".to_string());
+                }
+                app.state.route = LobbyRoute::HostedGame;
+                return;
+            }
             match app.transport.submit_turn(&row, turn, &commands) {
                 Ok(loaded) => {
                     if let Some(hosted) = app.state.hosted_game.as_mut() {

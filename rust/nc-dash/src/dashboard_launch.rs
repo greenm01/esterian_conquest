@@ -155,6 +155,9 @@ impl DashLaunchState {
         app.geometry = required;
         app.frame = required;
         app.is_terminal_too_small = false;
+        if app.campaign_store.is_none() {
+            app.initialize_hosted_turn_draft();
+        }
         app.resize_canvas(geometry.width() as u16, geometry.height() as u16);
         Ok(app)
     }

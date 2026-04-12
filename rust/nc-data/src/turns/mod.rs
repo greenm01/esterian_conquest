@@ -9,6 +9,7 @@ use crate::{
 
 mod apply;
 mod parser;
+mod render;
 mod runtime;
 
 pub const MAX_MESSAGE_SUBJECT_CHARS: usize = 60;
@@ -177,6 +178,10 @@ impl TurnSubmission {
 
     pub fn load_kdl(path: &Path) -> Result<Self, TurnSubmissionError> {
         Self::parse_kdl_str(&fs::read_to_string(path)?)
+    }
+
+    pub fn to_kdl_string(&self) -> String {
+        render::render_turn_submission(self)
     }
 
     pub fn apply_to(

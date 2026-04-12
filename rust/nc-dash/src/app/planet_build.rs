@@ -262,6 +262,13 @@ impl DashApp {
             Err(err) => return Err(err.into()),
         }
 
+        if let Ok(points_remaining_raw) = u8::try_from(points) {
+            self.stage_hosted_planet_build(
+                planet_record_index_1_based,
+                points_remaining_raw,
+                production_item_kind_raw(kind),
+            );
+        }
         self.save_and_refresh_runtime()?;
         self.reselect_planet_overlay_row(planet_record_index_1_based);
         self.planet_overlay.build_unit_input.clear();
@@ -323,6 +330,7 @@ impl DashApp {
         };
         self.game_data
             .clear_planet_build_queue(planet_record_index_1_based)?;
+        self.stage_hosted_planet_clear_build_queue(planet_record_index_1_based);
         self.save_and_refresh_runtime()?;
         self.reselect_planet_overlay_row(planet_record_index_1_based);
         self.close_planet_build_abort_prompt();

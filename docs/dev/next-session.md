@@ -28,6 +28,9 @@ Keep this file short. Historical detail belongs in
   typed hosted snapshots instead of using the old separate mini summary view.
 - The old hosted mini-view path has been removed; hosted play now enters the
   real dashboard shell through the shared launch path.
+- Hosted dashboard edits now stage a generated `turn.kdl` draft for supported
+  fleet-order and planet-build actions, and `T` reviews/sends that staged
+  `30522` payload instead of starting from an empty raw-text box.
 - `nc-host` now exists as the relay-native hosted server name and localhost dev lab target.
 - `nc-host` now exposes `notices` and `threads` operator commands for the
   hosted lobby communication surfaces.
@@ -50,9 +53,9 @@ Keep this file short. Historical detail belongs in
 - The main remaining risk is field bugs found by real BBS and localhost players.
 - The hosted `nc-host` / `nc-dash` track now exists locally, but it is still a
   dev-only path and not the public shipped product story.
-- The biggest remaining hosted client gap is replacing the current synthesized
-  hosted launch adapter with a true shared local/hosted dashboard launch model
-  and a first-class hosted order submission path.
+- The biggest remaining hosted client gap is finishing the last unsupported
+  hosted dashboard actions and broadening the staged hosted draft flow beyond
+  the current fleet-order and planet-build surfaces.
 - The BBS door renderer still repaints full frames instead of using the
   retained-frame diffing already in local `nc-game`.
 
@@ -66,7 +69,7 @@ Keep this file short. Historical detail belongs in
    use its own schema rather than reviving retired hosted tables in `ncgame.db`.
 5. Keep the localhost `nc-host` lab reproducible with the user-service install
    script and dev docs, but keep the public docs centered on local/BBS play.
-6. Replace the current synthesized hosted dashboard adapter with a shared
-   `DashLaunchState`-style path for both local and hosted play.
-7. Move hosted order editing/submission off the raw-text modal and onto a
-   first-class hosted dashboard flow.
+6. Keep the shared local/hosted dashboard launch path stable while real users
+   exercise the hosted dashboard.
+7. Finish the remaining unsupported hosted dashboard actions or explicitly
+   scope them out of the hosted flow.

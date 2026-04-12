@@ -732,6 +732,9 @@ impl DashApp {
                             );
                             return Ok(());
                         }
+                        for record_index in &successful {
+                            self.stage_hosted_fleet_roe(*record_index, roe);
+                        }
                         self.save_and_refresh_runtime()?;
                         for record_index in &successful {
                             self.fleet_overlay
@@ -756,6 +759,12 @@ impl DashApp {
                         }
                     }
                     FleetOverlayChangeField::Id => {
+                        if self.is_hosted_mode() {
+                            self.fleet_overlay.aux_status = Some(
+                                "Hosted play does not support fleet renumbering yet.".to_string(),
+                            );
+                            return Ok(());
+                        }
                         let row = rows[0];
                         let id = raw
                             .parse::<u16>()
@@ -814,6 +823,19 @@ impl DashApp {
                             );
                             return Ok(());
                         }
+                        for record_index in &successful {
+                            if let Some(fleet) = self.game_data.fleets.records.get(*record_index - 1) {
+                                let aux = fleet.mission_aux_bytes();
+                                self.stage_hosted_fleet_order(
+                                    *record_index,
+                                    fleet.current_speed(),
+                                    fleet.standing_order_code_raw(),
+                                    fleet.standing_order_target_coords_raw(),
+                                    Some(aux[0]),
+                                    Some(aux[1]),
+                                );
+                            }
+                        }
                         self.save_and_refresh_runtime()?;
                         for record_index in &successful {
                             self.fleet_overlay
@@ -863,6 +885,10 @@ impl DashApp {
                         row.fleet_record_index_1_based,
                         plan.host_record_index_1_based,
                     )?;
+                    self.stage_hosted_fleet_join(
+                        row.fleet_record_index_1_based,
+                        plan.host_record_index_1_based,
+                    );
                 }
                 self.save_and_refresh_runtime()?;
                 self.fleet_overlay.clear_group_selection();
@@ -893,6 +919,10 @@ impl DashApp {
                     source.fleet_record_index_1_based,
                     host.fleet_record_index_1_based,
                 )?;
+                self.stage_hosted_fleet_join(
+                    source.fleet_record_index_1_based,
+                    host.fleet_record_index_1_based,
+                );
                 self.save_and_refresh_runtime()?;
                 self.cancel_fleet_aux_prompt();
                 Ok(())
@@ -1365,6 +1395,14 @@ impl DashApp {
             Some(aux0),
             Some(aux1),
         )?;
+        self.stage_hosted_fleet_order(
+            selected_row.fleet_record_index_1_based,
+            speed,
+            mission_code,
+            target,
+            Some(aux0),
+            Some(aux1),
+        );
         self.save_and_refresh_runtime()?;
         self.reselect_fleet_overlay_row(FleetOverlayRowKey::Fleet(
             selected_row.fleet_record_index_1_based,
@@ -1404,6 +1442,14 @@ impl DashApp {
                 Some(aux0),
                 Some(aux1),
             )?;
+            self.stage_hosted_fleet_order(
+                row.fleet_record_index_1_based,
+                speed,
+                mission_code,
+                target,
+                Some(aux0),
+                Some(aux1),
+            );
         }
         let reselect = self.fleet_overlay.active_row_key;
         self.save_and_refresh_runtime()?;
@@ -1429,6 +1475,10 @@ impl DashApp {
             selected_row.fleet_record_index_1_based,
             host.fleet_record_index_1_based,
         )?;
+        self.stage_hosted_fleet_join(
+            selected_row.fleet_record_index_1_based,
+            host.fleet_record_index_1_based,
+        );
         self.save_and_refresh_runtime()?;
         self.reselect_fleet_overlay_row(FleetOverlayRowKey::Fleet(
             selected_row.fleet_record_index_1_based,
@@ -1452,6 +1502,10 @@ impl DashApp {
                 row.fleet_record_index_1_based,
                 host.fleet_record_index_1_based,
             )?;
+            self.stage_hosted_fleet_join(
+                row.fleet_record_index_1_based,
+                host.fleet_record_index_1_based,
+            );
         }
         let reselect = self.fleet_overlay.active_row_key;
         self.save_and_refresh_runtime()?;
@@ -1543,6 +1597,12 @@ impl DashApp {
         row: OrderStarbaseRow,
         destination: [u8; 2],
     ) -> Result<(), Box<dyn std::error::Error>> {
+        if self.is_hosted_mode() {
+            self.fleet_overlay.order_status = Some(
+                "Hosted play does not support starbase move orders yet.".to_string(),
+            );
+            return Ok(());
+        }
         if destination == row.coords {
             self.game_data.halt_starbase(
                 self.player_record_index_1_based,
@@ -1874,12 +1934,14 @@ impl DashApp {
                 Some("Stage at least one ship before committing.".to_string());
             return Ok(());
         }
+        let selection = self.fleet_overlay.transfer_selection.clone();
         self.game_data.transfer_ships_between_fleets(
             self.player_record_index_1_based,
             donor,
             host,
-            self.fleet_overlay.transfer_selection.clone(),
+            selection.clone(),
         )?;
+        self.stage_hosted_fleet_transfer(donor, host, selection);
         self.save_and_refresh_runtime()?;
         self.fleet_overlay.clear_group_selection();
         self.cancel_fleet_aux_prompt();

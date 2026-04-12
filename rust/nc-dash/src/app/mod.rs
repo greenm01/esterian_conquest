@@ -1,6 +1,7 @@
 //! App struct, main loop, and action dispatch.
 
 mod fleet_orders;
+mod hosted_turns;
 pub mod input;
 mod persistence;
 pub(crate) mod planet_build;

@@ -258,6 +258,33 @@ planet record={planet_record_index_1_based} {{
 }
 
 #[test]
+fn turn_submission_kdl_renderer_round_trips_supported_actions() {
+    let submission = TurnSubmission::parse_kdl_str(
+        r#"
+turn player=1 year=3004
+tax rate=41
+diplomacy to=2 relation="enemy"
+planet record=7 {
+  clear_build_queue
+  build points=15 kind="scout"
+}
+fleet record=3 {
+  roe value=4
+  order speed=5 kind="scout_system" x=8 y=9
+  transfer to=4 destroyers=1 scouts=1
+}
+message to=2 subject="Border" body="Holding lane."
+"#,
+    )
+    .expect("parse source submission");
+
+    let rendered = submission.to_kdl_string();
+    let reparsed = TurnSubmission::parse_kdl_str(&rendered).expect("reparse rendered kdl");
+
+    assert_eq!(reparsed, submission);
+}
+
+#[test]
 fn turn_submission_loads_from_kdl_file() {
     let dir = std::env::temp_dir().join("nc-data-turn-kdl-load");
     let _ = std::fs::remove_dir_all(&dir);

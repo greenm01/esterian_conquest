@@ -2,7 +2,7 @@
 
 use nc_data::{
     CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
-    ProductionItemKind, QueuedPlayerMail, ReportBlockRow, WinnerState,
+    ProductionItemKind, QueuedPlayerMail, ReportBlockRow, TurnSubmission, WinnerState,
 };
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
@@ -732,6 +732,7 @@ impl Default for InboxOverlayState {
 pub struct DashApp {
     pub _game_dir: std::path::PathBuf,
     pub campaign_store: Option<CampaignStore>,
+    pub hosted_turn_draft: Option<TurnSubmission>,
     pub game_data: CoreGameData,
     pub owned_planet_years: BTreeMap<usize, u16>,
     pub planet_scorch_orders: BTreeSet<usize>,
@@ -819,6 +820,7 @@ impl DashApp {
         Self {
             _game_dir: game_dir,
             campaign_store,
+            hosted_turn_draft: None,
             game_data,
             owned_planet_years,
             planet_scorch_orders,
@@ -908,6 +910,23 @@ impl DashApp {
         (self.popup == popup)
             .then_some(self.popup_position)
             .flatten()
+    }
+
+    pub fn is_hosted_mode(&self) -> bool {
+        self.hosted_turn_draft.is_some()
+    }
+
+    pub fn hosted_turn_text(&self) -> Option<String> {
+        self.hosted_turn_draft
+            .as_ref()
+            .filter(|submission| {
+                submission.tax_rate.is_some()
+                    || !submission.diplomacy.is_empty()
+                    || !submission.planets.is_empty()
+                    || !submission.fleets.is_empty()
+                    || !submission.messages.is_empty()
+            })
+            .map(TurnSubmission::to_kdl_string)
     }
 }
 

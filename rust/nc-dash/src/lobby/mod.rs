@@ -209,36 +209,50 @@ impl LobbyApp {
                 );
             }
             LobbyRoute::SubmitTurn => {
+                let mut lines = vec![
+                    format!(
+                        "Game     : {}",
+                        self.state
+                            .hosted_game
+                            .as_ref()
+                            .map(|hosted| hosted.row.game.as_str())
+                            .unwrap_or("<none>")
+                    ),
+                    format!(
+                        "Turn     : {}",
+                        self.state
+                            .hosted_game
+                            .as_ref()
+                            .map(|hosted| hosted.snapshot.turn.to_string())
+                            .unwrap_or_else(|| "-".to_string())
+                    ),
+                    "Staged turn.kdl:".to_string(),
+                ];
+                if let Some(hosted) = self.state.hosted_game.as_ref() {
+                    if hosted.submit_input.is_empty() {
+                        lines.push("  <no staged orders>".to_string());
+                    } else {
+                        lines.extend(
+                            hosted
+                                .submit_input
+                                .lines()
+                                .map(|line| format!("  {line}"))
+                                .collect::<Vec<_>>(),
+                        );
+                    }
+                    lines.push(
+                        hosted
+                            .submit_status
+                            .clone()
+                            .unwrap_or_else(|| {
+                                "Enter sends the staged hosted turn.kdl as 30522.".to_string()
+                            }),
+                    );
+                }
                 let _ = render_modal_box(
                     buffer,
                     "SUBMIT TURN",
-                    &vec![
-                        format!(
-                            "Game     : {}",
-                            self.state
-                                .hosted_game
-                                .as_ref()
-                                .map(|hosted| hosted.row.game.as_str())
-                                .unwrap_or("<none>")
-                        ),
-                        format!(
-                            "Turn     : {}",
-                            self.state
-                                .hosted_game
-                                .as_ref()
-                                .map(|hosted| hosted.snapshot.turn.to_string())
-                                .unwrap_or_else(|| "-".to_string())
-                        ),
-                        format!(
-                            "Commands : {}",
-                            self.state
-                                .hosted_game
-                                .as_ref()
-                                .map(|hosted| hosted.submit_input.as_str())
-                                .unwrap_or("")
-                        ),
-                        "Enter sends raw 30522 turn text.".to_string(),
-                    ],
+                    &lines,
                     modal_theme(),
                 );
             }
