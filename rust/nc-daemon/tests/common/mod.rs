@@ -38,9 +38,21 @@ pub fn create_test_game(game_id: &str, player_count: u32) -> (TempDir, PathBuf, 
     let game_dir = path.join(game_id);
     fs::create_dir_all(&game_dir).expect("game dir should create");
 
+    let store = init_test_game_dir(&game_dir, game_id, player_count);
+
+    (temp, game_dir, store)
+}
+
+pub fn create_test_game_in_root(root: &std::path::Path, game_id: &str, player_count: u32) -> (PathBuf, HostedStore) {
+    let game_dir = root.join(game_id);
+    fs::create_dir_all(&game_dir).expect("game dir should create");
+    let store = init_test_game_dir(&game_dir, game_id, player_count);
+    (game_dir, store)
+}
+
+fn init_test_game_dir(game_dir: &std::path::Path, game_id: &str, player_count: u32) -> HostedStore {
     let db_path = game_dir.join("hosted.db");
     let store = HostedStore::create(&db_path).expect("store should create");
-
     let now = chrono::Utc::now().timestamp();
     store
         .connection()
@@ -78,7 +90,7 @@ pub fn create_test_game(game_id: &str, player_count: u32) -> (TempDir, PathBuf, 
     )
     .expect("settings should update");
 
-    (temp, game_dir, store)
+    store
 }
 
 pub fn create_seat_with_code(

@@ -121,7 +121,6 @@ async fn run_async_server(
     let games_root = Arc::new(config.games_root.clone());
     
     let worker_registry = Arc::new(crate::supervisor::worker_registry::WorkerRegistry::new(
-        (*publisher).clone(),
         config.games_root.clone(),
     ));
 
@@ -144,10 +143,10 @@ async fn run_async_server(
     loop {
         tokio::select! {
             _ = catalog_interval.tick() => {
-                publish_lobby_catalog(&publisher, &games_root, false).await;
+                publish_lobby_catalog(&games_root, false).await;
             }
             _ = decisions_interval.tick() => {
-                publish_pending_decisions(&publisher, &games_root).await;
+                publish_pending_decisions(&games_root).await;
             }
             _ = outbox_interval.tick() => {
                 process_outbox(&publisher, &games_root).await;
@@ -183,7 +182,7 @@ async fn run_async_server(
                             Err(routing::RoutingError::UnknownGame(game_id)) => {
                                 tracing::warn!("Routing error: unknown game {}", game_id);
                                 if let Some(request) = nc_nostr::invite_request::parse_invite_request(&event) {
-                                    publish_invite_request_receipt(
+                                    publish_invite_request_receipt_direct(
                                         &publisher,
                                         &request.player_pubkey,
                                         &nc_nostr::invite_request::InviteRequestReceipt {
@@ -226,7 +225,7 @@ fn print_usage() {
     println!("  --identity <path> Identity nsec file (default: from config)");
 }
 
-async fn publish_invite_request_receipt(
+async fn publish_invite_request_receipt_direct(
     publisher: &EventPublisher,
     player_pubkey: &str,
     receipt: &nc_nostr::invite_request::InviteRequestReceipt,
@@ -253,7 +252,6 @@ async fn publish_invite_request_receipt(
 }
 
 async fn publish_lobby_catalog(
-    publisher: &EventPublisher,
     games_root: &std::sync::Arc<std::path::PathBuf>,
     force: bool,
 ) {
@@ -310,10 +308,16 @@ async fn publish_lobby_catalog(
             match publish_game_definition(&store, game_id, settings.host_alias.as_deref()) {
                 Ok(Some(def)) => {
                     let tags = build_game_definition_tags(&def);
-                    if let Err(e) = publisher.publish_multi(30500, "", tags).await {
-                        tracing::error!("Failed to publish 30500 for {}: {}", game_id, e);
+                    if let Err(e) = crate::game::outbox::enqueue_public_event(
+                        store.connection(),
+                        game_id,
+                        30500,
+                        "",
+                        tags,
+                    ) {
+                        tracing::error!("Failed to queue 30500 for {}: {}", game_id, e);
                     } else {
-                        tracing::info!("Published 30500 for game {}", game_id);
+                        tracing::info!("Queued 30500 for game {}", game_id);
                         let _ = clear_catalog_dirty(store.connection(), game_id);
                     }
                 }
@@ -328,11 +332,8 @@ async fn publish_lobby_catalog(
     }
 }
 
-async fn publish_pending_decisions(
-    publisher: &EventPublisher,
-    games_root: &std::sync::Arc<std::path::PathBuf>,
-) {
-    use crate::lobby::invite_decisions::publish_invite_decision;
+async fn publish_pending_decisions(games_root: &std::sync::Arc<std::path::PathBuf>) {
+    use crate::lobby::invite_decisions::enqueue_invite_decision;
     use nc_data::hosted::{list_pending_decisions, mark_decision_published, HostedStore};
     use nc_nostr::invite_request::InviteDecision;
 
@@ -363,15 +364,14 @@ async fn publish_pending_decisions(
 
                             let message = request.decision_message.as_deref().unwrap_or("");
 
-                            match publish_invite_decision(
-                                publisher,
+                            match enqueue_invite_decision(
+                                &store,
+                                game_id,
                                 &request.player_pubkey,
                                 &request.id,
-                                &request.game_id,
                                 decision,
                                 message,
                             )
-                            .await
                             {
                                 Ok(_) => {
                                     let _ = mark_decision_published(store.connection(), &request.id);
@@ -434,9 +434,16 @@ async fn process_outbox(
             };
 
             for item in pending {
-                let tags: Vec<(&str, &str)> = serde_json::from_str(&item.tags).unwrap_or_default();
+                let tags: Vec<Vec<String>> = serde_json::from_str(&item.tags).unwrap_or_default();
+                let publish_result = if item.pubkey.is_empty() {
+                    publisher.publish_multi(item.kind, &item.content, tags).await
+                } else {
+                    publisher
+                        .publish_encrypted_multi(&item.pubkey, item.kind, &item.content, tags)
+                        .await
+                };
 
-                match publisher.publish(item.kind, &item.content, tags).await {
+                match publish_result {
                     Ok(_) => {
                         let _ = mark_published(store.connection(), &item.id, "relay");
                         tracing::debug!("Published outbox item {} for game {}", item.id, game_id);

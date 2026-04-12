@@ -4,6 +4,7 @@ pub mod dispatch;
 pub mod game;
 pub mod invite;
 pub mod lobby;
+pub mod status;
 pub mod support;
 pub mod supervisor;
 

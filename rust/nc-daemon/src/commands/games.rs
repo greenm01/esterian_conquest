@@ -1,4 +1,4 @@
-use nc_data::hosted::{get_game_metadata, get_settings, HostedStore};
+use nc_data::hosted::{get_game_metadata, HostedStore};
 use std::path::PathBuf;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
@@ -95,42 +95,32 @@ fn run_list(games_root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run_status(game_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let db_path = game_dir.join("hosted.db");
-    let store = HostedStore::open(&db_path)?;
+    let status = crate::status::collect::collect_game_status(game_dir)?;
 
-    let game_id = game_dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or("invalid game directory name")?;
-
-    let metadata = get_game_metadata(store.connection(), game_id)?;
-    let settings = get_settings(store.connection(), game_id)?;
-
-    println!("Game: {}", game_id);
-    println!("  Name: {}", metadata.name);
-    println!("  Status: {}", metadata.status);
-    println!(
-        "  Year: {}, Turn: {}",
-        metadata.current_year, metadata.current_turn
-    );
-    println!("  Players: {}", metadata.players);
-    println!("  Recruiting: {}", settings.recruiting.as_str());
-    println!("  Lobby: {}", settings.lobby_visibility.as_str());
+    println!("Game: {}", status.game_id);
+    println!("  Name: {}", status.name);
+    println!("  Status: {}", status.status);
+    println!("  Year: {}, Turn: {}", status.year, status.turn);
+    println!("  Players: {}", status.players);
+    println!("  Claimed seats: {}", status.claimed_seats);
+    println!("  Open seats: {}", status.open_seats);
+    println!("  Recruiting: {}", status.recruiting);
+    println!("  Lobby: {}", status.lobby_visibility);
     println!(
         "  Maintenance: {}",
-        if settings.maintenance_enabled {
+        if status.maintenance_due_now {
+            "due"
+        } else if status.maintenance_enabled {
             "enabled"
         } else {
             "disabled"
         }
     );
-
-    if let Some(alias) = settings.host_alias {
-        println!("  Host: {}", alias);
-    }
-    if let Some(summary) = settings.summary {
-        println!("  Summary: {}", summary);
-    }
+    println!("  Pending requests: {}", status.pending_requests);
+    println!("  Pending decisions: {}", status.pending_decisions);
+    println!("  Pending turns: {}", status.pending_turns);
+    println!("  Outbox pending: {}", status.outbox_pending);
+    println!("  Outbox failed: {}", status.outbox_failed);
 
     Ok(())
 }

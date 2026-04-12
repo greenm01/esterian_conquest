@@ -183,6 +183,24 @@ pub fn get_pending_request_count(
     stmt.query_row(params![game_id, player_pubkey], |row| row.get(0))
 }
 
+pub fn count_pending_requests(conn: &Connection, game_id: &str) -> SqliteResult<u32> {
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(*) FROM invite_requests
+         WHERE game_id = ?1 AND status = 'pending'",
+    )?;
+    stmt.query_row(params![game_id], |row| row.get(0))
+}
+
+pub fn count_unpublished_decisions(conn: &Connection, game_id: &str) -> SqliteResult<u32> {
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(*) FROM invite_requests
+         WHERE game_id = ?1
+           AND status IN ('approved', 'rejected')
+           AND decision_published_at IS NULL",
+    )?;
+    stmt.query_row(params![game_id], |row| row.get(0))
+}
+
 pub fn list_pending_decisions(
     conn: &Connection,
     game_id: &str,

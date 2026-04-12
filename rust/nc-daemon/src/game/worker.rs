@@ -1,6 +1,6 @@
 use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
-use crate::lobby::publish::EventPublisher;
+use crate::game::outbox::enqueue_encrypted_event;
 use nc_data::hosted::{self, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
 use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus};
@@ -14,16 +14,11 @@ use tokio::sync::mpsc;
 pub struct GameWorker {
     game_id: String,
     db_path: PathBuf,
-    publisher: EventPublisher,
 }
 
 impl GameWorker {
-    pub fn new(game_id: String, db_path: PathBuf, publisher: EventPublisher) -> Self {
-        Self {
-            game_id,
-            db_path,
-            publisher,
-        }
+    pub fn new(game_id: String, db_path: PathBuf) -> Self {
+        Self { game_id, db_path }
     }
 
     pub async fn handle_effect(&self, effect: GameEffects) {
@@ -122,14 +117,17 @@ impl GameWorker {
             .map(|(key, value)| vec![key.to_string(), value])
             .collect();
 
-        if let Err(e) = self
-            .publisher
-            .publish_encrypted_multi(&request.player_pubkey, 30520, &content, tags)
-            .await
-        {
-            tracing::error!("Failed to publish state: {}", e);
+        if let Err(e) = enqueue_encrypted_event(
+            store.connection(),
+            &self.game_id,
+            &request.player_pubkey,
+            30520,
+            &content,
+            tags,
+        ) {
+            tracing::error!("Failed to enqueue state response: {}", e);
         } else {
-            tracing::info!("Published encrypted state to {}", request.player_pubkey);
+            tracing::info!("Queued encrypted state for {}", request.player_pubkey);
         }
     }
 
@@ -222,14 +220,17 @@ impl GameWorker {
             .map(|(key, value)| vec![key.to_string(), value])
             .collect();
 
-        if let Err(e) = self
-            .publisher
-            .publish_encrypted_multi(&request.player_pubkey, 30514, &content, tags)
-            .await
-        {
-            tracing::error!("Failed to publish invite receipt: {}", e);
+        if let Err(e) = enqueue_encrypted_event(
+            store.connection(),
+            &self.game_id,
+            &request.player_pubkey,
+            30514,
+            &content,
+            tags,
+        ) {
+            tracing::error!("Failed to enqueue invite receipt: {}", e);
         } else {
-            tracing::info!("Published encrypted invite request receipt to {}", request.player_pubkey);
+            tracing::info!("Queued encrypted invite request receipt for {}", request.player_pubkey);
         }
     }
 
@@ -325,12 +326,15 @@ impl GameWorker {
             .map(|(key, value)| vec![key.to_string(), value])
             .collect();
 
-        if let Err(e) = self
-            .publisher
-            .publish_encrypted_multi(&request.player_pubkey, 30511, &content, tags)
-            .await
-        {
-            tracing::error!("Failed to publish seat claim result: {}", e);
+        if let Err(e) = enqueue_encrypted_event(
+            store.connection(),
+            &self.game_id,
+            &request.player_pubkey,
+            30511,
+            &content,
+            tags,
+        ) {
+            tracing::error!("Failed to enqueue seat claim result: {}", e);
         }
     }
 
@@ -418,14 +422,25 @@ impl GameWorker {
             vec!["status".to_string(), receipt.status.as_str().to_string()],
         ];
 
-        if let Err(e) = self
-            .publisher
-            .publish_encrypted_multi(player_pubkey, 30524, &content, tags)
-            .await
-        {
-            tracing::error!("Failed to publish turn receipt: {}", e);
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(store) => store,
+            Err(err) => {
+                tracing::error!("Failed to open store for turn receipt: {}", err);
+                return;
+            }
+        };
+
+        if let Err(e) = enqueue_encrypted_event(
+            store.connection(),
+            &self.game_id,
+            player_pubkey,
+            30524,
+            &content,
+            tags,
+        ) {
+            tracing::error!("Failed to enqueue turn receipt: {}", e);
         } else {
-            tracing::info!("Published encrypted turn receipt to {}", player_pubkey);
+            tracing::info!("Queued encrypted turn receipt for {}", player_pubkey);
         }
     }
 }
@@ -453,11 +468,10 @@ impl GameWorkerHandle {
 pub fn spawn_worker(
     game_id: String,
     db_path: PathBuf,
-    publisher: EventPublisher,
 ) -> GameWorkerHandle {
     let (tx, mut rx) = mpsc::channel::<GameMsg>(100);
     
-    let worker = GameWorker::new(game_id.clone(), db_path, publisher);
+    let worker = GameWorker::new(game_id.clone(), db_path);
     let worker = Arc::new(worker);
     
     let game_id_clone = game_id.clone();

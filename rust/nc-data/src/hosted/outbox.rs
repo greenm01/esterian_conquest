@@ -108,7 +108,11 @@ pub fn mark_published(conn: &Connection, id: &str, relay_url: &str) -> SqliteRes
 
 pub fn mark_failed(conn: &Connection, id: &str, error_message: &str) -> SqliteResult<()> {
     conn.execute(
-        "UPDATE outbox SET status = 'failed', error_message = ?1, retry_count = retry_count + 1 WHERE id = ?2",
+        "UPDATE outbox
+         SET status = CASE WHEN retry_count + 1 >= 5 THEN 'failed' ELSE 'pending' END,
+             error_message = ?1,
+             retry_count = retry_count + 1
+         WHERE id = ?2",
         params![error_message, id],
     )?;
     Ok(())
@@ -132,4 +136,11 @@ pub fn delete_published_older_than(
         params![game_id, before_timestamp],
     )?;
     Ok(deleted as u64)
+}
+
+pub fn count_by_status(conn: &Connection, game_id: &str, status: OutboxStatus) -> SqliteResult<u32> {
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(*) FROM outbox WHERE game_id = ?1 AND status = ?2",
+    )?;
+    stmt.query_row(params![game_id, status.as_str()], |row| row.get(0))
 }

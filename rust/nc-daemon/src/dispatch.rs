@@ -30,6 +30,7 @@ pub fn run_args(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::e
         "maint" => commands::maint::run(rest.as_slice()),
         "settings" => commands::settings::run(rest.as_slice()),
         "games" => commands::games::run(rest.as_slice()),
+        "status" => commands::status::run(rest.as_slice()),
         "seats" => commands::seats::run(rest.as_slice()),
         "requests" => commands::requests::run(rest.as_slice()),
         "nostr" => commands::nostr::run(rest.as_slice()),
@@ -93,6 +94,7 @@ fn print_usage() {
     println!("  maint        Run hosted maintenance for one game");
     println!("  settings     Inspect or edit hosted game settings");
     println!("  games        List or inspect hosted games");
+    println!("  status       Show daemon-wide hosted status");
     println!("  seats        Manage hosted seats and invite lifecycle");
     println!("  requests     Review or decide invite requests");
     println!("  nostr        Initialize daemon relay identity/config");

@@ -120,6 +120,14 @@ pub fn list_pending_turns(
     turns.collect()
 }
 
+pub fn count_pending_turns(conn: &Connection, game_id: &str) -> SqliteResult<u32> {
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(*) FROM turn_queue
+         WHERE game_id = ?1 AND status = 'pending'",
+    )?;
+    stmt.query_row(params![game_id], |row| row.get(0))
+}
+
 pub fn accept_turn(conn: &Connection, id: &str) -> SqliteResult<()> {
     let now = chrono::Utc::now().timestamp();
     conn.execute(

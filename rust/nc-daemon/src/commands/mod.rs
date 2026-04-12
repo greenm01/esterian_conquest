@@ -5,4 +5,5 @@ pub mod nostr;
 pub mod requests;
 pub mod seats;
 pub mod serve;
+pub mod status;
 pub mod settings;

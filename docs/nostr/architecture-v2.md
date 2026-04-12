@@ -302,6 +302,7 @@ The ownership rule is the same as the rest of the repo:
 nc-daemon nostr init
 nc-daemon new-game <dir> [--players N] [--name "Name"] [--seed N]
 nc-daemon serve --root <games-root> [--config <path>]
+nc-daemon status [--config <path>] [--root <path>] [--json]
 nc-daemon games list
 nc-daemon games status [--dir <path>]
 nc-daemon maint <dir> [turns]
