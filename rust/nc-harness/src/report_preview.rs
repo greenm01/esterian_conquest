@@ -1,10 +1,10 @@
 use nc_data::{FleetRecord, PlanetRecord, ReportBlockRow};
 use nc_engine::{
-    build_results_report_blocks, build_seeded_initialized_game, maint::FleetBattlePerspective,
     AssaultReportEvent, BombardEvent, ContactReportSource, EncounterDispositionEvent,
     EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, GameRng, MaintenanceEvents,
     Mission, MissionEvent, MissionOutcome, Order, PlanetOwnershipChangeEvent, ScoutContactEvent,
-    ShipLosses,
+    ShipLosses, build_results_report_blocks, build_seeded_initialized_game,
+    maint::FleetBattlePerspective,
 };
 
 use crate::error::HarnessError;

@@ -145,7 +145,8 @@ pub fn validate_maintenance_state(
 pub fn run_maintenance_turn(
     game_data: &mut CoreGameData,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut player_lifecycle_states =
+        default_player_lifecycle_states(game_data.conquest.player_count());
     let mut winner_state = WinnerState::default();
     run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
@@ -161,7 +162,8 @@ pub fn run_maintenance_turn_with_visible_hazards(
     game_data: &mut CoreGameData,
     visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut player_lifecycle_states =
+        default_player_lifecycle_states(game_data.conquest.player_count());
     let mut winner_state = WinnerState::default();
     run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
@@ -177,7 +179,8 @@ pub fn run_maintenance_turn_with_seed(
     game_data: &mut CoreGameData,
     campaign_seed: u64,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut player_lifecycle_states =
+        default_player_lifecycle_states(game_data.conquest.player_count());
     let mut winner_state = WinnerState::default();
     run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
@@ -194,7 +197,8 @@ pub fn run_maintenance_turn_with_visible_hazards_and_seed(
     campaign_seed: u64,
     visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut player_lifecycle_states =
+        default_player_lifecycle_states(game_data.conquest.player_count());
     let mut winner_state = WinnerState::default();
     run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
@@ -211,7 +215,8 @@ pub fn run_maintenance_turn_with_context(
     visible_hazards_by_empire: &[VisibleHazardIntel],
     diplomacy_overrides: &[DiplomacyOverride],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut player_lifecycle_states =
+        default_player_lifecycle_states(game_data.conquest.player_count());
     let mut winner_state = WinnerState::default();
     run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
@@ -229,7 +234,8 @@ pub fn run_maintenance_turn_with_context_and_seed(
     visible_hazards_by_empire: &[VisibleHazardIntel],
     diplomacy_overrides: &[DiplomacyOverride],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    let mut player_lifecycle_states = default_player_lifecycle_states(game_data.conquest.player_count());
+    let mut player_lifecycle_states =
+        default_player_lifecycle_states(game_data.conquest.player_count());
     let mut winner_state = WinnerState::default();
     run_maintenance_turn_with_context_seed_and_lifecycle(
         game_data,
@@ -421,9 +427,9 @@ pub fn run_maintenance_turn_with_context_seed_and_lifecycle(
             &destroyed_join_host_fleet_numbers,
             &remap_info.prior_join_host_ids,
         );
-        let had_retargets = new_join_host_events.iter().any(|event| {
-            matches!(event, JoinMissionHostEvent::Retargeted { .. })
-        });
+        let had_retargets = new_join_host_events
+            .iter()
+            .any(|event| matches!(event, JoinMissionHostEvent::Retargeted { .. }));
         merge_events.extend(new_merge_events);
         join_host_events.extend(new_join_host_events);
         if !had_retargets {

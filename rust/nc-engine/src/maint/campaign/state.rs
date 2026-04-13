@@ -69,7 +69,10 @@ pub(super) fn campaign_outcome(
     }
 
     match sole_contender(game_data, player_lifecycle_states) {
-        Some(empire_raw) if owns_any_planets(game_data, empire_raw) && !is_rogue_empire(game_data, empire_raw) => {
+        Some(empire_raw)
+            if owns_any_planets(game_data, empire_raw)
+                && !is_rogue_empire(game_data, empire_raw) =>
+        {
             CampaignOutcome::RecognizedEmperor(empire_raw)
         }
         _ => CampaignOutcome::Ongoing,
@@ -201,11 +204,13 @@ pub(super) fn apply_campaign_state_transitions(
                 continue;
             };
             if empire_raw == emperor_empire_raw {
-                events.game_victory_notice_events.push(GameVictoryNoticeEvent {
-                    recipient_empire_raw: empire_raw,
-                    winner_empire_raw: emperor_empire_raw,
-                    stardate_week: None,
-                });
+                events
+                    .game_victory_notice_events
+                    .push(GameVictoryNoticeEvent {
+                        recipient_empire_raw: empire_raw,
+                        winner_empire_raw: emperor_empire_raw,
+                        stardate_week: None,
+                    });
                 continue;
             }
             if !matches!(lifecycle.terminal_outcome, TerminalOutcome::None) {
@@ -214,11 +219,13 @@ pub(super) fn apply_campaign_state_transitions(
             if is_joined_empire(&game_data.player.records[empire_idx - 1]) {
                 lifecycle.terminal_outcome = TerminalOutcome::LostGame;
                 lifecycle.terminal_review_consumed = false;
-                events.game_victory_notice_events.push(GameVictoryNoticeEvent {
-                    recipient_empire_raw: empire_raw,
-                    winner_empire_raw: emperor_empire_raw,
-                    stardate_week: None,
-                });
+                events
+                    .game_victory_notice_events
+                    .push(GameVictoryNoticeEvent {
+                        recipient_empire_raw: empire_raw,
+                        winner_empire_raw: emperor_empire_raw,
+                        stardate_week: None,
+                    });
             }
         }
 

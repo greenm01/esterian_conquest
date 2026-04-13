@@ -852,8 +852,10 @@ fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() 
     assert!(text.contains("Bombing damage: 25 stored production destroyed."));
     assert!(!text.contains("336 factories"));
     assert!(!text.contains("We were unable to inflict any ground losses."));
-    assert!(!text
-        .contains("We broke through planetary defenses and struck the world's infrastructure."));
+    assert!(
+        !text
+            .contains("We broke through planetary defenses and struck the world's infrastructure.")
+    );
     assert!(!text.contains("0 ground battery(ies)"));
     assert!(!text.contains("0 armies"));
 }
@@ -1090,7 +1092,9 @@ fn results_merge_roe_retreat_into_invasion_abort_report() {
         "expected one merged invasion abort report: {texts:?}"
     );
     assert!(joined.contains("In accordance with our ROE, we withdrew"));
-    assert!(joined.contains("This forced us to abort the invasion before the landing could begin."));
+    assert!(
+        joined.contains("This forced us to abort the invasion before the landing could begin.")
+    );
     assert!(joined.contains("We had 1CA, 2TT*."));
     assert!(joined.contains("The alien force contained 2CA, 3TT."));
     assert!(!joined.contains("Hostile action stripped us of our invasion capability"));
@@ -1427,8 +1431,11 @@ fn victorious_fleet_report_uses_total_destruction_phrase() {
         .join(" ")
         .replace('\n', " ");
     assert!(text.contains("The aliens were completely destroyed."));
-    assert!(!text
-        .contains("We inflicted losses of 1 battleship, 3 cruisers and 2 troop transport ships."));
+    assert!(
+        !text.contains(
+            "We inflicted losses of 1 battleship, 3 cruisers and 2 troop transport ships."
+        )
+    );
 }
 
 #[test]
@@ -1705,12 +1712,14 @@ fn results_projection_is_pure_until_reviewable_flags_are_applied() {
 
     apply_results_reviewable_flags(&mut game_data, &rows);
     assert!(game_data.player.records[0].has_classic_results_review_state());
-    assert!(game_data
-        .player
-        .records
-        .iter()
-        .skip(1)
-        .all(|player| !player.has_classic_results_review_state()));
+    assert!(
+        game_data
+            .player
+            .records
+            .iter()
+            .skip(1)
+            .all(|player| !player.has_classic_results_review_state())
+    );
 }
 
 #[test]
@@ -1748,14 +1757,16 @@ fn defeated_empire_report_uses_first_person_voice() {
         .expect("baseline should build");
 
     let mut events = MaintenanceEvents::default();
-    events.empire_elimination_events.push(EmpireEliminationEvent {
-        defeated_empire_raw: 2,
-        victor_empire_raw: Some(1),
-        cause: EmpireEliminationCause::LastPlanetLost,
-        planet_idx: None,
-        coords: Some([7, 5]),
-        stardate_week: Some(52),
-    });
+    events
+        .empire_elimination_events
+        .push(EmpireEliminationEvent {
+            defeated_empire_raw: 2,
+            victor_empire_raw: Some(1),
+            cause: EmpireEliminationCause::LastPlanetLost,
+            planet_idx: None,
+            coords: Some([7, 5]),
+            stardate_week: Some(52),
+        });
 
     let text = viewer_report_texts(2, &build_results_report_blocks(&game_data, &events))
         .join(" ")
@@ -1776,11 +1787,13 @@ fn victory_declared_report_uses_first_person_for_winner() {
         .expect("baseline should build");
 
     let mut events = MaintenanceEvents::default();
-    events.game_victory_notice_events.push(GameVictoryNoticeEvent {
-        recipient_empire_raw: 1,
-        winner_empire_raw: 1,
-        stardate_week: Some(52),
-    });
+    events
+        .game_victory_notice_events
+        .push(GameVictoryNoticeEvent {
+            recipient_empire_raw: 1,
+            winner_empire_raw: 1,
+            stardate_week: Some(52),
+        });
 
     let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
         .join(" ")

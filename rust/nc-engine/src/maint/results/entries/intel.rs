@@ -4,7 +4,9 @@ use nc_data::{
 };
 
 use crate::maint::results::combat::*;
-use crate::maint::results::entries::{NarrativePhase, ReportEntry, ReportTarget, narrative_phase_for_report_text};
+use crate::maint::results::entries::{
+    NarrativePhase, ReportEntry, ReportTarget, narrative_phase_for_report_text,
+};
 use crate::maint::results::format::*;
 use crate::maint::results::mod_constants::*;
 use crate::maint::results::structured::*;

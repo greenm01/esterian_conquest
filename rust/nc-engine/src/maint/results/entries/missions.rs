@@ -4,14 +4,15 @@ use nc_data::{CoreGameData, MaintenanceEvents, Mission, MissionAbortReason, Miss
 
 use crate::maint::results::combat::*;
 use crate::maint::results::compose::{
-    fleet_abort_disposition, fleet_abort_disposition_text, matching_roe_abort_disposition_index,
-    mission_event_has_assault_report, mission_event_has_fleet_destroyed, AbortDisposition,
+    AbortDisposition, fleet_abort_disposition, fleet_abort_disposition_text,
+    matching_roe_abort_disposition_index, mission_event_has_assault_report,
+    mission_event_has_fleet_destroyed,
 };
 use crate::maint::results::entries::intel::{
     matching_planet_intel_event, owner_clause_from_snapshot, stardock_scan_summary_from_snapshot,
 };
 use crate::maint::results::entries::{
-    narrative_phase_for_report_text, NarrativePhase, ReportEntry, ReportTarget,
+    NarrativePhase, ReportEntry, ReportTarget, narrative_phase_for_report_text,
 };
 use crate::maint::results::format::*;
 use crate::maint::results::mod_constants::*;
