@@ -2263,6 +2263,7 @@ dependencies = [
 name = "nc-dash"
 version = "1.0.0-beta.2"
 dependencies = [
+ "arboard",
  "crossterm",
  "dirs",
  "kdl 6.5.0",

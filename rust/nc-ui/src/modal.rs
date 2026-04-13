@@ -201,17 +201,21 @@ pub fn render_modal_box(
     lines: &[String],
     theme: ModalTheme,
 ) -> Rect {
-    let content_width = lines
+    let max_popup_width = buffer.width().saturating_sub(8);
+    let wrapped_lines = wrap_modal_text_lines(lines, max_popup_width.saturating_sub(4));
+    let content_width = wrapped_lines
         .iter()
         .map(|line| line.chars().count())
         .max()
         .unwrap_or(0);
     let width = (content_width + 4)
         .max(title.chars().count() + 6)
-        .min(buffer.width().saturating_sub(8));
-    let height = (lines.len() + 2) as u16;
+        .min(max_popup_width);
+    let height = (wrapped_lines.len() + 2)
+        .min(buffer.height().saturating_sub(2))
+        .max(2) as u16;
     let popup = draw_modal_frame(buffer, title, width, height, theme);
-    write_modal_lines(buffer, popup, lines, theme.body_style);
+    write_modal_lines(buffer, popup, &wrapped_lines, theme.body_style);
     popup
 }
 
@@ -277,6 +281,18 @@ pub fn wrap_formatted_help_lines(lines: &[String], max_content_width: usize) -> 
         lines: wrapped,
         content_width,
     }
+}
+
+pub fn wrap_modal_text_lines(lines: &[String], max_content_width: usize) -> Vec<String> {
+    if lines.is_empty() || max_content_width == 0 {
+        return Vec::new();
+    }
+
+    let mut wrapped = Vec::new();
+    for line in lines {
+        wrapped.extend(wrap_modal_line(line, max_content_width));
+    }
+    wrapped
 }
 
 pub fn write_modal_lines(
@@ -357,6 +373,56 @@ fn wrap_text_to_width(text: &str, max_width: usize) -> Vec<String> {
     }
 
     lines
+}
+
+fn wrap_modal_line(text: &str, max_width: usize) -> Vec<String> {
+    if max_width == 0 {
+        return Vec::new();
+    }
+    if text.is_empty() {
+        return vec![String::new()];
+    }
+    if let Some((label, value)) = text.split_once(" : ") {
+        return wrap_labeled_line(label, value, max_width);
+    }
+
+    let indent_width = text.chars().take_while(|ch| ch.is_whitespace()).count();
+    if indent_width > 0 && indent_width < max_width {
+        let indent: String = text.chars().take(indent_width).collect();
+        let content = text.chars().skip(indent_width).collect::<String>();
+        return wrap_text_to_width(&content, max_width - indent_width)
+            .into_iter()
+            .map(|segment| format!("{indent}{segment}"))
+            .collect();
+    }
+
+    wrap_text_to_width(text, max_width)
+}
+
+fn wrap_labeled_line(label: &str, value: &str, max_width: usize) -> Vec<String> {
+    let prefix = format!("{label} : ");
+    let prefix_width = prefix.chars().count();
+    if prefix_width >= max_width {
+        return split_long_word(&format!("{label} : {value}"), max_width);
+    }
+
+    let wrapped_value = wrap_text_to_width(value, max_width - prefix_width);
+    if wrapped_value.is_empty() {
+        return vec![prefix];
+    }
+
+    let continuation = " ".repeat(prefix_width);
+    wrapped_value
+        .into_iter()
+        .enumerate()
+        .map(|(idx, segment)| {
+            if idx == 0 {
+                format!("{prefix}{segment}")
+            } else {
+                format!("{continuation}{segment}")
+            }
+        })
+        .collect()
 }
 
 fn split_long_word(word: &str, max_width: usize) -> Vec<String> {
@@ -453,5 +519,30 @@ mod tests {
             wrapped.lines.join(" "),
             "Plain helper prose still wraps when needed"
         );
+    }
+
+    #[test]
+    fn wrap_modal_text_lines_aligns_labeled_continuations() {
+        let lines = vec![String::from(
+            "Message : This is a deliberately long status message for a narrow dialog",
+        )];
+
+        let wrapped = wrap_modal_text_lines(&lines, 22);
+
+        assert_eq!(wrapped[0], "Message : This is a");
+        assert!(wrapped[1].starts_with("          "));
+        assert!(wrapped.iter().all(|line| line.chars().count() <= 22));
+    }
+
+    #[test]
+    fn wrap_modal_text_lines_preserves_indented_lines() {
+        let lines = vec![String::from("  alpha beta gamma delta")];
+
+        let wrapped = wrap_modal_text_lines(&lines, 10);
+
+        assert_eq!(wrapped[0], "  alpha");
+        assert_eq!(wrapped[1], "  beta");
+        assert_eq!(wrapped[2], "  gamma");
+        assert_eq!(wrapped[3], "  delta");
     }
 }

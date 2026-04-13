@@ -1,3 +1,4 @@
+mod clipboard;
 pub mod hosted;
 pub mod models;
 pub mod onboarding;
@@ -28,6 +29,7 @@ impl LobbyApp {
             should_quit: false,
             state: state::LobbyState::new(options.clone(), route),
             transport: transport::LobbyTransport::new(options.relay_override),
+            clipboard: clipboard::Clipboard::new(),
         }
     }
 
@@ -37,7 +39,12 @@ impl LobbyApp {
             should_quit: false,
             state: state::LobbyState::new(LobbyStartupOptions::default(), route),
             transport: transport::LobbyTransport::new(None),
+            clipboard: clipboard::Clipboard::new(),
         }
+    }
+
+    pub fn set_clipboard_text(&mut self, text: impl Into<String>) {
+        self.clipboard.replace_fallback(text.into());
     }
 
     pub fn render_for_test(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -63,7 +70,9 @@ impl LobbyApp {
     fn render_footer(&self, buffer: &mut PlayfieldBuffer) {
         let footer = match self.state.route {
             LobbyRoute::Home => "COMMANDS <- Tab Shift-Tab J K Enter N M H R Q ->",
-            LobbyRoute::FirstRun => "FIRST RUN <- type handle/password Enter create Q quit ->",
+            LobbyRoute::FirstRun => {
+                "FIRST RUN <- type handle/password Enter next-create Up Down Q quit ->"
+            }
             LobbyRoute::Locked => "LOCKED <- type password Enter unlock Q quit ->",
             LobbyRoute::ComposeInvite => "REQUEST INVITE <- type message Enter send Esc close ->",
             LobbyRoute::ComposeThread => "THREAD MESSAGE <- type message Enter send Esc close ->",
@@ -117,7 +126,9 @@ impl LobbyApp {
             left.x,
             joined.y + joined.height + gap,
             left.width,
-            left.height.saturating_sub(joined.height).saturating_sub(gap),
+            left.height
+                .saturating_sub(joined.height)
+                .saturating_sub(gap),
         );
         let notices_h = right.height.saturating_mul(2) / 5;
         let notices = Rect::new(right.x, right.y, right.width, notices_h.max(7));
@@ -125,7 +136,10 @@ impl LobbyApp {
             right.x,
             notices.y + notices.height + gap,
             right.width,
-            right.height.saturating_sub(notices.height).saturating_sub(gap),
+            right
+                .height
+                .saturating_sub(notices.height)
+                .saturating_sub(gap),
         );
 
         panels::joined_games::render(buffer, joined, &self.state, self.state.focus);
@@ -145,20 +159,10 @@ impl LobbyApp {
             LobbyRoute::Home => self.render_home(buffer),
             LobbyRoute::HostedGame => {}
             LobbyRoute::FirstRun => {
-                let _ = render_modal_box(
-                    buffer,
-                    "FIRST RUN",
-                    &onboarding::first_run_lines(&self.state),
-                    modal_theme(),
-                );
+                onboarding::render_first_run(buffer, &self.state);
             }
             LobbyRoute::Locked => {
-                let _ = render_modal_box(
-                    buffer,
-                    "UNLOCK KEYCHAIN",
-                    &onboarding::locked_lines(&self.state),
-                    modal_theme(),
-                );
+                onboarding::render_locked(buffer, &self.state);
             }
             LobbyRoute::ComposeInvite => {
                 let _ = render_modal_box(
@@ -197,10 +201,7 @@ impl LobbyApp {
                     &vec![
                         format!(
                             "Current handle: {}",
-                            self.state
-                                .player_handle
-                                .as_deref()
-                                .unwrap_or("<unset>")
+                            self.state.player_handle.as_deref().unwrap_or("<unset>")
                         ),
                         format!("New handle   : {}", self.state.edit_handle_input),
                         "Enter saves the local keychain handle.".to_string(),
@@ -240,21 +241,11 @@ impl LobbyApp {
                                 .collect::<Vec<_>>(),
                         );
                     }
-                    lines.push(
-                        hosted
-                            .submit_status
-                            .clone()
-                            .unwrap_or_else(|| {
-                                "Enter sends the staged hosted turn.kdl as 30522.".to_string()
-                            }),
-                    );
+                    lines.push(hosted.submit_status.clone().unwrap_or_else(|| {
+                        "Enter sends the staged hosted turn.kdl as 30522.".to_string()
+                    }));
                 }
-                let _ = render_modal_box(
-                    buffer,
-                    "SUBMIT TURN",
-                    &lines,
-                    modal_theme(),
-                );
+                let _ = render_modal_box(buffer, "SUBMIT TURN", &lines, modal_theme());
             }
         }
     }
@@ -302,6 +293,10 @@ impl NativeApp for LobbyApp {
             self.geometry.height(),
             classic::body_style(),
         );
+        if matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked) {
+            self.render_modal_route(&mut buffer);
+            return Ok(buffer);
+        }
         self.render_header(&mut buffer);
         self.render_modal_route(&mut buffer);
         self.render_footer(&mut buffer);
@@ -392,15 +387,14 @@ pub(crate) fn write_panel_rows(
         } else {
             classic::table_body_style()
         };
-        buffer.write_text_clipped(
-            content.y as usize + idx,
-            content.x as usize,
-            row,
-            style,
-        );
+        buffer.write_text_clipped(content.y as usize + idx, content.x as usize, row, style);
     }
 }
 
-pub(crate) fn focus_selected(focus: LobbyFocus, target: LobbyFocus, selected: usize) -> Option<usize> {
+pub(crate) fn focus_selected(
+    focus: LobbyFocus,
+    target: LobbyFocus,
+    selected: usize,
+) -> Option<usize> {
     (focus == target).then_some(selected)
 }

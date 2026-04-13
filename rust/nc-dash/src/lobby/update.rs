@@ -53,42 +53,51 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_single_line_paste(app, key, |state| match state.first_run_field {
+        FirstRunField::Handle => &mut state.first_run_handle_input,
+        FirstRunField::Password => &mut state.first_run_password_input,
+        FirstRunField::Confirm => &mut state.first_run_confirm_input,
+    }) {
+        return;
+    }
+
     match key.code {
         KeyCode::Esc | KeyCode::Char('q' | 'Q')
             if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
         {
             app.should_quit = true;
         }
-        KeyCode::Tab => {
-            app.state.first_run_field = app.state.first_run_field.next();
-        }
-        KeyCode::Backspace => {
-            match app.state.first_run_field {
-                FirstRunField::Handle => {
-                    app.state.first_run_handle_input.pop();
-                }
-                FirstRunField::Password => {
-                    app.state.first_run_password_input.pop();
-                }
-                FirstRunField::Confirm => {
-                    app.state.first_run_confirm_input.pop();
-                }
+        KeyCode::Up => app.state.first_run_field = app.state.first_run_field.prev(),
+        KeyCode::Down => app.state.first_run_field = app.state.first_run_field.next(),
+        KeyCode::Backspace => match app.state.first_run_field {
+            FirstRunField::Handle => {
+                app.state.first_run_handle_input.pop();
             }
-        }
+            FirstRunField::Password => {
+                app.state.first_run_password_input.pop();
+            }
+            FirstRunField::Confirm => {
+                app.state.first_run_confirm_input.pop();
+            }
+        },
         KeyCode::Enter => {
-            match app.transport.create_identity(
-                &app.state.first_run_handle_input,
-                &app.state.first_run_password_input,
-                &app.state.first_run_confirm_input,
-            ) {
-                Ok(loaded) => {
-                    app.state.apply_loaded(loaded);
-                    app.state.unlock_password_input.clear();
-                    app.state.first_run_password_input.clear();
-                    app.state.first_run_confirm_input.clear();
-                    app.state.route = LobbyRoute::Home;
+            if app.state.first_run_field != FirstRunField::Confirm {
+                app.state.first_run_field = app.state.first_run_field.next();
+            } else {
+                match app.transport.create_identity(
+                    &app.state.first_run_handle_input,
+                    &app.state.first_run_password_input,
+                    &app.state.first_run_confirm_input,
+                ) {
+                    Ok(loaded) => {
+                        app.state.apply_loaded(loaded);
+                        app.state.unlock_password_input.clear();
+                        app.state.first_run_password_input.clear();
+                        app.state.first_run_confirm_input.clear();
+                        app.state.route = LobbyRoute::Home;
+                    }
+                    Err(err) => app.state.status_message = Some(err),
                 }
-                Err(err) => app.state.status_message = Some(err),
             }
         }
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -103,6 +112,10 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_single_line_paste(app, key, |state| &mut state.unlock_password_input) {
+        return;
+    }
+
     match key.code {
         KeyCode::Esc | KeyCode::Char('q' | 'Q')
             if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
@@ -128,6 +141,10 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_single_line_paste(app, key, |state| &mut state.compose_message_input) {
+        return;
+    }
+
     match key.code {
         KeyCode::Esc => app.state.route = LobbyRoute::Home,
         KeyCode::Backspace => {
@@ -159,6 +176,10 @@ fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_single_line_paste(app, key, |state| &mut state.compose_message_input) {
+        return;
+    }
+
     match key.code {
         KeyCode::Esc => app.state.route = LobbyRoute::Home,
         KeyCode::Backspace => {
@@ -170,10 +191,11 @@ fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
                 app.state.route = LobbyRoute::Home;
                 return;
             };
-            match app
-                .transport
-                .send_thread_message(&game_id, &daemon_pubkey, &app.state.compose_message_input)
-            {
+            match app.transport.send_thread_message(
+                &game_id,
+                &daemon_pubkey,
+                &app.state.compose_message_input,
+            ) {
                 Ok(loaded) => {
                     app.state.apply_loaded(loaded);
                     app.state.compose_message_input.clear();
@@ -190,6 +212,10 @@ fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_edit_handle_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_single_line_paste(app, key, |state| &mut state.edit_handle_input) {
+        return;
+    }
+
     match key.code {
         KeyCode::Esc => app.state.route = LobbyRoute::Home,
         KeyCode::Backspace => {
@@ -240,6 +266,10 @@ fn open_submit_turn(app: &mut LobbyApp) {
 }
 
 fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_submit_turn_paste(app, key) {
+        return;
+    }
+
     match key.code {
         KeyCode::Esc => app.state.route = LobbyRoute::HostedGame,
         KeyCode::Backspace => {
@@ -265,7 +295,8 @@ fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
             match app.transport.submit_turn(&row, turn, &commands) {
                 Ok(loaded) => {
                     if let Some(hosted) = app.state.hosted_game.as_mut() {
-                        hosted.submit_status = Some("Turn submitted; check inbox for receipt.".to_string());
+                        hosted.submit_status =
+                            Some("Turn submitted; check inbox for receipt.".to_string());
                         hosted.submit_input.clear();
                     }
                     app.state.apply_loaded(loaded);
@@ -296,7 +327,12 @@ fn refresh_lobby(app: &mut LobbyApp) {
 }
 
 fn refresh_hosted_game(app: &mut LobbyApp) {
-    let Some(row) = app.state.hosted_game.as_ref().map(|hosted| hosted.row.clone()) else {
+    let Some(row) = app
+        .state
+        .hosted_game
+        .as_ref()
+        .map(|hosted| hosted.row.clone())
+    else {
         app.state.route = LobbyRoute::Home;
         return;
     };
@@ -340,24 +376,21 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
         return;
     }
     match app.transport.open_game(&row) {
-        Ok(snapshot) => {
-            match build_hosted_dash_app(&snapshot, app.geometry) {
-                Ok(dashboard) => {
-                    app.state.hosted_game = Some(HostedGameView {
-                        row,
-                        snapshot,
-                        dashboard,
-                        submit_input: String::new(),
-                        submit_status: Some("Hosted dashboard loaded from nc-host.".to_string()),
-                    });
-                    app.state.route = LobbyRoute::HostedGame;
-                }
-                Err(err) => {
-                    app.state.status_message =
-                        Some(format!("Unable to build hosted dashboard: {err}"));
-                }
+        Ok(snapshot) => match build_hosted_dash_app(&snapshot, app.geometry) {
+            Ok(dashboard) => {
+                app.state.hosted_game = Some(HostedGameView {
+                    row,
+                    snapshot,
+                    dashboard,
+                    submit_input: String::new(),
+                    submit_status: Some("Hosted dashboard loaded from nc-host.".to_string()),
+                });
+                app.state.route = LobbyRoute::HostedGame;
             }
-        }
+            Err(err) => {
+                app.state.status_message = Some(format!("Unable to build hosted dashboard: {err}"));
+            }
+        },
         Err(err) => app.state.status_message = Some(err),
     }
 }
@@ -399,4 +432,65 @@ fn selected_thread_target(app: &LobbyApp) -> Option<(String, String)> {
                 .find(|row| row.game_id == game_id)
                 .map(|row| (row.game_id.clone(), row.daemon_pubkey.clone()))
         })
+}
+
+fn handle_single_line_paste(
+    app: &mut LobbyApp,
+    key: KeyEvent,
+    select: impl FnOnce(&mut super::state::LobbyState) -> &mut String,
+) -> bool {
+    let Some(text) = read_clipboard_text(app, key) else {
+        return false;
+    };
+    let field = select(&mut app.state);
+    field.extend(sanitize_single_line_paste(&text));
+    true
+}
+
+fn handle_submit_turn_paste(app: &mut LobbyApp, key: KeyEvent) -> bool {
+    let Some(text) = read_clipboard_text(app, key) else {
+        return false;
+    };
+    let Some(hosted) = app.state.hosted_game.as_mut() else {
+        return false;
+    };
+    hosted
+        .submit_input
+        .push_str(&sanitize_multiline_paste(&text));
+    true
+}
+
+fn read_clipboard_text(app: &mut LobbyApp, key: KeyEvent) -> Option<String> {
+    if !is_paste_shortcut(key) {
+        return None;
+    }
+    match app.clipboard.get_text() {
+        Ok(Some(text)) => Some(text),
+        Ok(None) => {
+            app.state.status_message = Some("Clipboard is unavailable.".to_string());
+            None
+        }
+        Err(err) => {
+            app.state.status_message = Some(format!("Clipboard paste failed: {err}"));
+            None
+        }
+    }
+}
+
+fn is_paste_shortcut(key: KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Insert) && key.modifiers.contains(KeyModifiers::SHIFT)
+        || matches!(key.code, KeyCode::Char('v' | 'V'))
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+            && !key.modifiers.contains(KeyModifiers::ALT)
+}
+
+fn sanitize_single_line_paste(text: &str) -> impl Iterator<Item = char> + '_ {
+    text.chars()
+        .filter(|ch| !matches!(ch, '\r' | '\n' | '\u{7f}'))
+}
+
+fn sanitize_multiline_paste(text: &str) -> String {
+    text.chars()
+        .filter(|ch| !matches!(ch, '\u{7f}'))
+        .collect::<String>()
 }

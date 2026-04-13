@@ -4,6 +4,7 @@ use nc_ui::ScreenGeometry;
 use crate::app::state::DashApp;
 use crate::startup::LobbyStartupOptions;
 
+use super::clipboard::Clipboard;
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
 use super::transport::LobbyTransport;
 
@@ -32,6 +33,14 @@ impl FirstRunField {
             Self::Handle => Self::Password,
             Self::Password => Self::Confirm,
             Self::Confirm => Self::Handle,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Handle => Self::Confirm,
+            Self::Password => Self::Handle,
+            Self::Confirm => Self::Password,
         }
     }
 }
@@ -108,7 +117,9 @@ impl LobbyState {
             route,
             focus: LobbyFocus::OpenGames,
             relay_override: options.relay_override.clone(),
-            relay_label: options.relay_override.map(|relay| format!("relay: {relay}")),
+            relay_label: options
+                .relay_override
+                .map(|relay| format!("relay: {relay}")),
             player_handle: None,
             joined_games: Vec::new(),
             open_games: Vec::new(),
@@ -151,9 +162,13 @@ impl LobbyState {
         self.joined_selected = self
             .joined_selected
             .min(self.joined_games.len().saturating_sub(1));
-        self.open_selected = self.open_selected.min(self.open_games.len().saturating_sub(1));
+        self.open_selected = self
+            .open_selected
+            .min(self.open_games.len().saturating_sub(1));
         self.inbox_selected = self.inbox_selected.min(self.inbox.len().saturating_sub(1));
-        self.notices_selected = self.notices_selected.min(self.notices.len().saturating_sub(1));
+        self.notices_selected = self
+            .notices_selected
+            .min(self.notices.len().saturating_sub(1));
         self.thread_selected = self
             .thread_selected
             .min(self.visible_thread_messages().len().saturating_sub(1));
@@ -181,7 +196,10 @@ impl LobbyState {
     pub fn thread_context_game_id(&self) -> Option<&str> {
         match self.focus {
             LobbyFocus::JoinedGames => self.selected_joined_game().map(|row| row.game_id.as_str()),
-            LobbyFocus::Inbox => self.inbox.get(self.inbox_selected).map(|row| row.game_id.as_str()),
+            LobbyFocus::Inbox => self
+                .inbox
+                .get(self.inbox_selected)
+                .map(|row| row.game_id.as_str()),
             LobbyFocus::OpenGames => self.selected_open_game().map(|row| row.game_id.as_str()),
             _ => self
                 .selected_joined_game()
@@ -212,4 +230,5 @@ pub struct LobbyApp {
     pub state: LobbyState,
     pub transport: LobbyTransport,
     pub should_quit: bool,
+    pub(crate) clipboard: Clipboard,
 }
