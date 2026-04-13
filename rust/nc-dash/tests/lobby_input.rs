@@ -1,8 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
-use nc_dash::lobby::models::JoinedGameRow;
-use nc_dash::lobby::models::OpenGameRow;
+use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{
     FirstRunField, HostedGameView, KeychainGateMode, LobbyFocus, LobbyRoute,
 };
@@ -86,6 +85,15 @@ fn paste_shortcuts_fill_single_line_lobby_fields() {
 
     apply_key(&mut app, ctrl_key(KeyCode::Char('v')));
     assert_eq!(app.state.compose_message_input, "hellothere");
+
+    app.state.route = LobbyRoute::Home;
+    app.state.focus = LobbyFocus::Thread;
+    app.state.thread_composing = true;
+    app.state.compose_message_input.clear();
+    app.set_clipboard_text("thread\r\nnote");
+
+    apply_key(&mut app, ctrl_key(KeyCode::Char('v')));
+    assert_eq!(app.state.compose_message_input, "threadnote");
 }
 
 #[test]
@@ -196,6 +204,67 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 
     apply_key(&mut app, key(KeyCode::Esc));
     assert!(!app.state.show_help);
+}
+
+#[test]
+fn m_starts_inline_thread_compose_without_popup() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.open_games = vec![OpenGameRow::new(
+        "friday-night",
+        "Open",
+        "Friday Night",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        3,
+        4,
+        "2026-04-13",
+        "y3004 t4",
+        "summary",
+    )];
+
+    apply_key(&mut app, shift_key(KeyCode::Char('m')));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(app.state.thread_composing);
+    assert_eq!(app.state.focus, LobbyFocus::Thread);
+}
+
+#[test]
+fn enter_on_thread_focus_opens_centered_thread_modal() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::Thread;
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::ComposeThread);
+    assert!(app.state.thread_composing);
+}
+
+#[test]
+fn thread_focus_scrolls_instead_of_selecting_rows() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::Thread;
+    app.state.thread_messages = vec![
+        ThreadMessage::incoming("friday-night", "sysop", "first"),
+        ThreadMessage::incoming("friday-night", "sysop", "second"),
+    ];
+    app.state.joined_games = vec![JoinedGameRow::new(
+        "friday-night",
+        "joined",
+        "Friday Night",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        Some(1),
+        "y3004 t4",
+    )];
+
+    apply_key(&mut app, key(KeyCode::Up));
+
+    assert_eq!(app.state.thread_scroll, 1);
+    assert_eq!(app.state.thread_selected, 0);
 }
 
 #[test]

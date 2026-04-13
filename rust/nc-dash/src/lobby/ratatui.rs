@@ -151,7 +151,7 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
         LobbyRoute::Settings => Some((60, 17)),
         LobbyRoute::ThemePicker => Some((82, 20)),
         LobbyRoute::ComposeInvite => Some((64, 11)),
-        LobbyRoute::ComposeThread => Some((68, 11)),
+        LobbyRoute::ComposeThread => Some((88, 22)),
         LobbyRoute::EditHandle => Some((58, 11)),
         _ if app.state.show_help => Some(help_popup_size(layout.body)),
         _ => None,
@@ -328,17 +328,13 @@ fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
 }
 
 fn render_compose_thread_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
-    render_popup_lines(
-        buffer,
-        popup_rect(parent, (68, 11), app.popup_position),
-        " PRIVATE THREAD ",
-        &[
-            format!("Game    : {}", app.state.thread_context_display()),
-            format!("Message : {}", app.state.compose_message_input),
-            "Enter sends an encrypted 30517 sysop thread message.".to_string(),
-        ],
-        theme::tui_theme().value,
-    );
+    let popup = popup_rect(parent, (88, 22), app.popup_position);
+    let styles = theme::tui_theme();
+    let block = popup_block(" PRIVATE THREAD CHAT ", styles.border);
+    let inner = block.inner(popup);
+    Clear.render(popup, buffer);
+    block.render(popup, buffer);
+    render_thread_surface(buffer, inner, app.state_ref(), true);
 }
 
 fn render_edit_handle_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
@@ -368,10 +364,10 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
         [
             "Tab        : cycle focus across lobby panels",
             "J / K      : move within the focused panel",
-            "Enter      : open selected joined game or request selected open game",
+            "Enter      : open selected game or pop out the focused thread chat",
             "L          : lock nc-dash",
             "N          : compose an invite request",
-            "M          : compose a private thread message",
+            "M          : start inline thread compose in the THREAD panel",
             "S          : open lobby settings, including handle and idle lock",
             "R          : refresh the hosted lobby",
             "? / Esc    : close this help popup",
@@ -429,6 +425,12 @@ fn pane_hit(
 ) -> Option<PaneHit> {
     if !contains(area, column, row) {
         return None;
+    }
+    if focus == LobbyFocus::Thread {
+        return Some(PaneHit {
+            focus,
+            selected_row: None,
+        });
     }
     let content = padded_inner(area);
     let selected_row = if contains(content, column, row) {
@@ -488,7 +490,7 @@ fn focus_rows(state: &LobbyState, focus: LobbyFocus) -> Vec<String> {
             })
             .collect(),
         LobbyFocus::Notices => threads::notice_rows(state),
-        LobbyFocus::Thread => threads::thread_rows(state),
+        LobbyFocus::Thread => Vec::new(),
     }
 }
 
@@ -724,16 +726,13 @@ struct ThreadWidget<'a> {
 
 impl Widget for ThreadWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let rows = focus_rows(self.state, LobbyFocus::Thread);
-        render_rows_panel(
-            buffer,
-            area,
-            " THREAD ",
-            &rows,
-            focused_selection(self.state, LobbyFocus::Thread, self.state.thread_selected),
-            self.state.focus == LobbyFocus::Thread,
-            "<no private thread messages>",
-        );
+        let block = panel_block(" THREAD ", self.state.focus == LobbyFocus::Thread);
+        let inner = block.inner(area);
+        block.render(area, buffer);
+        if inner.width == 0 || inner.height == 0 {
+            return;
+        }
+        render_thread_surface(buffer, inner, self.state, false);
     }
 }
 
@@ -831,6 +830,180 @@ fn render_rows_panel(
         };
         buffer.set_stringn(inner.x, inner.y + offset as u16, row, inner.width as usize, style);
     }
+}
+
+fn render_thread_surface(
+    buffer: &mut Buffer,
+    area: Rect,
+    state: &LobbyState,
+    modal: bool,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    let [history_area, prompt_area] =
+        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
+    render_thread_history(buffer, history_area, state, modal);
+    render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
+}
+
+fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, modal: bool) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    let context_line = format!("*** game: {}", state.thread_context_display());
+    buffer.set_stringn(
+        area.x,
+        area.y,
+        &context_line,
+        area.width as usize,
+        with_panel_bg(styles.dim),
+    );
+    if area.height <= 1 {
+        return;
+    }
+    let transcript_area = Rect::new(area.x, area.y + 1, area.width, area.height - 1);
+    let lines = threads::thread_render_lines(state, transcript_area.width as usize);
+    if lines.is_empty() {
+        buffer.set_stringn(
+            transcript_area.x,
+            transcript_area.y,
+            "<no private thread messages>",
+            transcript_area.width as usize,
+            with_panel_bg(styles.dim),
+        );
+        return;
+    }
+    let visible_rows = transcript_area.height as usize;
+    let max_scroll = lines.len().saturating_sub(visible_rows);
+    let scroll = state.thread_scroll.min(max_scroll);
+    let end = lines.len().saturating_sub(scroll);
+    let start = end.saturating_sub(visible_rows);
+    let visible = &lines[start..end];
+    let first_row = transcript_area
+        .bottom()
+        .saturating_sub(visible.len() as u16);
+    for (idx, line) in visible.iter().enumerate() {
+        let row = first_row + idx as u16;
+        render_thread_line(
+            buffer,
+            row,
+            transcript_area.x,
+            transcript_area.width as usize,
+            line,
+        );
+    }
+    if modal && scroll > 0 && transcript_area.y < transcript_area.bottom() {
+        let marker = format!("*** scrollback: {scroll}");
+        buffer.set_stringn(
+            transcript_area.x,
+            transcript_area.y,
+            &marker,
+            transcript_area.width as usize,
+            with_panel_bg(styles.dim),
+        );
+    }
+}
+
+fn render_thread_prompt(
+    buffer: &mut Buffer,
+    area: Rect,
+    state: &LobbyState,
+    modal: bool,
+    inactive_style: Style,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    let nick = threads::thread_prompt_label(state);
+    let prompt = format!("<{nick}>: ");
+    let nick_style = self_nick_style();
+    let prompt_text = if state.thread_composing {
+        state.compose_message_input.as_str()
+    } else if modal {
+        ""
+    } else {
+        "press M to chat"
+    };
+    let prompt_style = if state.thread_composing || modal {
+        with_panel_bg(styles.value)
+    } else {
+        with_panel_bg(inactive_style)
+    };
+    let mut col = area.x;
+    col = write_text(buffer, area.y, col, area.right(), &prompt, nick_style);
+    let remaining = area.right().saturating_sub(col) as usize;
+    if remaining > 0 {
+        buffer.set_stringn(col, area.y, prompt_text, remaining, prompt_style);
+    }
+}
+
+fn render_thread_line(
+    buffer: &mut Buffer,
+    row: u16,
+    start_col: u16,
+    width: usize,
+    line: &threads::ThreadRenderLine,
+) {
+    let styles = theme::tui_theme();
+    let mut col = start_col;
+    let end = start_col.saturating_add(width as u16);
+    if let Some(timestamp) = line.timestamp.as_deref() {
+        col = write_text(buffer, row, col, end, timestamp, with_panel_bg(styles.dim));
+    }
+    if let Some(nick) = line.nick.as_deref() {
+        col = write_text(buffer, row, col, end, nick, nick_style_for(line));
+    } else {
+        col = col.saturating_add(line.indent as u16);
+    }
+    if col < end {
+        let remaining = end.saturating_sub(col) as usize;
+        buffer.set_stringn(
+            col,
+            row,
+            &line.body,
+            remaining,
+            with_panel_bg(styles.value),
+        );
+    }
+}
+
+fn write_text(
+    buffer: &mut Buffer,
+    row: u16,
+    start_col: u16,
+    end_col: u16,
+    text: &str,
+    style: Style,
+) -> u16 {
+    let remaining = end_col.saturating_sub(start_col) as usize;
+    let clipped = text.chars().take(remaining).collect::<String>();
+    buffer.set_stringn(start_col, row, &clipped, remaining, style);
+    start_col.saturating_add(clipped.chars().count() as u16)
+}
+
+fn nick_style_for(line: &threads::ThreadRenderLine) -> Style {
+    if line.outgoing {
+        return self_nick_style();
+    }
+    let palette = [
+        theme::tui_theme().accent,
+        theme::tui_theme().warning,
+        theme::tui_theme().error,
+        theme::tui_theme().menu_hotkey,
+    ];
+    let hash = line
+        .nick_key
+        .bytes()
+        .fold(0usize, |acc, byte| acc.wrapping_mul(33).wrapping_add(byte as usize));
+    with_panel_bg(palette[hash % palette.len()])
+}
+
+fn self_nick_style() -> Style {
+    with_panel_bg(theme::tui_theme().success)
 }
 
 #[derive(Clone, Copy)]

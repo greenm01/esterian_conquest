@@ -1,6 +1,6 @@
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::onboarding::matrix_glyph;
-use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow};
+use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute};
 use nc_ui::ScreenGeometry;
 
@@ -188,8 +188,9 @@ fn home_route_help_popup_renders_as_overlay() {
 
     assert!(lines.contains("LOBBY HELP"));
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
+    assert!(lines.contains("Enter      : open selected game or pop out the focused thread chat"));
     assert!(lines.contains("L          : lock nc-dash"));
-    assert!(lines.contains("S          : open lobby settings, including handle and idle lock"));
+    assert!(lines.contains("M          : start inline thread compose in the THREAD panel"));
     assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
@@ -278,6 +279,62 @@ fn settings_route_renders_theme_controls() {
     assert!(lines.contains("Grid Dots"));
     assert!(lines.contains("Theme"));
     assert!(lines.contains("Tokyo Night"));
+}
+
+#[test]
+fn thread_panel_renders_irc_style_transcript_and_prompt() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.player_handle = Some("niltempus".to_string());
+    app.state.joined_games = vec![JoinedGameRow::new(
+        "friday-night",
+        "joined",
+        "Friday Night",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        Some(1),
+        "Y3004 T4",
+    )];
+    app.state.thread_messages = vec![
+        ThreadMessage {
+            message_id: "one".to_string(),
+            game_id: "friday-night".to_string(),
+            sender: "sysop".to_string(),
+            body: "hello from the frontier".to_string(),
+            outgoing: false,
+            created_at: String::new(),
+        },
+        ThreadMessage {
+            message_id: "two".to_string(),
+            game_id: "friday-night".to_string(),
+            sender: "niltempus".to_string(),
+            body: "reply acknowledged".to_string(),
+            outgoing: true,
+            created_at: String::new(),
+        },
+    ];
+    app.state.thread_composing = true;
+    app.state.compose_message_input = "draft line".to_string();
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("*** game: friday-night"));
+    assert!(lines.contains("[--:--] <sysop>: hello from the frontier"));
+    assert!(lines.contains("[--:--] <niltempus>: reply acknowledged"));
+    assert!(lines.contains("<niltempus>: draft line"));
+}
+
+#[test]
+fn compose_thread_route_renders_centered_chat_modal() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::ComposeThread, ScreenGeometry::new(140, 40));
+    app.state.player_handle = Some("niltempus".to_string());
+    app.state.thread_composing = true;
+    app.state.compose_message_input = "draft".to_string();
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("PRIVATE THREAD CHAT"));
+    assert!(lines.contains("<niltempus>: draft"));
 }
 
 #[test]

@@ -147,6 +147,8 @@ pub struct LobbyState {
     pub inbox_selected: usize,
     pub notices_selected: usize,
     pub thread_selected: usize,
+    pub thread_scroll: usize,
+    pub thread_composing: bool,
     pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
     pub status_tone: LobbyStatusTone,
@@ -200,6 +202,8 @@ impl LobbyState {
             inbox_selected: 0,
             notices_selected: 0,
             thread_selected: 0,
+            thread_scroll: 0,
+            thread_composing: false,
             network_status: LobbyNetworkStatus::NoRelay,
             status_message: None,
             status_tone: LobbyStatusTone::Info,
@@ -245,6 +249,7 @@ impl LobbyState {
         self.thread_selected = self
             .thread_selected
             .min(self.visible_thread_messages().len().saturating_sub(1));
+        self.thread_scroll = self.thread_scroll.min(self.visible_thread_messages().len());
         self.edit_handle_input = self.player_handle.clone().unwrap_or_default();
     }
 
@@ -268,12 +273,20 @@ impl LobbyState {
 
     pub fn thread_context_game_id(&self) -> Option<&str> {
         match self.focus {
-            LobbyFocus::JoinedGames => self.selected_joined_game().map(|row| row.game_id.as_str()),
+            LobbyFocus::JoinedGames => self
+                .selected_joined_game()
+                .map(|row| row.game_id.as_str())
+                .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
             LobbyFocus::Inbox => self
                 .inbox
                 .get(self.inbox_selected)
-                .map(|row| row.game_id.as_str()),
-            LobbyFocus::OpenGames => self.selected_open_game().map(|row| row.game_id.as_str()),
+                .map(|row| row.game_id.as_str())
+                .or_else(|| self.selected_joined_game().map(|row| row.game_id.as_str()))
+                .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
+            LobbyFocus::OpenGames => self
+                .selected_open_game()
+                .map(|row| row.game_id.as_str())
+                .or_else(|| self.selected_joined_game().map(|row| row.game_id.as_str())),
             _ => self
                 .selected_joined_game()
                 .map(|row| row.game_id.as_str())
@@ -299,6 +312,12 @@ impl LobbyState {
 
     pub fn available_themes(&self) -> Vec<ThemeCatalogEntry> {
         crate::theme::catalog()
+    }
+
+    pub fn reset_thread_view(&mut self) {
+        self.thread_scroll = 0;
+        self.thread_composing = false;
+        self.compose_message_input.clear();
     }
 }
 

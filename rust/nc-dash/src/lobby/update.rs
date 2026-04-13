@@ -47,6 +47,10 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         return;
     }
+    if app.state.thread_composing {
+        let _ = handle_inline_thread_key(app, key);
+        return;
+    }
     if !matches!(key.code, KeyCode::Char('?')) {
         clear_status(app);
     }
@@ -63,6 +67,8 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
                 open_popup_route(app, LobbyRoute::ComposeInvite);
             } else if app.state.focus == LobbyFocus::JoinedGames {
                 open_or_claim_selected_game(app);
+            } else if app.state.focus == LobbyFocus::Thread {
+                open_thread_modal(app);
             }
         }
         KeyCode::Tab => app.state.focus = app.state.focus.next(),
@@ -73,10 +79,7 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.compose_message_input.clear();
             open_popup_route(app, LobbyRoute::ComposeInvite);
         }
-        KeyCode::Char('m' | 'M') => {
-            app.state.compose_message_input.clear();
-            open_popup_route(app, LobbyRoute::ComposeThread);
-        }
+        KeyCode::Char('m' | 'M') => start_inline_thread_compose(app),
         KeyCode::Char('l' | 'L') => app.enter_session_lock(),
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
@@ -231,42 +234,52 @@ fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => {
+            app.state.thread_composing = false;
+            close_popup_route(app, LobbyRoute::Home);
+        }
+        KeyCode::Up | KeyCode::Char('k') => scroll_thread(app, 1),
+        KeyCode::Down | KeyCode::Char('j') => scroll_thread(app, -1),
+        _ => {
+            app.state.thread_composing = true;
+            let _ = handle_thread_entry_key(app, key, Some(LobbyRoute::Home));
+        }
+    }
+}
+
+fn handle_inline_thread_key(app: &mut LobbyApp, key: KeyEvent) -> bool {
+    handle_thread_entry_key(app, key, None)
+}
+
+fn handle_thread_entry_key(
+    app: &mut LobbyApp,
+    key: KeyEvent,
+    success_route: Option<LobbyRoute>,
+) -> bool {
     if handle_single_line_paste(app, key, |state| &mut state.compose_message_input) {
-        return;
+        return true;
     }
 
     match key.code {
-        KeyCode::Esc => close_popup_route(app, LobbyRoute::Home),
+        KeyCode::Esc => {
+            app.state.thread_composing = false;
+            app.state.compose_message_input.clear();
+            true
+        }
         KeyCode::Backspace => {
             app.state.compose_message_input.pop();
+            true
         }
         KeyCode::Enter => {
-            let Some((game_id, daemon_pubkey)) = selected_thread_target(app) else {
-                set_status(
-                    app,
-                    LobbyStatusTone::Error,
-                    "select an open or joined game first".to_string(),
-                );
-                close_popup_route(app, LobbyRoute::Home);
-                return;
-            };
-            match app.transport.send_thread_message(
-                &game_id,
-                &daemon_pubkey,
-                &app.state.compose_message_input,
-            ) {
-                Ok(loaded) => {
-                    app.state.apply_loaded(loaded);
-                    app.state.compose_message_input.clear();
-                    close_popup_route(app, LobbyRoute::Home);
-                }
-                Err(err) => set_status(app, LobbyStatusTone::Error, err),
-            }
+            submit_thread_message(app, success_route);
+            true
         }
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.state.compose_message_input.push(ch);
+            true
         }
-        _ => {}
+        _ => false,
     }
 }
 
@@ -475,6 +488,55 @@ fn open_settings(app: &mut LobbyApp) {
     open_popup_route(app, LobbyRoute::Settings);
 }
 
+fn start_inline_thread_compose(app: &mut LobbyApp) {
+    if selected_thread_target(app).is_none() {
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "select an open or joined game first".to_string(),
+        );
+        return;
+    }
+    app.state.focus = LobbyFocus::Thread;
+    app.state.thread_composing = true;
+    app.state.thread_scroll = 0;
+    app.state.compose_message_input.clear();
+}
+
+fn open_thread_modal(app: &mut LobbyApp) {
+    app.state.focus = LobbyFocus::Thread;
+    app.state.thread_composing = true;
+    app.state.thread_scroll = 0;
+    open_popup_route(app, LobbyRoute::ComposeThread);
+}
+
+fn submit_thread_message(app: &mut LobbyApp, success_route: Option<LobbyRoute>) {
+    let Some((game_id, daemon_pubkey)) = selected_thread_target(app) else {
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "select an open or joined game first".to_string(),
+        );
+        return;
+    };
+    match app.transport.send_thread_message(
+        &game_id,
+        &daemon_pubkey,
+        &app.state.compose_message_input,
+    ) {
+        Ok(loaded) => {
+            app.state.apply_loaded(loaded);
+            app.state.compose_message_input.clear();
+            app.state.thread_composing = false;
+            app.state.thread_scroll = 0;
+            if let Some(route) = success_route {
+                close_popup_route(app, route);
+            }
+        }
+        Err(err) => set_status(app, LobbyStatusTone::Error, err),
+    }
+}
+
 fn cycle_lock_timeout(app: &mut LobbyApp) {
     let current = app.state.settings_draft.lock_timeout_minutes;
     let next = LOCK_TIMEOUT_OPTIONS
@@ -614,6 +676,15 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
 }
 
 fn move_selection(app: &mut LobbyApp, delta: isize) {
+    if app.state.focus == LobbyFocus::Thread {
+        if delta < 0 {
+            scroll_thread(app, 1);
+        } else if delta > 0 {
+            scroll_thread(app, -1);
+        }
+        return;
+    }
+    let previous_context = app.state.thread_context_game_id().map(str::to_string);
     let len = match app.state.focus {
         LobbyFocus::JoinedGames => app.state.joined_games.len(),
         LobbyFocus::Inbox => app.state.inbox.len(),
@@ -634,6 +705,15 @@ fn move_selection(app: &mut LobbyApp, delta: isize) {
     }
     let next = (*selection as isize + delta).clamp(0, len.saturating_sub(1) as isize);
     *selection = next as usize;
+    reset_thread_view_if_context_changed(app, previous_context);
+}
+
+fn scroll_thread(app: &mut LobbyApp, delta: isize) {
+    if delta < 0 {
+        app.state.thread_scroll = app.state.thread_scroll.saturating_sub((-delta) as usize);
+    } else {
+        app.state.thread_scroll = app.state.thread_scroll.saturating_add(delta as usize);
+    }
 }
 
 fn selected_thread_target(app: &LobbyApp) -> Option<(String, String)> {
@@ -650,6 +730,16 @@ fn selected_thread_target(app: &LobbyApp) -> Option<(String, String)> {
                 .find(|row| row.game_id == game_id)
                 .map(|row| (row.game_id.clone(), row.daemon_pubkey.clone()))
         })
+}
+
+pub(crate) fn reset_thread_view_if_context_changed(
+    app: &mut LobbyApp,
+    previous_context: Option<String>,
+) {
+    let current = app.state.thread_context_game_id().map(str::to_string);
+    if current != previous_context {
+        app.state.reset_thread_view();
+    }
 }
 
 fn handle_single_line_paste(
