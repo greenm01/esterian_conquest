@@ -137,6 +137,7 @@ messages.
 
 | Proposed Kind | Name | Purpose |
 |---------------|------|---------|
+| `30518` | `ContactMessage` | NIP-44 encrypted direct contact chat by known `npub`. |
 | `30520` | `GameState` | Full player-filtered state snapshot (Initial sync). |
 | `30521` | `StateDelta` | Turn-by-turn state changes (Bandwidth efficiency). |
 | `30522` | `TurnCommands` | Player's submitted `turn.kdl` orders. |

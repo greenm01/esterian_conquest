@@ -18,10 +18,11 @@ Keep this file short. Historical detail belongs in
 - `nc-dash` now has a partial hosted lobby/client path in the same binary.
 - That hosted lobby path now covers public `30500` discovery, invite
   request/decision, invite claim, runtime-backed `30520` state refresh,
-  turn submit/receipt, public `30516` notices, and encrypted `30517`
-  sysop thread messages.
+  turn submit/receipt, public `30516` notices, encrypted `30518` direct
+  contact threads, and encrypted `30523` anonymous per-game diplomacy.
 - `nc-dash` lobby now keeps a live hosted observer session instead of doing
-  full reconnect/fetch cycles for catalog, notice, thread, and inbox updates.
+  full reconnect/fetch cycles for catalog, notices, direct threads, and
+  game-inbox updates.
 - `30520 GameState` now uses typed hosted snapshot payloads instead of opaque
   JSON blobs on the Rust side.
 - `nc-dash` hosted-game route now builds and renders a real `DashApp` from

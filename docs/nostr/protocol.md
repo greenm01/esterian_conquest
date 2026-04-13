@@ -66,7 +66,8 @@ flows are intentionally outside this hosted v2 spec.
 
 If configured, `nc-host` may also send a summary-only NIP-17/NIP-59 DM to the
 sysop contact for Primal/mobile notification. That DM mirror is not part of
-the authoritative game-thread protocol and does not replace `30517`.
+the authoritative hosted messaging protocol and does not replace `30518` or
+`30523`.
 
 ## 4. 30500 `GameDefinition`
 
@@ -544,7 +545,8 @@ The daemon side must:
 - persist invite requests before notifying the sysop
 - cache latest player display handle by pubkey from player-authored hosted
   events
-- persist public notice posts and private thread messages before publishing
+- persist public notice posts and encrypted conversation events before
+  publishing
 - persist turn submissions before publishing receipts
 - route every inbound event to the correct game worker by `game-id`
 - keep retries in a per-game outbox

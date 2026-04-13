@@ -115,7 +115,7 @@ Rows may represent:
 - approved-but-unclaimed invites
 
 Pending invite requests do not live in the joined-games table. They appear in
-the separate inbox pane.
+the separate notices pane.
 
 Suggested columns:
 
@@ -129,7 +129,7 @@ Suggested columns:
 Primary actions:
 
 - open joined game
-- open private sysop thread
+- open the selected game's `GAME INBOX` diplomacy thread
 - claim approved invite
 - refresh state
 
@@ -150,7 +150,7 @@ It never shows raw invite codes, private roster details, or per-player state.
 
 Primary actions:
 
-- open the game's private sysop thread
+- select the game's published host contact as the default `THREADS` target
 - compose/send an invite request
 - refresh the public catalog
 
@@ -247,7 +247,7 @@ The daemon remains authoritative for:
 - recruiting catalog
 - request/decision state
 - seat ownership
-- private thread persistence
+- encrypted direct-contact and anonymous game-mail delivery
 - hosted game state
 
 The client may cache recent notices, thread snippets, and joined-game metadata
@@ -258,12 +258,12 @@ for fast startup, but must tolerate cache deletion and daemon resync.
 Keep the hosted lobby split into focused modules under `rust/nc-dash/src/`.
 
 - `lobby/state.rs`: lobby-only app state
-- `lobby/models.rs`: table rows, thread items, and local cache records
+- `lobby/models.rs`: table rows, contact rows, thread items, and local cache records
 - `lobby/update.rs`: message/update logic
 - `lobby/transport.rs`: relay subscriptions and hosted request/response wiring
 - `lobby/onboarding.rs`: first-run handle/keychain flow
-- `lobby/threads.rs`: notices and private thread orchestration
-- `lobby/panels/`: joined-games, open-games, inbox, and communication panes
+- `lobby/threads.rs`: notices plus `THREADS`/`GAME INBOX` transcript formatting
+- `lobby/panels/`: joined-games, open-games, game-inbox, notices, and communication panes
 
 Keep `main.rs`, the native shell, and the root app dispatcher thin. Do not let
 hosted lobby logic accumulate in one giant app module.
@@ -295,7 +295,7 @@ The architecture is complete when:
 - keychain encryption and password handling are clearly local-only
 - encrypted cache/state files are clearly scoped to platform-specific user
   paths
-- joined-games, open-games, public notices, and private per-game threads are
+- joined-games, open-games, public notices, `GAME INBOX`, and `THREADS` are
   separate and well-scoped
 - the doc leaves no ambiguity about how `nc-lobby` maps onto hosted daemon
   events

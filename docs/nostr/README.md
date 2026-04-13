@@ -30,5 +30,9 @@ If you are looking for future hosted direction, start with:
 - [protocol.md](protocol.md)
 - [../dash/lobby-architecture.md](../dash/lobby-architecture.md)
 
+Those future-hosted docs now treat encrypted direct `THREADS` (`30518`) and
+anonymous per-game `GAME INBOX` diplomacy (`30523`) as the canonical lobby
+communication surfaces.
+
 Treat the remaining Nostr documents as non-current unless a file explicitly says
 otherwise.

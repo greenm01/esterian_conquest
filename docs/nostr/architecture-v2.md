@@ -147,17 +147,19 @@ display, but the pubkey remains authoritative.
 All non-public hosted kinds are private-by-default:
 
 - only `30500 GameDefinition` and `30516 LobbyNotice` remain public/plain
-- `30507`, `30510`, `30513`, `30517`, and `30522` are player-authored private
-  events
-- `30511`, `30514`, `30515`, `30517`, `30520`, `30521`, and `30524` are
-  host-authored private events
+- `30507`, `30510`, `30513`, `30517`, `30518`, `30522`, and `30523` are
+  player-authored private events
+- `30511`, `30514`, `30515`, `30517`, `30520`, `30521`, `30523`, and `30524`
+  are host-authored private events
 - private event content uses NIP-44 plus an inner versioned envelope that may
   apply zstd compression for larger payloads
 
 `nc-lobby` has two communication surfaces:
 
 - one host-wide public notice board, sysop-authored only
-- one persistent encrypted private per-game thread between player and sysop
+- one encrypted direct-contact `THREADS` surface keyed by known `npub`
+- one encrypted anonymous per-game `GAME INBOX` diplomacy surface keyed by
+  game and empire
 
 ## 6. Invite and Join Flow
 
@@ -172,8 +174,8 @@ But the public lobby never exposes those codes. The server flow is:
 1. `nc-host` publishes a public `30500 GameDefinition` for recruiting games.
 2. `nc-dash --lobby` lists those games.
 3. A player sends an invite request over Nostr to the daemon.
-4. The daemon stores the request in the target game's inbox and notifies the
-   sysop contact identity.
+4. The daemon stores the request in the target game's request queue and
+   notifies the sysop contact identity.
 5. The sysop approves or rejects the request through `nc-host`.
 6. If approved, the daemon privately sends the invite string to the player.
 7. The player redeems that invite with a hosted claim event.
@@ -222,10 +224,12 @@ Hosted `nc-host` owns these kinds:
 | `30514` | `InviteRequestReceipt` | Daemon acknowledges receipt/rejection |
 | `30515` | `InviteDecision` | Sysop approval or rejection result |
 | `30516` | `LobbyNotice` | Public host-wide notice board post |
-| `30517` | `SysopThreadMessage` | Private per-game player/sysop thread |
+| `30517` | `SysopThreadMessage` | Legacy/operator private thread surface |
+| `30518` | `ContactMessage` | Encrypted direct contact chat |
 | `30520` | `GameState` | Full fog-of-war-filtered snapshot |
 | `30521` | `StateDelta` | Incremental hosted update |
 | `30522` | `TurnCommands` | Submitted player orders |
+| `30523` | `PlayerMessage` | Encrypted anonymous player-to-player diplomacy |
 | `30524` | `TurnReceipt` | Turn accepted/rejected with details |
 
 Retired SSH bridge kinds `30501`/`30502`/`30503` remain legacy reference only
@@ -260,6 +264,9 @@ Optional tags:
 
 - `summary`
 - `host-alias`
+- `host-contact-npub`
+- `host-contact-label`
+- `host-contact-nip05`
 - `slot`
 
 `slot` remains hashed-only:
