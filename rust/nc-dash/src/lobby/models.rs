@@ -43,12 +43,15 @@ impl JoinedGameRow {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenGameRow {
     pub game_id: String,
+    pub status: String,
     pub game: String,
     pub host: String,
     pub relay_url: String,
     pub daemon_pubkey: String,
     pub recruiting: String,
     pub open_seats: u8,
+    pub total_seats: u8,
+    pub created_date: String,
     pub turn_summary: String,
     pub summary: String,
 }
@@ -56,23 +59,29 @@ pub struct OpenGameRow {
 impl OpenGameRow {
     pub fn new(
         game_id: &str,
+        status: &str,
         game: &str,
         host: &str,
         relay_url: &str,
         daemon_pubkey: &str,
         recruiting: &str,
         open_seats: u8,
+        total_seats: u8,
+        created_date: &str,
         turn_summary: &str,
         summary: &str,
     ) -> Self {
         Self {
             game_id: game_id.to_string(),
+            status: status.to_string(),
             game: game.to_string(),
             host: host.to_string(),
             relay_url: relay_url.to_string(),
             daemon_pubkey: daemon_pubkey.to_string(),
             recruiting: recruiting.to_string(),
             open_seats,
+            total_seats,
+            created_date: created_date.to_string(),
             turn_summary: turn_summary.to_string(),
             summary: summary.to_string(),
         }

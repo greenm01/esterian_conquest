@@ -2604,6 +2604,7 @@ name = "nc-dash"
 version = "1.0.0-beta.2"
 dependencies = [
  "arboard",
+ "chrono",
  "crossterm",
  "dirs 5.0.1",
  "kdl 6.5.0",

@@ -20,6 +20,23 @@ use nc_nostr::turn_commands::TurnReceiptStatus;
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
 use super::state::{LobbyNetworkStatus, LobbyStatusTone};
 
+fn format_catalog_created_date(created_at: Option<i64>) -> String {
+    created_at
+        .and_then(|secs| chrono::DateTime::from_timestamp(secs, 0))
+        .map(|dt| dt.date_naive().format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|| "-".to_string())
+}
+
+fn open_game_status(game: &CatalogGame) -> (&'static str, u8) {
+    if game.definition.status == GameStatus::Finished {
+        ("Final", 2)
+    } else if game.definition.recruiting != RecruitingMode::None {
+        ("Open", 0)
+    } else {
+        ("Live", 1)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LobbyLoadedState {
     pub relay_label: Option<String>,
@@ -683,13 +700,16 @@ fn build_loaded_state(
     status_tone: LobbyStatusTone,
     network_status: Option<LobbyNetworkStatus>,
 ) -> LobbyLoadedState {
-    let open_games = unlocked
+    let mut open_games = unlocked
         .catalog
         .iter()
-        .filter(|game| game.definition.recruiting != RecruitingMode::None)
-        .filter(|game| game.definition.status != GameStatus::Finished)
-        .map(|game| OpenGameRow {
+        .map(|game| {
+            let (status, sort_key) = open_game_status(game);
+            (
+                sort_key,
+                OpenGameRow {
             game_id: game.definition.game_id.clone(),
+            status: status.to_string(),
             game: game.definition.game_name.clone(),
             host: game
                 .definition
@@ -700,9 +720,23 @@ fn build_loaded_state(
             daemon_pubkey: game.daemon_pubkey.clone(),
             recruiting: game.definition.recruiting.as_str().to_string(),
             open_seats: game.definition.open_seats as u8,
+            total_seats: game.definition.players as u8,
+            created_date: format_catalog_created_date(game.definition.created_at),
             turn_summary: format!("Y{} T{}", game.definition.year, game.definition.turn),
             summary: game.definition.summary.clone().unwrap_or_default(),
+                },
+            )
         })
+        .collect::<Vec<_>>();
+    open_games.sort_by(|(left_key, left), (right_key, right)| {
+        left_key
+            .cmp(right_key)
+            .then_with(|| left.game.to_lowercase().cmp(&right.game.to_lowercase()))
+            .then_with(|| left.game_id.cmp(&right.game_id))
+    });
+    let open_games = open_games
+        .into_iter()
+        .map(|(_, row)| row)
         .collect::<Vec<_>>();
 
     let joined_games = unlocked

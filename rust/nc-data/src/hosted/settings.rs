@@ -87,6 +87,7 @@ pub struct GameMetadata {
     pub id: String,
     pub name: String,
     pub status: String,
+    pub created_at: i64,
     pub current_year: u32,
     pub current_turn: u32,
     pub players: u32,
@@ -94,7 +95,7 @@ pub struct GameMetadata {
 
 pub fn get_game_metadata(conn: &Connection, game_id: &str) -> SqliteResult<GameMetadata> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, status, current_year, current_turn, players
+        "SELECT id, name, status, created_at, current_year, current_turn, players
          FROM game_metadata WHERE id = ?1",
     )?;
 
@@ -103,9 +104,10 @@ pub fn get_game_metadata(conn: &Connection, game_id: &str) -> SqliteResult<GameM
             id: row.get(0)?,
             name: row.get(1)?,
             status: row.get(2)?,
-            current_year: row.get(3)?,
-            current_turn: row.get(4)?,
-            players: row.get(5)?,
+            created_at: row.get(3)?,
+            current_year: row.get(4)?,
+            current_turn: row.get(5)?,
+            players: row.get(6)?,
         })
     })
 }

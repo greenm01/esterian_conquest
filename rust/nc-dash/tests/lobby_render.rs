@@ -1,9 +1,15 @@
 use nc_dash::lobby::LobbyApp;
+use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow};
 use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute};
 use nc_ui::ScreenGeometry;
 
 fn render_lines(route: LobbyRoute) -> String {
     let app = LobbyApp::new_for_tests(route, ScreenGeometry::new(120, 40));
+    render_app_lines(app)
+}
+
+fn render_lines_at(route: LobbyRoute, width: usize, height: usize) -> String {
+    let app = LobbyApp::new_for_tests(route, ScreenGeometry::new(width, height));
     render_app_lines(app)
 }
 
@@ -21,6 +27,10 @@ fn render_app_lines(app: LobbyApp) -> String {
         .join("\n")
 }
 
+fn render_app_buffer(app: LobbyApp) -> nc_ui::PlayfieldBuffer {
+    app.render_for_test().expect("render lobby")
+}
+
 fn find_first_char(buffer: &nc_ui::PlayfieldBuffer, ch: char) -> Option<(usize, usize)> {
     (0..buffer.height()).find_map(|row| {
         buffer
@@ -33,20 +43,94 @@ fn find_first_char(buffer: &nc_ui::PlayfieldBuffer, ch: char) -> Option<(usize, 
 
 #[test]
 fn home_route_renders_three_pane_shell_copy() {
-    let lines = render_lines(LobbyRoute::Home);
+    let lines = render_lines_at(LobbyRoute::Home, 180, 40);
 
     assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
     assert!(lines.contains("NETWORK: NO RELAY"));
     assert!(lines.contains("JOINED GAMES"));
+    assert!(lines.contains("Status"));
+    assert!(lines.contains("Seat"));
+    assert!(lines.contains("Year"));
     assert!(lines.contains("INBOX"));
     assert!(lines.contains("? Help"));
     assert!(lines.contains("I<N>vite"));
     assert!(lines.contains("S>ettings"));
-    assert!(lines.contains("OPEN GAMES"));
+    assert!(lines.contains("GAMES"));
+    assert!(lines.contains("Map"));
+    assert!(lines.contains("Size"));
+    assert!(lines.contains("Date"));
+    assert!(lines.contains("Created"));
+    assert!(lines.contains("Seats"));
+    assert!(lines.contains("Turn"));
     assert!(lines.contains("NOTICES"));
     assert!(lines.contains("THREAD"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
+}
+
+#[test]
+fn open_games_header_stacks_open_above_seats() {
+    let buffer = render_app_buffer(LobbyApp::new_for_tests(
+        LobbyRoute::Home,
+        ScreenGeometry::new(180, 40),
+    ));
+    let open_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("Open"))
+        .expect("open header row");
+    let seats_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("Seats"))
+        .expect("seats header row");
+
+    assert_eq!(open_row + 1, seats_row);
+}
+
+#[test]
+fn home_route_keeps_empty_messages_under_table_headers() {
+    let lines = render_lines(LobbyRoute::Home);
+
+    assert!(lines.contains("<no joined hosted games>"));
+    assert!(lines.contains("<no hosted games>"));
+}
+
+#[test]
+fn home_route_tables_split_year_and_turn_columns() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
+    app.state.joined_games = vec![JoinedGameRow::new(
+        "friday-night",
+        "joined",
+        "Friday Night",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        Some(1),
+        "Y3004 T4",
+    )];
+    app.state.open_games = vec![OpenGameRow::new(
+        "saturday-night",
+        "Open",
+        "Saturday Night",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        3,
+        9,
+        "2026-04-13",
+        "y3005 t2",
+        "summary",
+    )];
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("3004"));
+    assert!(lines.contains("3005"));
+    assert!(lines.contains("27x27"));
+    assert!(lines.contains("2026-04-13"));
+    assert!(lines.contains("Open"));
+    assert!(!lines.contains("Y3004"));
+    assert!(!lines.contains("y3005"));
+    assert!(!lines.contains("T4"));
+    assert!(!lines.contains("t2"));
 }
 
 #[test]

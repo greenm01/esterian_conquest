@@ -225,15 +225,20 @@ fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
     ];
 
     let buffer = app.render_for_test().expect("render lobby");
-    let row = (0..buffer.height())
-        .find(|&idx| buffer.plain_line(idx).contains("Saturday Night"))
-        .expect("joined row");
-    let column = buffer
-        .plain_line(row)
-        .find("Saturday Night")
-        .expect("joined column") as u16;
+    let (title_row, title_col) = (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .find(" JOINED GAMES ")
+                .map(|col| (row, col))
+        })
+        .expect("joined panel");
 
-    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), column, row as u16));
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        (title_col + 2) as u16,
+        (title_row + 4) as u16,
+    ));
 
     assert_eq!(app.state.focus, LobbyFocus::JoinedGames);
     assert_eq!(app.state.joined_selected, 1);
@@ -245,23 +250,29 @@ fn clicking_pane_border_focuses_without_changing_selection() {
     app.state.open_games = vec![
         OpenGameRow::new(
             "friday-night",
+            "Open",
             "Friday Night",
             "nc-host",
             "ws://127.0.0.1:8080",
             "daemon",
             "new_players",
             3,
+            4,
+            "2026-04-13",
             "y3004 t4",
             "summary",
         ),
         OpenGameRow::new(
             "saturday-night",
+            "Live",
             "Saturday Night",
             "nc-host",
             "ws://127.0.0.1:8080",
             "daemon",
             "new_players",
             2,
+            9,
+            "2026-04-14",
             "y3005 t2",
             "summary",
         ),
@@ -270,18 +281,19 @@ fn clicking_pane_border_focuses_without_changing_selection() {
     app.state.open_selected = 1;
 
     let buffer = app.render_for_test().expect("render lobby");
-    let row = (0..buffer.height())
-        .find(|&idx| buffer.plain_line(idx).contains("Friday Night | nc-host"))
-        .expect("open games row");
-    let column = buffer
-        .plain_line(row)
-        .find("Friday Night")
-        .expect("row column") as u16;
+    let (header_row, header_col) = (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .find("Open")
+                .map(|col| (row, col))
+        })
+        .expect("open games header");
 
     app.dispatch_mouse_event_for_test(mouse(
         MouseEventKind::Down(MouseButton::Left),
-        column,
-        row.saturating_sub(1) as u16,
+        header_col as u16,
+        header_row as u16,
     ));
 
     assert_eq!(app.state.focus, LobbyFocus::OpenGames);

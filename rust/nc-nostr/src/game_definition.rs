@@ -6,6 +6,7 @@ pub struct GameDefinition {
     pub game_id: String,
     pub game_name: String,
     pub status: GameStatus,
+    pub created_at: Option<i64>,
     pub players: u32,
     pub recruiting: RecruitingMode,
     pub open_seats: u32,
@@ -103,6 +104,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
     let mut game_id = None;
     let mut game_name = None;
     let mut status = None;
+    let mut created_at = None;
     let mut players = None;
     let mut recruiting = None;
     let mut open_seats = None;
@@ -121,6 +123,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
             "d" if values.len() >= 2 => game_id = Some(values[1].clone()),
             "name" if values.len() >= 2 => game_name = Some(values[1].clone()),
             "status" if values.len() >= 2 => status = GameStatus::from_str(&values[1]),
+            "created-at" if values.len() >= 2 => created_at = values[1].parse().ok(),
             "players" if values.len() >= 2 => players = values[1].parse().ok(),
             "recruiting" if values.len() >= 2 => recruiting = RecruitingMode::from_str(&values[1]),
             "open-seats" if values.len() >= 2 => open_seats = values[1].parse().ok(),
@@ -148,6 +151,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
         game_id: game_id?,
         game_name: game_name?,
         status: status?,
+        created_at,
         players: players?,
         recruiting: recruiting?,
         open_seats: open_seats?,
@@ -173,6 +177,10 @@ pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<Vec<String>> {
         vec!["year".to_string(), def.year.to_string()],
         vec!["turn".to_string(), def.turn.to_string()],
     ];
+
+    if let Some(created_at) = def.created_at {
+        tags.push(vec!["created-at".to_string(), created_at.to_string()]);
+    }
 
     if let Some(ref summary) = def.summary {
         tags.push(vec!["summary".to_string(), summary.clone()]);

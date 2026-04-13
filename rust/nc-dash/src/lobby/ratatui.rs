@@ -430,6 +430,7 @@ fn pane_hit(
             content,
             selected,
             row,
+            table_header_rows(focus),
         )
     } else {
         None
@@ -468,8 +469,14 @@ fn focus_rows(state: &LobbyState, focus: LobbyFocus) -> Vec<String> {
             .iter()
             .map(|row| {
                 format!(
-                    "{} | {} | {} | {} seats | {}",
-                    row.game, row.host, row.recruiting, row.open_seats, row.turn_summary
+                    "{} | {} | {} | {} | {} open / {} total | {}",
+                    row.status,
+                    row.game,
+                    row.host,
+                    row.recruiting,
+                    row.open_seats,
+                    row.total_seats,
+                    row.turn_summary
                 )
             })
             .collect(),
@@ -478,15 +485,35 @@ fn focus_rows(state: &LobbyState, focus: LobbyFocus) -> Vec<String> {
     }
 }
 
-fn clicked_row(total_rows: usize, content: Rect, selected: usize, row: u16) -> Option<usize> {
+fn clicked_row(
+    total_rows: usize,
+    content: Rect,
+    selected: usize,
+    row: u16,
+    header_rows: usize,
+) -> Option<usize> {
     if total_rows == 0 || !contains(content, content.x, row) {
         return None;
     }
     let relative_row = row.saturating_sub(content.y) as usize;
-    let visible_rows = content.height as usize;
+    if relative_row < header_rows {
+        return None;
+    }
+    let visible_rows = (content.height as usize).saturating_sub(header_rows);
+    if visible_rows == 0 {
+        return None;
+    }
     let scroll = scroll_offset(total_rows, visible_rows, selected);
-    let absolute_row = scroll + relative_row;
+    let absolute_row = scroll + relative_row.saturating_sub(header_rows);
     (absolute_row < total_rows).then_some(absolute_row)
+}
+
+fn table_header_rows(focus: LobbyFocus) -> usize {
+    match focus {
+        LobbyFocus::JoinedGames => 1,
+        LobbyFocus::OpenGames => 2,
+        LobbyFocus::Inbox | LobbyFocus::Notices | LobbyFocus::Thread => 0,
+    }
 }
 
 fn popup_rect(parent: Rect, preferred: (u16, u16), origin: Option<RelativePopupOrigin>) -> Rect {
@@ -622,15 +649,11 @@ struct JoinedGamesWidget<'a> {
 
 impl Widget for JoinedGamesWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let rows = focus_rows(self.state, LobbyFocus::JoinedGames);
-        render_rows_panel(
+        render_joined_games_panel(
             buffer,
             area,
-            " JOINED GAMES ",
-            &rows,
-            focused_selection(self.state, LobbyFocus::JoinedGames, self.state.joined_selected),
             self.state.focus == LobbyFocus::JoinedGames,
-            "<no joined hosted games>",
+            self.state,
         );
     }
 }
@@ -660,15 +683,11 @@ struct OpenGamesWidget<'a> {
 
 impl Widget for OpenGamesWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let rows = focus_rows(self.state, LobbyFocus::OpenGames);
-        render_rows_panel(
+        render_open_games_panel(
             buffer,
             area,
-            " OPEN GAMES ",
-            &rows,
-            focused_selection(self.state, LobbyFocus::OpenGames, self.state.open_selected),
             self.state.focus == LobbyFocus::OpenGames,
-            "<no recruiting hosted games>",
+            self.state,
         );
     }
 }
@@ -804,6 +823,345 @@ fn render_rows_panel(
             with_panel_bg(styles.value)
         };
         buffer.set_stringn(inner.x, inner.y + offset as u16, row, inner.width as usize, style);
+    }
+}
+
+#[derive(Clone, Copy)]
+enum TableCellAlign {
+    Left,
+    Right,
+}
+
+#[derive(Clone, Copy)]
+struct TableColumnSpec {
+    title_top: Option<&'static str>,
+    title: &'static str,
+    constraint: Constraint,
+    align: TableCellAlign,
+}
+
+fn render_joined_games_panel(
+    buffer: &mut Buffer,
+    area: Rect,
+    focused: bool,
+    state: &LobbyState,
+) {
+    const COLUMNS: [TableColumnSpec; 5] = [
+        TableColumnSpec {
+            title_top: None,
+            title: "Status",
+            constraint: Constraint::Length(8),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Game",
+            constraint: Constraint::Fill(1),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Seat",
+            constraint: Constraint::Length(4),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Year",
+            constraint: Constraint::Length(4),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Turn",
+            constraint: Constraint::Length(4),
+            align: TableCellAlign::Right,
+        },
+    ];
+
+    render_table_panel(
+        buffer,
+        area,
+        " JOINED GAMES ",
+        focused,
+        &COLUMNS,
+        1,
+        state.joined_games.len(),
+        focused_selection(state, LobbyFocus::JoinedGames, state.joined_selected),
+        "<no joined hosted games>",
+        |index| {
+            let row = &state.joined_games[index];
+            let (year, turn) = split_turn_summary(&row.turn_summary);
+            vec![
+                row.status.clone(),
+                row.game.clone(),
+                row.seat
+                    .map(|seat| seat.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                year,
+                turn,
+            ]
+        },
+    );
+}
+
+fn render_open_games_panel(
+    buffer: &mut Buffer,
+    area: Rect,
+    focused: bool,
+    state: &LobbyState,
+) {
+    const COLUMNS: [TableColumnSpec; 10] = [
+        TableColumnSpec {
+            title_top: None,
+            title: "Status",
+            constraint: Constraint::Length(6),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Game",
+            constraint: Constraint::Fill(2),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Host",
+            constraint: Constraint::Fill(1),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Recruiting",
+            constraint: Constraint::Length(11),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: Some("Open"),
+            title: "Seats",
+            constraint: Constraint::Length(5),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Seats",
+            constraint: Constraint::Length(5),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: Some("Map"),
+            title: "Size",
+            constraint: Constraint::Length(5),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: Some("Date"),
+            title: "Created",
+            constraint: Constraint::Length(10),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Year",
+            constraint: Constraint::Length(4),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Turn",
+            constraint: Constraint::Length(4),
+            align: TableCellAlign::Right,
+        },
+    ];
+
+    render_table_panel(
+        buffer,
+        area,
+        " GAMES ",
+        focused,
+        &COLUMNS,
+        2,
+        state.open_games.len(),
+        focused_selection(state, LobbyFocus::OpenGames, state.open_selected),
+        "<no hosted games>",
+        |index| {
+            let row = &state.open_games[index];
+            let (year, turn) = split_turn_summary(&row.turn_summary);
+            vec![
+                row.status.clone(),
+                row.game.clone(),
+                row.host.clone(),
+                row.recruiting.clone(),
+                row.open_seats.to_string(),
+                row.total_seats.to_string(),
+                map_size_summary(row.total_seats),
+                row.created_date.clone(),
+                year,
+                turn,
+            ]
+        },
+    );
+}
+
+fn split_turn_summary(summary: &str) -> (String, String) {
+    let mut parts = summary.split_whitespace();
+    let year = parts
+        .next()
+        .map(|part| part.trim_start_matches(['Y', 'y']).to_string())
+        .filter(|part| !part.is_empty())
+        .unwrap_or_else(|| summary.to_string());
+    let turn = parts
+        .next()
+        .map(|part| part.trim_start_matches(['T', 't']).to_string())
+        .unwrap_or_default();
+    (year, turn)
+}
+
+fn map_size_summary(total_seats: u8) -> String {
+    let edge = match total_seats {
+        0..=4 => 18,
+        5..=9 => 27,
+        10..=16 => 36,
+        _ => 45,
+    };
+    format!("{edge}x{edge}")
+}
+
+fn render_table_panel(
+    buffer: &mut Buffer,
+    area: Rect,
+    title: &str,
+    focused: bool,
+    columns: &[TableColumnSpec],
+    header_rows: u16,
+    row_count: usize,
+    selected: Option<usize>,
+    empty: &str,
+    row_cells: impl Fn(usize) -> Vec<String>,
+) {
+    let styles = theme::tui_theme();
+    let block = panel_block(title, focused);
+    let inner = block.inner(area);
+    block.render(area, buffer);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+
+    let [header_area, body_area] =
+        Layout::vertical([Constraint::Length(header_rows), Constraint::Min(0)]).areas(inner);
+    render_table_header(buffer, header_area, columns);
+
+    if row_count == 0 {
+        if body_area.height > 0 {
+            buffer.set_stringn(
+                body_area.x,
+                body_area.y,
+                empty,
+                body_area.width as usize,
+                with_panel_bg(styles.dim),
+            );
+        }
+        return;
+    }
+
+    let visible_rows = body_area.height as usize;
+    if visible_rows == 0 {
+        return;
+    }
+    let scroll = scroll_offset(row_count, visible_rows, selected.unwrap_or(0));
+    for (offset, index) in (scroll..row_count).take(visible_rows).enumerate() {
+        let row_area = Rect::new(body_area.x, body_area.y + offset as u16, body_area.width, 1);
+        let row_style = if selected == Some(index) {
+            styles.selected
+        } else {
+            with_panel_bg(styles.value)
+        };
+        render_table_row(buffer, row_area, columns, &row_cells(index), row_style);
+    }
+}
+
+fn render_table_header(buffer: &mut Buffer, area: Rect, columns: &[TableColumnSpec]) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    for row in area.top()..area.bottom() {
+        buffer.set_stringn(
+            area.x,
+            row,
+            &" ".repeat(area.width as usize),
+            area.width as usize,
+            with_panel_bg(styles.label),
+        );
+    }
+    let top_cells = columns
+        .iter()
+        .map(|column| column.title_top.unwrap_or(""))
+        .collect::<Vec<_>>();
+    let bottom_cells = columns.iter().map(|column| column.title).collect::<Vec<_>>();
+    if area.height > 1 {
+        let top_area = Rect::new(area.x, area.y, area.width, 1);
+        render_table_cells(buffer, top_area, columns, &top_cells, with_panel_bg(styles.label));
+        let bottom_area = Rect::new(area.x, area.y + area.height - 1, area.width, 1);
+        render_table_cells(
+            buffer,
+            bottom_area,
+            columns,
+            &bottom_cells,
+            with_panel_bg(styles.label),
+        );
+    } else {
+        render_table_cells(
+            buffer,
+            area,
+            columns,
+            &bottom_cells,
+            with_panel_bg(styles.label),
+        );
+    }
+}
+
+fn render_table_row(
+    buffer: &mut Buffer,
+    area: Rect,
+    columns: &[TableColumnSpec],
+    cells: &[String],
+    style: Style,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    buffer.set_stringn(
+        area.x,
+        area.y,
+        &" ".repeat(area.width as usize),
+        area.width as usize,
+        style,
+    );
+    let borrowed = cells.iter().map(String::as_str).collect::<Vec<_>>();
+    render_table_cells(buffer, area, columns, &borrowed, style);
+}
+
+fn render_table_cells(
+    buffer: &mut Buffer,
+    area: Rect,
+    columns: &[TableColumnSpec],
+    cells: &[&str],
+    style: Style,
+) {
+    let cell_areas = Layout::horizontal(columns.iter().map(|column| column.constraint).collect::<Vec<_>>())
+        .spacing(1)
+        .split(area);
+    for ((column, cell), cell_area) in columns.iter().zip(cells.iter()).zip(cell_areas.iter()) {
+        if cell_area.width == 0 {
+            continue;
+        }
+        let text_width = cell.chars().count().min(cell_area.width as usize) as u16;
+        let start = match column.align {
+            TableCellAlign::Left => cell_area.x,
+            TableCellAlign::Right => cell_area.right().saturating_sub(text_width),
+        };
+        buffer.set_stringn(start, cell_area.y, cell, cell_area.width as usize, style);
     }
 }
 

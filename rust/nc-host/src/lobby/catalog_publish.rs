@@ -69,6 +69,7 @@ pub fn publish_game_definition(
             .map(|m| m.name.clone())
             .unwrap_or_else(|| game_id.to_string()),
         status,
+        created_at: metadata.as_ref().map(|m| m.created_at),
         players: metadata
             .as_ref()
             .map(|m| m.players)

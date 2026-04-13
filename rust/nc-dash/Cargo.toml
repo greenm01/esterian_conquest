@@ -25,3 +25,4 @@ serde_json = "1"
 tracing = "0.1"
 winit = "0.29"
 arboard = { version = "3", features = ["wayland-data-control"] }
+chrono = { version = "0.4", features = ["serde"] }
