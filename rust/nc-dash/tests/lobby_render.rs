@@ -336,8 +336,20 @@ fn compose_thread_route_renders_centered_chat_modal() {
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("DIRECT THREAD"));
+    assert!(lines.contains("THREADS"));
     assert!(lines.contains("<niltempus>: draft"));
+}
+
+#[test]
+fn resume_sync_overlay_renders_network_modal() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_resume_sync_overlay = true;
+    app.state.network_status = LobbyNetworkStatus::Connecting;
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("NETWORK"));
+    assert!(lines.contains("Network : Connecting"));
 }
 
 #[test]

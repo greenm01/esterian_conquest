@@ -165,6 +165,7 @@ pub struct LobbyState {
     pub status_message: Option<String>,
     pub status_tone: LobbyStatusTone,
     pub show_help: bool,
+    pub show_resume_sync_overlay: bool,
     pub first_run_field: FirstRunField,
     pub first_run_handle_input: String,
     pub first_run_password_input: String,
@@ -224,6 +225,7 @@ impl LobbyState {
             status_message: None,
             status_tone: LobbyStatusTone::Info,
             show_help: false,
+            show_resume_sync_overlay: false,
             first_run_field: FirstRunField::Handle,
             first_run_handle_input: String::new(),
             first_run_password_input: String::new(),
@@ -251,6 +253,8 @@ impl LobbyState {
         self.game_inbox = loaded.game_inbox;
         self.notices = loaded.notices;
         self.direct_contacts = loaded.direct_contacts;
+        self.ensure_host_contacts_present();
+        self.sync_host_labels_from_contacts();
         self.thread_messages = loaded.thread_messages;
         self.game_inbox_messages = loaded.game_inbox_messages;
         self.network_status = loaded.network_status;
@@ -280,6 +284,83 @@ impl LobbyState {
             .min(self.visible_game_inbox_messages().len());
         self.edit_handle_input = self.player_handle.clone().unwrap_or_default();
         self.sync_default_contact_selection();
+    }
+
+    fn ensure_host_contacts_present(&mut self) {
+        let joined = self
+            .joined_games
+            .iter()
+            .map(|row| (row.host_contact_npub.clone(), row.host.clone()))
+            .collect::<Vec<_>>();
+        for (npub, label) in joined {
+            self.ensure_host_contact(npub.as_deref(), label.as_str());
+        }
+        let open = self
+            .open_games
+            .iter()
+            .map(|row| (row.host_contact_npub.clone(), row.host.clone()))
+            .collect::<Vec<_>>();
+        for (npub, label) in open {
+            self.ensure_host_contact(npub.as_deref(), label.as_str());
+        }
+        self.direct_contacts.sort_by(|left, right| {
+            left.label
+                .to_lowercase()
+                .cmp(&right.label.to_lowercase())
+                .then_with(|| left.npub.cmp(&right.npub))
+        });
+    }
+
+    fn sync_host_labels_from_contacts(&mut self) {
+        let labels = self
+            .direct_contacts
+            .iter()
+            .filter(|contact| contact.source == "host")
+            .map(|contact| (contact.npub.clone(), contact.label.clone()))
+            .collect::<Vec<_>>();
+        for row in &mut self.joined_games {
+            if let Some(label) = row
+                .host_contact_npub
+                .as_ref()
+                .and_then(|npub| labels.iter().find(|(known, _)| known == npub))
+                .map(|(_, label)| label.clone())
+            {
+                row.host = label;
+            }
+        }
+        for row in &mut self.open_games {
+            if let Some(label) = row
+                .host_contact_npub
+                .as_ref()
+                .and_then(|npub| labels.iter().find(|(known, _)| known == npub))
+                .map(|(_, label)| label.clone())
+            {
+                row.host = label;
+            }
+        }
+    }
+
+    fn ensure_host_contact(&mut self, npub: Option<&str>, label: &str) {
+        let Some(npub) = npub.map(str::trim).filter(|value| !value.is_empty()) else {
+            return;
+        };
+        let label = label.trim();
+        if let Some(existing) = self
+            .direct_contacts
+            .iter_mut()
+            .find(|contact| contact.npub == npub)
+        {
+            if existing.source == "host" && !label.is_empty() {
+                existing.label = label.to_string();
+            }
+            return;
+        }
+        self.direct_contacts.push(DirectContactRow {
+            npub: npub.to_string(),
+            label: label.to_string(),
+            nip05: None,
+            source: "host".to_string(),
+        });
     }
 
     pub fn relay_label(&self) -> Option<String> {

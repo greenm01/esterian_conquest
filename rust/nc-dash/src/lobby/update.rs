@@ -186,10 +186,15 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Enter => match app.transport.unlock(&app.state.unlock_password_input) {
             Ok(loaded) => {
+                let resume_session = app.state.gate_mode == KeychainGateMode::ResumeSession;
                 app.state.apply_loaded(loaded);
                 app.state.unlock_password_input.clear();
                 app.last_activity_at = std::time::Instant::now();
-                let route = if app.state.gate_mode == KeychainGateMode::ResumeSession {
+                app.state.show_resume_sync_overlay = resume_session
+                    && app.transport.has_session()
+                    && app.state.network_status != LobbyNetworkStatus::NoRelay
+                    && app.state.network_status != LobbyNetworkStatus::Synced;
+                let route = if resume_session {
                     app.state.unlock_return_route
                 } else {
                     LobbyRoute::Home
@@ -958,20 +963,12 @@ fn read_clipboard_text(app: &mut LobbyApp, key: KeyEvent) -> Option<String> {
         return None;
     }
     match app.clipboard.get_text() {
-        Ok(Some(text)) => Some(text),
-        Ok(None) => {
+        Some(text) => Some(text),
+        None => {
             set_status(
                 app,
                 LobbyStatusTone::Error,
                 "Clipboard is unavailable.".to_string(),
-            );
-            None
-        }
-        Err(err) => {
-            set_status(
-                app,
-                LobbyStatusTone::Error,
-                format!("Clipboard paste failed: {err}"),
             );
             None
         }
@@ -1019,4 +1016,32 @@ fn sanitize_multiline_paste(text: &str) -> String {
     text.chars()
         .filter(|ch| !matches!(ch, '\u{7f}'))
         .collect::<String>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apply_key, ctrl_key_for_tests};
+    use crate::lobby::state::{LobbyRoute, LobbyStatusTone};
+    use crate::lobby::LobbyApp;
+    use nc_ui::ScreenGeometry;
+
+    #[test]
+    fn unavailable_clipboard_sets_nonfatal_status_message() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+        app.clipboard.disable_for_tests();
+
+        apply_key(&mut app, ctrl_key_for_tests('v'));
+
+        assert_eq!(app.state.status_tone, LobbyStatusTone::Error);
+        assert_eq!(
+            app.state.status_message.as_deref(),
+            Some("Clipboard is unavailable.")
+        );
+        assert_eq!(app.state.first_run_handle_input, "");
+    }
+}
+
+#[cfg(test)]
+fn ctrl_key_for_tests(ch: char) -> KeyEvent {
+    KeyEvent::new(KeyCode::Char(ch), KeyModifiers::CONTROL)
 }

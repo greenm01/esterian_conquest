@@ -4,7 +4,7 @@ use nc_client::cache::{
 };
 use nc_client::config::{ClientConfig, load_config};
 use nc_client::contacts::{resolve_contact_input, short_contact_label};
-use nc_client::hosted::live::{HostedLiveSession, HostedSessionUpdate};
+use nc_client::hosted::live::{HostedLiveSession, HostedSessionStatus, HostedSessionUpdate};
 use nc_client::hosted::session::{CatalogGame, HostedClientSession, PlayerEventBatch};
 use nc_client::keychain::{
     Keychain, active_keys, load_keychain, now_iso8601, push_new_identity, save_keychain,
@@ -35,20 +35,31 @@ fn format_catalog_created_date(created_at: Option<i64>) -> String {
 fn format_host_label(
     host_alias: Option<&str>,
     host_contact_label: Option<&str>,
+    host_contact_nip05: Option<&str>,
     host_contact_npub: Option<&str>,
 ) -> String {
     host_contact_label
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
+        .or_else(|| host_contact_nip05.and_then(host_nip05_label))
+        .or_else(|| host_contact_npub.map(short_contact_label))
         .or_else(|| {
             host_alias
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
                 .map(str::to_string)
         })
-        .or_else(|| host_contact_npub.map(short_contact_label))
         .unwrap_or_else(|| "daemon".to_string())
+}
+
+fn host_nip05_label(nip05: &str) -> Option<String> {
+    let trimmed = nip05.trim();
+    trimmed
+        .split_once('@')
+        .map(|(local, _)| local.trim())
+        .filter(|local| !local.is_empty())
+        .map(str::to_string)
 }
 
 fn open_game_status(game: &CatalogGame) -> (&'static str, u8) {
@@ -85,6 +96,7 @@ struct UnlockedClient {
     session: Option<HostedClientSession>,
     live_session: Option<HostedLiveSession>,
     relay_url: Option<String>,
+    network_status: LobbyNetworkStatus,
 }
 
 pub struct LobbyTransport {
@@ -136,6 +148,7 @@ impl LobbyTransport {
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
         let (session, live_session) =
             build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
+        let has_session = session.is_some();
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
             keychain,
@@ -144,16 +157,14 @@ impl LobbyTransport {
             session,
             live_session,
             relay_url,
+            network_status: initial_network_status_from_session(has_session),
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
-            if let Some(live_session) = unlocked.live_session.as_ref() {
-                live_session.refresh_backfill();
-            }
             Ok(build_loaded_state(
                 unlocked,
                 None,
                 LobbyStatusTone::Info,
-                Some(initial_network_status(unlocked)),
+                Some(unlocked.network_status),
             ))
         } else {
             Err("keychain setup failed".to_string())
@@ -171,6 +182,7 @@ impl LobbyTransport {
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
         let (session, live_session) =
             build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
+        let has_session = session.is_some();
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
             keychain,
@@ -179,16 +191,14 @@ impl LobbyTransport {
             session,
             live_session,
             relay_url,
+            network_status: initial_network_status_from_session(has_session),
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
-            if let Some(live_session) = unlocked.live_session.as_ref() {
-                live_session.refresh_backfill();
-            }
             Ok(build_loaded_state(
                 unlocked,
                 None,
                 LobbyStatusTone::Info,
-                Some(initial_network_status(unlocked)),
+                Some(unlocked.network_status),
             ))
         } else {
             Err("keychain unlock failed".to_string())
@@ -207,16 +217,17 @@ impl LobbyTransport {
                 unlocked,
                 None,
                 LobbyStatusTone::Info,
-                Some(LobbyNetworkStatus::Synced),
+                Some(unlocked.network_status),
             ));
         }
         if let Some(live_session) = unlocked.live_session.as_ref() {
+            unlocked.network_status = LobbyNetworkStatus::Refreshing;
             live_session.refresh_backfill();
             return Ok(build_loaded_state(
                 unlocked,
                 None,
                 LobbyStatusTone::Info,
-                Some(LobbyNetworkStatus::Refreshing),
+                Some(unlocked.network_status),
             ));
         }
         Ok(build_loaded_state(
@@ -239,7 +250,7 @@ impl LobbyTransport {
             unlocked,
             None,
             LobbyStatusTone::Info,
-            Some(LobbyNetworkStatus::Synced),
+            Some(unlocked.network_status),
         )))
     }
 
@@ -563,6 +574,9 @@ fn apply_live_updates(unlocked: &mut UnlockedClient) -> bool {
 }
 
 fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate) {
+    if let Some(status) = update.status {
+        unlocked.network_status = map_hosted_status(status);
+    }
     if !update.catalog.is_empty() {
         apply_catalog(unlocked, &update.catalog);
     }
@@ -871,6 +885,7 @@ fn build_loaded_state(
                     host: format_host_label(
                         game.definition.host_alias.as_deref(),
                         game.definition.host_contact_label.as_deref(),
+                        game.definition.host_contact_nip05.as_deref(),
                         game.definition.host_contact_npub.as_deref(),
                     ),
                     host_contact_npub: game.definition.host_contact_npub.clone(),
@@ -909,6 +924,7 @@ fn build_loaded_state(
             host: format_host_label(
                 game.host_alias.as_deref(),
                 game.host_contact_label.as_deref(),
+                game.host_contact_nip05.as_deref(),
                 game.host_contact_npub.as_deref(),
             ),
             host_contact_npub: game.host_contact_npub.clone(),
@@ -1011,11 +1027,7 @@ fn build_loaded_state(
         thread_messages,
         game_inbox_messages,
         network_status: network_status.unwrap_or_else(|| {
-            if unlocked.session.is_some() {
-                LobbyNetworkStatus::Connected
-            } else {
-                LobbyNetworkStatus::NoRelay
-            }
+            unlocked.network_status
         }),
         status_message,
         status_tone,
@@ -1093,6 +1105,7 @@ fn maybe_cache_host_contact(
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(str::to_string)
+            .or_else(|| nip05.and_then(host_nip05_label))
             .unwrap_or_else(|| short_contact_label(npub)),
         nip05: nip05
             .map(str::trim)
@@ -1121,11 +1134,19 @@ fn cache_game_from_row(row: &JoinedGameRow) -> CachedGame {
     }
 }
 
-fn initial_network_status(unlocked: &UnlockedClient) -> LobbyNetworkStatus {
-    if unlocked.session.is_some() {
+fn initial_network_status_from_session(has_session: bool) -> LobbyNetworkStatus {
+    if has_session {
         LobbyNetworkStatus::Connecting
     } else {
         LobbyNetworkStatus::NoRelay
+    }
+}
+
+fn map_hosted_status(status: HostedSessionStatus) -> LobbyNetworkStatus {
+    match status {
+        HostedSessionStatus::Connected => LobbyNetworkStatus::Connected,
+        HostedSessionStatus::Synced => LobbyNetworkStatus::Synced,
+        HostedSessionStatus::Error => LobbyNetworkStatus::Error,
     }
 }
 

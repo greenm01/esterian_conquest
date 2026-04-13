@@ -159,6 +159,15 @@ async fn run_async_server(
         SYSOP_NOTIFICATION_INTERVAL_SECS,
     ));
 
+    publish_lobby_catalog(
+        &games_root,
+        true,
+        &config.sysop_contact_npub,
+        config.sysop_contact_label.as_deref(),
+        config.sysop_contact_nip05.as_deref(),
+    )
+    .await;
+
     loop {
         tokio::select! {
             _ = catalog_interval.tick() => {
@@ -262,6 +271,85 @@ async fn run_async_server(
     tracing::info!("Host stopped");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::publish_lobby_catalog;
+    use nc_data::hosted::{
+        GameSettings, HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
+        create_seats, get_pending, update_settings,
+    };
+    use std::sync::Arc;
+    use tempfile::TempDir;
+
+    fn create_catalog_test_root(game_id: &str) -> (TempDir, std::path::PathBuf, HostedStore) {
+        let temp = tempfile::Builder::new()
+            .prefix("nc-host-catalog-startup-")
+            .tempdir()
+            .expect("temp dir");
+        let games_root = temp.path().to_path_buf();
+        let game_dir = games_root.join(game_id);
+        std::fs::create_dir_all(&game_dir).expect("game dir");
+        let store = HostedStore::create(&game_dir.join("hosted.db")).expect("store");
+        let now = chrono::Utc::now().timestamp();
+        store
+            .connection()
+            .execute(
+                "INSERT INTO game_metadata (id, name, status, created_at, updated_at, current_year, current_turn, players)
+                 VALUES (?1, ?2, 'setup', ?3, ?3, 3000, 0, 4)",
+                rusqlite::params![game_id, "Friday Night NC", now],
+            )
+            .expect("game metadata");
+        create_seats(
+            store.connection(),
+            game_id,
+            &[
+                "amber-river".to_string(),
+                "quiet-ember".to_string(),
+                "silver-delta".to_string(),
+                "storm-orbit".to_string(),
+            ],
+        )
+        .expect("seats");
+        update_settings(
+            store.connection(),
+            game_id,
+            &GameSettings {
+                recruiting: RecruitingMode::NewPlayers,
+                lobby_visibility: LobbyVisibility::Public,
+                host_alias: Some("niltempus".to_string()),
+                summary: Some("Localhost hosted join smoke test".to_string()),
+                maintenance_enabled: true,
+                maintenance_interval_minutes: 1440,
+                maintenance_next_due_unix_seconds: None,
+            },
+        )
+        .expect("settings");
+        clear_catalog_dirty(store.connection(), game_id).expect("clear dirty");
+        (temp, games_root, store)
+    }
+
+    #[tokio::test]
+    async fn forced_catalog_publish_queues_clean_game_on_startup() {
+        let (_temp, games_root, store) = create_catalog_test_root("friday-night");
+        let root = Arc::new(games_root);
+
+        publish_lobby_catalog(
+            &root,
+            true,
+            "npub1vwdv3zwjjspk3xuajtkwtfu7ljhwnyk6reprcrxyyn3qhqw76j8qd4qpah",
+            Some("nc_sysop"),
+            Some("nc_sysop@nostrian-conquest.com"),
+        )
+        .await;
+
+        let pending = get_pending(store.connection(), "friday-night", 10).expect("pending outbox");
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].kind, 30500);
+        assert!(pending[0].tags.contains("host-contact-label"));
+        assert!(pending[0].tags.contains("nc_sysop"));
+    }
 }
 fn print_usage() {
     println!("Usage: nc-host serve --root <games-root> [--config <path>]");

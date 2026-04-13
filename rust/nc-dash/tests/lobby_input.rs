@@ -5,6 +5,7 @@ use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, Threa
 use nc_dash::lobby::state::{
     FirstRunField, HostedGameView, KeychainGateMode, LobbyFocus, LobbyRoute,
 };
+use nc_dash::lobby::transport::LobbyLoadedState;
 use nc_dash::lobby::update::apply_key;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
@@ -207,6 +208,140 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 }
 
 #[test]
+fn apply_loaded_uses_host_contact_as_games_host_and_default_contact() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut open = OpenGameRow::new(
+        "friday-night",
+        "Open",
+        "Friday Night NC",
+        "nc_sysop",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        1,
+        4,
+        "2026-04-13",
+        "Y3000 T0",
+        "summary",
+    );
+    open.host_contact_npub = Some("npub1sysop".to_string());
+
+    app.state.apply_loaded(LobbyLoadedState {
+        relay_label: Some("relay: ws://127.0.0.1:8080".to_string()),
+        player_handle: Some("niltempus".to_string()),
+        joined_games: Vec::new(),
+        open_games: vec![open],
+        game_inbox: Vec::new(),
+        notices: Vec::new(),
+        direct_contacts: vec![DirectContactRow {
+            npub: "npub1sysop".to_string(),
+            label: "nc_sysop".to_string(),
+            nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
+            source: "host".to_string(),
+        }],
+        thread_messages: Vec::new(),
+        game_inbox_messages: Vec::new(),
+        network_status: nc_dash::lobby::state::LobbyNetworkStatus::Synced,
+        status_message: None,
+        status_tone: nc_dash::lobby::state::LobbyStatusTone::Info,
+    });
+
+    assert_eq!(app.state.direct_contacts.len(), 1);
+    assert_eq!(app.state.open_games[0].host, "nc_sysop");
+    assert_eq!(app.state.direct_contacts[0].label, "nc_sysop");
+    assert_eq!(app.state.direct_contacts[0].source, "host");
+    assert_eq!(
+        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        Some("npub1sysop")
+    );
+}
+
+#[test]
+fn apply_loaded_adds_host_contact_when_threads_list_starts_empty() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut open = OpenGameRow::new(
+        "friday-night",
+        "Open",
+        "Friday Night NC",
+        "nc_sysop",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        1,
+        4,
+        "2026-04-13",
+        "Y3000 T0",
+        "summary",
+    );
+    open.host_contact_npub = Some("npub1sysop".to_string());
+
+    app.state.apply_loaded(LobbyLoadedState {
+        relay_label: Some("relay: ws://127.0.0.1:8080".to_string()),
+        player_handle: Some("niltempus".to_string()),
+        joined_games: Vec::new(),
+        open_games: vec![open],
+        game_inbox: Vec::new(),
+        notices: Vec::new(),
+        direct_contacts: Vec::new(),
+        thread_messages: Vec::new(),
+        game_inbox_messages: Vec::new(),
+        network_status: nc_dash::lobby::state::LobbyNetworkStatus::Synced,
+        status_message: None,
+        status_tone: nc_dash::lobby::state::LobbyStatusTone::Info,
+    });
+
+    assert_eq!(app.state.direct_contacts.len(), 1);
+    assert_eq!(app.state.direct_contacts[0].label, "nc_sysop");
+    assert_eq!(
+        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        Some("npub1sysop")
+    );
+}
+
+#[test]
+fn apply_loaded_updates_stale_host_contact_label() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut open = OpenGameRow::new(
+        "friday-night",
+        "Open",
+        "Friday Night NC",
+        "nc_sysop",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        1,
+        4,
+        "2026-04-13",
+        "Y3000 T0",
+        "summary",
+    );
+    open.host_contact_npub = Some("npub1sysop".to_string());
+
+    app.state.apply_loaded(LobbyLoadedState {
+        relay_label: Some("relay: ws://127.0.0.1:8080".to_string()),
+        player_handle: Some("niltempus".to_string()),
+        joined_games: Vec::new(),
+        open_games: vec![open],
+        game_inbox: Vec::new(),
+        notices: Vec::new(),
+        direct_contacts: vec![DirectContactRow {
+            npub: "npub1sysop".to_string(),
+            label: "niltempus".to_string(),
+            nip05: None,
+            source: "host".to_string(),
+        }],
+        thread_messages: Vec::new(),
+        game_inbox_messages: Vec::new(),
+        network_status: nc_dash::lobby::state::LobbyNetworkStatus::Connected,
+        status_message: None,
+        status_tone: nc_dash::lobby::state::LobbyStatusTone::Info,
+    });
+
+    assert_eq!(app.state.open_games[0].host, "nc_sysop");
+    assert_eq!(app.state.direct_contacts[0].label, "nc_sysop");
+}
+
+#[test]
 fn m_starts_inline_thread_compose_without_popup() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {
@@ -291,6 +426,23 @@ fn locked_resume_escape_returns_to_matrix_lock() {
     assert_eq!(app.state.route, LobbyRoute::MatrixLocked);
     assert!(app.state.unlock_password_input.is_empty());
     assert!(app.state.status_message.is_none());
+}
+
+#[test]
+fn resume_sync_overlay_blocks_home_input_until_dismissed() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_resume_sync_overlay = true;
+    app.state.focus = LobbyFocus::OpenGames;
+
+    app.dispatch_key_event_for_test(key(KeyCode::Tab));
+
+    assert!(app.state.show_resume_sync_overlay);
+    assert_eq!(app.state.focus, LobbyFocus::OpenGames);
+
+    app.dispatch_key_event_for_test(key(KeyCode::Enter));
+
+    assert!(!app.state.show_resume_sync_overlay);
+    assert_eq!(app.state.focus, LobbyFocus::OpenGames);
 }
 
 #[test]

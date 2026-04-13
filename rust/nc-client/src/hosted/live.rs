@@ -21,6 +21,13 @@ use super::session::{CatalogGame, PlayerEventBatch};
 
 const LOOKBACK_SECS: u64 = 30 * 24 * 60 * 60;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostedSessionStatus {
+    Connected,
+    Synced,
+    Error,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct HostedSessionUpdate {
     pub catalog: Vec<CatalogGame>,
@@ -29,6 +36,7 @@ pub struct HostedSessionUpdate {
     pub contact_messages: Vec<ContactMessage>,
     pub player_messages: Vec<PlayerMessage>,
     pub player_events: PlayerEventBatch,
+    pub status: Option<HostedSessionStatus>,
 }
 
 enum LiveCommand {
@@ -101,7 +109,10 @@ async fn run_live_session(
     mut command_rx: UnboundedReceiver<LiveCommand>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new(keys.clone());
-    client.add_relay(&relay_url).await?;
+    if let Err(err) = client.add_relay(&relay_url).await {
+        send_status_update(&update_tx, HostedSessionStatus::Error);
+        return Err(err.into());
+    }
     client.connect().await;
 
     let public_key_hex = keys.public_key().to_hex();
@@ -126,10 +137,20 @@ async fn run_live_session(
         )
         .since(Timestamp::now() - Duration::from_secs(LOOKBACK_SECS));
 
-    backfill(&client, &keys, &public_filter, &private_filter, &update_tx).await?;
+    if let Err(err) = client.subscribe(public_filter.clone(), None).await {
+        send_status_update(&update_tx, HostedSessionStatus::Error);
+        return Err(err.into());
+    }
+    if let Err(err) = client.subscribe(private_filter.clone(), None).await {
+        send_status_update(&update_tx, HostedSessionStatus::Error);
+        return Err(err.into());
+    }
+    send_status_update(&update_tx, HostedSessionStatus::Connected);
 
-    client.subscribe(public_filter, None).await?;
-    client.subscribe(private_filter, None).await?;
+    if let Err(err) = backfill(&client, &keys, &public_filter, &private_filter, &update_tx).await {
+        send_status_update(&update_tx, HostedSessionStatus::Error);
+        eprintln!("warning: hosted live initial backfill failed: {err}");
+    }
 
     let mut notifications = client.notifications();
     loop {
@@ -137,7 +158,7 @@ async fn run_live_session(
             maybe_command = command_rx.recv() => {
                 match maybe_command {
                     Some(LiveCommand::RefreshBackfill) => {
-                        backfill(
+                        if let Err(err) = backfill(
                             &client,
                             &keys,
                             &Filter::new().kinds([Kind::Custom(30500), Kind::Custom(30516)]),
@@ -158,7 +179,10 @@ async fn run_live_session(
                                     public_key_hex.as_str(),
                                 ),
                             &update_tx,
-                        ).await?;
+                        ).await {
+                            send_status_update(&update_tx, HostedSessionStatus::Error);
+                            eprintln!("warning: hosted live refresh backfill failed: {err}");
+                        }
                     }
                     Some(LiveCommand::Stop) | None => {
                         client.disconnect().await;
@@ -175,6 +199,7 @@ async fn run_live_session(
                     }
                     Ok(_) => {}
                     Err(err) => {
+                        send_status_update(&update_tx, HostedSessionStatus::Error);
                         eprintln!("warning: hosted live notification error: {}", err);
                         tokio::time::sleep(Duration::from_millis(250)).await;
                     }
@@ -193,25 +218,33 @@ async fn backfill(
     private_filter: &Filter,
     update_tx: &mpsc::Sender<HostedSessionUpdate>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let public_events = client
-        .fetch_events(public_filter.clone(), Duration::from_secs(8))
-        .await?;
+    let (public_events, private_events) = tokio::try_join!(
+        client.fetch_events(public_filter.clone(), Duration::from_secs(8)),
+        client.fetch_events(private_filter.clone(), Duration::from_secs(8)),
+    )?;
     for event in public_events.iter() {
         if let Some(update) = parse_event(keys, event) {
             let _ = update_tx.send(update);
         }
     }
-
-    let private_events = client
-        .fetch_events(private_filter.clone(), Duration::from_secs(8))
-        .await?;
     for event in private_events.iter() {
         if let Some(update) = parse_event(keys, event) {
             let _ = update_tx.send(update);
         }
     }
+    send_status_update(update_tx, HostedSessionStatus::Synced);
 
     Ok(())
+}
+
+fn send_status_update(
+    update_tx: &mpsc::Sender<HostedSessionUpdate>,
+    status: HostedSessionStatus,
+) {
+    let _ = update_tx.send(HostedSessionUpdate {
+        status: Some(status),
+        ..HostedSessionUpdate::default()
+    });
 }
 
 fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpdate> {

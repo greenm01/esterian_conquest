@@ -83,6 +83,10 @@ impl LobbyApp {
         <Self as NativeApp>::dispatch_mouse_event(self, mouse);
     }
 
+    pub fn dispatch_key_event_for_test(&mut self, key: KeyEvent) {
+        <Self as NativeApp>::dispatch_key_event(self, key);
+    }
+
     pub fn enter_session_lock(&mut self) {
         if !self.transport.is_unlocked() || self.state.route == LobbyRoute::FirstRun {
             return;
@@ -92,6 +96,7 @@ impl LobbyApp {
         self.state.unlock_return_route = self.state.route;
         self.state.unlock_password_input.clear();
         self.state.status_message = None;
+        self.state.show_resume_sync_overlay = false;
         self.state.route = LobbyRoute::MatrixLocked;
         self.mouse_gesture = LobbyMouseGesture::None;
         self.matrix_rain.reset();
@@ -102,6 +107,18 @@ impl LobbyApp {
         self.state.unlock_password_input.clear();
         self.state.status_message = None;
         self.state.route = LobbyRoute::Locked;
+    }
+
+    fn dismiss_resume_sync_overlay(&mut self) {
+        self.state.show_resume_sync_overlay = false;
+    }
+
+    fn render_resume_sync_overlay(&self, buffer: &mut PlayfieldBuffer) {
+        let lines = vec![format!(
+            "Network : {}",
+            network_dialog_label(self.state.network_status)
+        )];
+        let _ = render_modal_box(buffer, "NETWORK", &lines, modal_theme());
     }
 
     fn scheduled_wakeup(&self) -> Option<Instant> {
@@ -253,10 +270,25 @@ impl NativeApp for LobbyApp {
     }
 
     fn dispatch_key_event(&mut self, key: KeyEvent) {
+        if self.state.show_resume_sync_overlay {
+            match key.code {
+                crossterm::event::KeyCode::Esc | crossterm::event::KeyCode::Enter => {
+                    self.dismiss_resume_sync_overlay();
+                }
+                _ => {}
+            }
+            return;
+        }
         update::apply_key(self, key);
     }
 
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
+        if self.state.show_resume_sync_overlay {
+            if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
+                self.dismiss_resume_sync_overlay();
+            }
+            return;
+        }
         if self.state.route == LobbyRoute::HostedGame {
             if let Some(hosted) = self.state.hosted_game.as_mut() {
                 hosted.dashboard.dispatch_mouse_event(mouse);
@@ -294,7 +326,11 @@ impl NativeApp for LobbyApp {
     fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if self.state.route == LobbyRoute::HostedGame {
             if let Some(hosted) = self.state.hosted_game.as_ref() {
-                return hosted.dashboard.render_playfield();
+                let mut buffer = hosted.dashboard.render_playfield()?;
+                if self.state.show_resume_sync_overlay {
+                    self.render_resume_sync_overlay(&mut buffer);
+                }
+                return Ok(buffer);
             }
         }
         let mut buffer = PlayfieldBuffer::new(
@@ -316,9 +352,15 @@ impl NativeApp for LobbyApp {
         }
         if self.state.route == LobbyRoute::SubmitTurn {
             self.render_submit_turn(&mut buffer);
+            if self.state.show_resume_sync_overlay {
+                self.render_resume_sync_overlay(&mut buffer);
+            }
             return Ok(buffer);
         }
         ratatui::render_scene(&mut buffer, self);
+        if self.state.show_resume_sync_overlay {
+            self.render_resume_sync_overlay(&mut buffer);
+        }
         Ok(buffer)
     }
 
@@ -342,6 +384,11 @@ impl NativeApp for LobbyApp {
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
                 self.state.apply_loaded(loaded);
+                if self.state.show_resume_sync_overlay
+                    && self.state.network_status == state::LobbyNetworkStatus::Synced
+                {
+                    self.dismiss_resume_sync_overlay();
+                }
                 true
             }
             Ok(None) => false,
@@ -380,6 +427,17 @@ fn modal_theme() -> ModalTheme {
         pad_style: theme::body_style(),
         chrome_style: theme::table_chrome_style(),
         title_style: theme::table_header_style(),
+    }
+}
+
+fn network_dialog_label(status: state::LobbyNetworkStatus) -> &'static str {
+    match status {
+        state::LobbyNetworkStatus::NoRelay => "No Relay",
+        state::LobbyNetworkStatus::Connecting => "Connecting",
+        state::LobbyNetworkStatus::Connected => "Connected",
+        state::LobbyNetworkStatus::Refreshing => "Refreshing",
+        state::LobbyNetworkStatus::Synced => "Synced",
+        state::LobbyNetworkStatus::Error => "Error",
     }
 }
 

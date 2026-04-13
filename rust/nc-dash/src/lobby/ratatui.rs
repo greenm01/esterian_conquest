@@ -336,7 +336,7 @@ fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
 fn render_compose_thread_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
     let popup = popup_rect(parent, (88, 22), app.popup_position);
     let styles = theme::tui_theme();
-    let block = popup_block(" DIRECT THREAD ", styles.border);
+    let block = popup_block(" THREADS ", styles.border);
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
