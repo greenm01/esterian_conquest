@@ -1,7 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::hosted::dashboard::build_hosted_dash_app;
-use super::state::{FirstRunField, HostedGameView, LobbyApp, LobbyFocus, LobbyRoute};
+use super::state::{
+    FirstRunField, HostedGameView, LobbyApp, LobbyFocus, LobbyNetworkStatus, LobbyRoute,
+};
 use crate::theme;
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -20,6 +22,14 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
+    if app.state.show_help {
+        match key.code {
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('?') => app.state.show_help = false,
+            _ => {}
+        }
+        return;
+    }
+
     match key.code {
         KeyCode::Esc | KeyCode::Char('q' | 'Q')
             if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
@@ -52,6 +62,7 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
+        KeyCode::Char('?') => app.state.show_help = true,
         _ => {}
     }
 }
@@ -390,7 +401,7 @@ fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
 fn refresh_lobby(app: &mut LobbyApp) {
     match app.transport.refresh() {
         Ok(loaded) => app.state.apply_loaded(loaded),
-        Err(err) => app.state.status_message = Some(err),
+        Err(err) => set_network_error(app, err),
     }
 }
 
@@ -591,6 +602,11 @@ fn read_clipboard_text(app: &mut LobbyApp, key: KeyEvent) -> Option<String> {
             None
         }
     }
+}
+
+pub(crate) fn set_network_error(app: &mut LobbyApp, err: String) {
+    app.state.network_status = LobbyNetworkStatus::Error;
+    app.state.status_message = Some(err);
 }
 
 fn is_paste_shortcut(key: KeyEvent) -> bool {

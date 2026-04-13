@@ -96,79 +96,9 @@ impl LobbyApp {
         buffer.write_text_clipped(row, 1, footer, theme::prompt_style());
     }
 
-    fn render_home(&self, buffer: &mut PlayfieldBuffer) {
-        let width = buffer.width() as u16;
-        let height = buffer.height() as u16;
-        if width < 40 || height < 16 {
-            let lines = vec![
-                "nc-lobby needs a larger window.".to_string(),
-                "Resize and reopen the lobby.".to_string(),
-            ];
-            let _ = render_modal_box(buffer, "WINDOW TOO SMALL", &lines, modal_theme());
-            return;
-        }
-
-        let body = Rect::new(0, 1, width, height.saturating_sub(2));
-        let gap = 1u16;
-        let left_w = width.saturating_mul(28) / 100;
-        let center_w = width.saturating_mul(32) / 100;
-        let right_w = width
-            .saturating_sub(left_w)
-            .saturating_sub(center_w)
-            .saturating_sub(gap * 4)
-            .max(24);
-
-        let left = Rect::new(1, body.y + 1, left_w, body.height.saturating_sub(2));
-        let center = Rect::new(
-            left.x + left.width + gap,
-            body.y + 1,
-            center_w,
-            body.height.saturating_sub(2),
-        );
-        let right = Rect::new(
-            center.x + center.width + gap,
-            body.y + 1,
-            right_w,
-            body.height.saturating_sub(2),
-        );
-
-        let left_top_h = left.height.saturating_mul(3) / 5;
-        let joined = Rect::new(left.x, left.y, left.width, left_top_h.max(8));
-        let inbox = Rect::new(
-            left.x,
-            joined.y + joined.height + gap,
-            left.width,
-            left.height
-                .saturating_sub(joined.height)
-                .saturating_sub(gap),
-        );
-        let notices_h = right.height.saturating_mul(2) / 5;
-        let notices = Rect::new(right.x, right.y, right.width, notices_h.max(7));
-        let thread = Rect::new(
-            right.x,
-            notices.y + notices.height + gap,
-            right.width,
-            right
-                .height
-                .saturating_sub(notices.height)
-                .saturating_sub(gap),
-        );
-
-        panels::joined_games::render(buffer, joined, &self.state, self.state.focus);
-        panels::inbox::render(buffer, inbox, &self.state, self.state.focus);
-        panels::open_games::render(buffer, center, &self.state, self.state.focus);
-        panels::notices::render(buffer, notices, &self.state, self.state.focus);
-        panels::thread::render(buffer, thread, &self.state, self.state.focus);
-
-        if let Some(status) = self.state.status_message.as_deref() {
-            let row = buffer.height().saturating_sub(2);
-            buffer.write_text_clipped(row, 2, status, theme::classic::notice_style());
-        }
-    }
-
     fn render_modal_route(&self, buffer: &mut PlayfieldBuffer) {
         match self.state.route {
-            LobbyRoute::Home => self.render_home(buffer),
+            LobbyRoute::Home => ratatui::render_home(buffer, &self.state),
             LobbyRoute::HostedGame => {}
             LobbyRoute::Settings => {
                 ratatui::render_settings(buffer, &self.state);
@@ -315,6 +245,10 @@ impl NativeApp for LobbyApp {
             self.render_modal_route(&mut buffer);
             return Ok(buffer);
         }
+        if self.state.route == LobbyRoute::Home {
+            self.render_modal_route(&mut buffer);
+            return Ok(buffer);
+        }
         self.render_header(&mut buffer);
         self.render_modal_route(&mut buffer);
         self.render_footer(&mut buffer);
@@ -330,7 +264,7 @@ impl NativeApp for LobbyApp {
             Ok(None) => false,
             Err(err) => {
                 let changed = self.state.status_message.as_deref() != Some(err.as_str());
-                self.state.status_message = Some(err);
+                update::set_network_error(self, err);
                 changed
             }
         }

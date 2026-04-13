@@ -1,9 +1,13 @@
 use nc_dash::lobby::LobbyApp;
-use nc_dash::lobby::state::LobbyRoute;
+use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute};
 use nc_ui::ScreenGeometry;
 
 fn render_lines(route: LobbyRoute) -> String {
     let app = LobbyApp::new_for_tests(route, ScreenGeometry::new(120, 40));
+    render_app_lines(app)
+}
+
+fn render_app_lines(app: LobbyApp) -> String {
     let buffer = app.render_for_test().expect("render lobby");
     (0..buffer.height())
         .map(|row| {
@@ -22,10 +26,57 @@ fn home_route_renders_three_pane_shell_copy() {
     let lines = render_lines(LobbyRoute::Home);
 
     assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
+    assert!(lines.contains("NETWORK: NO RELAY"));
     assert!(lines.contains("JOINED GAMES"));
+    assert!(lines.contains("INBOX"));
+    assert!(lines.contains("COMMANDS"));
     assert!(lines.contains("OPEN GAMES"));
     assert!(lines.contains("NOTICES"));
     assert!(lines.contains("THREAD"));
+    assert!(!lines.contains("COMMANDS <-"));
+}
+
+#[test]
+fn home_route_places_commands_under_inbox_and_uses_network_hud() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.network_status = LobbyNetworkStatus::Synced;
+    app.state.status_message = Some("Invite request sent.".to_string());
+
+    let buffer = app.render_for_test().expect("render lobby");
+    let inbox = (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .find(" INBOX ")
+                .map(|col| (row, col))
+        })
+        .expect("inbox title");
+    let commands = (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .find(" COMMANDS ")
+                .map(|col| (row, col))
+        })
+        .expect("commands title");
+
+    assert!(buffer.plain_line(1).contains("NETWORK: SYNCED"));
+    assert!(buffer.plain_line(commands.0 + 1).contains("Tab cycle"));
+    assert!(buffer.plain_line(commands.0 + 2).contains("Invite request sent."));
+    assert_eq!(commands.1, inbox.1);
+    assert!(commands.0 > inbox.0);
+}
+
+#[test]
+fn home_route_help_popup_renders_as_overlay() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_help = true;
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("LOBBY HELP"));
+    assert!(lines.contains("Tab        : cycle focus across lobby panels"));
+    assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
 #[test]

@@ -146,6 +146,27 @@ fn theme_picker_previews_and_accepts_theme_choice() {
     assert_eq!(app.state.settings_draft.theme_key, preview);
 }
 
+#[test]
+fn question_mark_toggles_help_and_suppresses_home_navigation() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let original_focus = app.state.focus;
+
+    apply_key(&mut app, key(KeyCode::Char('?')));
+    assert!(app.state.show_help);
+
+    apply_key(&mut app, key(KeyCode::Down));
+    assert_eq!(app.state.focus, original_focus);
+
+    apply_key(&mut app, key(KeyCode::Enter));
+    assert!(!app.state.show_help);
+
+    apply_key(&mut app, key(KeyCode::Char('?')));
+    assert!(app.state.show_help);
+
+    apply_key(&mut app, key(KeyCode::Esc));
+    assert!(!app.state.show_help);
+}
+
 fn sample_hosted_snapshot() -> GameState {
     GameState {
         game_id: "friday-night".to_string(),

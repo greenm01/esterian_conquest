@@ -18,6 +18,7 @@ use nc_nostr::thread_message::SysopThreadMessage;
 use nc_nostr::turn_commands::TurnReceiptStatus;
 
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
+use super::state::LobbyNetworkStatus;
 
 #[derive(Debug, Clone)]
 pub struct LobbyLoadedState {
@@ -28,6 +29,7 @@ pub struct LobbyLoadedState {
     pub inbox: Vec<InboxItem>,
     pub notices: Vec<LobbyNotice>,
     pub thread_messages: Vec<ThreadMessage>,
+    pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
 }
 
@@ -95,10 +97,7 @@ impl LobbyTransport {
             if let Some(live_session) = unlocked.live_session.as_ref() {
                 live_session.refresh_backfill();
             }
-            Ok(build_loaded_state(
-                unlocked,
-                Some("Hosted lobby connecting...".to_string()),
-            ))
+            Ok(build_loaded_state(unlocked, None, Some(initial_network_status(unlocked))))
         } else {
             Err("keychain setup failed".to_string())
         }
@@ -128,10 +127,7 @@ impl LobbyTransport {
             if let Some(live_session) = unlocked.live_session.as_ref() {
                 live_session.refresh_backfill();
             }
-            Ok(build_loaded_state(
-                unlocked,
-                Some("Hosted lobby connecting...".to_string()),
-            ))
+            Ok(build_loaded_state(unlocked, None, Some(initial_network_status(unlocked))))
         } else {
             Err("keychain unlock failed".to_string())
         }
@@ -147,17 +143,19 @@ impl LobbyTransport {
             save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
             return Ok(build_loaded_state(
                 unlocked,
-                Some("Hosted lobby synchronized.".to_string()),
+                None,
+                Some(LobbyNetworkStatus::Synced),
             ));
         }
         if let Some(live_session) = unlocked.live_session.as_ref() {
             live_session.refresh_backfill();
             return Ok(build_loaded_state(
                 unlocked,
-                Some("Refreshing hosted lobby...".to_string()),
+                None,
+                Some(LobbyNetworkStatus::Refreshing),
             ));
         }
-        Ok(build_loaded_state(unlocked, None))
+        Ok(build_loaded_state(unlocked, None, None))
     }
 
     pub fn poll_updates(&mut self) -> Result<Option<LobbyLoadedState>, String> {
@@ -170,7 +168,8 @@ impl LobbyTransport {
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(Some(build_loaded_state(
             unlocked,
-            Some("Hosted lobby synchronized.".to_string()),
+            None,
+            Some(LobbyNetworkStatus::Synced),
         )))
     }
 
@@ -184,6 +183,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Handle updated locally. It will be sent on your next hosted action.".to_string()),
+            None,
         ))
     }
 
@@ -233,13 +233,11 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Invite request sent. Waiting for nc-host receipt.".to_string()),
+            None,
         ))
     }
 
-    pub fn claim_invite(
-        &mut self,
-        row: &JoinedGameRow,
-    ) -> Result<LobbyLoadedState, String> {
+    pub fn claim_invite(&mut self, row: &JoinedGameRow) -> Result<LobbyLoadedState, String> {
         let invite = row
             .invite_address
             .as_deref()
@@ -279,6 +277,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Seat claim processed by nc-host.".to_string()),
+            None,
         ))
     }
 
@@ -353,6 +352,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Turn submitted. Waiting for nc-host receipt.".to_string()),
+            None,
         ))
     }
 
@@ -388,6 +388,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Thread message sent to nc-host.".to_string()),
+            None,
         ))
     }
 }
@@ -414,8 +415,7 @@ fn current_handle(keychain: &Keychain) -> Option<String> {
 fn build_sessions(
     keychain: &Keychain,
     relay_url: Option<&str>,
-) -> Result<(Option<HostedClientSession>, Option<HostedLiveSession>), Box<dyn std::error::Error>>
-{
+) -> Result<(Option<HostedClientSession>, Option<HostedLiveSession>), Box<dyn std::error::Error>> {
     let Some(relay_url) = relay_url else {
         return Ok((None, None));
     };
@@ -511,7 +511,12 @@ fn apply_player_events(
             updated_at: now_iso8601(),
         });
         if let Some(game_id) = result.game_id.as_deref() {
-            if let Some(game) = unlocked.cache.games.iter_mut().find(|game| game.id == game_id) {
+            if let Some(game) = unlocked
+                .cache
+                .games
+                .iter_mut()
+                .find(|game| game.id == game_id)
+            {
                 if result.status.as_str() == "claimed" {
                     game.status = "joined".to_string();
                     game.seat = result.seat;
@@ -521,7 +526,12 @@ fn apply_player_events(
         }
     }
     for state in batch.states {
-        if let Some(game) = unlocked.cache.games.iter_mut().find(|game| game.id == state.game_id) {
+        if let Some(game) = unlocked
+            .cache
+            .games
+            .iter_mut()
+            .find(|game| game.id == state.game_id)
+        {
             game.last_turn = Some(state.turn);
             game.last_hash = Some(state.state_hash.clone());
             game.seat = Some(state.player_seat);
@@ -588,7 +598,9 @@ fn apply_decision(
         InviteDecision::Approved { invite } => {
             unlocked.cache.upsert_game(CachedGame {
                 id: decision.game_id.clone(),
-                name: game_name.clone().unwrap_or_else(|| decision.game_id.clone()),
+                name: game_name
+                    .clone()
+                    .unwrap_or_else(|| decision.game_id.clone()),
                 host_alias: catalog_match.and_then(|game| game.definition.host_alias.clone()),
                 relay_url: unlocked.relay_url.clone().unwrap_or_default(),
                 daemon_pubkey: catalog_match
@@ -644,6 +656,7 @@ fn apply_decision(
 fn build_loaded_state(
     unlocked: &UnlockedClient,
     status_message: Option<String>,
+    network_status: Option<LobbyNetworkStatus>,
 ) -> LobbyLoadedState {
     let open_games = unlocked
         .catalog
@@ -754,21 +767,26 @@ fn build_loaded_state(
         inbox,
         notices,
         thread_messages,
-        status_message: status_message.or_else(|| {
+        network_status: network_status.unwrap_or_else(|| {
             if unlocked.session.is_some() {
-                Some("Hosted lobby connected.".to_string())
+                LobbyNetworkStatus::Connected
             } else {
-                Some("No relay configured. Pass --relay or add one to config.kdl.".to_string())
+                LobbyNetworkStatus::NoRelay
             }
         }),
+        status_message,
     }
 }
 
-fn lookup_game_name(
-    game_id: &str,
-    cache: &ClientCache,
-    catalog: &[CatalogGame],
-) -> Option<String> {
+fn initial_network_status(unlocked: &UnlockedClient) -> LobbyNetworkStatus {
+    if unlocked.session.is_some() {
+        LobbyNetworkStatus::Connecting
+    } else {
+        LobbyNetworkStatus::NoRelay
+    }
+}
+
+fn lookup_game_name(game_id: &str, cache: &ClientCache, catalog: &[CatalogGame]) -> Option<String> {
     cache
         .games
         .iter()

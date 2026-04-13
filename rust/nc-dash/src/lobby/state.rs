@@ -25,6 +25,29 @@ pub enum LobbyRoute {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LobbyNetworkStatus {
+    NoRelay,
+    Connecting,
+    Connected,
+    Refreshing,
+    Synced,
+    Error,
+}
+
+impl LobbyNetworkStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::NoRelay => "NO RELAY",
+            Self::Connecting => "CONNECTING",
+            Self::Connected => "CONNECTED",
+            Self::Refreshing => "REFRESHING",
+            Self::Synced => "SYNCED",
+            Self::Error => "ERROR",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FirstRunField {
     Handle,
     Password,
@@ -104,7 +127,9 @@ pub struct LobbyState {
     pub inbox_selected: usize,
     pub notices_selected: usize,
     pub thread_selected: usize,
+    pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
+    pub show_help: bool,
     pub first_run_field: FirstRunField,
     pub first_run_handle_input: String,
     pub first_run_password_input: String,
@@ -151,7 +176,9 @@ impl LobbyState {
             inbox_selected: 0,
             notices_selected: 0,
             thread_selected: 0,
+            network_status: LobbyNetworkStatus::NoRelay,
             status_message: None,
+            show_help: false,
             first_run_field: FirstRunField::Handle,
             first_run_handle_input: String::new(),
             first_run_password_input: String::new(),
@@ -176,6 +203,7 @@ impl LobbyState {
         self.inbox = loaded.inbox;
         self.notices = loaded.notices;
         self.thread_messages = loaded.thread_messages;
+        self.network_status = loaded.network_status;
         self.status_message = loaded.status_message;
         self.joined_selected = self
             .joined_selected
