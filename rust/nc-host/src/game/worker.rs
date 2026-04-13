@@ -1,6 +1,7 @@
 use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
+use crate::support::pubkeys::short_pubkey;
 use nc_data::hosted::{self, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
 use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus};
@@ -62,7 +63,7 @@ impl GameWorker {
             Ok(None) => {
                 tracing::warn!(
                     "Ignoring state request for unclaimed player {} in {}",
-                    request.player_pubkey,
+                    short_pubkey(&request.player_pubkey),
                     self.game_id
                 );
                 return;
@@ -113,7 +114,7 @@ impl GameWorker {
         ) {
             tracing::error!("Failed to enqueue state response: {}", e);
         } else {
-            tracing::info!("Queued encrypted state for {}", request.player_pubkey);
+            tracing::info!("Queued encrypted state for {}", short_pubkey(&request.player_pubkey));
         }
     }
 
@@ -179,6 +180,21 @@ impl GameWorker {
                         return;
                     }
 
+                    if let Err(e) = crate::lobby::notify_sysop::enqueue_invite_request_summary(
+                        &store,
+                        &self.game_id,
+                        &request.request_id,
+                        &request.player_pubkey,
+                        request.handle.as_deref(),
+                    ) {
+                        tracing::warn!(
+                            "Failed to queue sysop invite notification {} for {}: {}",
+                            request.request_id,
+                            self.game_id,
+                            e
+                        );
+                    }
+
                     InviteRequestReceipt {
                         request_id: request.request_id.clone(),
                         game_id: self.game_id.clone(),
@@ -216,7 +232,10 @@ impl GameWorker {
         ) {
             tracing::error!("Failed to enqueue invite receipt: {}", e);
         } else {
-            tracing::info!("Queued encrypted invite request receipt for {}", request.player_pubkey);
+            tracing::info!(
+                "Queued encrypted invite request receipt for {}",
+                short_pubkey(&request.player_pubkey)
+            );
         }
     }
 
@@ -411,11 +430,28 @@ impl GameWorker {
             return;
         }
 
+        if message.sender_role == nc_nostr::thread_message::SenderRole::Player {
+            if let Err(e) = crate::lobby::notify_sysop::enqueue_thread_message_summary(
+                &store,
+                &self.game_id,
+                &message.message_id,
+                &message.sender_pubkey,
+                message.sender_handle.as_deref(),
+            ) {
+                tracing::warn!(
+                    "Failed to queue sysop thread notification {} for {}: {}",
+                    message.message_id,
+                    self.game_id,
+                    e
+                );
+            }
+        }
+
         tracing::info!(
             "Stored thread message {} for game {} from {}",
             message.message_id,
             self.game_id,
-            message.sender_npub
+            short_pubkey(&message.sender_npub)
         );
     }
 
@@ -453,7 +489,7 @@ impl GameWorker {
         ) {
             tracing::error!("Failed to enqueue turn receipt: {}", e);
         } else {
-            tracing::info!("Queued encrypted turn receipt for {}", player_pubkey);
+            tracing::info!("Queued encrypted turn receipt for {}", short_pubkey(player_pubkey));
         }
     }
 }

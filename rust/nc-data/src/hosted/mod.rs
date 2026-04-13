@@ -4,6 +4,7 @@ pub mod schema;
 pub mod seats;
 pub mod settings;
 pub mod store;
+pub mod sysop_notifications;
 pub mod threads;
 pub mod turn_queue;
 
@@ -27,6 +28,11 @@ pub use settings::{
     RecruitingMode,
 };
 pub use store::HostedStore;
+pub use sysop_notifications::{
+    enqueue as enqueue_sysop_notification, get_pending as get_pending_sysop_notifications,
+    mark_failed as mark_sysop_notification_failed, mark_sent as mark_sysop_notification_sent,
+    SysopNotification, SysopNotificationStatus,
+};
 pub use threads::{list_messages as list_thread_messages, list_thread_players, store_message as store_thread_message, ThreadMessage as HostedThreadMessage};
 pub use turn_queue::{
     accept_turn, count_pending_turns, enqueue_turn, get_pending_turn, list_pending_turns,

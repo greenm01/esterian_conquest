@@ -1,4 +1,5 @@
 use nc_data::hosted::{list_thread_messages, list_thread_players, store_thread_message, HostedStore};
+use nc_nostr::pubkeys::hex_to_npub;
 use nc_nostr::thread_message::{build_thread_message_tags, SenderRole, SysopThreadMessage};
 
 pub fn store_player_message(
@@ -10,9 +11,9 @@ pub fn store_player_message(
         store.connection(),
         &message.message_id,
         game_id,
-        &message.sender_npub,
+        &message.sender_pubkey,
         SenderRole::Player.as_str(),
-        &message.sender_npub,
+        &message.sender_pubkey,
         message.sender_handle.as_deref(),
         &message.body,
     )?;
@@ -32,7 +33,8 @@ pub fn enqueue_sysop_message(
         message_id: message_id.to_string(),
         game_id: game_id.to_string(),
         sender_role: SenderRole::Sysop,
-        sender_npub: sender_pubkey.to_string(),
+        sender_pubkey: sender_pubkey.to_string(),
+        sender_npub: hex_to_npub(sender_pubkey).unwrap_or_else(|| sender_pubkey.to_string()),
         sender_handle: sender_handle.map(str::to_string),
         body: body.to_string(),
         created_at: chrono::Utc::now().timestamp(),
@@ -43,7 +45,7 @@ pub fn enqueue_sysop_message(
         game_id,
         player_pubkey,
         payload.sender_role.as_str(),
-        &payload.sender_npub,
+        &payload.sender_pubkey,
         payload.sender_handle.as_deref(),
         &payload.body,
     )?;

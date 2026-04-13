@@ -32,6 +32,7 @@ fn decrypt_thread_message_round_trips_encrypted_payload() {
         message_id: "thread-001".to_string(),
         game_id: "friday-night".to_string(),
         sender_role: SenderRole::Sysop,
+        sender_pubkey: sender.public_key().to_hex(),
         sender_npub: sender.public_key().to_bech32().expect("npub"),
         sender_handle: Some("nc-host".to_string()),
         body: "You are approved for the open seat.".to_string(),
@@ -52,5 +53,6 @@ fn decrypt_thread_message_round_trips_encrypted_payload() {
     assert_eq!(parsed.message_id, "thread-001");
     assert_eq!(parsed.game_id, "friday-night");
     assert_eq!(parsed.sender_role, SenderRole::Sysop);
+    assert_eq!(parsed.sender_pubkey, sender.public_key().to_hex());
     assert_eq!(parsed.sender_handle.as_deref(), Some("nc-host"));
 }

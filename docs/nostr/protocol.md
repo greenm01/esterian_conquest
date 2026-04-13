@@ -60,6 +60,10 @@ deduplication key unless a later implementation constraint proves otherwise.
 Legacy SSH-oriented kinds `30501`/`30502`/`30503` and related map/session
 flows are intentionally outside this hosted v2 spec.
 
+If configured, `nc-host` may also send a summary-only NIP-17/NIP-59 DM to the
+sysop contact for Primal/mobile notification. That DM mirror is not part of
+the authoritative game-thread protocol and does not replace `30517`.
+
 ## 4. 30500 `GameDefinition`
 
 `GameDefinition` is the public lobby listing event. Only recruiting games with
@@ -269,6 +273,8 @@ Rules:
 - available before approval and after join
 - sender handle is display metadata only and should be snapshotted at send time
 - pubkey plus `game-id` remain authoritative
+- `30517` remains the canonical game-thread transport even if the host also
+  emits summary-only NIP-17 sysop notifications
 
 ## 8. 30510 `SeatClaimRequest`
 

@@ -1,5 +1,6 @@
 use nc_data::hosted::HostedStore;
 use nc_nostr::invite_request::{build_invite_decision_tags, InviteDecision, InviteDecisionPayload};
+use crate::support::pubkeys::short_pubkey;
 
 pub fn enqueue_invite_decision(
     store: &HostedStore,
@@ -32,7 +33,11 @@ pub fn enqueue_invite_decision(
         tags,
     )?;
 
-    tracing::info!("Queued encrypted invite decision {} to {}", request_id, player_pubkey);
+    tracing::info!(
+        "Queued encrypted invite decision {} to {}",
+        request_id,
+        short_pubkey(player_pubkey)
+    );
 
     Ok(())
 }

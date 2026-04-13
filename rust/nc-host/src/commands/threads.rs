@@ -2,6 +2,8 @@ use crate::config::{host_config::HostConfig, host_identity::HostIdentity};
 use crate::lobby::threads;
 use crate::support::ids::new_outbox_id;
 use nc_data::hosted::HostedStore;
+use nc_nostr::pubkeys::hex_to_npub;
+use nostr_sdk::{Keys, PublicKey};
 use std::path::PathBuf;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
@@ -110,7 +112,7 @@ fn run_list(store: &HostedStore, game_id: &str) -> Result<(), Box<dyn std::error
         println!("  No private threads yet");
     } else {
         for player in players {
-            println!("  {}", player);
+            println!("  {}", display_pubkey(&player));
         }
     }
     Ok(())
@@ -121,9 +123,9 @@ fn run_show(
     game_id: &str,
     player_pubkey: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let player_pubkey = player_pubkey.ok_or("missing --player argument")?;
-    let messages = threads::list_messages(store, game_id, player_pubkey)?;
-    println!("Thread for {} / {}:", game_id, player_pubkey);
+    let player_pubkey = normalize_pubkey(player_pubkey.ok_or("missing --player argument")?)?;
+    let messages = threads::list_messages(store, game_id, &player_pubkey)?;
+    println!("Thread for {} / {}:", game_id, display_pubkey(&player_pubkey));
     if messages.is_empty() {
         println!("  No messages");
     } else {
@@ -147,7 +149,7 @@ fn run_send(
     config_path: Option<&PathBuf>,
     identity_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let player_pubkey = player_pubkey.ok_or("missing --player argument")?;
+    let player_pubkey = normalize_pubkey(player_pubkey.ok_or("missing --player argument")?)?;
     let body = message
         .map(str::trim)
         .filter(|message| !message.is_empty())
@@ -157,12 +159,13 @@ fn run_send(
         .cloned()
         .unwrap_or_else(|| config.identity_path.clone());
     let identity = HostIdentity::load(&identity_path)?;
+    let host_pubkey = Keys::parse(&identity.nsec)?.public_key().to_hex();
     let message_id = new_outbox_id("thread", game_id);
     threads::enqueue_sysop_message(
         store,
         game_id,
-        player_pubkey,
-        &identity.npub,
+        &player_pubkey,
+        &host_pubkey,
         handle,
         body,
         &message_id,
@@ -186,4 +189,12 @@ fn print_usage() {
     println!("  nc-host threads list --dir <path>");
     println!("  nc-host threads show --dir <path> --player <npub>");
     println!("  nc-host threads send --dir <path> --player <npub> --message \"...\" [--handle <name>] [--config <path>] [--identity <path>]");
+}
+
+fn normalize_pubkey(value: &str) -> Result<String, Box<dyn std::error::Error>> {
+    Ok(PublicKey::parse(value)?.to_hex())
+}
+
+fn display_pubkey(value: &str) -> String {
+    hex_to_npub(value).unwrap_or_else(|| value.to_string())
 }

@@ -1,11 +1,17 @@
 use crate::config::{host_config, host_identity, relay};
 use crate::lobby::publish::EventPublisher;
+use crate::support::pubkeys::short_pubkey;
 use crate::supervisor::routing;
 use nostr_sdk::{
     Alphabet, Client, Filter, Keys, Kind, RelayPoolNotification, SingleLetterTag, ToBech32,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
+
+const CATALOG_PUBLISH_INTERVAL_SECS: u64 = 300;
+const DECISION_PUBLISH_INTERVAL_SECS: u64 = 5;
+const OUTBOX_PUBLISH_INTERVAL_SECS: u64 = 1;
+const SYSOP_NOTIFICATION_INTERVAL_SECS: u64 = 5;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     if args.iter().any(|arg| matches!(*arg, "--help" | "-h")) {
@@ -79,7 +85,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting nc-host...");
     println!("  games root: {}", config.games_root.display());
     println!("  relay: {}", relay_config.url);
-    println!("  identity: {}", identity.npub);
+    println!("  identity: {}", short_pubkey(&identity.npub));
 
     run_server(&config, &identity, &relay_config)
 }
@@ -92,7 +98,7 @@ fn run_server(
     tracing::info!("Host server starting");
     tracing::info!("Games root: {}", config.games_root.display());
     tracing::info!("Relay: {}", relay_config.url);
-    tracing::info!("Identity: {}", identity.npub);
+    tracing::info!("Identity: {}", short_pubkey(&identity.npub));
 
     let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(async {
@@ -110,7 +116,7 @@ async fn run_async_server(
     let host_hex = public_key.to_hex();
     let npub = public_key.to_bech32()?;
 
-    tracing::info!("Public key: {}", npub);
+    tracing::info!("Public key: {}", short_pubkey(&npub));
 
     let client = Client::builder()
         .build();
@@ -141,9 +147,15 @@ async fn run_async_server(
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
-    let mut catalog_interval = tokio::time::interval(std::time::Duration::from_secs(300));
-    let mut decisions_interval = tokio::time::interval(std::time::Duration::from_secs(60));
-    let mut outbox_interval = tokio::time::interval(std::time::Duration::from_secs(30));
+    let mut catalog_interval =
+        tokio::time::interval(std::time::Duration::from_secs(CATALOG_PUBLISH_INTERVAL_SECS));
+    let mut decisions_interval =
+        tokio::time::interval(std::time::Duration::from_secs(DECISION_PUBLISH_INTERVAL_SECS));
+    let mut outbox_interval =
+        tokio::time::interval(std::time::Duration::from_secs(OUTBOX_PUBLISH_INTERVAL_SECS));
+    let mut sysop_notifications_interval = tokio::time::interval(std::time::Duration::from_secs(
+        SYSOP_NOTIFICATION_INTERVAL_SECS,
+    ));
 
     loop {
         tokio::select! {
@@ -155,6 +167,13 @@ async fn run_async_server(
             }
             _ = outbox_interval.tick() => {
                 process_outbox(&publisher, &games_root).await;
+            }
+            _ = sysop_notifications_interval.tick() => {
+                crate::lobby::notify_sysop::publish_pending_notifications(
+                    &publisher,
+                    &games_root,
+                    &config.sysop_contact_npub,
+                ).await;
             }
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("Shutting down...");
@@ -267,7 +286,11 @@ async fn publish_invite_request_receipt_direct(
         .publish_encrypted_multi(player_pubkey, 30514, &content, tags)
         .await
     {
-        tracing::error!("Failed to publish invite receipt to {}: {}", player_pubkey, e);
+        tracing::error!(
+            "Failed to publish invite receipt to {}: {}",
+            short_pubkey(player_pubkey),
+            e
+        );
     }
 }
 

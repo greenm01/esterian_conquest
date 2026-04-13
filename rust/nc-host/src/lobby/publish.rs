@@ -1,6 +1,8 @@
 use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag};
 use std::sync::Arc;
 
+use crate::support::pubkeys::short_pubkey;
+
 #[derive(Clone)]
 pub struct EventPublisher {
     client: Arc<Client>,
@@ -76,7 +78,11 @@ impl EventPublisher {
             .sign_with_keys(self.keys.as_ref())?;
 
         self.client.send_event(&event).await?;
-        tracing::info!("Published event kind {} to {} on relay", kind, recipient_pubkey);
+        tracing::info!(
+            "Published event kind {} to {} on relay",
+            kind,
+            short_pubkey(recipient_pubkey)
+        );
         Ok(())
     }
 
@@ -106,7 +112,11 @@ impl EventPublisher {
             .sign_with_keys(self.keys.as_ref())?;
 
         self.client.send_event(&event).await?;
-        tracing::info!("Published encrypted event kind {} to {}", kind, recipient_pubkey);
+        tracing::info!(
+            "Published encrypted event kind {} to {}",
+            kind,
+            short_pubkey(recipient_pubkey)
+        );
         Ok(())
     }
 
@@ -136,7 +146,29 @@ impl EventPublisher {
             .sign_with_keys(self.keys.as_ref())?;
 
         self.client.send_event(&event).await?;
-        tracing::info!("Published encrypted event kind {} to {}", kind, recipient_pubkey);
+        tracing::info!(
+            "Published encrypted event kind {} to {}",
+            kind,
+            short_pubkey(recipient_pubkey)
+        );
+        Ok(())
+    }
+
+    pub async fn publish_private_dm(
+        &self,
+        recipient_npub: &str,
+        body: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let recipient = PublicKey::parse(recipient_npub)?;
+        let event = EventBuilder::private_msg(
+            self.keys.as_ref(),
+            recipient,
+            body,
+            std::iter::empty::<Tag>(),
+        )
+        .await?;
+        self.client.send_event(&event).await?;
+        tracing::info!("Published sysop summary DM to {}", short_pubkey(recipient_npub));
         Ok(())
     }
 }

@@ -86,7 +86,7 @@ fn test_seat_lookup_for_player() {
     let (_temp, _game_dir, store) = create_test_game("state-sync-seat", 4);
     let game_id = "state-sync-seat";
 
-    let player_pubkey = "test-player-npub-xyz";
+    let player_pubkey = "8a937a446e7061f24f6b4b037c56c671146f50c8754472601527805a35cd4dc4";
 
     nc_data::hosted::open_seat(store.connection(), game_id, 1, "invite-123").expect("open");
     nc_data::hosted::claim_seat(store.connection(), game_id, 1, player_pubkey).expect("claim");

@@ -212,11 +212,13 @@ impl HostedClientSession {
         let message_id = random_nonce_hex();
         let keys = self.keys.clone();
         let public_key = PublicKey::parse(daemon_pubkey)?;
+        let sender_pubkey = keys.public_key().to_hex();
         let sender_npub = keys.public_key().to_bech32()?;
         let payload = SysopThreadMessage {
             message_id: message_id.clone(),
             game_id: game_id.to_string(),
             sender_role: SenderRole::Player,
+            sender_pubkey,
             sender_npub,
             sender_handle: handle.map(str::trim).map(str::to_string).filter(|value| !value.is_empty()),
             body: body.trim().to_string(),

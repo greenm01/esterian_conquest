@@ -1,5 +1,6 @@
 use crate::private_payload::decrypt_private_json_from_event;
-use nostr_sdk::{Event, SecretKey, ToBech32};
+use crate::pubkeys::event_pubkey_hex;
+use nostr_sdk::{Event, SecretKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,7 +172,7 @@ pub struct HostedReportBlock {
 }
 
 pub fn parse_state_request(secret_key: &SecretKey, event: &Event) -> Option<StateRequest> {
-    let player_pubkey = event.pubkey.to_bech32().ok()?;
+    let player_pubkey = event_pubkey_hex(event);
     let mut request_id = None;
     let mut game_id = None;
     let payload: StateRequestPayload = decrypt_private_json_from_event(secret_key, event).ok()?;

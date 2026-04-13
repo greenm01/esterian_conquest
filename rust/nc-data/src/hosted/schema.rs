@@ -89,6 +89,20 @@ CREATE TABLE IF NOT EXISTS thread_messages (
     FOREIGN KEY (game_id) REFERENCES game_metadata(id)
 );
 
+CREATE TABLE IF NOT EXISTS sysop_notifications (
+    id TEXT PRIMARY KEY,
+    game_id TEXT NOT NULL,
+    player_pubkey TEXT NOT NULL,
+    category TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    sent_at INTEGER,
+    error_message TEXT,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (game_id) REFERENCES game_metadata(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_seats_game_id ON seats(game_id);
 CREATE INDEX IF NOT EXISTS idx_invite_requests_game_id ON invite_requests(game_id);
 CREATE INDEX IF NOT EXISTS idx_invite_requests_status ON invite_requests(status);
@@ -98,4 +112,6 @@ CREATE INDEX IF NOT EXISTS idx_outbox_game_id ON outbox(game_id);
 CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status);
 CREATE INDEX IF NOT EXISTS idx_thread_messages_game_player
     ON thread_messages(game_id, player_pubkey, created_at);
+CREATE INDEX IF NOT EXISTS idx_sysop_notifications_status
+    ON sysop_notifications(status, created_at);
 "#;
