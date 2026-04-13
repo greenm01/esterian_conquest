@@ -372,6 +372,28 @@ fn m_starts_inline_thread_compose_without_popup() {
 }
 
 #[test]
+fn typing_in_thread_focus_starts_footer_compose_and_seeds_draft() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
+        source: "host".to_string(),
+        blocked: false,
+        hidden: false,
+        unread_count: 0,
+        last_activity_at: None,
+    }];
+    app.state.focus = LobbyFocus::Thread;
+
+    apply_key(&mut app, key(KeyCode::Char('h')));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(app.state.thread_composing);
+    assert_eq!(app.state.compose_message_input, "h");
+}
+
+#[test]
 fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {

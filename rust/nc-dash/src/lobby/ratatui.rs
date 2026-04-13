@@ -342,7 +342,7 @@ fn render_compose_thread_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
-    render_thread_surface(buffer, inner, app.state_ref(), true);
+    threads::render_direct_thread_surface(buffer, inner, app.state_ref(), true);
 }
 
 fn render_game_inbox_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
@@ -458,9 +458,9 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
             "Enter      : open selected game or activate the selected thread buffer",
             "L          : lock nc-dash",
             "N          : compose an invite request",
-            "M          : start inline compose in the THREAD box",
+            "M / type   : start footer compose in THREADS",
             "A / C      : open ADDRESS BOOK from THREADS",
-            "[ / ]      : switch THREADS between contacts and thread",
+            "[ / ]      : switch THREADS between transcript and contacts",
             "Delete     : hide the selected THREADS conversation",
             "F          : cycle GAME INBOX filter",
             "S          : open lobby settings, including handle and idle lock",
@@ -522,29 +522,11 @@ fn pane_hit(
         return None;
     }
     if focus == LobbyFocus::Thread {
-        let split = thread_workspace_layout(area);
-        let selected_row = if contains(split.contacts, column, row) {
-            let content = padded_inner(split.contacts);
-            clicked_row(
-                state.visible_direct_contacts().len(),
-                content,
-                state.selected_visible_contact_index().unwrap_or(0),
-                row,
-                1,
-            )
-        } else {
-            None
-        };
+        let hit = threads::hit_test_workspace(state, area, column, row)?;
         return Some(PaneHit {
             focus,
-            selected_row,
-            thread_pane_focus: Some(if contains(split.contacts, column, row) {
-                ThreadPaneFocus::Contacts
-            } else if contains(split.conversation, column, row) {
-                ThreadPaneFocus::Transcript
-            } else {
-                state.thread_pane_focus
-            }),
+            selected_row: hit.selected_row,
+            thread_pane_focus: Some(hit.pane_focus),
         });
     }
     let content = padded_inner(area);
@@ -661,11 +643,11 @@ fn help_popup_size(parent: Rect) -> (u16, u16) {
     (parent.width.saturating_sub(8).min(72), 17)
 }
 
-fn contains(area: Rect, column: u16, row: u16) -> bool {
+pub(crate) fn contains(area: Rect, column: u16, row: u16) -> bool {
     column >= area.x && column < area.right() && row >= area.y && row < area.bottom()
 }
 
-fn padded_inner(area: Rect) -> Rect {
+pub(crate) fn padded_inner(area: Rect) -> Rect {
     Rect::new(
         area.x.saturating_add(2),
         area.y.saturating_add(2),
@@ -674,7 +656,7 @@ fn padded_inner(area: Rect) -> Rect {
     )
 }
 
-fn panel_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
+pub(crate) fn panel_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
     let styles = theme::tui_theme();
     let border = if focused { styles.accent } else { styles.border };
     let title_style = if focused { styles.selected } else { styles.title };
@@ -707,7 +689,7 @@ fn popup_block<'a>(title: &'a str, border_style: Style) -> Block<'a> {
         .title_style(with_panel_bg(styles.title))
 }
 
-fn with_panel_bg(style: Style) -> Style {
+pub(crate) fn with_panel_bg(style: Style) -> Style {
     let panel = theme::tui_theme().body;
     let mut merged = Style::default();
     if let Some(fg) = style.fg.or(panel.fg) {
@@ -725,7 +707,7 @@ fn with_panel_bg(style: Style) -> Style {
     merged
 }
 
-fn scroll_offset(total_rows: usize, visible_rows: usize, selected: usize) -> usize {
+pub(crate) fn scroll_offset(total_rows: usize, visible_rows: usize, selected: usize) -> usize {
     if total_rows == 0 || visible_rows == 0 {
         return 0;
     }
@@ -842,7 +824,7 @@ struct ThreadWidget<'a> {
 
 impl Widget for ThreadWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        render_thread_surface(buffer, area, self.state, false);
+        threads::render_direct_thread_surface(buffer, area, self.state, false);
     }
 }
 
@@ -942,284 +924,7 @@ fn render_rows_panel(
     }
 }
 
-fn render_thread_surface(
-    buffer: &mut Buffer,
-    area: Rect,
-    state: &LobbyState,
-    modal: bool,
-) {
-    if area.width == 0 || area.height == 0 {
-        return;
-    }
-    let split = thread_workspace_layout(area);
-    render_thread_contacts(buffer, split.contacts, state);
-    render_thread_history(buffer, split.conversation, state, modal);
-    render_thread_footer(buffer, split.footer, state);
-}
-
-fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, modal: bool) {
-    if area.width == 0 || area.height == 0 {
-        return;
-    }
-    let styles = theme::tui_theme();
-    let title = format!(" THREAD: {} ", truncate_title(&state.direct_thread_context_display(), 24));
-    let block = panel_block(&title, state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Transcript);
-    let inner = block.inner(area);
-    block.render(area, buffer);
-    if inner.width == 0 || inner.height == 0 {
-        return;
-    }
-    let [history_area, prompt_area] =
-        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner);
-    let context_line = format!("*** direct: {}", state.direct_thread_context_display());
-    buffer.set_stringn(
-        history_area.x,
-        history_area.y,
-        &context_line,
-        history_area.width as usize,
-        with_panel_bg(styles.dim),
-    );
-    if history_area.height <= 1 {
-        render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
-        return;
-    }
-    let transcript_area = Rect::new(
-        history_area.x,
-        history_area.y + 1,
-        history_area.width,
-        history_area.height - 1,
-    );
-    let lines = threads::direct_thread_render_lines(state, transcript_area.width as usize);
-    if lines.is_empty() {
-        buffer.set_stringn(
-            transcript_area.x,
-            transcript_area.y,
-            "<no encrypted direct messages>",
-            transcript_area.width as usize,
-            with_panel_bg(styles.dim),
-        );
-        render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
-        return;
-    }
-    let visible_rows = transcript_area.height as usize;
-    let max_scroll = lines.len().saturating_sub(visible_rows);
-    let scroll = state.thread_scroll.min(max_scroll);
-    let end = lines.len().saturating_sub(scroll);
-    let start = end.saturating_sub(visible_rows);
-    let visible = &lines[start..end];
-    let first_row = transcript_area
-        .bottom()
-        .saturating_sub(visible.len() as u16);
-    for (idx, line) in visible.iter().enumerate() {
-        let row = first_row + idx as u16;
-        render_thread_line(
-            buffer,
-            row,
-            transcript_area.x,
-            transcript_area.width as usize,
-            line,
-        );
-    }
-    if modal && scroll > 0 && transcript_area.y < transcript_area.bottom() {
-        let marker = format!("*** scrollback: {scroll}");
-        buffer.set_stringn(
-            transcript_area.x,
-            transcript_area.y,
-            &marker,
-            transcript_area.width as usize,
-            with_panel_bg(styles.dim),
-        );
-    }
-    render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
-}
-
-fn render_thread_prompt(
-    buffer: &mut Buffer,
-    area: Rect,
-    state: &LobbyState,
-    modal: bool,
-    inactive_style: Style,
-) {
-    if area.width == 0 || area.height == 0 {
-        return;
-    }
-    let styles = theme::tui_theme();
-    let nick = threads::thread_prompt_label(state);
-    let prompt = format!("<{nick}>: ");
-    let nick_style = self_nick_style();
-    let prompt_text = if state.thread_composing {
-        state.compose_message_input.as_str()
-    } else if state.thread_pane_focus == ThreadPaneFocus::Contacts && !modal {
-        "] enters thread"
-    } else if modal {
-        ""
-    } else {
-        "Enter pops out chat"
-    };
-    let prompt_style = if state.thread_composing || modal {
-        with_panel_bg(styles.value)
-    } else {
-        with_panel_bg(inactive_style)
-    };
-    let mut col = area.x;
-    col = write_text(buffer, area.y, col, area.right(), &prompt, nick_style);
-    let remaining = area.right().saturating_sub(col) as usize;
-    if remaining > 0 {
-        buffer.set_stringn(col, area.y, prompt_text, remaining, prompt_style);
-    }
-}
-
-fn render_thread_contacts(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
-    if area.width == 0 || area.height == 0 {
-        return;
-    }
-    let styles = theme::tui_theme();
-    let title = if state.thread_unread_total() == 0 {
-        " CONTACTS ".to_string()
-    } else {
-        format!(" CONTACTS ({}) ", state.thread_unread_total())
-    };
-    let block = panel_block(&title, state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Contacts);
-    let inner = block.inner(area);
-    block.render(area, buffer);
-    if inner.width == 0 || inner.height == 0 {
-        return;
-    }
-    let [header_area, list_area] =
-        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
-    buffer.set_stringn(
-        header_area.x,
-        header_area.y,
-        "Buffers",
-        header_area.width as usize,
-        with_panel_bg(styles.label),
-    );
-    let visible = state.visible_direct_contacts();
-    if visible.is_empty() {
-        if list_area.height > 0 {
-            buffer.set_stringn(
-                list_area.x,
-                list_area.y,
-                "<no direct contacts>",
-                list_area.width as usize,
-                with_panel_bg(styles.dim),
-            );
-        }
-        return;
-    }
-
-    let selected = state.selected_visible_contact_index().unwrap_or(0);
-    let scroll = scroll_offset(visible.len(), list_area.height as usize, selected);
-    for (offset, (absolute_index, contact)) in visible
-        .iter()
-        .skip(scroll)
-        .take(list_area.height as usize)
-        .enumerate()
-    {
-        let row = list_area.y + offset as u16;
-        let style = if state.thread_pane_focus == ThreadPaneFocus::Contacts
-            && state.focus == LobbyFocus::Thread
-            && selected == scroll + offset
-        {
-            styles.selected
-        } else if state.contact_selected == *absolute_index {
-            with_panel_bg(styles.accent)
-        } else {
-            with_panel_bg(styles.value)
-        };
-        let unread = if contact.unread_count == 0 {
-            String::new()
-        } else {
-            format!(" {}", contact.unread_count)
-        };
-        let label = format_contact_list_label(contact, list_area.width as usize, &unread);
-        buffer.set_stringn(list_area.x, row, &label, list_area.width as usize, style);
-    }
-}
-
-fn format_contact_list_label(
-    contact: &super::models::DirectContactRow,
-    width: usize,
-    unread_suffix: &str,
-) -> String {
-    let max_label = width.saturating_sub(unread_suffix.len()).max(1);
-    let label = contact.label.chars().take(max_label).collect::<String>();
-    format!("{label:<max_label$}{unread_suffix}")
-}
-
-#[derive(Clone, Copy)]
-struct ThreadWorkspaceLayout {
-    contacts: Rect,
-    conversation: Rect,
-    footer: Rect,
-}
-
-fn thread_workspace_layout(area: Rect) -> ThreadWorkspaceLayout {
-    let [top, footer] = Layout::vertical([Constraint::Min(0), Constraint::Length(5)])
-        .spacing(1)
-        .areas(area);
-    let [contacts, conversation] =
-        Layout::horizontal([Constraint::Length(20), Constraint::Min(0)])
-            .spacing(1)
-            .areas(top);
-    ThreadWorkspaceLayout {
-        contacts,
-        conversation,
-        footer,
-    }
-}
-
-fn render_thread_footer(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
-    if area.width == 0 || area.height == 0 {
-        return;
-    }
-    let focused = state.focus == LobbyFocus::Thread;
-    let block = panel_block(" THREAD MENU ", focused);
-    let inner = block.inner(area);
-    block.render(area, buffer);
-    if inner.width == 0 || inner.height == 0 {
-        return;
-    }
-    render_thread_footer_tokens(buffer, inner, focused);
-}
-
-fn render_thread_footer_tokens(buffer: &mut Buffer, area: Rect, focused: bool) {
-    let styles = theme::tui_theme();
-    let text_style = if focused {
-        with_panel_bg(styles.menu)
-    } else {
-        with_panel_bg(styles.dim)
-    };
-    let hotkey_style = if focused {
-        with_panel_bg(styles.menu_hotkey)
-    } else {
-        with_panel_bg(styles.dim.add_modifier(Modifier::BOLD))
-    };
-    let tokens = [
-        FooterToken::leading("A", ">ddrBook"),
-        FooterToken::leading("[", " Pane"),
-        FooterToken::leading("]", " Pane"),
-        FooterToken::literal("J/K Move"),
-        FooterToken::leading("M", ">essage"),
-        FooterToken::leading("D", ">elete"),
-        FooterToken::literal("Enter Popout"),
-    ];
-    let gap = 2usize;
-    let total_width = tokens.iter().map(FooterToken::width).sum::<usize>()
-        + gap * tokens.len().saturating_sub(1);
-    let start = area.x + area.width.saturating_sub(total_width as u16) / 2;
-    let row = area.y;
-    let mut col = start;
-    for (idx, token) in tokens.iter().enumerate() {
-        if idx > 0 {
-            buffer.set_stringn(col, row, "  ", 2, text_style);
-            col += 2;
-        }
-        col = token.render(buffer, row, col, text_style, hotkey_style) as u16;
-    }
-}
-
-fn truncate_title(text: &str, limit: usize) -> String {
+pub(crate) fn truncate_title(text: &str, limit: usize) -> String {
     let trimmed = text.trim();
     if trimmed.chars().count() <= limit {
         return trimmed.to_string();
@@ -1276,7 +981,7 @@ fn render_game_inbox_surface(
                 .saturating_sub(visible.len() as u16);
             for (idx, line) in visible.iter().enumerate() {
                 let row = first_row + idx as u16;
-                render_thread_line(
+                threads::render_thread_line(
                     buffer,
                     row,
                     transcript_area.x,
@@ -1296,7 +1001,7 @@ fn render_game_inbox_surface(
         col,
         prompt_area.right(),
         &prompt,
-        self_nick_style(),
+        with_panel_bg(theme::tui_theme().success),
     );
     let remaining = prompt_area.right().saturating_sub(col) as usize;
     if remaining > 0 {
@@ -1318,37 +1023,7 @@ fn render_game_inbox_surface(
     }
 }
 
-fn render_thread_line(
-    buffer: &mut Buffer,
-    row: u16,
-    start_col: u16,
-    width: usize,
-    line: &threads::ThreadRenderLine,
-) {
-    let styles = theme::tui_theme();
-    let mut col = start_col;
-    let end = start_col.saturating_add(width as u16);
-    if let Some(timestamp) = line.timestamp.as_deref() {
-        col = write_text(buffer, row, col, end, timestamp, with_panel_bg(styles.dim));
-    }
-    if let Some(nick) = line.nick.as_deref() {
-        col = write_text(buffer, row, col, end, nick, nick_style_for(line));
-    } else {
-        col = col.saturating_add(line.indent as u16);
-    }
-    if col < end {
-        let remaining = end.saturating_sub(col) as usize;
-        buffer.set_stringn(
-            col,
-            row,
-            &line.body,
-            remaining,
-            with_panel_bg(styles.value),
-        );
-    }
-}
-
-fn write_text(
+pub(crate) fn write_text(
     buffer: &mut Buffer,
     row: u16,
     start_col: u16,
@@ -1360,27 +1035,6 @@ fn write_text(
     let clipped = text.chars().take(remaining).collect::<String>();
     buffer.set_stringn(start_col, row, &clipped, remaining, style);
     start_col.saturating_add(clipped.chars().count() as u16)
-}
-
-fn nick_style_for(line: &threads::ThreadRenderLine) -> Style {
-    if line.outgoing {
-        return self_nick_style();
-    }
-    let palette = [
-        theme::tui_theme().accent,
-        theme::tui_theme().warning,
-        theme::tui_theme().error,
-        theme::tui_theme().menu_hotkey,
-    ];
-    let hash = line
-        .nick_key
-        .bytes()
-        .fold(0usize, |acc, byte| acc.wrapping_mul(33).wrapping_add(byte as usize));
-    with_panel_bg(palette[hash % palette.len()])
-}
-
-fn self_nick_style() -> Style {
-    with_panel_bg(theme::tui_theme().success)
 }
 
 #[derive(Clone, Copy)]
@@ -1847,14 +1501,6 @@ impl FooterToken {
             prefix,
             hotkey,
             suffix,
-        }
-    }
-
-    const fn literal(text: &'static str) -> Self {
-        Self {
-            prefix: text,
-            hotkey: "",
-            suffix: "",
         }
     }
 

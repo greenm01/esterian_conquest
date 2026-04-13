@@ -125,6 +125,13 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.show_help = true;
             app.popup_position = None;
         }
+        KeyCode::Char(ch)
+            if app.state.focus == LobbyFocus::Thread
+                && !key.modifiers.contains(KeyModifiers::CONTROL)
+                && !ch.is_control() =>
+        {
+            start_inline_thread_compose_with_seed(app, ch);
+        }
         _ => {}
     }
 }
@@ -279,6 +286,10 @@ fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
+    if app.state.thread_composing {
+        let _ = handle_direct_thread_entry_key(app, key, Some(LobbyRoute::Home));
+        return;
+    }
     match key.code {
         KeyCode::Esc => {
             app.state.thread_composing = false;
@@ -286,10 +297,13 @@ fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Up | KeyCode::Char('k') => scroll_thread(app, 1),
         KeyCode::Down | KeyCode::Char('j') => scroll_thread(app, -1),
-        _ => {
-            app.state.thread_composing = true;
-            let _ = handle_direct_thread_entry_key(app, key, Some(LobbyRoute::Home));
+        KeyCode::Char('m' | 'M') => start_modal_thread_compose(app),
+        KeyCode::Char(ch)
+            if !key.modifiers.contains(KeyModifiers::CONTROL) && !ch.is_control() =>
+        {
+            start_modal_thread_compose_with_seed(app, ch);
         }
+        _ => {}
     }
 }
 
@@ -662,6 +676,38 @@ fn start_inline_thread_compose(app: &mut LobbyApp) {
     app.state.thread_composing = true;
     app.state.thread_scroll = 0;
     app.state.compose_message_input.clear();
+}
+
+fn start_inline_thread_compose_with_seed(app: &mut LobbyApp, ch: char) {
+    start_inline_thread_compose(app);
+    if app.state.thread_composing {
+        app.state.compose_message_input.push(ch);
+    }
+}
+
+fn start_modal_thread_compose(app: &mut LobbyApp) {
+    if app.state.selected_direct_contact().is_none() {
+        open_contact_picker(app);
+        set_status(
+            app,
+            LobbyStatusTone::Info,
+            "Choose a direct contact first.".to_string(),
+        );
+        return;
+    }
+    app.state.focus = LobbyFocus::Thread;
+    activate_selected_direct_contact(app);
+    app.state.thread_pane_focus = ThreadPaneFocus::Transcript;
+    app.state.thread_composing = true;
+    app.state.thread_scroll = 0;
+    app.state.compose_message_input.clear();
+}
+
+fn start_modal_thread_compose_with_seed(app: &mut LobbyApp, ch: char) {
+    start_modal_thread_compose(app);
+    if app.state.thread_composing {
+        app.state.compose_message_input.push(ch);
+    }
 }
 
 fn open_thread_modal(app: &mut LobbyApp) {
