@@ -24,6 +24,10 @@ pub(crate) trait NativeApp {
     fn is_dragging_surface(&self) -> bool {
         false
     }
+    fn note_user_activity(&mut self, _now: Instant) {}
+    fn next_wakeup(&self) -> Option<Instant> {
+        None
+    }
     fn should_quit(&self) -> bool;
     fn set_should_quit(&mut self, should_quit: bool);
 }
@@ -335,6 +339,7 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
                 WindowEvent::CursorMoved { position, .. } => {
+                    shell.app.note_user_activity(Instant::now());
                     let pointer = pointer_from_position(&shell, position);
                     dispatch(&mut shell, window, NativeMsg::QueuePointer(pointer), false);
                 }
@@ -347,6 +352,7 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
+                    shell.app.note_user_activity(Instant::now());
                     dispatch(
                         &mut shell,
                         window,
@@ -361,6 +367,7 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                     let Some(key) = crossterm_key_event_from_winit(&event, shell.modifiers) else {
                         return;
                     };
+                    shell.app.note_user_activity(Instant::now());
                     dispatch(&mut shell, window, NativeMsg::KeyInput(key), true);
                 }
                 WindowEvent::RedrawRequested => {
@@ -406,15 +413,28 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                 if shell.app.should_quit() {
                     elwt.exit();
                 } else {
-                    match shell.next_redraw_schedule(Instant::now()) {
+                    let now = Instant::now();
+                    match shell.next_redraw_schedule(now) {
                         RedrawSchedule::Immediate => {
                             window.request_redraw();
                             shell.redraw_requested = true;
                         }
                         RedrawSchedule::Deferred(deadline) => {
-                            elwt.set_control_flow(ControlFlow::WaitUntil(deadline));
+                            elwt.set_control_flow(ControlFlow::WaitUntil(
+                                combine_deadlines(Some(deadline), shell.app.next_wakeup())
+                                    .expect("deferred redraw has a deadline"),
+                            ));
                         }
-                        RedrawSchedule::None => {}
+                        RedrawSchedule::None => {
+                            if let Some(deadline) = shell.app.next_wakeup() {
+                                if deadline <= now {
+                                    window.request_redraw();
+                                    shell.redraw_requested = true;
+                                } else {
+                                    elwt.set_control_flow(ControlFlow::WaitUntil(deadline));
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -502,6 +522,15 @@ fn next_pointer_dispatch(
 ) -> Option<PendingPointer> {
     let pending = pending?;
     (current != Some(pending)).then_some(pending)
+}
+
+fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<Instant> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.min(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }
 }
 
 fn map_mouse_button(button: WinitMouseButton) -> Option<MouseButton> {

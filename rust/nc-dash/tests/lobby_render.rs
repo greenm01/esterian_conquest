@@ -1,4 +1,5 @@
 use nc_dash::lobby::LobbyApp;
+use nc_dash::lobby::onboarding::matrix_glyph;
 use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow};
 use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute};
 use nc_ui::ScreenGeometry;
@@ -54,6 +55,7 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("INBOX"));
     assert!(lines.contains("? Help"));
     assert!(lines.contains("I<N>vite"));
+    assert!(lines.contains("L<ock"));
     assert!(lines.contains("S>ettings"));
     assert!(lines.contains("GAMES"));
     assert!(lines.contains("Map"));
@@ -150,6 +152,7 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
 
     assert!(buffer.plain_line(2).contains("NETWORK: SYNCED"));
     assert!(footer.contains("I<N>vite"));
+    assert!(footer.contains("L<ock"));
     assert!(footer.contains("M>essage"));
     assert!(footer.contains("S>ettings"));
     assert!(footer_start > 0);
@@ -185,7 +188,8 @@ fn home_route_help_popup_renders_as_overlay() {
 
     assert!(lines.contains("LOBBY HELP"));
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
-    assert!(lines.contains("S          : open lobby settings, including local handle"));
+    assert!(lines.contains("L          : lock nc-dash"));
+    assert!(lines.contains("S          : open lobby settings, including handle and idle lock"));
     assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
@@ -268,6 +272,8 @@ fn settings_route_renders_theme_controls() {
     assert!(lines.contains("? Help"));
     assert!(lines.contains("LOBBY SETTINGS"));
     assert!(lines.contains("Handle"));
+    assert!(lines.contains("Idle Lock"));
+    assert!(lines.contains("10 min"));
     assert!(lines.contains("Mouse Follow"));
     assert!(lines.contains("Grid Dots"));
     assert!(lines.contains("Theme"));
@@ -336,6 +342,36 @@ fn locked_route_themes_screen_and_gate_backgrounds() {
     assert_eq!(buffer.row(buffer.height() - 1)[0].style.bg, screen_bg);
     assert_eq!(buffer.row(top)[left].style.bg, gate_bg);
     assert_eq!(buffer.row(top + 1)[left + 1].style.bg, gate_bg);
+}
+
+#[test]
+fn matrix_locked_route_uses_greek_glyph_stream() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::MatrixLocked, ScreenGeometry::new(120, 40));
+    let buffer = app.render_for_test().expect("render matrix lock");
+    let glyph = (0..buffer.height())
+        .flat_map(|row| buffer.row(row).iter().map(|cell| cell.ch).collect::<Vec<_>>())
+        .find(|ch| "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*".contains(*ch))
+        .expect("matrix glyph");
+
+    assert!(
+        "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*".contains(glyph),
+        "unexpected matrix glyph: {glyph:?}"
+    );
+}
+
+#[test]
+fn matrix_glyph_emits_greek_or_texture_symbols() {
+    for x in 0..8 {
+        for y in 0..8 {
+            for frame in [0, 1, 9, 17] {
+                let glyph = matrix_glyph(x, y, frame);
+                assert!(
+                    "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*".contains(glyph),
+                    "unexpected lock-screen glyph: {glyph:?}"
+                );
+            }
+        }
+    }
 }
 
 #[test]

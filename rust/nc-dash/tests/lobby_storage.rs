@@ -57,6 +57,7 @@ fn config_and_settings_round_trip_through_kdl() {
         relay: Some("wss://relay.example.com".to_string()),
     };
     let settings = LobbySettingsRecord {
+        lock_timeout_minutes: 15,
         follow_mouse_on_map: false,
         dense_empty_sector_dots: true,
         theme_key: "rose-pine".to_string(),
@@ -67,4 +68,11 @@ fn config_and_settings_round_trip_through_kdl() {
 
     assert_eq!(reparsed_config, config);
     assert_eq!(reparsed_settings, settings);
+}
+
+#[test]
+fn settings_default_lock_timeout_is_ten_minutes() {
+    let settings = parse_settings_kdl("settings\n").expect("settings");
+
+    assert_eq!(settings.lock_timeout_minutes, 10);
 }

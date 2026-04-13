@@ -15,8 +15,9 @@ const HOME_MIN_WIDTH: u16 = 72;
 const HOME_MIN_HEIGHT: u16 = 26;
 const HEADER_HEIGHT: u16 = 5;
 const FOOTER_HEIGHT: u16 = 5;
-const SETTINGS_ROWS: [&str; 6] = [
+const SETTINGS_ROWS: [&str; 7] = [
     "Handle",
+    "Idle Lock",
     "Mouse Follow",
     "Grid Dots",
     "Theme",
@@ -147,7 +148,7 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
     let area = Rect::new(0, 0, app.geometry.width() as u16, app.geometry.height() as u16);
     let layout = home_layout(area)?;
     let size = match app.state.route {
-        LobbyRoute::Settings => Some((60, 16)),
+        LobbyRoute::Settings => Some((60, 17)),
         LobbyRoute::ThemePicker => Some((82, 20)),
         LobbyRoute::ComposeInvite => Some((64, 11)),
         LobbyRoute::ComposeThread => Some((68, 11)),
@@ -169,7 +170,7 @@ fn render_home_base(buffer: &mut Buffer, state: &LobbyState, layout: HomeLayout)
 }
 
 fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
-    let popup = popup_rect(parent, (60, 16), app.popup_position);
+    let popup = popup_rect(parent, (60, 17), app.popup_position);
     let styles = theme::tui_theme();
     let block = popup_block(" LOBBY SETTINGS ", styles.border);
     let inner = block.inner(popup);
@@ -183,6 +184,11 @@ fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
         }
         let value = match *label {
             "Handle" => self_or_unset(app.state.player_handle.as_deref()),
+            "Idle Lock" => {
+                super::storage::settings::lock_timeout_label(
+                    app.state.settings_draft.lock_timeout_minutes,
+                )
+            }
             "Mouse Follow" => on_off(app.state.settings_draft.follow_mouse_on_map).to_string(),
             "Grid Dots" => on_off(app.state.settings_draft.dense_empty_sector_dots).to_string(),
             "Theme" => theme::display_name_for_key(&app.state.settings_draft.theme_key),
@@ -196,7 +202,7 @@ fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
         };
         let style = if app.state.settings_selected == idx {
             styles.selected
-        } else if idx >= 4 {
+        } else if idx >= 5 {
             with_panel_bg(styles.accent)
         } else {
             with_panel_bg(styles.value)
@@ -363,9 +369,10 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
             "Tab        : cycle focus across lobby panels",
             "J / K      : move within the focused panel",
             "Enter      : open selected joined game or request selected open game",
+            "L          : lock nc-dash",
             "N          : compose an invite request",
             "M          : compose a private thread message",
-            "S          : open lobby settings, including local handle",
+            "S          : open lobby settings, including handle and idle lock",
             "R          : refresh the hosted lobby",
             "? / Esc    : close this help popup",
             "Q          : quit nc-dash from the lobby",
@@ -1209,6 +1216,7 @@ fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
     let tokens = [
         FooterToken::leading("?", " Help"),
         FooterToken::embedded("I<", "N", ">vite"),
+        FooterToken::leading("L", "<ock"),
         FooterToken::leading("M", ">essage"),
         FooterToken::leading("S", ">ettings"),
         FooterToken::leading("R", ">efresh"),

@@ -14,6 +14,7 @@ use crossterm::event::KeyEvent;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use nc_ui::modal::{ModalTheme, Rect, centered_rect, draw_box, render_modal_box};
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
+use std::time::{Duration, Instant};
 
 use crate::native::NativeApp;
 use crate::startup::LobbyStartupOptions;
@@ -23,6 +24,8 @@ use self::state::{LobbyFocus, LobbyMouseGesture, LobbyRoute};
 
 pub use self::state::LobbyApp;
 
+const MATRIX_FRAME_STEP: Duration = Duration::from_millis(80);
+
 impl LobbyApp {
     pub fn new(options: LobbyStartupOptions) -> Self {
         let route = onboarding::initial_route(nc_client::keychain::keychain_path().exists());
@@ -31,6 +34,7 @@ impl LobbyApp {
         if theme::apply_theme_key(&settings.theme_key).is_err() {
             theme::apply_default_theme();
         }
+        let now = Instant::now();
         Self {
             geometry: ScreenGeometry::new(120, 40),
             should_quit: false,
@@ -40,12 +44,16 @@ impl LobbyApp {
             clipboard: clipboard::Clipboard::new(),
             popup_position: None,
             mouse_gesture: LobbyMouseGesture::None,
+            last_activity_at: now,
+            matrix_frame: 0,
+            next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
     }
 
     pub fn new_for_tests(route: LobbyRoute, geometry: ScreenGeometry) -> Self {
         theme::apply_default_theme();
         let settings = storage::settings::LobbySettingsRecord::default();
+        let now = Instant::now();
         Self {
             geometry,
             should_quit: false,
@@ -55,6 +63,9 @@ impl LobbyApp {
             clipboard: clipboard::Clipboard::new(),
             popup_position: None,
             mouse_gesture: LobbyMouseGesture::None,
+            last_activity_at: now,
+            matrix_frame: 0,
+            next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
     }
 
@@ -68,6 +79,45 @@ impl LobbyApp {
 
     pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) {
         <Self as NativeApp>::dispatch_mouse_event(self, mouse);
+    }
+
+    pub fn enter_session_lock(&mut self) {
+        if !self.transport.is_unlocked() || self.state.route == LobbyRoute::FirstRun {
+            return;
+        }
+        self.transport.lock();
+        self.state.gate_mode = state::KeychainGateMode::ResumeSession;
+        self.state.unlock_return_route = self.state.route;
+        self.state.unlock_password_input.clear();
+        self.state.status_message = None;
+        self.state.route = LobbyRoute::MatrixLocked;
+        self.mouse_gesture = LobbyMouseGesture::None;
+        self.matrix_frame = 0;
+        self.next_matrix_frame_at = Instant::now() + MATRIX_FRAME_STEP;
+    }
+
+    pub fn begin_unlock_prompt(&mut self) {
+        self.state.unlock_password_input.clear();
+        self.state.status_message = None;
+        self.state.route = LobbyRoute::Locked;
+    }
+
+    fn scheduled_wakeup(&self) -> Option<Instant> {
+        if self.state.route == LobbyRoute::MatrixLocked {
+            return Some(self.next_matrix_frame_at);
+        }
+        if !self.transport.is_unlocked() {
+            return None;
+        }
+        let minutes = self.state.settings.lock_timeout_minutes;
+        if minutes == 0 {
+            return None;
+        }
+        Some(self.last_activity_at + Duration::from_secs(u64::from(minutes) * 60))
+    }
+
+    fn record_activity(&mut self, now: Instant) {
+        self.last_activity_at = now;
     }
 
     fn render_submit_turn(&self, buffer: &mut PlayfieldBuffer) {
@@ -123,6 +173,10 @@ impl LobbyApp {
         }
 
         self.mouse_gesture = LobbyMouseGesture::None;
+        if self.state.route == LobbyRoute::MatrixLocked {
+            self.begin_unlock_prompt();
+            return;
+        }
         if self.state.route != LobbyRoute::Home {
             return;
         }
@@ -244,9 +298,15 @@ impl NativeApp for LobbyApp {
             self.geometry.height(),
             theme::body_style(),
         );
-        if matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked) {
+        if matches!(
+            self.state.route,
+            LobbyRoute::FirstRun | LobbyRoute::MatrixLocked | LobbyRoute::Locked
+        ) {
             match self.state.route {
                 LobbyRoute::FirstRun => onboarding::render_first_run(&mut buffer, &self.state),
+                LobbyRoute::MatrixLocked => {
+                    onboarding::render_matrix_locked(&mut buffer, self.matrix_frame)
+                }
                 LobbyRoute::Locked => onboarding::render_locked(&mut buffer, &self.state),
                 _ => {}
             }
@@ -261,6 +321,22 @@ impl NativeApp for LobbyApp {
     }
 
     fn on_idle(&mut self) -> bool {
+        let now = Instant::now();
+        if self.state.route == LobbyRoute::MatrixLocked && now >= self.next_matrix_frame_at {
+            self.matrix_frame = self.matrix_frame.saturating_add(1);
+            self.next_matrix_frame_at = now + MATRIX_FRAME_STEP;
+            return true;
+        }
+        if self.transport.is_unlocked() {
+            let minutes = self.state.settings.lock_timeout_minutes;
+            if minutes != 0
+                && now.duration_since(self.last_activity_at)
+                    >= Duration::from_secs(u64::from(minutes) * 60)
+            {
+                self.enter_session_lock();
+                return true;
+            }
+        }
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
                 self.state.apply_loaded(loaded);
@@ -277,6 +353,14 @@ impl NativeApp for LobbyApp {
 
     fn is_dragging_surface(&self) -> bool {
         matches!(self.mouse_gesture, LobbyMouseGesture::DraggingPopup { .. })
+    }
+
+    fn note_user_activity(&mut self, now: Instant) {
+        self.record_activity(now);
+    }
+
+    fn next_wakeup(&self) -> Option<Instant> {
+        self.scheduled_wakeup()
     }
 
     fn should_quit(&self) -> bool {

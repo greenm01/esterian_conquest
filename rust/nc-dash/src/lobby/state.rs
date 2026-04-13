@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use nc_nostr::state_sync::GameState;
 use nc_ui::ScreenGeometry;
 
@@ -14,6 +16,7 @@ use super::transport::LobbyTransport;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LobbyRoute {
     FirstRun,
+    MatrixLocked,
     Locked,
     Home,
     ComposeInvite,
@@ -33,6 +36,12 @@ pub enum LobbyNetworkStatus {
     Refreshing,
     Synced,
     Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeychainGateMode {
+    Startup,
+    ResumeSession,
 }
 
 impl LobbyNetworkStatus {
@@ -121,6 +130,8 @@ pub struct HostedGameView {
 
 pub struct LobbyState {
     pub route: LobbyRoute,
+    pub gate_mode: KeychainGateMode,
+    pub unlock_return_route: LobbyRoute,
     pub focus: LobbyFocus,
     pub relay_override: Option<String>,
     pub relay_label: Option<String>,
@@ -163,6 +174,8 @@ impl LobbyState {
     ) -> Self {
         Self {
             route,
+            gate_mode: KeychainGateMode::Startup,
+            unlock_return_route: LobbyRoute::Home,
             focus: LobbyFocus::OpenGames,
             relay_override: options.relay_override.clone(),
             relay_label: options
@@ -297,6 +310,9 @@ pub struct LobbyApp {
     pub(crate) clipboard: Clipboard,
     pub popup_position: Option<RelativePopupOrigin>,
     pub mouse_gesture: LobbyMouseGesture,
+    pub last_activity_at: Instant,
+    pub matrix_frame: u64,
+    pub next_matrix_frame_at: Instant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

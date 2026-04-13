@@ -8,14 +8,19 @@ use super::paths;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LobbySettingsRecord {
+    pub lock_timeout_minutes: u16,
     pub follow_mouse_on_map: bool,
     pub dense_empty_sector_dots: bool,
     pub theme_key: String,
 }
 
+pub const DEFAULT_LOCK_TIMEOUT_MINUTES: u16 = 10;
+pub const LOCK_TIMEOUT_OPTIONS: [u16; 5] = [0, 5, 10, 15, 30];
+
 impl Default for LobbySettingsRecord {
     fn default() -> Self {
         Self {
+            lock_timeout_minutes: DEFAULT_LOCK_TIMEOUT_MINUTES,
             follow_mouse_on_map: true,
             dense_empty_sector_dots: false,
             theme_key: "tokyo-night".to_string(),
@@ -69,6 +74,11 @@ pub fn parse_settings_kdl(raw: &str) -> Result<LobbySettingsRecord, Box<dyn std:
     };
 
     Ok(LobbySettingsRecord {
+        lock_timeout_minutes: settings
+            .get("lock-timeout-minutes")
+            .and_then(setting_u16_value)
+            .map(normalize_lock_timeout_minutes)
+            .unwrap_or(defaults.lock_timeout_minutes),
         follow_mouse_on_map: settings
             .get("follow-mouse")
             .and_then(setting_bool_value)
@@ -87,7 +97,8 @@ pub fn parse_settings_kdl(raw: &str) -> Result<LobbySettingsRecord, Box<dyn std:
 
 pub fn render_settings_kdl(settings: &LobbySettingsRecord) -> String {
     format!(
-        "settings follow-mouse=#{} dense-empty-sector-dots=#{} theme-key=\"{}\"\n",
+        "settings lock-timeout-minutes={} follow-mouse=#{} dense-empty-sector-dots=#{} theme-key=\"{}\"\n",
+        settings.lock_timeout_minutes,
         settings.follow_mouse_on_map,
         settings.dense_empty_sector_dots,
         escape(&settings.theme_key)
@@ -102,8 +113,38 @@ fn setting_bool_value(value: &KdlValue) -> Option<bool> {
     })
 }
 
+fn setting_u16_value(value: &KdlValue) -> Option<u16> {
+    value
+        .as_integer()
+        .and_then(|minutes| u16::try_from(minutes).ok())
+        .or_else(|| {
+            value.as_string().and_then(|minutes| {
+                minutes
+                    .parse::<u16>()
+                    .ok()
+                    .map(normalize_lock_timeout_minutes)
+            })
+        })
+}
+
 fn normalize_theme_key(value: &str) -> String {
     value.trim().to_ascii_lowercase().replace('_', "-")
+}
+
+pub fn normalize_lock_timeout_minutes(value: u16) -> u16 {
+    if LOCK_TIMEOUT_OPTIONS.contains(&value) {
+        value
+    } else {
+        DEFAULT_LOCK_TIMEOUT_MINUTES
+    }
+}
+
+pub fn lock_timeout_label(value: u16) -> String {
+    if value == 0 {
+        "Off".to_string()
+    } else {
+        format!("{value} min")
+    }
 }
 
 fn escape(value: &str) -> String {

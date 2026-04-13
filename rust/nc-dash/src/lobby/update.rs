@@ -1,15 +1,17 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::hosted::dashboard::build_hosted_dash_app;
+use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use super::state::{
-    FirstRunField, HostedGameView, LobbyApp, LobbyFocus, LobbyNetworkStatus, LobbyRoute,
-    LobbyStatusTone,
+    FirstRunField, HostedGameView, KeychainGateMode, LobbyApp, LobbyFocus, LobbyNetworkStatus,
+    LobbyRoute, LobbyStatusTone,
 };
 use crate::theme;
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
     match app.state.route {
         LobbyRoute::FirstRun => handle_first_run_key(app, key),
+        LobbyRoute::MatrixLocked => handle_matrix_locked_key(app, key),
         LobbyRoute::Locked => handle_locked_key(app, key),
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
         LobbyRoute::ComposeThread => handle_compose_thread_key(app, key),
@@ -19,6 +21,18 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::HostedGame => handle_hosted_game_key(app, key),
         LobbyRoute::SubmitTurn => handle_submit_turn_key(app, key),
         LobbyRoute::Home => handle_home_key(app, key),
+    }
+}
+
+fn handle_matrix_locked_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q' | 'Q')
+            if app.state.gate_mode == KeychainGateMode::Startup
+                && matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
+        {
+            app.should_quit = true;
+        }
+        _ => app.begin_unlock_prompt(),
     }
 }
 
@@ -63,6 +77,7 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.compose_message_input.clear();
             open_popup_route(app, LobbyRoute::ComposeThread);
         }
+        KeyCode::Char('l' | 'L') => app.enter_session_lock(),
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
         KeyCode::Char('?') => {
@@ -138,9 +153,16 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
     }
 
     match key.code {
-        KeyCode::Esc | KeyCode::Char('q' | 'Q')
-            if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
-        {
+        KeyCode::Esc => {
+            if app.state.gate_mode == KeychainGateMode::ResumeSession {
+                app.state.unlock_password_input.clear();
+                app.state.status_message = None;
+                app.state.route = LobbyRoute::MatrixLocked;
+            } else {
+                app.should_quit = true;
+            }
+        }
+        KeyCode::Char('q' | 'Q') if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) => {
             app.should_quit = true;
         }
         KeyCode::Backspace => {
@@ -150,7 +172,15 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
             Ok(loaded) => {
                 app.state.apply_loaded(loaded);
                 app.state.unlock_password_input.clear();
-                app.state.route = LobbyRoute::Home;
+                app.last_activity_at = std::time::Instant::now();
+                let route = if app.state.gate_mode == KeychainGateMode::ResumeSession {
+                    app.state.unlock_return_route
+                } else {
+                    LobbyRoute::Home
+                };
+                app.state.gate_mode = KeychainGateMode::Startup;
+                app.state.unlock_return_route = LobbyRoute::Home;
+                app.state.route = route;
             }
             Err(err) => set_status(app, LobbyStatusTone::Error, err),
         },
@@ -291,7 +321,7 @@ fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.settings_selected = app.state.settings_selected.saturating_sub(1);
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.state.settings_selected = (app.state.settings_selected + 1).min(5);
+            app.state.settings_selected = (app.state.settings_selected + 1).min(6);
         }
         KeyCode::Char('s' | 'S') => save_settings(app),
         KeyCode::Char(' ') | KeyCode::Enter => match app.state.settings_selected {
@@ -301,16 +331,19 @@ fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
                 open_popup_route(app, LobbyRoute::EditHandle);
             }
             1 => {
+                cycle_lock_timeout(app);
+            }
+            2 => {
                 app.state.settings_draft.follow_mouse_on_map =
                     !app.state.settings_draft.follow_mouse_on_map;
             }
-            2 => {
+            3 => {
                 app.state.settings_draft.dense_empty_sector_dots =
                     !app.state.settings_draft.dense_empty_sector_dots;
             }
-            3 => open_theme_picker(app),
-            4 => save_settings(app),
-            5 => cancel_settings(app),
+            4 => open_theme_picker(app),
+            5 => save_settings(app),
+            6 => cancel_settings(app),
             _ => {}
         },
         _ => {}
@@ -440,6 +473,21 @@ fn open_settings(app: &mut LobbyApp) {
     app.state.settings_selected = 0;
     clear_status(app);
     open_popup_route(app, LobbyRoute::Settings);
+}
+
+fn cycle_lock_timeout(app: &mut LobbyApp) {
+    let current = app.state.settings_draft.lock_timeout_minutes;
+    let next = LOCK_TIMEOUT_OPTIONS
+        .iter()
+        .copied()
+        .find(|minutes| *minutes > current)
+        .unwrap_or(LOCK_TIMEOUT_OPTIONS[0]);
+    app.state.settings_draft.lock_timeout_minutes = next;
+    set_status(
+        app,
+        LobbyStatusTone::Info,
+        format!("Idle lock set to {}", lock_timeout_label(next)),
+    );
 }
 
 fn cancel_settings(app: &mut LobbyApp) {

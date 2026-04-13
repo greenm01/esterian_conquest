@@ -81,6 +81,14 @@ impl LobbyTransport {
             .is_some()
     }
 
+    pub fn is_unlocked(&self) -> bool {
+        self.unlocked.is_some()
+    }
+
+    pub fn lock(&mut self) {
+        self.unlocked = None;
+    }
+
     pub fn create_identity(
         &mut self,
         handle: &str,

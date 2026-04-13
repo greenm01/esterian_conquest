@@ -1,4 +1,4 @@
-use nc_ui::PlayfieldBuffer;
+use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 use nc_ui::branding::NOSTRIAN_CONQUEST_LOGO;
 use nc_ui::modal::{Rect, centered_rect, draw_box, wrap_modal_text_lines};
 
@@ -18,6 +18,9 @@ const GATE_MIN_POPUP_WIDTH: u16 = 54;
 const GATE_MIN_POPUP_HEIGHT: u16 = 18;
 const GATE_SIDE_PADDING: usize = 3;
 const GATE_FIELD_LABEL_WIDTH: usize = 14;
+const MATRIX_TRAIL_MIN: usize = 8;
+const MATRIX_TRAIL_VARIATION_MIN: usize = 6;
+const MATRIX_GAP_MIN: usize = 10;
 
 pub fn render_first_run(buffer: &mut PlayfieldBuffer, state: &LobbyState) {
     let copy_lines = vec![
@@ -68,6 +71,35 @@ pub fn render_locked(buffer: &mut PlayfieldBuffer, state: &LobbyState) {
         &copy_lines,
         &fields,
     );
+}
+
+pub fn render_matrix_locked(buffer: &mut PlayfieldBuffer, frame: u64) {
+    let background = theme::body_style().bg;
+    let trail_style = CellStyle::new(GameColor::Green, background, false);
+    let head_style = CellStyle::new(GameColor::BrightGreen, background, true);
+    let height = buffer.height();
+    let base_length = (height / 4).max(MATRIX_TRAIL_MIN);
+    let variation = (height / 5).max(MATRIX_TRAIL_VARIATION_MIN);
+    let gap = (height / 3).max(MATRIX_GAP_MIN);
+
+    for x in 0..buffer.width() {
+        let speed = 1 + (x * 7 % 3);
+        let length = base_length + (x * 11 % variation);
+        let cycle = buffer.height() + length + gap;
+        let phase = (x * 17) + (x * x % (gap + 7));
+        let head = ((frame as usize / speed) + phase) % cycle;
+        let head = head as isize - length as isize;
+        for y in 0..buffer.height() {
+            let y_isize = y as isize;
+            if y_isize > head || y_isize <= head - length as isize {
+                continue;
+            }
+            let dist = (head - y_isize) as usize;
+            let glyph = matrix_glyph(x, y, frame);
+            let style = if dist == 0 { head_style } else { trail_style };
+            buffer.set_cell(y, x, glyph, style);
+        }
+    }
 }
 
 struct GateField<'a> {
@@ -263,6 +295,16 @@ fn render_tiny(buffer: &mut PlayfieldBuffer, title: &str) {
         };
         buffer.write_text_clipped(row, col, line, style);
     }
+}
+
+#[doc(hidden)]
+pub fn matrix_glyph(x: usize, y: usize, frame: u64) -> char {
+    const GLYPHS: &[char] = &[
+        'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ',
+        'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
+    ];
+    let index = ((frame as usize) + (x * 13) + (y * 7)) % GLYPHS.len();
+    GLYPHS[index]
 }
 
 fn field_row_width(field: &GateField<'_>) -> usize {

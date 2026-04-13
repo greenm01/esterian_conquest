@@ -3,7 +3,9 @@ use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::JoinedGameRow;
 use nc_dash::lobby::models::OpenGameRow;
-use nc_dash::lobby::state::{FirstRunField, HostedGameView, LobbyFocus, LobbyRoute};
+use nc_dash::lobby::state::{
+    FirstRunField, HostedGameView, KeychainGateMode, LobbyFocus, LobbyRoute,
+};
 use nc_dash::lobby::update::apply_key;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
@@ -130,9 +132,25 @@ fn settings_route_opens_from_home_and_toggles_values() {
     assert_eq!(app.state.route, LobbyRoute::Settings);
 
     apply_key(&mut app, key(KeyCode::Down));
+    apply_key(&mut app, key(KeyCode::Down));
     let initial = app.state.settings_draft.follow_mouse_on_map;
     apply_key(&mut app, key(KeyCode::Enter));
     assert_eq!(app.state.settings_draft.follow_mouse_on_map, !initial);
+}
+
+#[test]
+fn settings_route_cycles_idle_lock_timeout() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    assert_eq!(app.state.route, LobbyRoute::Settings);
+    assert_eq!(app.state.settings_selected, 0);
+
+    apply_key(&mut app, key(KeyCode::Down));
+    let initial = app.state.settings_draft.lock_timeout_minutes;
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_ne!(app.state.settings_draft.lock_timeout_minutes, initial);
 }
 
 #[test]
@@ -140,6 +158,7 @@ fn theme_picker_previews_and_accepts_theme_choice() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
 
     apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    apply_key(&mut app, key(KeyCode::Down));
     apply_key(&mut app, key(KeyCode::Down));
     apply_key(&mut app, key(KeyCode::Down));
     apply_key(&mut app, key(KeyCode::Down));
@@ -177,6 +196,29 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 
     apply_key(&mut app, key(KeyCode::Esc));
     assert!(!app.state.show_help);
+}
+
+#[test]
+fn matrix_lock_key_starts_unlock_prompt() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::MatrixLocked, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, key(KeyCode::Char('x')));
+
+    assert_eq!(app.state.route, LobbyRoute::Locked);
+}
+
+#[test]
+fn locked_resume_escape_returns_to_matrix_lock() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+    app.state.gate_mode = KeychainGateMode::ResumeSession;
+    app.state.unlock_password_input = "secret".to_string();
+    app.state.status_message = Some("bad password".to_string());
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::MatrixLocked);
+    assert!(app.state.unlock_password_input.is_empty());
+    assert!(app.state.status_message.is_none());
 }
 
 #[test]
