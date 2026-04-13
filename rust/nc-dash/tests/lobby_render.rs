@@ -21,6 +21,16 @@ fn render_app_lines(app: LobbyApp) -> String {
         .join("\n")
 }
 
+fn find_first_char(buffer: &nc_ui::PlayfieldBuffer, ch: char) -> Option<(usize, usize)> {
+    (0..buffer.height()).find_map(|row| {
+        buffer
+            .row(row)
+            .iter()
+            .position(|cell| cell.ch == ch)
+            .map(|col| (row, col))
+    })
+}
+
 #[test]
 fn home_route_renders_three_pane_shell_copy() {
     let lines = render_lines(LobbyRoute::Home);
@@ -96,6 +106,77 @@ fn home_route_help_popup_renders_as_overlay() {
 }
 
 #[test]
+fn home_route_themes_screen_background_and_widget_chrome() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let buffer = app.render_for_test().expect("render lobby");
+    let screen_bg = buffer.row(10)[39].style.bg;
+    let chrome_bg = buffer.row(0)[0].style.bg;
+
+    assert_eq!(buffer.row(20)[39].style.bg, screen_bg);
+    assert_eq!(buffer.row(0)[0].style.bg, chrome_bg);
+    assert_eq!(buffer.row(1)[1].style.bg, chrome_bg);
+    assert_eq!(buffer.row(buffer.height() - 1)[0].style.bg, chrome_bg);
+}
+
+#[test]
+fn settings_popup_themes_base_screen_and_popup_borders() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+    let buffer = app.render_for_test().expect("render settings");
+    let (title_row, title_col) = (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .find(" LOBBY SETTINGS ")
+                .map(|col| (row, col))
+        })
+        .expect("settings popup");
+    let screen_bg = buffer.row(10)[39].style.bg;
+    let popup_bg = buffer.row(title_row + 1)[title_col].style.bg;
+
+    assert_eq!(buffer.row(20)[39].style.bg, screen_bg);
+    assert_eq!(
+        buffer.row(title_row)[title_col.saturating_sub(2)].style.bg,
+        popup_bg
+    );
+}
+
+#[test]
+fn help_popup_themes_popup_border_background() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_help = true;
+    let buffer = app.render_for_test().expect("render help");
+    let (row, col) = (0..buffer.height())
+        .find_map(|idx| {
+            buffer
+                .plain_line(idx)
+                .find(" LOBBY HELP ")
+                .map(|col| (idx, col))
+        })
+        .expect("help popup");
+    let popup_bg = buffer.row(row + 1)[col].style.bg;
+
+    assert_eq!(buffer.row(row)[col.saturating_sub(2)].style.bg, popup_bg);
+}
+
+#[test]
+fn home_route_panel_text_uses_panel_background() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let buffer = app.render_for_test().expect("render home");
+    let row = (0..buffer.height())
+        .find(|&idx| buffer.plain_line(idx).contains("NETWORK: NO RELAY"))
+        .expect("header text row");
+    let text_col = buffer
+        .plain_line(row)
+        .find("NETWORK: NO RELAY")
+        .expect("header text col");
+
+    assert_eq!(
+        buffer.row(row)[text_col].style.bg,
+        buffer.row(row)[1].style.bg
+    );
+}
+
+#[test]
 fn settings_route_renders_theme_controls() {
     let lines = render_lines(LobbyRoute::Settings);
 
@@ -137,6 +218,19 @@ fn first_run_route_renders_logo_and_handle_copy() {
 }
 
 #[test]
+fn first_run_route_themes_screen_and_gate_backgrounds() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+    let buffer = app.render_for_test().expect("render first run");
+    let (top, left) = find_first_char(&buffer, '┌').expect("gate border");
+    let screen_bg = buffer.row(0)[0].style.bg;
+    let gate_bg = buffer.row(top + 1)[left + 1].style.bg;
+
+    assert_eq!(buffer.row(buffer.height() - 1)[0].style.bg, screen_bg);
+    assert_eq!(buffer.row(top)[left].style.bg, gate_bg);
+    assert_eq!(buffer.row(top + 1)[left + 1].style.bg, gate_bg);
+}
+
+#[test]
 fn locked_route_renders_logo_and_unlock_copy() {
     let lines = render_lines(LobbyRoute::Locked);
 
@@ -145,6 +239,19 @@ fn locked_route_renders_logo_and_unlock_copy() {
     assert!(lines.contains("Password"));
     assert!(!lines.contains("Keychain path"));
     assert!(!lines.contains("NOSTRIAN CONQUEST LOBBY"));
+}
+
+#[test]
+fn locked_route_themes_screen_and_gate_backgrounds() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+    let buffer = app.render_for_test().expect("render locked");
+    let (top, left) = find_first_char(&buffer, '┌').expect("gate border");
+    let screen_bg = buffer.row(0)[0].style.bg;
+    let gate_bg = buffer.row(top + 1)[left + 1].style.bg;
+
+    assert_eq!(buffer.row(buffer.height() - 1)[0].style.bg, screen_bg);
+    assert_eq!(buffer.row(top)[left].style.bg, gate_bg);
+    assert_eq!(buffer.row(top + 1)[left + 1].style.bg, gate_bg);
 }
 
 #[test]

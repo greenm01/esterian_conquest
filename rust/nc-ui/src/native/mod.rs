@@ -1,5 +1,6 @@
 mod font;
 
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -381,7 +382,22 @@ fn frame_background(buffer: &PlayfieldBuffer) -> (u8, u8, u8) {
     if buffer.width() == 0 || buffer.height() == 0 {
         return fallback;
     }
-    color_to_rgb(buffer.row(0)[0].style.bg)
+    let mut counts: HashMap<u32, (usize, (u8, u8, u8))> = HashMap::new();
+    for row in 0..buffer.height() {
+        for cell in buffer.row(row) {
+            let code = color_code(cell.style.bg);
+            let rgb = color_to_rgb(cell.style.bg);
+            counts
+                .entry(code)
+                .and_modify(|entry| entry.0 += 1)
+                .or_insert((1, rgb));
+        }
+    }
+    counts
+        .into_values()
+        .max_by_key(|(count, _)| *count)
+        .map(|(_, rgb)| rgb)
+        .unwrap_or(fallback)
 }
 
 fn modifiers_to_crossterm(modifiers: ModifiersState) -> KeyModifiers {
@@ -473,7 +489,10 @@ fn color_code(color: crate::buffer::GameColor) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{RenderSnapshot, changed_spans, fingerprint_row, redraw_snapshot_diff};
+    use super::{
+        RenderSnapshot, changed_spans, fingerprint_row, frame_background, redraw_snapshot_diff,
+    };
+    use crate::native::color_to_rgb;
     use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 
     fn style() -> CellStyle {
@@ -545,5 +564,22 @@ mod tests {
         );
 
         assert!(pixels.iter().any(|pixel| *pixel != 0));
+    }
+
+    #[test]
+    fn frame_background_prefers_dominant_background_over_top_left_cell() {
+        let mut buffer = PlayfieldBuffer::new(
+            3,
+            2,
+            CellStyle::new(GameColor::White, GameColor::Blue, false),
+        );
+        buffer.set_cell(
+            0,
+            0,
+            'X',
+            CellStyle::new(GameColor::White, GameColor::Red, false),
+        );
+
+        assert_eq!(frame_background(&buffer), color_to_rgb(GameColor::Blue));
     }
 }

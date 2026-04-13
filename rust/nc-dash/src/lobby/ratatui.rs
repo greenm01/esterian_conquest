@@ -197,9 +197,9 @@ fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
         let style = if app.state.settings_selected == idx {
             styles.selected
         } else if idx >= 4 {
-            styles.accent
+            with_panel_bg(styles.accent)
         } else {
-            styles.value
+            with_panel_bg(styles.value)
         };
         buffer.set_stringn(inner.x, row, line, inner.width as usize, style);
     }
@@ -211,7 +211,7 @@ fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
             info_row,
             "Theme selection previews immediately and applies to the hosted dashboard too.",
             inner.width as usize,
-            styles.dim,
+            with_panel_bg(styles.dim),
         );
     }
     if let Some(status) = app.state.status_message.as_deref() {
@@ -222,7 +222,7 @@ fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
                 row,
                 status,
                 inner.width as usize,
-                toast_text_style(app.state.status_tone),
+                with_panel_bg(toast_text_style(app.state.status_tone)),
             );
         }
     }
@@ -266,9 +266,9 @@ fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) 
         let style = if absolute_index == app.state.theme_selected {
             styles.selected
         } else if entry.key == app.state.settings_draft.theme_key {
-            styles.accent
+            with_panel_bg(styles.accent)
         } else {
-            styles.value
+            with_panel_bg(styles.value)
         };
         buffer.set_stringn(list_inner.x, row, line, list_inner.width as usize, style);
     }
@@ -290,12 +290,12 @@ fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) 
             break;
         }
         let style = match idx {
-            0 => styles.label,
-            1 => styles.dim,
-            3 => styles.accent,
-            4 => styles.value,
+            0 => with_panel_bg(styles.label),
+            1 => with_panel_bg(styles.dim),
+            3 => with_panel_bg(styles.accent),
+            4 => with_panel_bg(styles.value),
             5 => styles.selected,
-            _ => styles.value,
+            _ => with_panel_bg(styles.value),
         };
         buffer.set_stringn(preview_inner.x, row, line, preview_inner.width as usize, style);
     }
@@ -372,7 +372,7 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
         ]
         .join("\n"),
     )
-    .style(styles.value)
+    .style(with_panel_bg(styles.value))
     .wrap(Wrap { trim: false })
     .render(inner, buffer);
 }
@@ -394,7 +394,7 @@ fn render_popup_lines(
         if row >= inner.bottom() {
             break;
         }
-        buffer.set_stringn(inner.x, row, line, inner.width as usize, style);
+        buffer.set_stringn(inner.x, row, line, inner.width as usize, with_panel_bg(style));
     }
 }
 
@@ -556,7 +556,21 @@ fn popup_block<'a>(title: &'a str, border_style: Style) -> Block<'a> {
 }
 
 fn with_panel_bg(style: Style) -> Style {
-    theme::tui_theme().panel.patch(style)
+    let panel = theme::tui_theme().panel;
+    let mut merged = Style::default();
+    if let Some(fg) = style.fg.or(panel.fg) {
+        merged = merged.fg(fg);
+    }
+    if let Some(bg) = panel.bg {
+        merged = merged.bg(bg);
+    }
+    if !style.add_modifier.is_empty() {
+        merged = merged.add_modifier(style.add_modifier);
+    }
+    if !style.sub_modifier.is_empty() {
+        merged = merged.remove_modifier(style.sub_modifier);
+    }
+    merged
 }
 
 fn scroll_offset(total_rows: usize, visible_rows: usize, selected: usize) -> usize {
@@ -590,14 +604,14 @@ impl Widget for HeaderHudWidget<'_> {
             inner.y,
             "NOSTRIAN CONQUEST LOBBY",
             inner.width as usize,
-            styles.title,
+            with_panel_bg(styles.title),
         );
         right_align(
             buffer,
             inner,
             inner.y,
             &network_line,
-            network_style(self.state.network_status),
+            with_panel_bg(network_style(self.state.network_status)),
         );
     }
 }
@@ -746,7 +760,7 @@ impl Widget for ToastOverlayWidget<'_> {
                 inner.y + idx as u16,
                 line,
                 inner.width as usize,
-                toast_text_style(self.state.status_tone),
+                with_panel_bg(toast_text_style(self.state.status_tone)),
             );
         }
     }
@@ -770,7 +784,13 @@ fn render_rows_panel(
     }
 
     if rows.is_empty() {
-        buffer.set_stringn(inner.x, inner.y, empty, inner.width as usize, styles.dim);
+        buffer.set_stringn(
+            inner.x,
+            inner.y,
+            empty,
+            inner.width as usize,
+            with_panel_bg(styles.dim),
+        );
         return;
     }
 
@@ -781,7 +801,7 @@ fn render_rows_panel(
         let style = if selected == Some(absolute) {
             styles.selected
         } else {
-            styles.value
+            with_panel_bg(styles.value)
         };
         buffer.set_stringn(inner.x, inner.y + offset as u16, row, inner.width as usize, style);
     }
@@ -844,10 +864,16 @@ fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
     let mut col = start;
     for (idx, token) in tokens.iter().enumerate() {
         if idx > 0 {
-            buffer.set_stringn(col, row, "  ", 2, styles.menu);
+            buffer.set_stringn(col, row, "  ", 2, with_panel_bg(styles.menu));
             col += 2;
         }
-        col = token.render(buffer, row, col, styles.menu, styles.menu_hotkey) as u16;
+        col = token.render(
+            buffer,
+            row,
+            col,
+            with_panel_bg(styles.menu),
+            with_panel_bg(styles.menu_hotkey),
+        ) as u16;
     }
 }
 
