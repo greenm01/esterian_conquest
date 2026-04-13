@@ -6,10 +6,10 @@ use nc_nostr::claim::SeatClaimResultPayload;
 use nc_nostr::game_definition::parse_game_definition;
 use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestReceipt};
 use nc_nostr::lobby_notice::{parse_lobby_notice, LobbyNotice};
+use nc_nostr::private_payload::decrypt_private_json_from_event;
 use nc_nostr::state_sync::{GameState, StateDelta};
 use nc_nostr::thread_message::{decrypt_thread_message, SysopThreadMessage};
 use nc_nostr::turn_commands::TurnReceipt;
-use nostr_sdk::nips::nip44;
 use nostr_sdk::{
     Alphabet, Client, Filter, Kind, Keys, RelayPoolNotification, SingleLetterTag, Timestamp,
 };
@@ -264,6 +264,5 @@ fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpd
 }
 
 fn decrypt_json<T: serde::de::DeserializeOwned>(keys: &Keys, event: &nostr_sdk::Event) -> Option<T> {
-    let plaintext = nip44::decrypt(keys.secret_key(), &event.pubkey, &event.content).ok()?;
-    serde_json::from_str(&plaintext).ok()
+    decrypt_private_json_from_event(keys.secret_key(), event).ok()
 }

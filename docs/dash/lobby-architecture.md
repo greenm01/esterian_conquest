@@ -73,6 +73,9 @@ The player handle is client-owned display metadata. The daemon may cache the
 latest handle seen for a pubkey for lobby and thread display, but the pubkey
 remains authoritative.
 
+For non-public hosted requests, the handle is sent only inside the encrypted
+payload body. It is not exposed in public relay tags.
+
 ## Information Architecture
 
 The lobby uses a three-pane layout inside the existing fullscreen `nc-dash`
@@ -197,6 +200,10 @@ The structured invite workflow remains separate from freeform thread messages.
 
 Approved invite strings should be cached locally in `cache.kdl` for the active
 identity until they are claimed or invalidated.
+
+Only `30500` and `30516` are public/plain. All other hosted lobby/game events
+use NIP-44, and large private payloads may be compressed inside the encrypted
+envelope before relay publish.
 
 ## State And Sync Model
 

@@ -179,7 +179,7 @@ async fn run_async_server(
                                         }],
                                     }
                                 } else {
-                                    routing::process_event(&routed)
+                                    routing::process_event(&routed, keys.secret_key())
                                 };
                                 tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
                                 
@@ -198,7 +198,7 @@ async fn run_async_server(
                             }
                             Err(routing::RoutingError::UnknownGame(game_id)) => {
                                 tracing::warn!("Routing error: unknown game {}", game_id);
-                                if let Some(request) = nc_nostr::invite_request::parse_invite_request(&event) {
+                                if let Some(request) = nc_nostr::invite_request::parse_invite_request(keys.secret_key(), &event) {
                                     publish_invite_request_receipt_direct(
                                         &publisher,
                                         &request.player_pubkey,

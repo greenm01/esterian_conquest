@@ -1,6 +1,6 @@
 use crate::game::effects::GameEffects;
 use nc_data::hosted::HostedStore;
-use nostr_sdk::{Event, PublicKey};
+use nostr_sdk::{Event, PublicKey, SecretKey};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -65,12 +65,12 @@ fn extract_game_id(event: &Event) -> Option<String> {
     None
 }
 
-pub fn process_event(routed: &RoutedEvent) -> Vec<GameEffects> {
+pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<GameEffects> {
     let kind: u16 = routed.event.kind.into();
 
     match kind {
         30507 => {
-            if let Some(req) = nc_nostr::state_sync::parse_state_request(&routed.event) {
+            if let Some(req) = nc_nostr::state_sync::parse_state_request(host_secret_key, &routed.event) {
                 vec![GameEffects::HandleStateRequest { request: req }]
             } else {
                 vec![GameEffects::InvalidEvent {
@@ -79,7 +79,7 @@ pub fn process_event(routed: &RoutedEvent) -> Vec<GameEffects> {
             }
         }
         30513 => {
-            if let Some(req) = nc_nostr::invite_request::parse_invite_request(&routed.event) {
+            if let Some(req) = nc_nostr::invite_request::parse_invite_request(host_secret_key, &routed.event) {
                 vec![GameEffects::HandleInviteRequest {
                     request: req,
                     game_id: routed.game_id.clone(),
@@ -91,7 +91,7 @@ pub fn process_event(routed: &RoutedEvent) -> Vec<GameEffects> {
             }
         }
         30510 => {
-            match nc_nostr::claim::parse_seat_claim_request(&routed.event) {
+            match nc_nostr::claim::parse_seat_claim_request(host_secret_key, &routed.event) {
                 Ok(req) => vec![GameEffects::HandleSeatClaim {
                     request: req,
                     game_id: routed.game_id.clone(),
@@ -102,7 +102,7 @@ pub fn process_event(routed: &RoutedEvent) -> Vec<GameEffects> {
             }
         }
         30522 => {
-            if let Some(cmds) = nc_nostr::turn_commands::parse_turn_commands(&routed.event) {
+            if let Some(cmds) = nc_nostr::turn_commands::parse_turn_commands(host_secret_key, &routed.event) {
                 vec![GameEffects::HandleTurnCommands {
                     commands: cmds,
                     game_id: routed.game_id.clone(),

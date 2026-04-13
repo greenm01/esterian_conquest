@@ -75,12 +75,14 @@ fn seat_claim_helpers_round_trip() {
         "claim123",
         "Velvet-Mountain",
         Some("game-7"),
+        Some("claimer"),
     )
     .expect("build claim request");
-    let parsed = parse_seat_claim_request(&event).expect("parse claim request");
+    let parsed = parse_seat_claim_request(gate_keys.secret_key(), &event).expect("parse claim request");
     assert_eq!(parsed.nonce, "claim123");
     assert_eq!(parsed.invite_code, "velvet-mountain");
     assert_eq!(parsed.game_id.as_deref(), Some("game-7"));
+    assert_eq!(parsed.handle.as_deref(), Some("claimer"));
 
     let error = SeatClaimErrorPayload {
         error: "invalid_code".to_string(),

@@ -210,7 +210,7 @@ async fn publish_seat_claim_request(
     game_id: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let event =
-        build_seat_claim_request_event(player_keys, gate_pubkey, nonce, invite_code, game_id)?;
+        build_seat_claim_request_event(player_keys, gate_pubkey, nonce, invite_code, game_id, None)?;
     client.send_event(&event).await?;
     Ok(())
 }

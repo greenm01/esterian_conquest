@@ -1,4 +1,7 @@
 use crate::json::{escape_json_string, extract_str};
+use crate::private_payload::{
+    decrypt_private_json_from_event, encrypt_private_text,
+};
 use crate::tags::tag_content;
 use crate::timing::is_event_stale;
 use nostr_sdk::nips::nip44;
@@ -11,6 +14,13 @@ pub struct SeatClaimRequest {
     pub player_pubkey: String,
     pub invite_code: String,
     pub game_id: Option<String>,
+    pub handle: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SeatClaimRequestPayload {
+    pub invite: String,
+    pub handle: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -45,6 +55,7 @@ pub enum ParseSeatClaimError {
     InvalidSignature,
     Stale,
     MissingNonce,
+    InvalidPayload,
     MissingInviteCode,
 }
 
@@ -55,6 +66,7 @@ impl std::fmt::Display for ParseSeatClaimError {
             Self::InvalidSignature => write!(f, "event signature invalid"),
             Self::Stale => write!(f, "event is too old (replay prevention)"),
             Self::MissingNonce => write!(f, "missing or empty `d` tag (nonce)"),
+            Self::InvalidPayload => write!(f, "invalid encrypted claim payload"),
             Self::MissingInviteCode => write!(f, "missing invite code"),
         }
     }
@@ -62,7 +74,10 @@ impl std::fmt::Display for ParseSeatClaimError {
 
 impl std::error::Error for ParseSeatClaimError {}
 
-pub fn parse_seat_claim_request(event: &Event) -> Result<SeatClaimRequest, ParseSeatClaimError> {
+pub fn parse_seat_claim_request(
+    secret_key: &nostr_sdk::SecretKey,
+    event: &Event,
+) -> Result<SeatClaimRequest, ParseSeatClaimError> {
     if event.kind.as_u16() != 30510 {
         return Err(ParseSeatClaimError::WrongKind(event.kind.as_u16()));
     }
@@ -76,7 +91,9 @@ pub fn parse_seat_claim_request(event: &Event) -> Result<SeatClaimRequest, Parse
         .filter(|value| !value.is_empty())
         .ok_or(ParseSeatClaimError::MissingNonce)?
         .to_string();
-    let invite_code = event.content.trim().to_ascii_lowercase();
+    let payload: SeatClaimRequestPayload =
+        decrypt_private_json_from_event(secret_key, event).map_err(|_| ParseSeatClaimError::InvalidPayload)?;
+    let invite_code = payload.invite.trim().to_ascii_lowercase();
     if invite_code.is_empty() {
         return Err(ParseSeatClaimError::MissingInviteCode);
     }
@@ -87,6 +104,7 @@ pub fn parse_seat_claim_request(event: &Event) -> Result<SeatClaimRequest, Parse
         game_id: tag_content(&event.tags, "game-id")
             .filter(|value| !value.is_empty())
             .map(str::to_string),
+        handle: payload.handle.filter(|value| !value.trim().is_empty()),
     })
 }
 
@@ -96,6 +114,7 @@ pub fn build_seat_claim_request_event(
     nonce: &str,
     invite_code: &str,
     game_id: Option<&str>,
+    handle: Option<&str>,
 ) -> Result<Event, Box<dyn std::error::Error + Send + Sync>> {
     let mut tags = vec![
         Tag::parse(["d", nonce])?,
@@ -104,8 +123,19 @@ pub fn build_seat_claim_request_event(
     if let Some(game_id) = game_id {
         tags.push(Tag::parse(["game-id", game_id])?);
     }
+    let content = encrypt_private_text(
+        player_keys,
+        gate_pubkey,
+        &serde_json::to_string(&SeatClaimRequestPayload {
+            invite: invite_code.trim().to_ascii_lowercase(),
+            handle: handle
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string),
+        })?,
+    )?;
     Ok(
-        EventBuilder::new(Kind::Custom(30510), invite_code.trim().to_ascii_lowercase())
+        EventBuilder::new(Kind::Custom(30510), content)
             .tags(tags)
             .sign_with_keys(player_keys)?,
     )

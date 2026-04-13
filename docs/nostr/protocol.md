@@ -23,9 +23,18 @@ It does not cover localhost/BBS play.
 - one daemon has one dedicated relay/node and one daemon identity
 - all hosted games under that daemon publish through that relay
 - public events expose only recruiting metadata
-- private per-player state uses NIP-44 encryption
+- all non-public hosted events use NIP-44 encryption
 - raw invite codes are never published in public events
 - hosted first join still uses invite codes, but only after private approval
+
+Private hosted payloads use one encrypted inner envelope:
+
+- versioned JSON envelope inside NIP-44
+- `compression = none` for small payloads
+- `compression = zstd` for payloads at least `1024` bytes when compression is
+  smaller than the original plaintext
+- public relay tags remain routing-only; compression metadata stays inside the
+  encrypted envelope
 
 All request/response kinds use parameterized replaceable events with `d` as the
 deduplication key unless a later implementation constraint proves otherwise.
@@ -35,17 +44,17 @@ deduplication key unless a later implementation constraint proves otherwise.
 | Kind | Name | Publisher | Encryption | Purpose |
 |------|------|-----------|------------|---------|
 | `30500` | `GameDefinition` | `nc-host` | None | Public recruiting-game catalog row |
-| `30507` | `StateRequest` | `nc-dash` | None | Request a fresh snapshot or delta decision |
-| `30510` | `SeatClaimRequest` | `nc-dash` | None | Redeem an approved invite |
+| `30507` | `StateRequest` | `nc-dash` | NIP-44 | Request a fresh snapshot or delta decision |
+| `30510` | `SeatClaimRequest` | `nc-dash` | NIP-44 | Redeem an approved invite |
 | `30511` | `SeatClaimResult` | `nc-host` | NIP-44 | First-join success or failure |
-| `30513` | `InviteRequest` | `nc-dash` | None | Ask the sysop for an invite |
+| `30513` | `InviteRequest` | `nc-dash` | NIP-44 | Ask the sysop for an invite |
 | `30514` | `InviteRequestReceipt` | `nc-host` | NIP-44 | Request accepted or immediately rejected |
 | `30515` | `InviteDecision` | `nc-host` | NIP-44 | Final sysop approval or rejection |
 | `30516` | `LobbyNotice` | `nc-host` | None | Public host-wide notice board item |
 | `30517` | `SysopThreadMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted per-game sysop thread message |
 | `30520` | `GameState` | `nc-host` | NIP-44 | Full fog-of-war-filtered state snapshot |
 | `30521` | `StateDelta` | `nc-host` | NIP-44 | Incremental state update |
-| `30522` | `TurnCommands` | `nc-dash` | None | Submitted player turn orders |
+| `30522` | `TurnCommands` | `nc-dash` | NIP-44 | Submitted player turn orders |
 | `30524` | `TurnReceipt` | `nc-host` | NIP-44 | Turn submission accepted or rejected |
 
 Legacy SSH-oriented kinds `30501`/`30502`/`30503` and related map/session
@@ -137,10 +146,20 @@ Required tags:
 - `p`: daemon pubkey
 - `game-id`
 
+Encrypted payload shape:
+
+```json
+{
+  "message": "Interested in the replacement seat. Evening US availability.",
+  "handle": "StarRider"
+}
+```
+
 Rules:
 
 - the event is signed by the player identity
-- the content is a short plain-text request message
+- the request message and optional handle live only inside the encrypted
+  payload, not in public tags
 - the daemon persists the request in the target game store before any outbound
   notification side effects
 
@@ -261,10 +280,18 @@ Required tags:
 - `p`: daemon pubkey
 - `game-id`
 
+Encrypted payload shape:
+
+```json
+{
+  "invite": "amber-river@relay.example.com",
+  "handle": "StarRider"
+}
+```
+
 Rules:
 
-- the content carries the full invite string, such as
-  `amber-river@relay.example.com`
+- the encrypted payload carries the full invite string
 - the daemon validates only the invite token portion against the stored seat
   hash
 - first successful claim binds the seat to the player pubkey
@@ -295,20 +322,13 @@ Possible `status` values:
 
 The client requests a refresh after joining or reconnecting.
 
-Example:
+Encrypted payload shape:
 
 ```json
 {
-  "kind": 30507,
-  "pubkey": "<player-npub>",
-  "created_at": 1770000200,
-  "tags": [
-    ["d", "<state-request-id>"],
-    ["p", "<daemon-npub>"],
-    ["game-id", "friday-night"]
-  ],
-  "content": "{\"last_turn\":12,\"last_hash\":\"abc123\"}",
-  "sig": "..."
+  "last_turn": 12,
+  "last_hash": "abc123",
+  "handle": "StarRider"
 }
 ```
 
@@ -371,27 +391,19 @@ Rules:
 
 Players submit turn orders with this event.
 
-Example:
+Encrypted payload shape:
 
 ```json
 {
-  "kind": 30522,
-  "pubkey": "<player-npub>",
-  "created_at": 1770000300,
-  "tags": [
-    ["d", "<turn-submit-id>"],
-    ["p", "<daemon-npub>"],
-    ["game-id", "friday-night"],
-    ["turn", "13"]
-  ],
-  "content": "fleet 1 { order speed=3 kind=\"move\" x=5 y=10 }",
-  "sig": "..."
+  "commands": "fleet 1 { order speed=3 kind=\"move\" x=5 y=10 }",
+  "handle": "StarRider"
 }
 ```
 
 Rules:
 
 - authorization is by claimed seat pubkey plus `game-id`
+- public tags must not expose handle or raw turn text
 - the daemon queues the submission in the per-game store before acknowledging it
 - one game's turn queue must not block any other game
 

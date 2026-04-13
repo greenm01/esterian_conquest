@@ -87,16 +87,12 @@ impl EventPublisher {
         content: &str,
         tags: Vec<(&str, &str)>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        use nostr_sdk::nips::nip44;
-        use nostr_sdk::nips::nip44::Version;
-
         let public_key = PublicKey::from_hex(recipient_pubkey)?;
-        let encrypted = nip44::encrypt(
-            self.keys.secret_key(),
+        let encrypted = nc_nostr::private_payload::encrypt_private_text(
+            self.keys.as_ref(),
             &public_key,
             content,
-            Version::V2,
-        ).map_err(|e| format!("NIP-44 encryption failed: {:?}", e))?;
+        )?;
 
         let mut tag_objects = Vec::new();
         tag_objects.push(Tag::parse(["p", recipient_pubkey])?);
@@ -121,17 +117,12 @@ impl EventPublisher {
         content: &str,
         tags: Vec<Vec<String>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        use nostr_sdk::nips::nip44;
-        use nostr_sdk::nips::nip44::Version;
-
         let public_key = PublicKey::from_hex(recipient_pubkey)?;
-        let encrypted = nip44::encrypt(
-            self.keys.secret_key(),
+        let encrypted = nc_nostr::private_payload::encrypt_private_text(
+            self.keys.as_ref(),
             &public_key,
             content,
-            Version::V2,
-        )
-        .map_err(|e| format!("NIP-44 encryption failed: {:?}", e))?;
+        )?;
 
         let mut tag_objects = vec![Tag::parse(["p", recipient_pubkey])?];
         tag_objects.extend(

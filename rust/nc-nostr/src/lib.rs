@@ -7,6 +7,7 @@ pub mod invite_request;
 pub mod json;
 pub mod lobby_notice;
 pub mod nonce;
+pub mod private_payload;
 pub mod session;
 pub mod state_sync;
 pub mod tags;

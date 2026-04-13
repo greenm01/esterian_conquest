@@ -1,4 +1,5 @@
-use nostr_sdk::{Event, ToBech32};
+use crate::private_payload::decrypt_private_json_from_event;
+use nostr_sdk::{Event, SecretKey, ToBech32};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -7,6 +8,13 @@ pub struct InviteRequest {
     pub game_id: String,
     pub player_pubkey: String,
     pub message: String,
+    pub handle: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InviteRequestPayload {
+    pub message: String,
+    pub handle: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -52,11 +60,11 @@ pub struct InviteDecisionPayload {
     pub message: String,
 }
 
-pub fn parse_invite_request(event: &Event) -> Option<InviteRequest> {
+pub fn parse_invite_request(secret_key: &SecretKey, event: &Event) -> Option<InviteRequest> {
     let player_pubkey = event.pubkey.to_bech32().ok()?;
     let mut request_id = None;
     let mut game_id = None;
-    let message = event.content.clone();
+    let payload: InviteRequestPayload = decrypt_private_json_from_event(secret_key, event).ok()?;
 
     for tag in event.tags.iter() {
         let values = tag.clone().to_vec();
@@ -74,7 +82,8 @@ pub fn parse_invite_request(event: &Event) -> Option<InviteRequest> {
         request_id: request_id?,
         game_id: game_id?,
         player_pubkey,
-        message,
+        message: payload.message,
+        handle: payload.handle.filter(|value| !value.trim().is_empty()),
     })
 }
 

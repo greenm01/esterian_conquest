@@ -1,18 +1,14 @@
 use std::time::Duration;
 
-use nc_nostr::claim::{
-    SeatClaimResultPayload,
-};
+use nc_nostr::claim::{SeatClaimRequestPayload, SeatClaimResultPayload};
 use nc_nostr::game_definition::{GameDefinition, parse_game_definition};
-use nc_nostr::invite_request::{
-    InviteDecisionPayload, InviteRequestReceipt,
-};
+use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestPayload, InviteRequestReceipt};
 use nc_nostr::lobby_notice::LobbyNotice;
-use nc_nostr::state_sync::{GameState, StateDelta};
+use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
+use nc_nostr::state_sync::{GameState, StateDelta, StateRequestPayload};
 use nc_nostr::thread_message::{decrypt_thread_message, SenderRole, SysopThreadMessage};
 use nc_nostr::tags::tag_content;
-use nc_nostr::turn_commands::TurnReceipt;
-use nostr_sdk::nips::nip44;
+use nc_nostr::turn_commands::{TurnCommandsPayload, TurnReceipt};
 use nostr_sdk::{
     Alphabet, Client, Event, EventBuilder, Filter, Kind, Keys, PublicKey, SingleLetterTag, Tag,
     Timestamp, ToBech32,
@@ -191,14 +187,16 @@ impl HostedClientSession {
         handle: Option<&str>,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let request_id = random_nonce_hex();
-        let event = build_plain_event(
+        let event = build_private_json_event(
             &self.keys,
+            &PublicKey::parse(daemon_pubkey)?,
             30513,
-            message,
+            &InviteRequestPayload {
+                message: message.to_string(),
+                handle: normalize_handle(handle),
+            },
             &request_id,
             Some(game_id),
-            daemon_pubkey,
-            handle,
         )?;
         self.send_signed_event(event)?;
         Ok(request_id)
@@ -227,15 +225,9 @@ impl HostedClientSession {
                 .map(|duration| duration.as_secs() as i64)
                 .unwrap_or(0),
         };
-        let content = serde_json::to_string(&payload)?;
         self.with_client(async move |client| {
-            let encrypted = nip44::encrypt(
-                keys.secret_key(),
-                &public_key,
-                &content,
-                nip44::Version::V2,
-            )
-            .map_err(|e| format!("NIP-44 encryption failed: {e:?}"))?;
+            let encrypted = encrypt_private_json(&keys, &public_key, &payload)
+                .map_err(|e| format!("private thread encryption failed: {e}"))?;
             let tags = vec![
                 Tag::parse(["d", &message_id])?,
                 Tag::parse(["p", &public_key.to_hex()])?,
@@ -275,14 +267,16 @@ impl HostedClientSession {
                 )
                 .await?
                 .val;
-            let event = build_plain_event(
+            let event = build_private_json_event(
                 &self.keys,
+                &daemon_pubkey,
                 30510,
+                &SeatClaimRequestPayload {
+                    invite: invite_address.to_string(),
+                    handle: normalize_handle(handle),
+                },
                 &nonce,
-                invite_address,
                 Some(game_id),
-                &daemon_pubkey.to_hex(),
-                handle,
             )?;
             client.send_event(&event).await?;
 
@@ -341,19 +335,17 @@ impl HostedClientSession {
                 )
                 .await?
                 .val;
-            let content = serde_json::json!({
-                "last_turn": last_turn,
-                "last_hash": last_hash,
-            })
-            .to_string();
-            let event = build_plain_event(
+            let event = build_private_json_event(
                 &self.keys,
+                &daemon_pubkey,
                 30507,
-                &content,
+                &StateRequestPayload {
+                    last_turn,
+                    last_hash: last_hash.map(str::to_string),
+                    handle: normalize_handle(handle),
+                },
                 &request_id,
                 Some(game_id),
-                &daemon_pubkey.to_hex(),
-                handle,
             )?;
             client.send_event(&event).await?;
 
@@ -412,14 +404,16 @@ impl HostedClientSession {
                 .await?
                 .val;
 
-            let event = build_plain_turn_event(
+            let event = build_private_json_turn_event(
                 &self.keys,
+                &daemon_pubkey,
                 &submit_id,
                 game_id,
                 turn,
-                commands,
-                &daemon_pubkey.to_hex(),
-                handle,
+                &TurnCommandsPayload {
+                    commands: commands.to_string(),
+                    handle: normalize_handle(handle),
+                },
             )?;
             client.send_event(&event).await?;
 
@@ -472,49 +466,43 @@ impl HostedClientSession {
     }
 }
 
-fn build_plain_event(
+fn build_private_json_event<T: serde::Serialize>(
     keys: &Keys,
+    recipient_pubkey: &PublicKey,
     kind: u16,
-    content: &str,
+    payload: &T,
     nonce: &str,
     game_id: Option<&str>,
-    daemon_pubkey: &str,
-    handle: Option<&str>,
 ) -> Result<Event, Box<dyn std::error::Error>> {
     let mut tags = vec![
         Tag::parse(["d", nonce])?,
-        Tag::parse(["p", daemon_pubkey])?,
+        Tag::parse(["p", &recipient_pubkey.to_hex()])?,
     ];
     if let Some(game_id) = game_id {
         tags.push(Tag::parse(["game-id", game_id])?);
     }
-    if let Some(handle) = handle.filter(|handle| !handle.trim().is_empty()) {
-        tags.push(Tag::parse(["handle", handle.trim()])?);
-    }
-    Ok(EventBuilder::new(Kind::Custom(kind), content)
+    let encrypted = encrypt_private_json(keys, recipient_pubkey, payload)?;
+    Ok(EventBuilder::new(Kind::Custom(kind), encrypted)
         .tags(tags)
         .sign_with_keys(keys)?)
 }
 
-fn build_plain_turn_event(
+fn build_private_json_turn_event(
     keys: &Keys,
+    recipient_pubkey: &PublicKey,
     submit_id: &str,
     game_id: &str,
     turn: u32,
-    commands: &str,
-    daemon_pubkey: &str,
-    handle: Option<&str>,
+    payload: &TurnCommandsPayload,
 ) -> Result<Event, Box<dyn std::error::Error>> {
-    let mut tags = vec![
+    let tags = vec![
         Tag::parse(["d", submit_id])?,
-        Tag::parse(["p", daemon_pubkey])?,
+        Tag::parse(["p", &recipient_pubkey.to_hex()])?,
         Tag::parse(["game-id", game_id])?,
         Tag::parse(["turn", &turn.to_string()])?,
     ];
-    if let Some(handle) = handle.filter(|handle| !handle.trim().is_empty()) {
-        tags.push(Tag::parse(["handle", handle.trim()])?);
-    }
-    Ok(EventBuilder::new(Kind::Custom(30522), commands)
+    let encrypted = encrypt_private_json(keys, recipient_pubkey, payload)?;
+    Ok(EventBuilder::new(Kind::Custom(30522), encrypted)
         .tags(tags)
         .sign_with_keys(keys)?)
 }
@@ -523,8 +511,14 @@ fn decrypt_json<T: serde::de::DeserializeOwned>(
     secret_key: &nostr_sdk::SecretKey,
     event: &Event,
 ) -> Option<T> {
-    let plaintext = nip44::decrypt(secret_key, &event.pubkey, &event.content).ok()?;
-    serde_json::from_str(&plaintext).ok()
+    decrypt_private_json_from_event(secret_key, event).ok()
+}
+
+fn normalize_handle(handle: Option<&str>) -> Option<String> {
+    handle
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
 }
 
 fn random_nonce_hex() -> String {

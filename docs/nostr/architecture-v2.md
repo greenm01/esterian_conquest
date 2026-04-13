@@ -144,6 +144,16 @@ The handle is client-owned display metadata. It may be changed later. The
 daemon may cache the latest handle seen for a pubkey for lobby and thread
 display, but the pubkey remains authoritative.
 
+All non-public hosted kinds are private-by-default:
+
+- only `30500 GameDefinition` and `30516 LobbyNotice` remain public/plain
+- `30507`, `30510`, `30513`, `30517`, and `30522` are player-authored private
+  events
+- `30511`, `30514`, `30515`, `30517`, `30520`, `30521`, and `30524` are
+  host-authored private events
+- private event content uses NIP-44 plus an inner versioned envelope that may
+  apply zstd compression for larger payloads
+
 `nc-lobby` has two communication surfaces:
 
 - one host-wide public notice board, sysop-authored only
@@ -220,6 +230,16 @@ Hosted `nc-host` owns these kinds:
 
 Retired SSH bridge kinds `30501`/`30502`/`30503` remain legacy reference only
 for the old `nc-connect` / `nc-gate` path.
+
+For private request kinds, public tags stay routing-only:
+
+- `d`
+- `p`
+- `game-id`
+- `turn` for `30522`
+
+Player handle, invite strings, state request bodies, and raw turn text live
+inside the encrypted payload, not in public tags.
 
 ## 9. `GameDefinition` Requirements
 

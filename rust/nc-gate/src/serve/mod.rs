@@ -164,7 +164,7 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                         return Ok(false);
                     }
                     match event.kind.as_u16() {
-                        30510 => match claim::parse_seat_claim_request(&event) {
+                        30510 => match claim::parse_seat_claim_request(shared_keys.secret_key(), &event) {
                             Ok(req) => {
                                 let span = info_span!(
                                     "claim_request",

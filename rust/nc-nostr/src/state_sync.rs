@@ -1,4 +1,5 @@
-use nostr_sdk::{Event, ToBech32};
+use crate::private_payload::decrypt_private_json_from_event;
+use nostr_sdk::{Event, SecretKey, ToBech32};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8,6 +9,14 @@ pub struct StateRequest {
     pub player_pubkey: String,
     pub last_turn: Option<u32>,
     pub last_hash: Option<String>,
+    pub handle: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StateRequestPayload {
+    pub last_turn: Option<u32>,
+    pub last_hash: Option<String>,
+    pub handle: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,26 +170,11 @@ pub struct HostedReportBlock {
     pub decoded_text: String,
 }
 
-pub fn parse_state_request(event: &Event) -> Option<StateRequest> {
+pub fn parse_state_request(secret_key: &SecretKey, event: &Event) -> Option<StateRequest> {
     let player_pubkey = event.pubkey.to_bech32().ok()?;
     let mut request_id = None;
     let mut game_id = None;
-    let mut last_turn = None;
-    let mut last_hash = None;
-
-    let content: serde_json::Value = serde_json::from_str(&event.content)
-        .ok()
-        .unwrap_or_default();
-    if let Some(obj) = content.as_object() {
-        last_turn = obj
-            .get("last_turn")
-            .and_then(|v: &serde_json::Value| v.as_u64())
-            .map(|v| v as u32);
-        last_hash = obj
-            .get("last_hash")
-            .and_then(|v: &serde_json::Value| v.as_str())
-            .map(String::from);
-    }
+    let payload: StateRequestPayload = decrypt_private_json_from_event(secret_key, event).ok()?;
 
     for tag in event.tags.iter() {
         let values = tag.clone().to_vec();
@@ -198,8 +192,9 @@ pub fn parse_state_request(event: &Event) -> Option<StateRequest> {
         request_id: request_id?,
         game_id: game_id?,
         player_pubkey,
-        last_turn,
-        last_hash,
+        last_turn: payload.last_turn,
+        last_hash: payload.last_hash,
+        handle: payload.handle.filter(|value| !value.trim().is_empty()),
     })
 }
 

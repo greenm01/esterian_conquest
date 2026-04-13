@@ -2364,12 +2364,14 @@ dependencies = [
 name = "nc-nostr"
 version = "1.0.0-beta.2"
 dependencies = [
+ "base64",
  "nostr-sdk",
  "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "url",
+ "zstd",
 ]
 
 [[package]]

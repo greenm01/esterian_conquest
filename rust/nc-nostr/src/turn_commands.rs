@@ -1,4 +1,5 @@
-use nostr_sdk::{Event, ToBech32};
+use crate::private_payload::decrypt_private_json_from_event;
+use nostr_sdk::{Event, SecretKey, ToBech32};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -8,6 +9,13 @@ pub struct TurnCommands {
     pub turn: u32,
     pub player_pubkey: String,
     pub commands: String,
+    pub handle: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TurnCommandsPayload {
+    pub commands: String,
+    pub handle: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,11 +66,12 @@ pub struct TurnReceipt {
     pub errors: Vec<TurnReceiptError>,
 }
 
-pub fn parse_turn_commands(event: &Event) -> Option<TurnCommands> {
+pub fn parse_turn_commands(secret_key: &SecretKey, event: &Event) -> Option<TurnCommands> {
     let player_pubkey = event.pubkey.to_bech32().ok()?;
     let mut submit_id = None;
     let mut game_id = None;
     let mut turn = None;
+    let payload: TurnCommandsPayload = decrypt_private_json_from_event(secret_key, event).ok()?;
 
     for tag in event.tags.iter() {
         let values = tag.clone().to_vec();
@@ -82,7 +91,8 @@ pub fn parse_turn_commands(event: &Event) -> Option<TurnCommands> {
         game_id: game_id?,
         turn: turn?,
         player_pubkey,
-        commands: event.content.clone(),
+        commands: payload.commands,
+        handle: payload.handle.filter(|value| !value.trim().is_empty()),
     })
 }
 

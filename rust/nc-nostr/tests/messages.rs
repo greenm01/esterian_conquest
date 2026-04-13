@@ -1,6 +1,6 @@
 use nc_nostr::lobby_notice::{parse_lobby_notice, LobbyNotice};
+use nc_nostr::private_payload::encrypt_private_json;
 use nc_nostr::thread_message::{decrypt_thread_message, SenderRole, SysopThreadMessage};
-use nostr_sdk::nips::nip44;
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag, ToBech32};
 
 #[test]
@@ -37,13 +37,8 @@ fn decrypt_thread_message_round_trips_encrypted_payload() {
         body: "You are approved for the open seat.".to_string(),
         created_at: 1_770_000_000,
     };
-    let encrypted = nip44::encrypt(
-        sender.secret_key(),
-        &recipient.public_key(),
-        &serde_json::to_string(&payload).unwrap(),
-        nip44::Version::V2,
-    )
-    .expect("encrypt");
+    let encrypted =
+        encrypt_private_json(&sender, &recipient.public_key(), &payload).expect("encrypt");
     let event = EventBuilder::new(Kind::Custom(30517), &encrypted)
         .tags(vec![
             Tag::parse(["d", "thread-001"]).unwrap(),
