@@ -153,23 +153,25 @@ impl FontRenderer {
         let metrics = self.face(face);
         let glyph_x = cell_x as i32 + metrics.advance_pad + glyph.left;
         let glyph_y = cell_y as i32 + metrics.baseline - glyph.height as i32 - glyph.top;
+        let cell_right = cell_x + DEFAULT_CELL_WIDTH;
+        let cell_bottom = cell_y + DEFAULT_CELL_HEIGHT;
 
         for row in 0..glyph.height {
             let dest_y = glyph_y + row as i32;
-            if dest_y < 0 {
+            if dest_y < cell_y as i32 {
                 continue;
             }
             let dest_y = dest_y as usize;
-            if dest_y >= frame.len() / stride {
+            if dest_y >= frame.len() / stride || dest_y >= cell_bottom {
                 continue;
             }
             for col in 0..glyph.width {
                 let dest_x = glyph_x + col as i32;
-                if dest_x < 0 {
+                if dest_x < cell_x as i32 {
                     continue;
                 }
                 let dest_x = dest_x as usize;
-                if dest_x >= stride {
+                if dest_x >= stride || dest_x >= cell_right {
                     continue;
                 }
                 let alpha = glyph.alpha[row * glyph.width + col];
@@ -522,5 +524,97 @@ fn ansi_indexed_rgb(index: u8) -> (u8, u8, u8) {
             let value = 8 + (index - 232) * 10;
             (value, value, value)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn style() -> CellStyle {
+        CellStyle::new(GameColor::White, GameColor::Black, false)
+    }
+
+    fn background_pixel() -> u32 {
+        pack_rgb(color_to_rgb(GameColor::Black))
+    }
+
+    fn install_overwide_test_glyph(
+        renderer: &mut FontRenderer,
+        face: FontFaceKey,
+        ch: char,
+    ) {
+        let baseline = renderer.face(face).baseline;
+        renderer.glyphs.insert(
+            (face, ch),
+            GlyphBitmap {
+                width: DEFAULT_CELL_WIDTH + 4,
+                height: 1,
+                left: 0,
+                top: baseline - 1,
+                alpha: vec![255; DEFAULT_CELL_WIDTH + 4],
+            },
+        );
+    }
+
+    #[test]
+    fn font_glyph_pixels_are_clipped_to_their_cell_bounds() {
+        let mut renderer = FontRenderer::new().expect("font renderer");
+        install_overwide_test_glyph(&mut renderer, FontFaceKey::PrimaryRegular, 'X');
+        let mut frame = vec![background_pixel(); DEFAULT_CELL_WIDTH * 2 * DEFAULT_CELL_HEIGHT];
+
+        renderer.draw_cell(
+            &mut frame,
+            DEFAULT_CELL_WIDTH * 2,
+            0,
+            0,
+            'X',
+            style(),
+            false,
+            false,
+        );
+
+        for row in 0..DEFAULT_CELL_HEIGHT {
+            for col in DEFAULT_CELL_WIDTH..DEFAULT_CELL_WIDTH * 2 {
+                assert_eq!(
+                    frame[row * DEFAULT_CELL_WIDTH * 2 + col],
+                    background_pixel(),
+                    "glyph spilled into adjacent cell at row {row}, col {col}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn clearing_a_cell_removes_prior_overwide_glyph_artifacts() {
+        let mut renderer = FontRenderer::new().expect("font renderer");
+        install_overwide_test_glyph(&mut renderer, FontFaceKey::PrimaryRegular, 'X');
+        let mut frame = vec![background_pixel(); DEFAULT_CELL_WIDTH * 2 * DEFAULT_CELL_HEIGHT];
+
+        renderer.draw_cell(
+            &mut frame,
+            DEFAULT_CELL_WIDTH * 2,
+            0,
+            0,
+            'X',
+            style(),
+            false,
+            false,
+        );
+        renderer.draw_cell(
+            &mut frame,
+            DEFAULT_CELL_WIDTH * 2,
+            0,
+            0,
+            ' ',
+            style(),
+            false,
+            false,
+        );
+
+        assert!(
+            frame.iter().all(|pixel| *pixel == background_pixel()),
+            "blank redraw left stale glyph pixels behind"
+        );
     }
 }
