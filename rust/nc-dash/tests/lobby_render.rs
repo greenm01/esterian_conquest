@@ -29,19 +29,40 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("NETWORK: NO RELAY"));
     assert!(lines.contains("JOINED GAMES"));
     assert!(lines.contains("INBOX"));
-    assert!(lines.contains("COMMANDS"));
+    assert!(lines.contains("? Help"));
+    assert!(lines.contains("I<N>vite"));
+    assert!(lines.contains("S>ettings"));
     assert!(lines.contains("OPEN GAMES"));
     assert!(lines.contains("NOTICES"));
     assert!(lines.contains("THREAD"));
     assert!(!lines.contains("COMMANDS <-"));
+    assert!(!lines.contains("HANDLE:"));
 }
 
 #[test]
-fn home_route_places_commands_under_inbox_and_uses_network_hud() {
+fn home_route_centers_footer_and_uses_toast_overlay() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.network_status = LobbyNetworkStatus::Synced;
+    app.state.status_tone = nc_dash::lobby::state::LobbyStatusTone::Success;
     app.state.status_message = Some("Invite request sent.".to_string());
 
+    let buffer = app.render_for_test().expect("render lobby");
+    let footer_row = buffer.height() - 2;
+    let footer = buffer.plain_line(footer_row);
+    let footer_start = footer.find("? Help").expect("footer labels");
+    let toast_row = buffer.height() - 5;
+
+    assert!(buffer.plain_line(1).contains("NETWORK: SYNCED"));
+    assert!(footer.contains("I<N>vite"));
+    assert!(footer.contains("M>essage"));
+    assert!(footer.contains("S>ettings"));
+    assert!(footer_start > 0);
+    assert!(buffer.plain_line(toast_row).contains("Invite request sent."));
+}
+
+#[test]
+fn home_route_footer_spans_width_below_columns() {
+    let app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     let buffer = app.render_for_test().expect("render lobby");
     let inbox = (0..buffer.height())
         .find_map(|row| {
@@ -51,20 +72,12 @@ fn home_route_places_commands_under_inbox_and_uses_network_hud() {
                 .map(|col| (row, col))
         })
         .expect("inbox title");
-    let commands = (0..buffer.height())
-        .find_map(|row| {
-            buffer
-                .plain_line(row)
-                .find(" COMMANDS ")
-                .map(|col| (row, col))
-        })
-        .expect("commands title");
+    let footer_border = buffer.height() - 3;
+    let footer_line = buffer.plain_line(footer_border);
 
-    assert!(buffer.plain_line(1).contains("NETWORK: SYNCED"));
-    assert!(buffer.plain_line(commands.0 + 1).contains("Tab cycle"));
-    assert!(buffer.plain_line(commands.0 + 2).contains("Invite request sent."));
-    assert_eq!(commands.1, inbox.1);
-    assert!(commands.0 > inbox.0);
+    assert!(footer_border > inbox.0);
+    assert_eq!(footer_line.chars().next(), Some('┌'));
+    assert_eq!(footer_line.chars().last(), Some('┐'));
 }
 
 #[test]
@@ -76,6 +89,7 @@ fn home_route_help_popup_renders_as_overlay() {
 
     assert!(lines.contains("LOBBY HELP"));
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
+    assert!(lines.contains("Settings   : open settings, including local handle"));
     assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
@@ -84,6 +98,7 @@ fn settings_route_renders_theme_controls() {
     let lines = render_lines(LobbyRoute::Settings);
 
     assert!(lines.contains("LOBBY SETTINGS"));
+    assert!(lines.contains("Handle"));
     assert!(lines.contains("Mouse Follow"));
     assert!(lines.contains("Grid Dots"));
     assert!(lines.contains("Theme"));

@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::hosted::dashboard::build_hosted_dash_app;
 use super::state::{
     FirstRunField, HostedGameView, LobbyApp, LobbyFocus, LobbyNetworkStatus, LobbyRoute,
+    LobbyStatusTone,
 };
 use crate::theme;
 
@@ -28,6 +29,9 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             _ => {}
         }
         return;
+    }
+    if !matches!(key.code, KeyCode::Char('?')) {
+        clear_status(app);
     }
 
     match key.code {
@@ -55,10 +59,6 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         KeyCode::Char('m' | 'M') => {
             app.state.compose_message_input.clear();
             app.state.route = LobbyRoute::ComposeThread;
-        }
-        KeyCode::Char('h' | 'H') => {
-            app.state.edit_handle_input = app.state.player_handle.clone().unwrap_or_default();
-            app.state.route = LobbyRoute::EditHandle;
         }
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
@@ -111,7 +111,7 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
                         app.state.first_run_confirm_input.clear();
                         app.state.route = LobbyRoute::Home;
                     }
-                    Err(err) => app.state.status_message = Some(err),
+                    Err(err) => set_status(app, LobbyStatusTone::Error, err),
                 }
             }
         }
@@ -146,7 +146,7 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
                 app.state.unlock_password_input.clear();
                 app.state.route = LobbyRoute::Home;
             }
-            Err(err) => app.state.status_message = Some(err),
+            Err(err) => set_status(app, LobbyStatusTone::Error, err),
         },
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.state.unlock_password_input.push(ch);
@@ -167,7 +167,11 @@ fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Enter => {
             let Some(row) = app.state.selected_open_game().cloned() else {
-                app.state.status_message = Some("no recruiting game selected".to_string());
+                set_status(
+                    app,
+                    LobbyStatusTone::Error,
+                    "no recruiting game selected".to_string(),
+                );
                 app.state.route = LobbyRoute::Home;
                 return;
             };
@@ -180,7 +184,7 @@ fn handle_compose_key(app: &mut LobbyApp, key: KeyEvent) {
                     app.state.compose_message_input.clear();
                     app.state.route = LobbyRoute::Home;
                 }
-                Err(err) => app.state.status_message = Some(err),
+                Err(err) => set_status(app, LobbyStatusTone::Error, err),
             }
         }
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -202,7 +206,11 @@ fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Enter => {
             let Some((game_id, daemon_pubkey)) = selected_thread_target(app) else {
-                app.state.status_message = Some("select an open or joined game first".to_string());
+                set_status(
+                    app,
+                    LobbyStatusTone::Error,
+                    "select an open or joined game first".to_string(),
+                );
                 app.state.route = LobbyRoute::Home;
                 return;
             };
@@ -216,7 +224,7 @@ fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
                     app.state.compose_message_input.clear();
                     app.state.route = LobbyRoute::Home;
                 }
-                Err(err) => app.state.status_message = Some(err),
+                Err(err) => set_status(app, LobbyStatusTone::Error, err),
             }
         }
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -232,16 +240,16 @@ fn handle_edit_handle_key(app: &mut LobbyApp, key: KeyEvent) {
     }
 
     match key.code {
-        KeyCode::Esc => app.state.route = LobbyRoute::Home,
+        KeyCode::Esc => app.state.route = app.state.edit_handle_return_route,
         KeyCode::Backspace => {
             app.state.edit_handle_input.pop();
         }
         KeyCode::Enter => match app.transport.save_handle(&app.state.edit_handle_input) {
             Ok(loaded) => {
                 app.state.apply_loaded(loaded);
-                app.state.route = LobbyRoute::Home;
+                app.state.route = app.state.edit_handle_return_route;
             }
-            Err(err) => app.state.status_message = Some(err),
+            Err(err) => set_status(app, LobbyStatusTone::Error, err),
         },
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.state.edit_handle_input.push(ch);
@@ -273,21 +281,26 @@ fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.settings_selected = app.state.settings_selected.saturating_sub(1);
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.state.settings_selected = (app.state.settings_selected + 1).min(4);
+            app.state.settings_selected = (app.state.settings_selected + 1).min(5);
         }
         KeyCode::Char('s' | 'S') => save_settings(app),
         KeyCode::Char(' ') | KeyCode::Enter => match app.state.settings_selected {
             0 => {
+                app.state.edit_handle_input = app.state.player_handle.clone().unwrap_or_default();
+                app.state.edit_handle_return_route = LobbyRoute::Settings;
+                app.state.route = LobbyRoute::EditHandle;
+            }
+            1 => {
                 app.state.settings_draft.follow_mouse_on_map =
                     !app.state.settings_draft.follow_mouse_on_map;
             }
-            1 => {
+            2 => {
                 app.state.settings_draft.dense_empty_sector_dots =
                     !app.state.settings_draft.dense_empty_sector_dots;
             }
-            2 => open_theme_picker(app),
-            3 => save_settings(app),
-            4 => cancel_settings(app),
+            3 => open_theme_picker(app),
+            4 => save_settings(app),
+            5 => cancel_settings(app),
             _ => {}
         },
         _ => {}
@@ -408,7 +421,7 @@ fn refresh_lobby(app: &mut LobbyApp) {
 fn open_settings(app: &mut LobbyApp) {
     app.state.settings_draft = app.state.settings.clone();
     app.state.settings_selected = 0;
-    app.state.status_message = None;
+    clear_status(app);
     app.state.route = LobbyRoute::Settings;
 }
 
@@ -423,11 +436,15 @@ fn save_settings(app: &mut LobbyApp) {
         Ok(()) => {
             app.state.settings = app.state.settings_draft.clone();
             let _ = theme::apply_theme_key(&app.state.settings.theme_key);
-            app.state.status_message = Some("Saved local settings".to_string());
+            set_status(
+                app,
+                LobbyStatusTone::Success,
+                "Saved local settings".to_string(),
+            );
             app.state.route = LobbyRoute::Home;
         }
         Err(err) => {
-            app.state.status_message = Some(format!("Save failed: {err}"));
+            set_status(app, LobbyStatusTone::Error, format!("Save failed: {err}"));
         }
     }
 }
@@ -492,13 +509,17 @@ fn refresh_hosted_game(app: &mut LobbyApp) {
 
 fn open_or_claim_selected_game(app: &mut LobbyApp) {
     let Some(row) = app.state.selected_joined_game().cloned() else {
-        app.state.status_message = Some("no hosted game selected".to_string());
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "no hosted game selected".to_string(),
+        );
         return;
     };
     if row.status == "approved" {
         match app.transport.claim_invite(&row) {
             Ok(loaded) => app.state.apply_loaded(loaded),
-            Err(err) => app.state.status_message = Some(err),
+            Err(err) => set_status(app, LobbyStatusTone::Error, err),
         }
         return;
     }
@@ -515,10 +536,14 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
                 app.state.route = LobbyRoute::HostedGame;
             }
             Err(err) => {
-                app.state.status_message = Some(format!("Unable to build hosted dashboard: {err}"));
+                set_status(
+                    app,
+                    LobbyStatusTone::Error,
+                    format!("Unable to build hosted dashboard: {err}"),
+                );
             }
         },
-        Err(err) => app.state.status_message = Some(err),
+        Err(err) => set_status(app, LobbyStatusTone::Error, err),
     }
 }
 
@@ -594,11 +619,19 @@ fn read_clipboard_text(app: &mut LobbyApp, key: KeyEvent) -> Option<String> {
     match app.clipboard.get_text() {
         Ok(Some(text)) => Some(text),
         Ok(None) => {
-            app.state.status_message = Some("Clipboard is unavailable.".to_string());
+            set_status(
+                app,
+                LobbyStatusTone::Error,
+                "Clipboard is unavailable.".to_string(),
+            );
             None
         }
         Err(err) => {
-            app.state.status_message = Some(format!("Clipboard paste failed: {err}"));
+            set_status(
+                app,
+                LobbyStatusTone::Error,
+                format!("Clipboard paste failed: {err}"),
+            );
             None
         }
     }
@@ -606,7 +639,17 @@ fn read_clipboard_text(app: &mut LobbyApp, key: KeyEvent) -> Option<String> {
 
 pub(crate) fn set_network_error(app: &mut LobbyApp, err: String) {
     app.state.network_status = LobbyNetworkStatus::Error;
-    app.state.status_message = Some(err);
+    set_status(app, LobbyStatusTone::Error, err);
+}
+
+pub(crate) fn set_status(app: &mut LobbyApp, tone: LobbyStatusTone, message: String) {
+    app.state.status_tone = tone;
+    app.state.status_message = Some(message);
+}
+
+pub(crate) fn clear_status(app: &mut LobbyApp) {
+    app.state.status_message = None;
+    app.state.status_tone = LobbyStatusTone::Info;
 }
 
 fn is_paste_shortcut(key: KeyEvent) -> bool {

@@ -5,15 +5,16 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap};
 
-use crate::lobby::state::{LobbyFocus, LobbyNetworkStatus, LobbyState};
+use crate::lobby::state::{LobbyFocus, LobbyNetworkStatus, LobbyState, LobbyStatusTone};
 use crate::lobby::threads;
 use crate::theme;
 
 const HOME_MIN_WIDTH: u16 = 72;
 const HOME_MIN_HEIGHT: u16 = 20;
-const HUD_HEIGHT: u16 = 2;
-const COMMAND_BAR_HEIGHT: u16 = 4;
-const SETTINGS_ROWS: [&str; 5] = [
+const HEADER_HEIGHT: u16 = 3;
+const FOOTER_HEIGHT: u16 = 3;
+const SETTINGS_ROWS: [&str; 6] = [
+    "Handle",
     "Mouse Follow",
     "Grid Dots",
     "Theme",
@@ -35,8 +36,12 @@ pub fn render_home(playfield: &mut PlayfieldBuffer, state: &LobbyState) {
 
     let area = Rect::new(0, 0, width, height);
     let mut buffer = Buffer::empty(area);
-    let [hud_area, body_area] = Layout::vertical([Constraint::Length(HUD_HEIGHT), Constraint::Min(0)])
-        .areas(area);
+    let [header_area, body_area, footer_area] = Layout::vertical([
+        Constraint::Length(HEADER_HEIGHT),
+        Constraint::Min(0),
+        Constraint::Length(FOOTER_HEIGHT),
+    ])
+    .areas(area);
     let [left, center, right] = Layout::horizontal([
         Constraint::Fill(30),
         Constraint::Fill(34),
@@ -44,23 +49,26 @@ pub fn render_home(playfield: &mut PlayfieldBuffer, state: &LobbyState) {
     ])
     .spacing(1)
     .areas(body_area);
-    let [joined, inbox, commands] = Layout::vertical([
+    let [joined, inbox] = Layout::vertical([
         Constraint::Fill(5),
         Constraint::Fill(3),
-        Constraint::Length(COMMAND_BAR_HEIGHT),
     ])
     .spacing(1)
     .areas(left);
     let [notices, thread] =
         Layout::vertical([Constraint::Fill(2), Constraint::Fill(3)]).spacing(1).areas(right);
 
-    HeaderHudWidget { state }.render(hud_area, &mut buffer);
+    HeaderHudWidget { state }.render(header_area, &mut buffer);
     JoinedGamesWidget { state }.render(joined, &mut buffer);
     InboxWidget { state }.render(inbox, &mut buffer);
-    CommandBarWidget { state }.render(commands, &mut buffer);
     OpenGamesWidget { state }.render(center, &mut buffer);
     NoticesWidget { state }.render(notices, &mut buffer);
     ThreadWidget { state }.render(thread, &mut buffer);
+    FooterMenuWidget.render(footer_area, &mut buffer);
+
+    if state.status_message.is_some() && !state.show_help {
+        ToastOverlayWidget { state }.render(body_area, &mut buffer);
+    }
 
     if state.show_help {
         let popup = centered_popup(
@@ -96,6 +104,7 @@ pub fn render_settings(playfield: &mut PlayfieldBuffer, state: &LobbyState) {
             break;
         }
         let value = match *label {
+            "Handle" => self_or_unset(state.player_handle.as_deref()),
             "Mouse Follow" => on_off(state.settings_draft.follow_mouse_on_map).to_string(),
             "Grid Dots" => on_off(state.settings_draft.dense_empty_sector_dots).to_string(),
             "Theme" => theme::display_name_for_key(&state.settings_draft.theme_key),
@@ -109,7 +118,7 @@ pub fn render_settings(playfield: &mut PlayfieldBuffer, state: &LobbyState) {
         };
         let style = if state.settings_selected == idx {
             styles.selected
-        } else if idx >= 3 {
+        } else if idx >= 4 {
             styles.accent
         } else {
             styles.value
@@ -127,11 +136,7 @@ pub fn render_settings(playfield: &mut PlayfieldBuffer, state: &LobbyState) {
             styles.dim,
         );
         if let Some(status) = state.status_message.as_deref() {
-            let status_style = if status.to_ascii_lowercase().contains("fail") {
-                styles.error
-            } else {
-                styles.success
-            };
+            let status_style = toast_text_style(state.status_tone);
             let row = info_row.saturating_add(2);
             if row < inner.bottom() {
                 buffer.set_stringn(
@@ -262,29 +267,27 @@ impl Widget for HeaderHudWidget<'_> {
             return;
         }
         let styles = theme::tui_theme();
-        let handle = self
-            .state
-            .player_handle
-            .as_deref()
-            .unwrap_or("unset")
-            .to_ascii_uppercase();
-        let relay = self
-            .state
-            .relay_label()
-            .unwrap_or_else(|| "relay: not set".to_string())
-            .to_ascii_uppercase();
-        let handle_line = format!("HANDLE: {handle}");
-        let relay_line = relay.replace("relay:", "RELAY:");
         let network_line = format!("NETWORK: {}", self.state.network_status.label());
-
-        buffer.set_stringn(area.x, area.y, "NOSTRIAN CONQUEST LOBBY", area.width as usize, styles.title);
-        if area.height > 1 {
-            buffer.set_stringn(area.x, area.y + 1, network_line, area.width as usize, network_style(self.state.network_status));
+        let block = chrome_block(styles.border);
+        let inner = block.inner(area);
+        block.render(area, buffer);
+        if inner.width == 0 || inner.height == 0 {
+            return;
         }
-        right_align(buffer, area, area.y, &handle_line, styles.label);
-        if area.height > 1 {
-            right_align(buffer, area, area.y + 1, &relay_line, styles.dim);
-        }
+        buffer.set_stringn(
+            inner.x,
+            inner.y,
+            "NOSTRIAN CONQUEST LOBBY",
+            inner.width as usize,
+            styles.title,
+        );
+        right_align(
+            buffer,
+            inner,
+            inner.y,
+            &network_line,
+            network_style(self.state.network_status),
+        );
     }
 }
 
@@ -417,36 +420,56 @@ impl Widget for ThreadWidget<'_> {
     }
 }
 
-struct CommandBarWidget<'a> {
-    state: &'a LobbyState,
-}
+struct FooterMenuWidget;
 
-impl Widget for CommandBarWidget<'_> {
+impl Widget for FooterMenuWidget {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let styles = theme::tui_theme();
-        let block = panel_block(" COMMANDS ", false);
+        let block = chrome_block(styles.border);
         let inner = block.inner(area);
         block.render(area, buffer);
         if inner.width == 0 || inner.height == 0 {
             return;
         }
+        render_footer_tokens(buffer, inner);
+    }
+}
 
-        let commands =
-            "Tab cycle  J/K move  Enter action  N invite  M thread  H handle  S settings  R refresh  ? help  Q quit";
-        buffer.set_stringn(inner.x, inner.y, commands, inner.width as usize, styles.accent);
+struct ToastOverlayWidget<'a> {
+    state: &'a LobbyState,
+}
 
-        if inner.height > 1 {
-            let status = self
-                .state
-                .status_message
-                .clone()
-                .unwrap_or_else(|| default_command_status(self.state));
+impl Widget for ToastOverlayWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let Some(message) = self.state.status_message.as_deref() else {
+            return;
+        };
+        let lines = wrap_lines(message, area.width.saturating_sub(8) as usize);
+        let height = (lines.len() as u16 + 2).clamp(3, 6);
+        let width = lines
+            .iter()
+            .map(|line| line.chars().count() as u16)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(2)
+            .clamp(18, area.width.saturating_sub(4));
+        let popup = Rect::new(
+            area.x + area.width.saturating_sub(width) / 2,
+            area.bottom().saturating_sub(height),
+            width,
+            height,
+        );
+        let block = chrome_block(status_style(self.state.status_tone));
+        let inner = block.inner(popup);
+        Clear.render(popup, buffer);
+        block.render(popup, buffer);
+        for (idx, line) in lines.iter().take(inner.height as usize).enumerate() {
             buffer.set_stringn(
                 inner.x,
-                inner.y + 1,
-                status,
+                inner.y + idx as u16,
+                line,
                 inner.width as usize,
-                status_style(self.state.status_message.as_deref(), self.state.network_status),
+                toast_text_style(self.state.status_tone),
             );
         }
     }
@@ -463,7 +486,7 @@ impl Widget for HelpPopupWidget {
             "Enter      : open selected joined game or request selected open game",
             "N          : compose an invite request",
             "M          : compose a private thread message",
-            "H          : edit your local handle",
+            "Settings   : open settings, including local handle",
             "S          : open lobby settings",
             "R          : refresh the hosted lobby",
             "? / Esc    : close this help popup",
@@ -548,30 +571,20 @@ fn focused_selection(state: &LobbyState, target: LobbyFocus, selected: usize) ->
     (state.focus == target).then_some(selected)
 }
 
-fn default_command_status(state: &LobbyState) -> String {
-    if state.show_help {
-        return "Press ? or Esc to close help.".to_string();
-    }
-    match state.focus {
-        LobbyFocus::JoinedGames => {
-            "Enter opens the selected hosted game or claims an approved invite.".to_string()
-        }
-        LobbyFocus::Inbox => "Inbox items track request, claim, and turn receipts.".to_string(),
-        LobbyFocus::OpenGames => {
-            "Enter or N sends an invite request for the selected hosted game.".to_string()
-        }
-        LobbyFocus::Notices => "Public notices come from nc-host and the hosted lobby.".to_string(),
-        LobbyFocus::Thread => "M writes a private message to the selected game's sysop thread.".to_string(),
-    }
+fn chrome_block(border_style: Style) -> Block<'static> {
+    let styles = theme::tui_theme();
+    Block::default()
+        .borders(Borders::ALL)
+        .style(styles.panel)
+        .border_style(border_style)
 }
 
-fn status_style(status: Option<&str>, network_status: LobbyNetworkStatus) -> Style {
+fn status_style(tone: LobbyStatusTone) -> Style {
     let styles = theme::tui_theme();
-    match status {
-        Some(message) if message.to_ascii_lowercase().contains("fail") => styles.error,
-        Some(_) => styles.value,
-        None if network_status == LobbyNetworkStatus::Error => styles.error,
-        None => styles.dim,
+    match tone {
+        LobbyStatusTone::Info => styles.border,
+        LobbyStatusTone::Success => styles.success,
+        LobbyStatusTone::Error => styles.error,
     }
 }
 
@@ -583,6 +596,15 @@ fn network_style(status: LobbyNetworkStatus) -> Style {
         LobbyNetworkStatus::Connected => styles.value,
         LobbyNetworkStatus::Synced => styles.success,
         LobbyNetworkStatus::Error => styles.error,
+    }
+}
+
+fn toast_text_style(tone: LobbyStatusTone) -> Style {
+    let styles = theme::tui_theme();
+    match tone {
+        LobbyStatusTone::Info => styles.value,
+        LobbyStatusTone::Success => styles.success,
+        LobbyStatusTone::Error => styles.error,
     }
 }
 
@@ -598,6 +620,107 @@ fn right_align(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: Sty
     let width = text.chars().count().min(area.width as usize) as u16;
     let start = area.right().saturating_sub(width);
     buffer.set_stringn(start, row, text, area.width as usize, style);
+}
+
+fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
+    let styles = theme::tui_theme();
+    let tokens = [
+        FooterToken::leading("?", " Help"),
+        FooterToken::embedded("I<", "N", ">vite"),
+        FooterToken::leading("M", ">essage"),
+        FooterToken::leading("S", ">ettings"),
+        FooterToken::leading("R", ">efresh"),
+        FooterToken::leading("Q", ">uit"),
+    ];
+    let gap = 2usize;
+    let total_width = tokens.iter().map(FooterToken::width).sum::<usize>()
+        + gap * tokens.len().saturating_sub(1);
+    let start = area.x + area.width.saturating_sub(total_width as u16) / 2;
+    let row = area.y;
+    let mut col = start;
+    for (idx, token) in tokens.iter().enumerate() {
+        if idx > 0 {
+            buffer.set_stringn(col, row, "  ", 2, styles.menu);
+            col += 2;
+        }
+        col = token.render(buffer, row, col, styles.menu, styles.menu_hotkey) as u16;
+    }
+}
+
+fn wrap_lines(text: &str, max_width: usize) -> Vec<String> {
+    let width = max_width.max(8);
+    let mut out = Vec::new();
+    for raw in text.lines() {
+        let mut current = String::new();
+        for word in raw.split_whitespace() {
+            let extra = if current.is_empty() { 0 } else { 1 };
+            if current.chars().count() + extra + word.chars().count() > width && !current.is_empty() {
+                out.push(current);
+                current = word.to_string();
+            } else {
+                if !current.is_empty() {
+                    current.push(' ');
+                }
+                current.push_str(word);
+            }
+        }
+        if current.is_empty() {
+            out.push(String::new());
+        } else {
+            out.push(current);
+        }
+    }
+    if out.is_empty() {
+        out.push(String::new());
+    }
+    out
+}
+
+fn self_or_unset(value: Option<&str>) -> String {
+    value.unwrap_or("<unset>").to_string()
+}
+
+struct FooterToken {
+    prefix: &'static str,
+    hotkey: &'static str,
+    suffix: &'static str,
+}
+
+impl FooterToken {
+    const fn leading(hotkey: &'static str, suffix: &'static str) -> Self {
+        Self {
+            prefix: "",
+            hotkey,
+            suffix,
+        }
+    }
+
+    const fn embedded(prefix: &'static str, hotkey: &'static str, suffix: &'static str) -> Self {
+        Self {
+            prefix,
+            hotkey,
+            suffix,
+        }
+    }
+
+    fn width(&self) -> usize {
+        self.prefix.chars().count() + self.hotkey.chars().count() + self.suffix.chars().count()
+    }
+
+    fn render(&self, buffer: &mut Buffer, row: u16, start: u16, label: Style, hotkey: Style) -> usize {
+        let mut col = start;
+        if !self.prefix.is_empty() {
+            buffer.set_stringn(col, row, self.prefix, self.prefix.len(), label);
+            col += self.prefix.chars().count() as u16;
+        }
+        buffer.set_stringn(col, row, self.hotkey, self.hotkey.len(), hotkey);
+        col += self.hotkey.chars().count() as u16;
+        if !self.suffix.is_empty() {
+            buffer.set_stringn(col, row, self.suffix, self.suffix.len(), label);
+            col += self.suffix.chars().count() as u16;
+        }
+        col as usize
+    }
 }
 
 fn paint_buffer(playfield: &mut PlayfieldBuffer, buffer: &Buffer) {

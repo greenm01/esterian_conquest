@@ -66,6 +66,8 @@ pub struct TuiTheme {
     pub panel: Style,
     pub border: Style,
     pub title: Style,
+    pub menu: Style,
+    pub menu_hotkey: Style,
     pub accent: Style,
     pub label: Style,
     pub value: Style,
@@ -243,6 +245,13 @@ fn project_theme(theme: &opaline::Theme) -> DashTheme {
             .bg(to_tui_color(body_bg)),
         title: Style::default()
             .fg(to_tui_color(accent))
+            .bg(to_tui_color(body_bg))
+            .add_modifier(Modifier::BOLD),
+        menu: Style::default()
+            .fg(to_tui_color(body_fg))
+            .bg(to_tui_color(body_bg)),
+        menu_hotkey: Style::default()
+            .fg(to_tui_color(accent_alt))
             .bg(to_tui_color(body_bg))
             .add_modifier(Modifier::BOLD),
         accent: Style::default()

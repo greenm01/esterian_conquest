@@ -18,7 +18,7 @@ use nc_nostr::thread_message::SysopThreadMessage;
 use nc_nostr::turn_commands::TurnReceiptStatus;
 
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
-use super::state::LobbyNetworkStatus;
+use super::state::{LobbyNetworkStatus, LobbyStatusTone};
 
 #[derive(Debug, Clone)]
 pub struct LobbyLoadedState {
@@ -31,6 +31,7 @@ pub struct LobbyLoadedState {
     pub thread_messages: Vec<ThreadMessage>,
     pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
+    pub status_tone: LobbyStatusTone,
 }
 
 struct UnlockedClient {
@@ -97,7 +98,12 @@ impl LobbyTransport {
             if let Some(live_session) = unlocked.live_session.as_ref() {
                 live_session.refresh_backfill();
             }
-            Ok(build_loaded_state(unlocked, None, Some(initial_network_status(unlocked))))
+            Ok(build_loaded_state(
+                unlocked,
+                None,
+                LobbyStatusTone::Info,
+                Some(initial_network_status(unlocked)),
+            ))
         } else {
             Err("keychain setup failed".to_string())
         }
@@ -127,7 +133,12 @@ impl LobbyTransport {
             if let Some(live_session) = unlocked.live_session.as_ref() {
                 live_session.refresh_backfill();
             }
-            Ok(build_loaded_state(unlocked, None, Some(initial_network_status(unlocked))))
+            Ok(build_loaded_state(
+                unlocked,
+                None,
+                LobbyStatusTone::Info,
+                Some(initial_network_status(unlocked)),
+            ))
         } else {
             Err("keychain unlock failed".to_string())
         }
@@ -144,6 +155,7 @@ impl LobbyTransport {
             return Ok(build_loaded_state(
                 unlocked,
                 None,
+                LobbyStatusTone::Info,
                 Some(LobbyNetworkStatus::Synced),
             ));
         }
@@ -152,10 +164,16 @@ impl LobbyTransport {
             return Ok(build_loaded_state(
                 unlocked,
                 None,
+                LobbyStatusTone::Info,
                 Some(LobbyNetworkStatus::Refreshing),
             ));
         }
-        Ok(build_loaded_state(unlocked, None, None))
+        Ok(build_loaded_state(
+            unlocked,
+            None,
+            LobbyStatusTone::Info,
+            None,
+        ))
     }
 
     pub fn poll_updates(&mut self) -> Result<Option<LobbyLoadedState>, String> {
@@ -169,6 +187,7 @@ impl LobbyTransport {
         Ok(Some(build_loaded_state(
             unlocked,
             None,
+            LobbyStatusTone::Info,
             Some(LobbyNetworkStatus::Synced),
         )))
     }
@@ -183,6 +202,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Handle updated locally. It will be sent on your next hosted action.".to_string()),
+            LobbyStatusTone::Success,
             None,
         ))
     }
@@ -233,6 +253,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Invite request sent. Waiting for nc-host receipt.".to_string()),
+            LobbyStatusTone::Success,
             None,
         ))
     }
@@ -277,6 +298,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Seat claim processed by nc-host.".to_string()),
+            LobbyStatusTone::Success,
             None,
         ))
     }
@@ -352,6 +374,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Turn submitted. Waiting for nc-host receipt.".to_string()),
+            LobbyStatusTone::Success,
             None,
         ))
     }
@@ -388,6 +411,7 @@ impl LobbyTransport {
         Ok(build_loaded_state(
             unlocked,
             Some("Thread message sent to nc-host.".to_string()),
+            LobbyStatusTone::Success,
             None,
         ))
     }
@@ -656,6 +680,7 @@ fn apply_decision(
 fn build_loaded_state(
     unlocked: &UnlockedClient,
     status_message: Option<String>,
+    status_tone: LobbyStatusTone,
     network_status: Option<LobbyNetworkStatus>,
 ) -> LobbyLoadedState {
     let open_games = unlocked
@@ -775,6 +800,7 @@ fn build_loaded_state(
             }
         }),
         status_message,
+        status_tone,
     }
 }
 

@@ -48,6 +48,13 @@ impl LobbyNetworkStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LobbyStatusTone {
+    Info,
+    Success,
+    Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FirstRunField {
     Handle,
     Password,
@@ -129,6 +136,7 @@ pub struct LobbyState {
     pub thread_selected: usize,
     pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
+    pub status_tone: LobbyStatusTone,
     pub show_help: bool,
     pub first_run_field: FirstRunField,
     pub first_run_handle_input: String,
@@ -137,6 +145,7 @@ pub struct LobbyState {
     pub unlock_password_input: String,
     pub compose_message_input: String,
     pub edit_handle_input: String,
+    pub edit_handle_return_route: LobbyRoute,
     pub settings: LobbySettingsRecord,
     pub settings_draft: LobbySettingsRecord,
     pub settings_selected: usize,
@@ -178,6 +187,7 @@ impl LobbyState {
             thread_selected: 0,
             network_status: LobbyNetworkStatus::NoRelay,
             status_message: None,
+            status_tone: LobbyStatusTone::Info,
             show_help: false,
             first_run_field: FirstRunField::Handle,
             first_run_handle_input: String::new(),
@@ -186,6 +196,7 @@ impl LobbyState {
             unlock_password_input: String::new(),
             compose_message_input: String::new(),
             edit_handle_input: String::new(),
+            edit_handle_return_route: LobbyRoute::Settings,
             settings_draft: settings.clone(),
             settings,
             settings_selected: 0,
@@ -205,6 +216,7 @@ impl LobbyState {
         self.thread_messages = loaded.thread_messages;
         self.network_status = loaded.network_status;
         self.status_message = loaded.status_message;
+        self.status_tone = loaded.status_tone;
         self.joined_selected = self
             .joined_selected
             .min(self.joined_games.len().saturating_sub(1));

@@ -119,6 +119,7 @@ fn settings_route_opens_from_home_and_toggles_values() {
     apply_key(&mut app, shift_key(KeyCode::Char('s')));
     assert_eq!(app.state.route, LobbyRoute::Settings);
 
+    apply_key(&mut app, key(KeyCode::Down));
     let initial = app.state.settings_draft.follow_mouse_on_map;
     apply_key(&mut app, key(KeyCode::Enter));
     assert_eq!(app.state.settings_draft.follow_mouse_on_map, !initial);
@@ -129,6 +130,7 @@ fn theme_picker_previews_and_accepts_theme_choice() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
 
     apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    apply_key(&mut app, key(KeyCode::Down));
     apply_key(&mut app, key(KeyCode::Down));
     apply_key(&mut app, key(KeyCode::Down));
     apply_key(&mut app, key(KeyCode::Enter));
@@ -165,6 +167,25 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 
     apply_key(&mut app, key(KeyCode::Esc));
     assert!(!app.state.show_help);
+}
+
+#[test]
+fn handle_moves_to_settings_and_returns_there_after_cancel() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.player_handle = Some("Current".to_string());
+
+    apply_key(&mut app, shift_key(KeyCode::Char('h')));
+    assert_eq!(app.state.route, LobbyRoute::Home);
+
+    apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    assert_eq!(app.state.route, LobbyRoute::Settings);
+
+    apply_key(&mut app, key(KeyCode::Enter));
+    assert_eq!(app.state.route, LobbyRoute::EditHandle);
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Settings);
 }
 
 fn sample_hosted_snapshot() -> GameState {
