@@ -18,9 +18,187 @@ const GATE_MIN_POPUP_WIDTH: u16 = 54;
 const GATE_MIN_POPUP_HEIGHT: u16 = 18;
 const GATE_SIDE_PADDING: usize = 3;
 const GATE_FIELD_LABEL_WIDTH: usize = 14;
-const MATRIX_TRAIL_MIN: usize = 8;
-const MATRIX_TRAIL_VARIATION_MIN: usize = 6;
-const MATRIX_GAP_MIN: usize = 10;
+const MATRIX_MIN_STREAM_LENGTH: usize = 3;
+const MATRIX_GLYPHS: &[char] = &[
+    'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ',
+    'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
+];
+
+#[derive(Clone)]
+pub struct MatrixRain {
+    width: usize,
+    height: usize,
+    tick: u64,
+    rng: u64,
+    columns: Vec<MatrixColumn>,
+}
+
+#[derive(Clone)]
+struct MatrixColumn {
+    gap_remaining: usize,
+    length: usize,
+    update_every: usize,
+    phase: usize,
+    head_row: isize,
+    tail_row: isize,
+    glyphs: Vec<char>,
+}
+
+impl MatrixRain {
+    pub fn new(width: usize, height: usize) -> Self {
+        let mut rain = Self {
+            width,
+            height,
+            tick: 0,
+            rng: seed_for_size(width, height),
+            columns: Vec::new(),
+        };
+        rain.reset_for_size(width, height);
+        rain
+    }
+
+    pub fn reset_for_size(&mut self, width: usize, height: usize) {
+        self.width = width;
+        self.height = height;
+        self.tick = 0;
+        self.rng = seed_for_size(width, height);
+        self.columns = (0..width)
+            .map(|column| self.make_column(column))
+            .collect::<Vec<_>>();
+        let warmup_steps = (height / 3).max(1);
+        for _ in 0..warmup_steps {
+            self.advance();
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.reset_for_size(self.width, self.height);
+    }
+
+    pub fn advance(&mut self) {
+        self.tick = self.tick.saturating_add(1);
+        for column_index in 0..self.columns.len() {
+            if column_index % 2 == 1 {
+                continue;
+            }
+            let update_every = self.columns[column_index].update_every;
+            let phase = self.columns[column_index].phase;
+            if ((self.tick as usize) + phase) % update_every != 0 {
+                continue;
+            }
+            self.advance_column(column_index);
+        }
+    }
+
+    fn advance_column(&mut self, column_index: usize) {
+        if self.height == 0 {
+            return;
+        }
+        let height = self.height as isize;
+        if self.columns[column_index].gap_remaining > 0 {
+            self.columns[column_index].gap_remaining -= 1;
+            return;
+        }
+        if self.columns[column_index].head_row < 0 {
+            let glyph = self.random_glyph();
+            let column = &mut self.columns[column_index];
+            column.head_row = 0;
+            column.tail_row = 0;
+            column.glyphs[0] = glyph;
+            return;
+        }
+
+        {
+            let column = &mut self.columns[column_index];
+            column.head_row += 1;
+        }
+        let head_row = self.columns[column_index].head_row;
+        if head_row < height {
+            let glyph = self.random_glyph();
+            self.columns[column_index].glyphs[head_row as usize] = glyph;
+        }
+
+        {
+            let column = &mut self.columns[column_index];
+            if column.head_row - column.tail_row + 1 > column.length as isize {
+                column.tail_row += 1;
+            }
+        }
+
+        let head = self.columns[column_index].head_row.min(height - 1);
+        let tail = self.columns[column_index].tail_row.max(0);
+        for row in tail..head {
+            if self.next_random(8) == 0 {
+                let glyph = self.random_glyph();
+                self.columns[column_index].glyphs[row as usize] = glyph;
+            }
+        }
+
+        if self.columns[column_index].tail_row >= height {
+            let next = self.make_column(column_index);
+            self.columns[column_index] = next;
+        }
+    }
+
+    pub fn render(&self, buffer: &mut PlayfieldBuffer) {
+        let background = theme::body_style().bg;
+        let trail_style = CellStyle::new(GameColor::Green, background, false);
+        let head_style = CellStyle::new(GameColor::BrightGreen, background, true);
+
+        for (x, column) in self.columns.iter().enumerate() {
+            if x >= buffer.width() || column.head_row < 0 {
+                continue;
+            }
+            let visible_top = column.tail_row.max(0) as usize;
+            let visible_bottom = column.head_row.min((self.height.saturating_sub(1)) as isize);
+            for y in visible_top..=visible_bottom as usize {
+                if y >= buffer.height() {
+                    break;
+                }
+                let style = if y as isize == visible_bottom {
+                    head_style
+                } else {
+                    trail_style
+                };
+                buffer.set_cell(y, x, column.glyphs[y], style);
+            }
+        }
+    }
+
+    fn make_column(&mut self, column_index: usize) -> MatrixColumn {
+        let height = self.height.max(1);
+        let length_max = height.saturating_sub(3).max(MATRIX_MIN_STREAM_LENGTH);
+        let length = MATRIX_MIN_STREAM_LENGTH + self.next_random(length_max - MATRIX_MIN_STREAM_LENGTH + 1);
+        MatrixColumn {
+            gap_remaining: 1 + self.next_random(height),
+            length,
+            update_every: 1 + self.next_random(3),
+            phase: (column_index * 3 + self.next_random(7)) % 3,
+            head_row: -1,
+            tail_row: 0,
+            glyphs: vec![' '; height],
+        }
+    }
+
+    fn random_glyph(&mut self) -> char {
+        MATRIX_GLYPHS[self.next_random(MATRIX_GLYPHS.len())]
+    }
+
+    fn next_random(&mut self, limit: usize) -> usize {
+        if limit <= 1 {
+            return 0;
+        }
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        ((self.rng >> 32) as usize) % limit
+    }
+}
+
+fn seed_for_size(width: usize, height: usize) -> u64 {
+    ((width as u64) << 32) ^ (height as u64) ^ 0x9E37_79B9_7F4A_7C15
+}
 
 pub fn render_first_run(buffer: &mut PlayfieldBuffer, state: &LobbyState) {
     let copy_lines = vec![
@@ -73,33 +251,14 @@ pub fn render_locked(buffer: &mut PlayfieldBuffer, state: &LobbyState) {
     );
 }
 
-pub fn render_matrix_locked(buffer: &mut PlayfieldBuffer, frame: u64) {
-    let background = theme::body_style().bg;
-    let trail_style = CellStyle::new(GameColor::Green, background, false);
-    let head_style = CellStyle::new(GameColor::BrightGreen, background, true);
-    let height = buffer.height();
-    let base_length = (height / 4).max(MATRIX_TRAIL_MIN);
-    let variation = (height / 5).max(MATRIX_TRAIL_VARIATION_MIN);
-    let gap = (height / 3).max(MATRIX_GAP_MIN);
+pub fn render_matrix_locked(buffer: &mut PlayfieldBuffer, rain: &MatrixRain) {
+    rain.render(buffer);
+}
 
-    for x in 0..buffer.width() {
-        let speed = 1 + (x * 7 % 3);
-        let length = base_length + (x * 11 % variation);
-        let cycle = buffer.height() + length + gap;
-        let phase = (x * 17) + (x * x % (gap + 7));
-        let head = ((frame as usize / speed) + phase) % cycle;
-        let head = head as isize - length as isize;
-        for y in 0..buffer.height() {
-            let y_isize = y as isize;
-            if y_isize > head || y_isize <= head - length as isize {
-                continue;
-            }
-            let dist = (head - y_isize) as usize;
-            let glyph = matrix_glyph(x, y, frame);
-            let style = if dist == 0 { head_style } else { trail_style };
-            buffer.set_cell(y, x, glyph, style);
-        }
-    }
+#[doc(hidden)]
+pub fn matrix_glyph(x: usize, y: usize, frame: u64) -> char {
+    let index = ((frame as usize) + (x * 13) + (y * 7)) % MATRIX_GLYPHS.len();
+    MATRIX_GLYPHS[index]
 }
 
 struct GateField<'a> {
@@ -297,15 +456,6 @@ fn render_tiny(buffer: &mut PlayfieldBuffer, title: &str) {
     }
 }
 
-#[doc(hidden)]
-pub fn matrix_glyph(x: usize, y: usize, frame: u64) -> char {
-    const GLYPHS: &[char] = &[
-        'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ',
-        'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
-    ];
-    let index = ((frame as usize) + (x * 13) + (y * 7)) % GLYPHS.len();
-    GLYPHS[index]
-}
 
 fn field_row_width(field: &GateField<'_>) -> usize {
     2 + GATE_FIELD_LABEL_WIDTH + 2 + field.value.chars().count()

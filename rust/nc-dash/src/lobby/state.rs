@@ -9,6 +9,7 @@ use crate::startup::LobbyStartupOptions;
 use crate::theme::ThemeCatalogEntry;
 
 use super::clipboard::Clipboard;
+use super::onboarding::MatrixRain;
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
 use super::storage::settings::LobbySettingsRecord;
 use super::transport::LobbyTransport;
@@ -311,7 +312,7 @@ pub struct LobbyApp {
     pub popup_position: Option<RelativePopupOrigin>,
     pub mouse_gesture: LobbyMouseGesture,
     pub last_activity_at: Instant,
-    pub matrix_frame: u64,
+    pub matrix_rain: MatrixRain,
     pub next_matrix_frame_at: Instant,
 }
 

@@ -45,7 +45,7 @@ impl LobbyApp {
             popup_position: None,
             mouse_gesture: LobbyMouseGesture::None,
             last_activity_at: now,
-            matrix_frame: 0,
+            matrix_rain: onboarding::MatrixRain::new(120, 40),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
     }
@@ -54,6 +54,8 @@ impl LobbyApp {
         theme::apply_default_theme();
         let settings = storage::settings::LobbySettingsRecord::default();
         let now = Instant::now();
+        let matrix_width = geometry.width();
+        let matrix_height = geometry.height();
         Self {
             geometry,
             should_quit: false,
@@ -64,7 +66,7 @@ impl LobbyApp {
             popup_position: None,
             mouse_gesture: LobbyMouseGesture::None,
             last_activity_at: now,
-            matrix_frame: 0,
+            matrix_rain: onboarding::MatrixRain::new(matrix_width, matrix_height),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
     }
@@ -92,7 +94,7 @@ impl LobbyApp {
         self.state.status_message = None;
         self.state.route = LobbyRoute::MatrixLocked;
         self.mouse_gesture = LobbyMouseGesture::None;
-        self.matrix_frame = 0;
+        self.matrix_rain.reset();
         self.next_matrix_frame_at = Instant::now() + MATRIX_FRAME_STEP;
     }
 
@@ -282,6 +284,8 @@ impl NativeApp for LobbyApp {
 
     fn resize_canvas(&mut self, cols: u16, rows: u16) {
         self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
+        self.matrix_rain
+            .reset_for_size(cols as usize, rows as usize);
         if let Some(hosted) = self.state.hosted_game.as_mut() {
             hosted.dashboard.resize_canvas(cols, rows);
         }
@@ -304,9 +308,7 @@ impl NativeApp for LobbyApp {
         ) {
             match self.state.route {
                 LobbyRoute::FirstRun => onboarding::render_first_run(&mut buffer, &self.state),
-                LobbyRoute::MatrixLocked => {
-                    onboarding::render_matrix_locked(&mut buffer, self.matrix_frame)
-                }
+                LobbyRoute::MatrixLocked => onboarding::render_matrix_locked(&mut buffer, &self.matrix_rain),
                 LobbyRoute::Locked => onboarding::render_locked(&mut buffer, &self.state),
                 _ => {}
             }
@@ -323,7 +325,7 @@ impl NativeApp for LobbyApp {
     fn on_idle(&mut self) -> bool {
         let now = Instant::now();
         if self.state.route == LobbyRoute::MatrixLocked && now >= self.next_matrix_frame_at {
-            self.matrix_frame = self.matrix_frame.saturating_add(1);
+            self.matrix_rain.advance();
             self.next_matrix_frame_at = now + MATRIX_FRAME_STEP;
             return true;
         }
