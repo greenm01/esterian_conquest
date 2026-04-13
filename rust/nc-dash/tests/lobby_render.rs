@@ -66,6 +66,7 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("Turn"));
     assert!(lines.contains("NOTICES"));
     assert!(lines.contains("THREADS"));
+    assert!(lines.contains("CONTACTS"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
 }
@@ -167,7 +168,7 @@ fn home_route_footer_spans_width_below_columns() {
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find(" INBOX ")
+                .find(" GAME INBOX ")
                 .map(|col| (row, col))
         })
         .expect("inbox title");
@@ -188,10 +189,11 @@ fn home_route_help_popup_renders_as_overlay() {
 
     assert!(lines.contains("LOBBY HELP"));
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
-    assert!(lines.contains("Enter      : open selected game or pop out the focused thread chat"));
+    assert!(lines.contains("Enter      : open selected game"));
     assert!(lines.contains("L          : lock nc-dash"));
     assert!(lines.contains("M          : start inline compose in THREADS"));
-    assert!(lines.contains("C          : open direct contact picker"));
+    assert!(lines.contains("C          : open CONTACTS management"));
+    assert!(lines.contains("Left/Right : switch THREADS between contacts and transcript"));
     assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
@@ -291,6 +293,9 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
         label: "nc_sysop".to_string(),
         nip05: None,
         source: "host".to_string(),
+        blocked: false,
+        unread_count: 2,
+        last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
     }];
     app.state.thread_messages = vec![
         ThreadMessage {
@@ -315,9 +320,13 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
 
     let lines = render_app_lines(app);
 
+    assert!(lines.contains("THREADS (2)"));
+    assert!(lines.contains("CONTACTS"));
     assert!(lines.contains("*** direct: nc_sysop"));
-    assert!(lines.contains("[--:--] <sysop>: hello from the frontier"));
-    assert!(lines.contains("[--:--] <niltempus>: reply acknowledged"));
+    assert!(lines.contains("[--:--] <sysop>:"));
+    assert!(lines.contains("hello"));
+    assert!(lines.contains("frontier"));
+    assert!(lines.contains("[--:--] <niltempus>:"));
     assert!(lines.contains("<niltempus>: draft line"));
 }
 
@@ -330,6 +339,9 @@ fn compose_thread_route_renders_centered_chat_modal() {
         label: "nc_sysop".to_string(),
         nip05: None,
         source: "host".to_string(),
+        blocked: false,
+        unread_count: 0,
+        last_activity_at: None,
     }];
     app.state.thread_composing = true;
     app.state.compose_message_input = "draft".to_string();
@@ -337,7 +349,38 @@ fn compose_thread_route_renders_centered_chat_modal() {
     let lines = render_app_lines(app);
 
     assert!(lines.contains("THREADS"));
+    assert!(lines.contains("CONTACTS"));
     assert!(lines.contains("<niltempus>: draft"));
+}
+
+#[test]
+fn blocked_contacts_are_hidden_from_threads_pane() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.direct_contacts = vec![
+        DirectContactRow {
+            npub: "npub1sysop".to_string(),
+            label: "nc_sysop".to_string(),
+            nip05: None,
+            source: "host".to_string(),
+            blocked: false,
+            unread_count: 1,
+            last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
+        },
+        DirectContactRow {
+            npub: "npub1spam".to_string(),
+            label: "spam".to_string(),
+            nip05: None,
+            source: "manual".to_string(),
+            blocked: true,
+            unread_count: 9,
+            last_activity_at: Some("2026-04-13T22:16:00Z".to_string()),
+        },
+    ];
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("nc_sysop"));
+    assert!(!lines.contains("spam"));
 }
 
 #[test]

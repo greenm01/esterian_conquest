@@ -40,6 +40,9 @@ pub struct ContactEntry {
     pub label: String,
     pub nip05: Option<String>,
     pub source: String,
+    pub blocked: bool,
+    pub unread_count: u32,
+    pub last_activity_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,7 +120,15 @@ impl ClientCache {
             .iter_mut()
             .find(|existing| existing.npub == entry.npub)
         {
-            *existing = entry;
+            let blocked = existing.blocked;
+            let unread_count = existing.unread_count;
+            let last_activity_at = existing.last_activity_at.clone();
+            *existing = ContactEntry {
+                blocked,
+                unread_count,
+                last_activity_at,
+                ..entry
+            };
         } else {
             self.direct_contacts.push(entry);
         }
@@ -165,6 +176,48 @@ impl ClientCache {
                 .cmp(&right.game_id)
                 .then_with(|| left.empire_id.cmp(&right.empire_id))
         });
+    }
+
+    pub fn note_contact_activity(
+        &mut self,
+        npub: &str,
+        created_at: &str,
+        incoming_unread_delta: u32,
+    ) {
+        let Some(contact) = self
+            .direct_contacts
+            .iter_mut()
+            .find(|contact| contact.npub == npub)
+        else {
+            return;
+        };
+        contact.last_activity_at = Some(created_at.to_string());
+        if !contact.blocked {
+            contact.unread_count = contact.unread_count.saturating_add(incoming_unread_delta);
+        }
+    }
+
+    pub fn mark_contact_read(&mut self, npub: &str) {
+        if let Some(contact) = self
+            .direct_contacts
+            .iter_mut()
+            .find(|contact| contact.npub == npub)
+        {
+            contact.unread_count = 0;
+        }
+    }
+
+    pub fn set_contact_blocked(&mut self, npub: &str, blocked: bool) {
+        if let Some(contact) = self
+            .direct_contacts
+            .iter_mut()
+            .find(|contact| contact.npub == npub)
+        {
+            contact.blocked = blocked;
+            if blocked {
+                contact.unread_count = 0;
+            }
+        }
     }
 }
 
@@ -252,6 +305,11 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     label: req_string(node, "label", "contact")?,
                     nip05: opt_string(node, "nip05"),
                     source: req_string(node, "source", "contact")?,
+                    blocked: opt_integer(node, "blocked").unwrap_or(0) != 0,
+                    unread_count: opt_integer(node, "unread-count")
+                        .and_then(|value| u32::try_from(value).ok())
+                        .unwrap_or(0),
+                    last_activity_at: opt_string(node, "last-activity-at"),
                 });
             }
             "contact-message" => {
@@ -362,6 +420,18 @@ pub fn render_cache(cache: &ClientCache) -> String {
         ));
         if let Some(nip05) = contact.nip05.as_deref() {
             out.push_str(&format!(" nip05=\"{}\"", escape(nip05)));
+        }
+        if contact.blocked {
+            out.push_str(" blocked=1");
+        }
+        if contact.unread_count != 0 {
+            out.push_str(&format!(" unread-count={}", contact.unread_count));
+        }
+        if let Some(last_activity_at) = contact.last_activity_at.as_deref() {
+            out.push_str(&format!(
+                " last-activity-at=\"{}\"",
+                escape(last_activity_at)
+            ));
         }
         out.push('\n');
     }

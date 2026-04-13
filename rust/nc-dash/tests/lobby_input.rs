@@ -238,6 +238,9 @@ fn apply_loaded_uses_host_contact_as_games_host_and_default_contact() {
             label: "nc_sysop".to_string(),
             nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
             source: "host".to_string(),
+            blocked: false,
+            unread_count: 0,
+            last_activity_at: None,
         }],
         thread_messages: Vec::new(),
         game_inbox_messages: Vec::new(),
@@ -329,6 +332,9 @@ fn apply_loaded_updates_stale_host_contact_label() {
             label: "niltempus".to_string(),
             nip05: None,
             source: "host".to_string(),
+            blocked: false,
+            unread_count: 0,
+            last_activity_at: None,
         }],
         thread_messages: Vec::new(),
         game_inbox_messages: Vec::new(),
@@ -349,6 +355,9 @@ fn m_starts_inline_thread_compose_without_popup() {
         label: "nc_sysop".to_string(),
         nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
         source: "host".to_string(),
+        blocked: false,
+        unread_count: 0,
+        last_activity_at: None,
     }];
 
     apply_key(&mut app, shift_key(KeyCode::Char('m')));
@@ -359,24 +368,31 @@ fn m_starts_inline_thread_compose_without_popup() {
 }
 
 #[test]
-fn enter_on_thread_focus_opens_centered_thread_modal() {
+fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
         nip05: None,
         source: "host".to_string(),
+        blocked: false,
+        unread_count: 2,
+        last_activity_at: None,
     }];
     app.state.focus = LobbyFocus::Thread;
 
     apply_key(&mut app, key(KeyCode::Enter));
 
-    assert_eq!(app.state.route, LobbyRoute::ComposeThread);
-    assert!(app.state.thread_composing);
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(
+        app.state.thread_pane_focus,
+        nc_dash::lobby::state::ThreadPaneFocus::Transcript
+    );
+    assert_eq!(app.state.direct_contacts[0].unread_count, 0);
 }
 
 #[test]
-fn thread_focus_scrolls_instead_of_selecting_rows() {
+fn second_enter_on_thread_transcript_focus_opens_centered_modal() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
     app.state.direct_contacts = vec![DirectContactRow {
@@ -384,6 +400,65 @@ fn thread_focus_scrolls_instead_of_selecting_rows() {
         label: "nc_sysop".to_string(),
         nip05: None,
         source: "host".to_string(),
+        blocked: false,
+        unread_count: 0,
+        last_activity_at: None,
+    }];
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Transcript;
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::ComposeThread);
+}
+
+#[test]
+fn thread_contact_list_moves_selection_before_transcript_scroll() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::Thread;
+    app.state.direct_contacts = vec![
+        DirectContactRow {
+            npub: "npub1host".to_string(),
+            label: "nc_sysop".to_string(),
+            nip05: None,
+            source: "host".to_string(),
+            blocked: false,
+            unread_count: 0,
+            last_activity_at: None,
+        },
+        DirectContactRow {
+            npub: "npub1ally".to_string(),
+            label: "ally".to_string(),
+            nip05: None,
+            source: "manual".to_string(),
+            blocked: false,
+            unread_count: 4,
+            last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
+        },
+    ];
+    app.state.contact_selected = 0;
+    app.state.contact_picker_selected = 0;
+
+    apply_key(&mut app, key(KeyCode::Down));
+
+    assert_eq!(
+        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        Some("npub1ally")
+    );
+}
+
+#[test]
+fn thread_transcript_scrolls_when_transcript_subfocus_is_active() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::Thread;
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Transcript;
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+        blocked: false,
+        unread_count: 0,
+        last_activity_at: None,
     }];
     app.state.thread_messages = vec![
         ThreadMessage::incoming("npub1sysop", "sysop", "first"),
@@ -403,6 +478,36 @@ fn thread_focus_scrolls_instead_of_selecting_rows() {
     apply_key(&mut app, key(KeyCode::Up));
 
     assert_eq!(app.state.thread_scroll, 1);
+}
+
+#[test]
+fn contact_picker_blocks_selected_contact_locally() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::ContactPicker, ScreenGeometry::new(120, 40));
+    app.state.direct_contacts = vec![
+        DirectContactRow {
+            npub: "npub1sysop".to_string(),
+            label: "nc_sysop".to_string(),
+            nip05: None,
+            source: "host".to_string(),
+            blocked: false,
+            unread_count: 1,
+            last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
+        },
+        DirectContactRow {
+            npub: "npub1ally".to_string(),
+            label: "ally".to_string(),
+            nip05: None,
+            source: "manual".to_string(),
+            blocked: false,
+            unread_count: 0,
+            last_activity_at: None,
+        },
+    ];
+
+    apply_key(&mut app, shift_key(KeyCode::Char('b')));
+
+    assert!(app.state.direct_contacts[0].blocked);
+    assert_eq!(app.state.direct_contacts[0].unread_count, 0);
 }
 
 #[test]

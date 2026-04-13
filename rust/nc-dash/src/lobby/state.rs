@@ -105,6 +105,12 @@ pub enum LobbyFocus {
     Thread,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThreadPaneFocus {
+    Contacts,
+    Transcript,
+}
+
 impl LobbyFocus {
     pub fn next(self) -> Self {
         match self {
@@ -157,6 +163,7 @@ pub struct LobbyState {
     pub contact_selected: usize,
     pub contact_picker_selected: usize,
     pub game_inbox_filter_selected: usize,
+    pub thread_pane_focus: ThreadPaneFocus,
     pub thread_scroll: usize,
     pub thread_composing: bool,
     pub game_inbox_scroll: usize,
@@ -217,6 +224,7 @@ impl LobbyState {
             contact_selected: 0,
             contact_picker_selected: 0,
             game_inbox_filter_selected: 0,
+            thread_pane_focus: ThreadPaneFocus::Contacts,
             thread_scroll: 0,
             thread_composing: false,
             game_inbox_scroll: 0,
@@ -255,6 +263,7 @@ impl LobbyState {
         self.direct_contacts = loaded.direct_contacts;
         self.ensure_host_contacts_present();
         self.sync_host_labels_from_contacts();
+        self.sort_direct_contacts();
         self.thread_messages = loaded.thread_messages;
         self.game_inbox_messages = loaded.game_inbox_messages;
         self.network_status = loaded.network_status;
@@ -278,6 +287,7 @@ impl LobbyState {
         self.contact_picker_selected = self
             .contact_picker_selected
             .min(self.direct_contacts.len().saturating_sub(1));
+        self.sync_visible_contact_selection();
         self.thread_scroll = self.thread_scroll.min(self.visible_thread_messages().len());
         self.game_inbox_scroll = self
             .game_inbox_scroll
@@ -304,9 +314,11 @@ impl LobbyState {
             self.ensure_host_contact(npub.as_deref(), label.as_str());
         }
         self.direct_contacts.sort_by(|left, right| {
-            left.label
-                .to_lowercase()
-                .cmp(&right.label.to_lowercase())
+            right
+                .unread_count
+                .cmp(&left.unread_count)
+                .then_with(|| right.last_activity_at.cmp(&left.last_activity_at))
+                .then_with(|| left.label.to_lowercase().cmp(&right.label.to_lowercase()))
                 .then_with(|| left.npub.cmp(&right.npub))
         });
     }
@@ -360,6 +372,20 @@ impl LobbyState {
             label: label.to_string(),
             nip05: None,
             source: "host".to_string(),
+            blocked: false,
+            unread_count: 0,
+            last_activity_at: None,
+        });
+    }
+
+    fn sort_direct_contacts(&mut self) {
+        self.direct_contacts.sort_by(|left, right| {
+            right
+                .unread_count
+                .cmp(&left.unread_count)
+                .then_with(|| right.last_activity_at.cmp(&left.last_activity_at))
+                .then_with(|| left.label.to_lowercase().cmp(&right.label.to_lowercase()))
+                .then_with(|| left.npub.cmp(&right.npub))
         });
     }
 
@@ -389,6 +415,21 @@ impl LobbyState {
 
     pub fn selected_direct_contact(&self) -> Option<&DirectContactRow> {
         self.direct_contacts.get(self.contact_selected)
+    }
+
+    pub fn visible_direct_contacts(&self) -> Vec<(usize, &DirectContactRow)> {
+        self.direct_contacts
+            .iter()
+            .enumerate()
+            .filter(|(_, contact)| !contact.blocked)
+            .collect()
+    }
+
+    pub fn selected_visible_contact_index(&self) -> Option<usize> {
+        let selected_npub = self.selected_direct_contact()?.npub.as_str();
+        self.visible_direct_contacts()
+            .iter()
+            .position(|(_, contact)| contact.npub == selected_npub)
     }
 
     pub fn game_filter_options(&self) -> Vec<(Option<String>, String)> {
@@ -508,6 +549,7 @@ impl LobbyState {
     }
 
     pub fn reset_thread_view(&mut self) {
+        self.thread_pane_focus = ThreadPaneFocus::Contacts;
         self.thread_scroll = 0;
         self.thread_composing = false;
         self.compose_message_input.clear();
@@ -521,6 +563,7 @@ impl LobbyState {
 
     pub fn sync_default_contact_selection(&mut self) {
         let Some(host_npub) = self.preferred_host_contact_npub() else {
+            self.sync_visible_contact_selection();
             return;
         };
         if let Some(index) = self
@@ -530,6 +573,37 @@ impl LobbyState {
         {
             self.contact_selected = index;
             self.contact_picker_selected = index;
+        }
+        self.sync_visible_contact_selection();
+    }
+
+    pub fn sync_visible_contact_selection(&mut self) {
+        if self
+            .selected_direct_contact()
+            .is_some_and(|contact| !contact.blocked)
+        {
+            return;
+        }
+        if let Some((index, _)) = self.visible_direct_contacts().into_iter().next() {
+            self.contact_selected = index;
+            self.contact_picker_selected = index;
+        }
+    }
+
+    pub fn thread_unread_total(&self) -> u32 {
+        self.direct_contacts
+            .iter()
+            .filter(|contact| !contact.blocked)
+            .map(|contact| contact.unread_count)
+            .sum()
+    }
+
+    pub fn thread_title(&self) -> String {
+        let unread = self.thread_unread_total();
+        if unread == 0 {
+            " THREADS ".to_string()
+        } else {
+            format!(" THREADS ({unread}) ")
         }
     }
 }

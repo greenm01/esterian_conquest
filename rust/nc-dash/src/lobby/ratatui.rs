@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Borders, Clear, Padding, Paragraph, Widget, Wrap};
 
 use crate::lobby::state::{
     LobbyApp, LobbyFocus, LobbyNetworkStatus, LobbyRoute, LobbyState, LobbyStatusTone,
+    ThreadPaneFocus,
 };
 use crate::lobby::threads;
 use crate::overlays::frame::RelativePopupOrigin;
@@ -41,6 +42,7 @@ pub struct HomeLayout {
 pub struct PaneHit {
     pub focus: LobbyFocus,
     pub selected_row: Option<usize>,
+    pub thread_pane_focus: Option<ThreadPaneFocus>,
 }
 
 pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
@@ -378,10 +380,14 @@ fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
         } else {
             " "
         };
-        let detail = contact
-            .nip05
-            .clone()
-            .unwrap_or_else(|| contact.source.clone());
+        let detail = if contact.blocked {
+            "blocked".to_string()
+        } else {
+            contact
+                .nip05
+                .clone()
+                .unwrap_or_else(|| contact.source.clone())
+        };
         let style = if app.state.contact_picker_selected == offset {
             styles.selected
         } else {
@@ -399,7 +405,7 @@ fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
         buffer.set_stringn(
             inner.x,
             footer_row,
-            "Enter selects   A adds contact   Esc closes",
+            "Enter selects   A adds   B blocks/unblocks   Esc closes",
             inner.width as usize,
             with_panel_bg(styles.dim),
         );
@@ -447,11 +453,12 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
         [
             "Tab        : cycle focus across lobby panels",
             "J / K      : move within the focused panel",
-            "Enter      : open selected game or pop out the focused thread chat",
+            "Enter      : open selected game or activate the selected thread buffer",
             "L          : lock nc-dash",
             "N          : compose an invite request",
             "M          : start inline compose in THREADS",
-            "C          : open direct contact picker",
+            "C          : open CONTACTS management",
+            "Left/Right : switch THREADS between contacts and transcript",
             "F          : cycle GAME INBOX filter",
             "S          : open lobby settings, including handle and idle lock",
             "R          : refresh the hosted lobby",
@@ -512,9 +519,27 @@ fn pane_hit(
         return None;
     }
     if focus == LobbyFocus::Thread {
+        let content = padded_inner(area);
+        let split = thread_surface_layout(content);
+        let selected_row = if contains(split.contacts, column, row) {
+            clicked_row(
+                state.visible_direct_contacts().len(),
+                split.contacts,
+                state.selected_visible_contact_index().unwrap_or(0),
+                row,
+                1,
+            )
+        } else {
+            None
+        };
         return Some(PaneHit {
             focus,
-            selected_row: None,
+            selected_row,
+            thread_pane_focus: Some(if contains(split.contacts, column, row) {
+                ThreadPaneFocus::Contacts
+            } else {
+                ThreadPaneFocus::Transcript
+            }),
         });
     }
     let content = padded_inner(area);
@@ -529,7 +554,11 @@ fn pane_hit(
     } else {
         None
     };
-    Some(PaneHit { focus, selected_row })
+    Some(PaneHit {
+        focus,
+        selected_row,
+        thread_pane_focus: None,
+    })
 }
 
 fn focus_rows(state: &LobbyState, focus: LobbyFocus) -> Vec<String> {
@@ -808,7 +837,8 @@ struct ThreadWidget<'a> {
 
 impl Widget for ThreadWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let block = panel_block(" THREADS ", self.state.focus == LobbyFocus::Thread);
+        let title = self.state.thread_title();
+        let block = panel_block(&title, self.state.focus == LobbyFocus::Thread);
         let inner = block.inner(area);
         block.render(area, buffer);
         if inner.width == 0 || inner.height == 0 {
@@ -923,11 +953,9 @@ fn render_thread_surface(
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let styles = theme::tui_theme();
-    let [history_area, prompt_area] =
-        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
-    render_thread_history(buffer, history_area, state, modal);
-    render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
+    let split = thread_surface_layout(area);
+    render_thread_contacts(buffer, split.contacts, state);
+    render_thread_history(buffer, split.transcript, state, modal);
 }
 
 fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, modal: bool) {
@@ -935,18 +963,26 @@ fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, mo
         return;
     }
     let styles = theme::tui_theme();
+    let [history_area, prompt_area] =
+        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
     let context_line = format!("*** direct: {}", state.direct_thread_context_display());
     buffer.set_stringn(
-        area.x,
-        area.y,
+        history_area.x,
+        history_area.y,
         &context_line,
-        area.width as usize,
+        history_area.width as usize,
         with_panel_bg(styles.dim),
     );
-    if area.height <= 1 {
+    if history_area.height <= 1 {
+        render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
         return;
     }
-    let transcript_area = Rect::new(area.x, area.y + 1, area.width, area.height - 1);
+    let transcript_area = Rect::new(
+        history_area.x,
+        history_area.y + 1,
+        history_area.width,
+        history_area.height - 1,
+    );
     let lines = threads::direct_thread_render_lines(state, transcript_area.width as usize);
     if lines.is_empty() {
         buffer.set_stringn(
@@ -956,6 +992,7 @@ fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, mo
             transcript_area.width as usize,
             with_panel_bg(styles.dim),
         );
+        render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
         return;
     }
     let visible_rows = transcript_area.height as usize;
@@ -987,6 +1024,7 @@ fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, mo
             with_panel_bg(styles.dim),
         );
     }
+    render_thread_prompt(buffer, prompt_area, state, modal, styles.dim);
 }
 
 fn render_thread_prompt(
@@ -1005,10 +1043,12 @@ fn render_thread_prompt(
     let nick_style = self_nick_style();
     let prompt_text = if state.thread_composing {
         state.compose_message_input.as_str()
+    } else if state.thread_pane_focus == ThreadPaneFocus::Contacts && !modal {
+        "Right enters transcript"
     } else if modal {
         ""
     } else {
-        "press C to choose contact"
+        "Enter pops out chat"
     };
     let prompt_style = if state.thread_composing || modal {
         with_panel_bg(styles.value)
@@ -1021,6 +1061,87 @@ fn render_thread_prompt(
     if remaining > 0 {
         buffer.set_stringn(col, area.y, prompt_text, remaining, prompt_style);
     }
+}
+
+fn render_thread_contacts(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    let [header_area, list_area] =
+        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
+    buffer.set_stringn(
+        header_area.x,
+        header_area.y,
+        "CONTACTS",
+        header_area.width as usize,
+        with_panel_bg(styles.label),
+    );
+    let visible = state.visible_direct_contacts();
+    if visible.is_empty() {
+        if list_area.height > 0 {
+            buffer.set_stringn(
+                list_area.x,
+                list_area.y,
+                "<no direct contacts>",
+                list_area.width as usize,
+                with_panel_bg(styles.dim),
+            );
+        }
+        return;
+    }
+
+    let selected = state.selected_visible_contact_index().unwrap_or(0);
+    let scroll = scroll_offset(visible.len(), list_area.height as usize, selected);
+    for (offset, (absolute_index, contact)) in visible
+        .iter()
+        .skip(scroll)
+        .take(list_area.height as usize)
+        .enumerate()
+    {
+        let row = list_area.y + offset as u16;
+        let style = if state.thread_pane_focus == ThreadPaneFocus::Contacts
+            && state.focus == LobbyFocus::Thread
+            && selected == scroll + offset
+        {
+            styles.selected
+        } else if state.contact_selected == *absolute_index {
+            with_panel_bg(styles.accent)
+        } else {
+            with_panel_bg(styles.value)
+        };
+        let unread = if contact.unread_count == 0 {
+            String::new()
+        } else {
+            format!(" {}", contact.unread_count)
+        };
+        let label = format_contact_list_label(contact, list_area.width as usize, &unread);
+        buffer.set_stringn(list_area.x, row, &label, list_area.width as usize, style);
+    }
+}
+
+fn format_contact_list_label(
+    contact: &super::models::DirectContactRow,
+    width: usize,
+    unread_suffix: &str,
+) -> String {
+    let max_label = width.saturating_sub(unread_suffix.len()).max(1);
+    let label = contact.label.chars().take(max_label).collect::<String>();
+    format!("{label:<max_label$}{unread_suffix}")
+}
+
+#[derive(Clone, Copy)]
+struct ThreadSurfaceLayout {
+    contacts: Rect,
+    transcript: Rect,
+}
+
+fn thread_surface_layout(area: Rect) -> ThreadSurfaceLayout {
+    let [contacts, transcript] =
+        Layout::horizontal([Constraint::Length(20), Constraint::Min(0)])
+            .spacing(1)
+            .areas(area);
+    ThreadSurfaceLayout { contacts, transcript }
 }
 
 fn render_game_inbox_surface(

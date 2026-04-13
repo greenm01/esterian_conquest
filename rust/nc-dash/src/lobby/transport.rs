@@ -435,6 +435,9 @@ impl LobbyTransport {
             label: resolved.label.clone(),
             nip05: resolved.nip05.clone(),
             source: "manual".to_string(),
+            blocked: false,
+            unread_count: 0,
+            last_activity_at: None,
         });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok((
@@ -474,10 +477,56 @@ impl LobbyTransport {
             outgoing: true,
             created_at: iso8601_from_secs(payload.created_at),
         });
+        let created_at = iso8601_from_secs(payload.created_at);
+        unlocked
+            .cache
+            .note_contact_activity(contact_npub, &created_at, 0);
+        unlocked.cache.mark_contact_read(contact_npub);
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
             Some("Encrypted direct message sent.".to_string()),
+            LobbyStatusTone::Success,
+            None,
+        ))
+    }
+
+    pub fn mark_direct_contact_read(
+        &mut self,
+        contact_npub: &str,
+    ) -> Result<LobbyLoadedState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        unlocked.cache.mark_contact_read(contact_npub);
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        Ok(build_loaded_state(
+            unlocked,
+            None,
+            LobbyStatusTone::Info,
+            None,
+        ))
+    }
+
+    pub fn set_direct_contact_blocked(
+        &mut self,
+        contact_npub: &str,
+        blocked: bool,
+    ) -> Result<LobbyLoadedState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        unlocked.cache.set_contact_blocked(contact_npub, blocked);
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        Ok(build_loaded_state(
+            unlocked,
+            Some(if blocked {
+                "Direct contact blocked locally.".to_string()
+            } else {
+                "Direct contact restored locally.".to_string()
+            }),
             LobbyStatusTone::Success,
             None,
         ))
@@ -732,6 +781,7 @@ fn apply_direct_message(
     unlocked: &mut UnlockedClient,
     message: nc_nostr::contact_message::ContactMessage,
 ) {
+    let sender_npub = message.sender_npub.clone();
     let current_npub: String = active_keys(&unlocked.keychain)
         .ok()
         .and_then(|keys| hex_to_npub(&keys.public_key().to_hex()))
@@ -741,27 +791,31 @@ fn apply_direct_message(
     } else {
         message.sender_npub.clone()
     };
-    if message.sender_npub != current_npub {
+    if sender_npub != current_npub {
         maybe_cache_host_contact(
             &mut unlocked.cache,
-            Some(&message.sender_npub),
+            Some(&sender_npub),
             message.sender_label.as_deref(),
             None,
         );
     }
     unlocked.cache.upsert_contact_message(ContactMessageEntry {
         message_id: message.message_id,
-        contact_npub: if message.sender_npub == current_npub {
+        contact_npub: if sender_npub == current_npub {
             contact_npub
         } else {
-            message.sender_npub.clone()
+            sender_npub.clone()
         },
-        sender_npub: message.sender_npub,
+        sender_npub: sender_npub.clone(),
         sender_label: message.sender_label,
         body: message.body,
         outgoing: false,
         created_at: iso8601_from_secs(message.created_at),
     });
+    let created_at = iso8601_from_secs(message.created_at);
+    unlocked
+        .cache
+        .note_contact_activity(&sender_npub, &created_at, 1);
 }
 
 fn apply_game_inbox_messages(
@@ -958,7 +1012,7 @@ fn build_loaded_state(
         })
         .collect::<Vec<_>>();
 
-    let direct_contacts = unlocked
+    let mut direct_contacts = unlocked
         .cache
         .direct_contacts
         .iter()
@@ -967,8 +1021,19 @@ fn build_loaded_state(
             label: entry.label.clone(),
             nip05: entry.nip05.clone(),
             source: entry.source.clone(),
+            blocked: entry.blocked,
+            unread_count: entry.unread_count,
+            last_activity_at: entry.last_activity_at.clone(),
         })
         .collect::<Vec<_>>();
+    direct_contacts.sort_by(|left, right| {
+        right
+            .unread_count
+            .cmp(&left.unread_count)
+            .then_with(|| right.last_activity_at.cmp(&left.last_activity_at))
+            .then_with(|| left.label.to_lowercase().cmp(&right.label.to_lowercase()))
+            .then_with(|| left.npub.cmp(&right.npub))
+    });
 
     let thread_messages = unlocked
         .cache
@@ -1112,6 +1177,9 @@ fn maybe_cache_host_contact(
             .filter(|value| !value.is_empty())
             .map(str::to_string),
         source: "host".to_string(),
+        blocked: false,
+        unread_count: 0,
+        last_activity_at: None,
     });
 }
 

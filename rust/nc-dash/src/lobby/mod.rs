@@ -20,7 +20,7 @@ use crate::native::NativeApp;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
-use self::state::{LobbyFocus, LobbyMouseGesture, LobbyRoute};
+use self::state::{LobbyFocus, LobbyMouseGesture, LobbyRoute, ThreadPaneFocus};
 
 pub use self::state::LobbyApp;
 
@@ -228,6 +228,15 @@ impl LobbyApp {
                 }
             }
             LobbyFocus::Thread => {
+                if let Some(selected) = hit.selected_row {
+                    let visible = self.state.visible_direct_contacts();
+                    if let Some((absolute_index, _)) = visible.get(selected) {
+                        self.state.contact_selected = *absolute_index;
+                    }
+                }
+                self.state.thread_pane_focus =
+                    hit.thread_pane_focus.unwrap_or(ThreadPaneFocus::Transcript);
+                self.state.thread_scroll = 0;
                 self.state.thread_composing = false;
             }
         }
@@ -384,6 +393,24 @@ impl NativeApp for LobbyApp {
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
                 self.state.apply_loaded(loaded);
+                if self.state.focus == LobbyFocus::Thread
+                    && self.state.thread_pane_focus == ThreadPaneFocus::Transcript
+                    && self.state.thread_scroll == 0
+                    && self
+                        .state
+                        .selected_direct_contact()
+                        .is_some_and(|contact| contact.unread_count > 0)
+                {
+                    if let Some(contact_npub) = self
+                        .state
+                        .selected_direct_contact()
+                        .map(|contact| contact.npub.clone())
+                    {
+                        if let Ok(loaded) = self.transport.mark_direct_contact_read(&contact_npub) {
+                            self.state.apply_loaded(loaded);
+                        }
+                    }
+                }
                 if self.state.show_resume_sync_overlay
                     && self.state.network_status == state::LobbyNetworkStatus::Synced
                 {

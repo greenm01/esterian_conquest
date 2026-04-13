@@ -4,7 +4,7 @@ use super::hosted::dashboard::build_hosted_dash_app;
 use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use super::state::{
     FirstRunField, HostedGameView, KeychainGateMode, LobbyApp, LobbyFocus, LobbyNetworkStatus,
-    LobbyRoute, LobbyStatusTone,
+    LobbyRoute, LobbyStatusTone, ThreadPaneFocus,
 };
 use crate::theme;
 
@@ -71,7 +71,14 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             }
             LobbyFocus::JoinedGames => open_or_claim_selected_game(app),
             LobbyFocus::Inbox => open_game_inbox_modal(app),
-            LobbyFocus::Thread => open_thread_modal(app),
+            LobbyFocus::Thread => {
+                if app.state.thread_pane_focus == ThreadPaneFocus::Contacts {
+                    activate_selected_direct_contact(app);
+                    app.state.thread_pane_focus = ThreadPaneFocus::Transcript;
+                } else {
+                    open_thread_modal(app);
+                }
+            }
             LobbyFocus::Notices => {}
         },
         KeyCode::Tab => {
@@ -94,6 +101,18 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         KeyCode::Char('l' | 'L') => app.enter_session_lock(),
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
+        KeyCode::Right => {
+            if app.state.focus == LobbyFocus::Thread {
+                activate_selected_direct_contact(app);
+                app.state.thread_pane_focus = ThreadPaneFocus::Transcript;
+            }
+        }
+        KeyCode::Left => {
+            if app.state.focus == LobbyFocus::Thread {
+                app.state.thread_pane_focus = ThreadPaneFocus::Contacts;
+                app.state.thread_composing = false;
+            }
+        }
         KeyCode::Char('?') => {
             app.state.show_help = true;
             app.popup_position = None;
@@ -296,11 +315,9 @@ fn handle_contact_picker_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.add_contact_input.clear();
             open_popup_route(app, LobbyRoute::AddContact);
         }
+        KeyCode::Char('b' | 'B') => toggle_selected_contact_block(app),
         KeyCode::Enter => {
-            if app.state.contact_picker_selected < app.state.direct_contacts.len() {
-                app.state.contact_selected = app.state.contact_picker_selected;
-            }
-            close_popup_route(app, LobbyRoute::Home);
+            activate_contact_picker_selection(app);
         }
         _ => {}
     }
@@ -631,6 +648,8 @@ fn start_inline_thread_compose(app: &mut LobbyApp) {
         return;
     }
     app.state.focus = LobbyFocus::Thread;
+    activate_selected_direct_contact(app);
+    app.state.thread_pane_focus = ThreadPaneFocus::Transcript;
     app.state.thread_composing = true;
     app.state.thread_scroll = 0;
     app.state.compose_message_input.clear();
@@ -647,9 +666,95 @@ fn open_thread_modal(app: &mut LobbyApp) {
         return;
     }
     app.state.focus = LobbyFocus::Thread;
-    app.state.thread_composing = true;
+    activate_selected_direct_contact(app);
+    app.state.thread_pane_focus = ThreadPaneFocus::Transcript;
     app.state.thread_scroll = 0;
     open_popup_route(app, LobbyRoute::ComposeThread);
+}
+
+fn activate_selected_direct_contact(app: &mut LobbyApp) {
+    let Some(contact_npub) = app
+        .state
+        .selected_direct_contact()
+        .map(|contact| contact.npub.clone())
+    else {
+        return;
+    };
+    match app.transport.mark_direct_contact_read(&contact_npub) {
+        Ok(loaded) => app.state.apply_loaded(loaded),
+        Err(err) if err == "keychain is locked" => {
+            if let Some(contact) = app
+                .state
+                .direct_contacts
+                .iter_mut()
+                .find(|contact| contact.npub == contact_npub)
+            {
+                contact.unread_count = 0;
+            }
+        }
+        Err(err) => set_status(app, LobbyStatusTone::Error, err),
+    }
+}
+
+fn activate_contact_picker_selection(app: &mut LobbyApp) {
+    if app.state.contact_picker_selected >= app.state.direct_contacts.len() {
+        close_popup_route(app, LobbyRoute::Home);
+        return;
+    }
+    if app.state.direct_contacts[app.state.contact_picker_selected].blocked {
+        set_status(
+            app,
+            LobbyStatusTone::Info,
+            "Unblock this contact first.".to_string(),
+        );
+        return;
+    }
+    app.state.contact_selected = app.state.contact_picker_selected;
+    app.state.thread_scroll = 0;
+    app.state.thread_composing = false;
+    activate_selected_direct_contact(app);
+    close_popup_route(app, LobbyRoute::Home);
+}
+
+fn toggle_selected_contact_block(app: &mut LobbyApp) {
+    let Some(contact) = app
+        .state
+        .direct_contacts
+        .get(app.state.contact_picker_selected)
+        .cloned()
+    else {
+        return;
+    };
+    match app
+        .transport
+        .set_direct_contact_blocked(&contact.npub, !contact.blocked)
+    {
+        Ok(loaded) => {
+            app.state.apply_loaded(loaded);
+            app.state.contact_picker_selected = app
+                .state
+                .direct_contacts
+                .iter()
+                .position(|entry| entry.npub == contact.npub)
+                .unwrap_or(0)
+                .min(app.state.direct_contacts.len().saturating_sub(1));
+        }
+        Err(err) if err == "keychain is locked" => {
+            if let Some(entry) = app
+                .state
+                .direct_contacts
+                .iter_mut()
+                .find(|entry| entry.npub == contact.npub)
+            {
+                entry.blocked = !entry.blocked;
+                if entry.blocked {
+                    entry.unread_count = 0;
+                }
+            }
+            app.state.sync_visible_contact_selection();
+        }
+        Err(err) => set_status(app, LobbyStatusTone::Error, err),
+    }
 }
 
 fn open_game_inbox_modal(app: &mut LobbyApp) {
@@ -867,7 +972,9 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
 
 fn move_selection(app: &mut LobbyApp, delta: isize) {
     if app.state.focus == LobbyFocus::Thread {
-        if delta < 0 {
+        if app.state.thread_pane_focus == ThreadPaneFocus::Contacts {
+            move_thread_contact_selection(app, delta);
+        } else if delta < 0 {
             scroll_thread(app, 1);
         } else if delta > 0 {
             scroll_thread(app, -1);
@@ -904,6 +1011,19 @@ fn scroll_thread(app: &mut LobbyApp, delta: isize) {
     } else {
         app.state.thread_scroll = app.state.thread_scroll.saturating_add(delta as usize);
     }
+}
+
+fn move_thread_contact_selection(app: &mut LobbyApp, delta: isize) {
+    let visible = app.state.visible_direct_contacts();
+    if visible.is_empty() {
+        return;
+    }
+    let selected_visible = app.state.selected_visible_contact_index().unwrap_or(0);
+    let next = (selected_visible as isize + delta)
+        .clamp(0, visible.len().saturating_sub(1) as isize) as usize;
+    app.state.contact_selected = visible[next].0;
+    app.state.thread_scroll = 0;
+    app.state.thread_composing = false;
 }
 
 fn scroll_game_inbox(app: &mut LobbyApp, delta: isize) {
