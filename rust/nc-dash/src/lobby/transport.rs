@@ -436,6 +436,7 @@ impl LobbyTransport {
             nip05: resolved.nip05.clone(),
             source: "manual".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 0,
             last_activity_at: None,
         });
@@ -526,6 +527,29 @@ impl LobbyTransport {
                 "Direct contact blocked locally.".to_string()
             } else {
                 "Direct contact restored locally.".to_string()
+            }),
+            LobbyStatusTone::Success,
+            None,
+        ))
+    }
+
+    pub fn set_direct_contact_hidden(
+        &mut self,
+        contact_npub: &str,
+        hidden: bool,
+    ) -> Result<LobbyLoadedState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        unlocked.cache.set_contact_hidden(contact_npub, hidden);
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        Ok(build_loaded_state(
+            unlocked,
+            Some(if hidden {
+                "Conversation hidden locally.".to_string()
+            } else {
+                "Conversation restored locally.".to_string()
             }),
             LobbyStatusTone::Success,
             None,
@@ -1022,6 +1046,7 @@ fn build_loaded_state(
             nip05: entry.nip05.clone(),
             source: entry.source.clone(),
             blocked: entry.blocked,
+            hidden: entry.hidden,
             unread_count: entry.unread_count,
             last_activity_at: entry.last_activity_at.clone(),
         })
@@ -1178,6 +1203,7 @@ fn maybe_cache_host_contact(
             .map(str::to_string),
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 0,
         last_activity_at: None,
     });

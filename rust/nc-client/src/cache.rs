@@ -41,6 +41,7 @@ pub struct ContactEntry {
     pub nip05: Option<String>,
     pub source: String,
     pub blocked: bool,
+    pub hidden: bool,
     pub unread_count: u32,
     pub last_activity_at: Option<String>,
 }
@@ -121,10 +122,12 @@ impl ClientCache {
             .find(|existing| existing.npub == entry.npub)
         {
             let blocked = existing.blocked;
+            let hidden = existing.hidden;
             let unread_count = existing.unread_count;
             let last_activity_at = existing.last_activity_at.clone();
             *existing = ContactEntry {
                 blocked,
+                hidden,
                 unread_count,
                 last_activity_at,
                 ..entry
@@ -193,6 +196,9 @@ impl ClientCache {
         };
         contact.last_activity_at = Some(created_at.to_string());
         if !contact.blocked {
+            if incoming_unread_delta != 0 {
+                contact.hidden = false;
+            }
             contact.unread_count = contact.unread_count.saturating_add(incoming_unread_delta);
         }
     }
@@ -215,6 +221,19 @@ impl ClientCache {
         {
             contact.blocked = blocked;
             if blocked {
+                contact.unread_count = 0;
+            }
+        }
+    }
+
+    pub fn set_contact_hidden(&mut self, npub: &str, hidden: bool) {
+        if let Some(contact) = self
+            .direct_contacts
+            .iter_mut()
+            .find(|contact| contact.npub == npub)
+        {
+            contact.hidden = hidden;
+            if hidden {
                 contact.unread_count = 0;
             }
         }
@@ -306,6 +325,7 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     nip05: opt_string(node, "nip05"),
                     source: req_string(node, "source", "contact")?,
                     blocked: opt_integer(node, "blocked").unwrap_or(0) != 0,
+                    hidden: opt_integer(node, "hidden").unwrap_or(0) != 0,
                     unread_count: opt_integer(node, "unread-count")
                         .and_then(|value| u32::try_from(value).ok())
                         .unwrap_or(0),
@@ -423,6 +443,9 @@ pub fn render_cache(cache: &ClientCache) -> String {
         }
         if contact.blocked {
             out.push_str(" blocked=1");
+        }
+        if contact.hidden {
+            out.push_str(" hidden=1");
         }
         if contact.unread_count != 0 {
             out.push_str(&format!(" unread-count={}", contact.unread_count));

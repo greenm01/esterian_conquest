@@ -130,6 +130,7 @@ pub struct DirectContactRow {
     pub nip05: Option<String>,
     pub source: String,
     pub blocked: bool,
+    pub hidden: bool,
     pub unread_count: u32,
     pub last_activity_at: Option<String>,
 }

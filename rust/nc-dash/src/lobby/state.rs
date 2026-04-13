@@ -373,6 +373,7 @@ impl LobbyState {
             nip05: None,
             source: "host".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 0,
             last_activity_at: None,
         });
@@ -418,6 +419,14 @@ impl LobbyState {
     }
 
     pub fn visible_direct_contacts(&self) -> Vec<(usize, &DirectContactRow)> {
+        self.direct_contacts
+            .iter()
+            .enumerate()
+            .filter(|(_, contact)| !contact.blocked && !contact.hidden)
+            .collect()
+    }
+
+    pub fn selectable_direct_contacts(&self) -> Vec<(usize, &DirectContactRow)> {
         self.direct_contacts
             .iter()
             .enumerate()
@@ -580,7 +589,7 @@ impl LobbyState {
     pub fn sync_visible_contact_selection(&mut self) {
         if self
             .selected_direct_contact()
-            .is_some_and(|contact| !contact.blocked)
+            .is_some_and(|contact| !contact.blocked && !contact.hidden)
         {
             return;
         }
@@ -593,18 +602,9 @@ impl LobbyState {
     pub fn thread_unread_total(&self) -> u32 {
         self.direct_contacts
             .iter()
-            .filter(|contact| !contact.blocked)
+            .filter(|contact| !contact.blocked && !contact.hidden)
             .map(|contact| contact.unread_count)
             .sum()
-    }
-
-    pub fn thread_title(&self) -> String {
-        let unread = self.thread_unread_total();
-        if unread == 0 {
-            " THREADS ".to_string()
-        } else {
-            format!(" THREADS ({unread}) ")
-        }
     }
 }
 

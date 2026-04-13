@@ -382,6 +382,8 @@ fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
         };
         let detail = if contact.blocked {
             "blocked".to_string()
+        } else if contact.hidden {
+            "hidden".to_string()
         } else {
             contact
                 .nip05
@@ -405,7 +407,7 @@ fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
         buffer.set_stringn(
             inner.x,
             footer_row,
-            "Enter selects   A adds   B blocks/unblocks   Esc closes",
+            "Enter selects/restores   A adds   B blocks   D hides   Esc closes",
             inner.width as usize,
             with_panel_bg(styles.dim),
         );
@@ -456,9 +458,10 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
             "Enter      : open selected game or activate the selected thread buffer",
             "L          : lock nc-dash",
             "N          : compose an invite request",
-            "M          : start inline compose in THREADS",
-            "C          : open CONTACTS management",
-            "Left/Right : switch THREADS between contacts and transcript",
+            "M          : start inline compose in the THREAD box",
+            "A / C      : open ADDRESS BOOK from THREADS",
+            "[ / ]      : switch THREADS between contacts and thread",
+            "Delete     : hide the selected THREADS conversation",
             "F          : cycle GAME INBOX filter",
             "S          : open lobby settings, including handle and idle lock",
             "R          : refresh the hosted lobby",
@@ -519,12 +522,12 @@ fn pane_hit(
         return None;
     }
     if focus == LobbyFocus::Thread {
-        let content = padded_inner(area);
-        let split = thread_surface_layout(content);
+        let split = thread_workspace_layout(area);
         let selected_row = if contains(split.contacts, column, row) {
+            let content = padded_inner(split.contacts);
             clicked_row(
                 state.visible_direct_contacts().len(),
-                split.contacts,
+                content,
                 state.selected_visible_contact_index().unwrap_or(0),
                 row,
                 1,
@@ -537,8 +540,10 @@ fn pane_hit(
             selected_row,
             thread_pane_focus: Some(if contains(split.contacts, column, row) {
                 ThreadPaneFocus::Contacts
-            } else {
+            } else if contains(split.conversation, column, row) {
                 ThreadPaneFocus::Transcript
+            } else {
+                state.thread_pane_focus
             }),
         });
     }
@@ -837,14 +842,7 @@ struct ThreadWidget<'a> {
 
 impl Widget for ThreadWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let title = self.state.thread_title();
-        let block = panel_block(&title, self.state.focus == LobbyFocus::Thread);
-        let inner = block.inner(area);
-        block.render(area, buffer);
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-        render_thread_surface(buffer, inner, self.state, false);
+        render_thread_surface(buffer, area, self.state, false);
     }
 }
 
@@ -953,9 +951,10 @@ fn render_thread_surface(
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let split = thread_surface_layout(area);
+    let split = thread_workspace_layout(area);
     render_thread_contacts(buffer, split.contacts, state);
-    render_thread_history(buffer, split.transcript, state, modal);
+    render_thread_history(buffer, split.conversation, state, modal);
+    render_thread_footer(buffer, split.footer, state);
 }
 
 fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, modal: bool) {
@@ -963,8 +962,15 @@ fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, mo
         return;
     }
     let styles = theme::tui_theme();
+    let title = format!(" THREAD: {} ", truncate_title(&state.direct_thread_context_display(), 24));
+    let block = panel_block(&title, state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Transcript);
+    let inner = block.inner(area);
+    block.render(area, buffer);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
     let [history_area, prompt_area] =
-        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
+        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner);
     let context_line = format!("*** direct: {}", state.direct_thread_context_display());
     buffer.set_stringn(
         history_area.x,
@@ -1044,7 +1050,7 @@ fn render_thread_prompt(
     let prompt_text = if state.thread_composing {
         state.compose_message_input.as_str()
     } else if state.thread_pane_focus == ThreadPaneFocus::Contacts && !modal {
-        "Right enters transcript"
+        "] enters thread"
     } else if modal {
         ""
     } else {
@@ -1068,12 +1074,23 @@ fn render_thread_contacts(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
         return;
     }
     let styles = theme::tui_theme();
+    let title = if state.thread_unread_total() == 0 {
+        " CONTACTS ".to_string()
+    } else {
+        format!(" CONTACTS ({}) ", state.thread_unread_total())
+    };
+    let block = panel_block(&title, state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Contacts);
+    let inner = block.inner(area);
+    block.render(area, buffer);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
     let [header_area, list_area] =
-        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
+        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
     buffer.set_stringn(
         header_area.x,
         header_area.y,
-        "CONTACTS",
+        "Buffers",
         header_area.width as usize,
         with_panel_bg(styles.label),
     );
@@ -1131,17 +1148,84 @@ fn format_contact_list_label(
 }
 
 #[derive(Clone, Copy)]
-struct ThreadSurfaceLayout {
+struct ThreadWorkspaceLayout {
     contacts: Rect,
-    transcript: Rect,
+    conversation: Rect,
+    footer: Rect,
 }
 
-fn thread_surface_layout(area: Rect) -> ThreadSurfaceLayout {
-    let [contacts, transcript] =
+fn thread_workspace_layout(area: Rect) -> ThreadWorkspaceLayout {
+    let [top, footer] = Layout::vertical([Constraint::Min(0), Constraint::Length(5)])
+        .spacing(1)
+        .areas(area);
+    let [contacts, conversation] =
         Layout::horizontal([Constraint::Length(20), Constraint::Min(0)])
             .spacing(1)
-            .areas(area);
-    ThreadSurfaceLayout { contacts, transcript }
+            .areas(top);
+    ThreadWorkspaceLayout {
+        contacts,
+        conversation,
+        footer,
+    }
+}
+
+fn render_thread_footer(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let focused = state.focus == LobbyFocus::Thread;
+    let block = panel_block(" THREAD MENU ", focused);
+    let inner = block.inner(area);
+    block.render(area, buffer);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    render_thread_footer_tokens(buffer, inner, focused);
+}
+
+fn render_thread_footer_tokens(buffer: &mut Buffer, area: Rect, focused: bool) {
+    let styles = theme::tui_theme();
+    let text_style = if focused {
+        with_panel_bg(styles.menu)
+    } else {
+        with_panel_bg(styles.dim)
+    };
+    let hotkey_style = if focused {
+        with_panel_bg(styles.menu_hotkey)
+    } else {
+        with_panel_bg(styles.dim.add_modifier(Modifier::BOLD))
+    };
+    let tokens = [
+        FooterToken::leading("A", ">ddrBook"),
+        FooterToken::leading("[", " Pane"),
+        FooterToken::leading("]", " Pane"),
+        FooterToken::literal("J/K Move"),
+        FooterToken::leading("M", ">essage"),
+        FooterToken::leading("D", ">elete"),
+        FooterToken::literal("Enter Popout"),
+    ];
+    let gap = 2usize;
+    let total_width = tokens.iter().map(FooterToken::width).sum::<usize>()
+        + gap * tokens.len().saturating_sub(1);
+    let start = area.x + area.width.saturating_sub(total_width as u16) / 2;
+    let row = area.y;
+    let mut col = start;
+    for (idx, token) in tokens.iter().enumerate() {
+        if idx > 0 {
+            buffer.set_stringn(col, row, "  ", 2, text_style);
+            col += 2;
+        }
+        col = token.render(buffer, row, col, text_style, hotkey_style) as u16;
+    }
+}
+
+fn truncate_title(text: &str, limit: usize) -> String {
+    let trimmed = text.trim();
+    if trimmed.chars().count() <= limit {
+        return trimmed.to_string();
+    }
+    let keep = limit.saturating_sub(1);
+    format!("{}…", trimmed.chars().take(keep).collect::<String>())
 }
 
 fn render_game_inbox_surface(
@@ -1763,6 +1847,14 @@ impl FooterToken {
             prefix,
             hotkey,
             suffix,
+        }
+    }
+
+    const fn literal(text: &'static str) -> Self {
+        Self {
+            prefix: text,
+            hotkey: "",
+            suffix: "",
         }
     }
 

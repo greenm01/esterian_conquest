@@ -65,8 +65,8 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("Seats"));
     assert!(lines.contains("Turn"));
     assert!(lines.contains("NOTICES"));
-    assert!(lines.contains("THREADS"));
     assert!(lines.contains("CONTACTS"));
+    assert!(lines.contains("THREAD MENU"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
 }
@@ -191,10 +191,10 @@ fn home_route_help_popup_renders_as_overlay() {
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
     assert!(lines.contains("Enter      : open selected game"));
     assert!(lines.contains("L          : lock nc-dash"));
-    assert!(lines.contains("M          : start inline compose in THREADS"));
-    assert!(lines.contains("C          : open CONTACTS management"));
-    assert!(lines.contains("Left/Right : switch THREADS between contacts and transcript"));
-    assert!(lines.contains("? / Esc    : close this help popup"));
+    assert!(lines.contains("M          : start inline compose in the THREAD box"));
+    assert!(lines.contains("A / C      : open ADDRESS BOOK from THREADS"));
+    assert!(lines.contains("[ / ]      : switch THREADS between contacts and thread"));
+    assert!(lines.contains("Delete     : hide the selected THREADS conversation"));
 }
 
 #[test]
@@ -294,6 +294,7 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
         nip05: None,
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 2,
         last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
     }];
@@ -320,12 +321,12 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("THREADS (2)"));
     assert!(lines.contains("CONTACTS"));
+    assert!(lines.contains("CONTACTS (2)"));
+    assert!(lines.contains("THREAD: nc_sysop"));
+    assert!(lines.contains("THREAD MENU"));
     assert!(lines.contains("*** direct: nc_sysop"));
-    assert!(lines.contains("[--:--] <sysop>:"));
-    assert!(lines.contains("hello"));
-    assert!(lines.contains("frontier"));
+    assert!(lines.contains("sysop"));
     assert!(lines.contains("[--:--] <niltempus>:"));
     assert!(lines.contains("<niltempus>: draft line"));
 }
@@ -340,6 +341,7 @@ fn compose_thread_route_renders_centered_chat_modal() {
         nip05: None,
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 0,
         last_activity_at: None,
     }];
@@ -350,6 +352,7 @@ fn compose_thread_route_renders_centered_chat_modal() {
 
     assert!(lines.contains("THREADS"));
     assert!(lines.contains("CONTACTS"));
+    assert!(lines.contains("THREAD MENU"));
     assert!(lines.contains("<niltempus>: draft"));
 }
 
@@ -363,6 +366,7 @@ fn blocked_contacts_are_hidden_from_threads_pane() {
             nip05: None,
             source: "host".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 1,
             last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
         },
@@ -372,6 +376,7 @@ fn blocked_contacts_are_hidden_from_threads_pane() {
             nip05: None,
             source: "manual".to_string(),
             blocked: true,
+            hidden: false,
             unread_count: 9,
             last_activity_at: Some("2026-04-13T22:16:00Z".to_string()),
         },
@@ -381,6 +386,38 @@ fn blocked_contacts_are_hidden_from_threads_pane() {
 
     assert!(lines.contains("nc_sysop"));
     assert!(!lines.contains("spam"));
+}
+
+#[test]
+fn hidden_contacts_are_hidden_from_threads_pane() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.direct_contacts = vec![
+        DirectContactRow {
+            npub: "npub1sysop".to_string(),
+            label: "nc_sysop".to_string(),
+            nip05: None,
+            source: "host".to_string(),
+            blocked: false,
+            hidden: false,
+            unread_count: 1,
+            last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
+        },
+        DirectContactRow {
+            npub: "npub1old".to_string(),
+            label: "old-friend".to_string(),
+            nip05: None,
+            source: "manual".to_string(),
+            blocked: false,
+            hidden: true,
+            unread_count: 0,
+            last_activity_at: Some("2026-04-13T22:14:00Z".to_string()),
+        },
+    ];
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("nc_sysop"));
+    assert!(!lines.contains("old-friend"));
 }
 
 #[test]

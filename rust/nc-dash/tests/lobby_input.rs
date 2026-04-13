@@ -239,6 +239,7 @@ fn apply_loaded_uses_host_contact_as_games_host_and_default_contact() {
             nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
             source: "host".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 0,
             last_activity_at: None,
         }],
@@ -333,6 +334,7 @@ fn apply_loaded_updates_stale_host_contact_label() {
             nip05: None,
             source: "host".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 0,
             last_activity_at: None,
         }],
@@ -356,9 +358,11 @@ fn m_starts_inline_thread_compose_without_popup() {
         nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 0,
         last_activity_at: None,
     }];
+    app.state.focus = LobbyFocus::Thread;
 
     apply_key(&mut app, shift_key(KeyCode::Char('m')));
 
@@ -376,6 +380,7 @@ fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
         nip05: None,
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 2,
         last_activity_at: None,
     }];
@@ -386,7 +391,7 @@ fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
     assert_eq!(app.state.route, LobbyRoute::Home);
     assert_eq!(
         app.state.thread_pane_focus,
-        nc_dash::lobby::state::ThreadPaneFocus::Transcript
+        nc_dash::lobby::state::ThreadPaneFocus::Contacts
     );
     assert_eq!(app.state.direct_contacts[0].unread_count, 0);
 }
@@ -401,6 +406,7 @@ fn second_enter_on_thread_transcript_focus_opens_centered_modal() {
         nip05: None,
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 0,
         last_activity_at: None,
     }];
@@ -422,6 +428,7 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
             nip05: None,
             source: "host".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 0,
             last_activity_at: None,
         },
@@ -431,6 +438,7 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
             nip05: None,
             source: "manual".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 4,
             last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
         },
@@ -447,6 +455,34 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
 }
 
 #[test]
+fn bracket_keys_switch_thread_subfocus() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::Thread;
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+        blocked: false,
+        hidden: false,
+        unread_count: 0,
+        last_activity_at: None,
+    }];
+
+    apply_key(&mut app, key(KeyCode::Char(']')));
+    assert_eq!(
+        app.state.thread_pane_focus,
+        nc_dash::lobby::state::ThreadPaneFocus::Transcript
+    );
+
+    apply_key(&mut app, key(KeyCode::Char('[')));
+    assert_eq!(
+        app.state.thread_pane_focus,
+        nc_dash::lobby::state::ThreadPaneFocus::Contacts
+    );
+}
+
+#[test]
 fn thread_transcript_scrolls_when_transcript_subfocus_is_active() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
@@ -457,6 +493,7 @@ fn thread_transcript_scrolls_when_transcript_subfocus_is_active() {
         nip05: None,
         source: "host".to_string(),
         blocked: false,
+        hidden: false,
         unread_count: 0,
         last_activity_at: None,
     }];
@@ -490,6 +527,7 @@ fn contact_picker_blocks_selected_contact_locally() {
             nip05: None,
             source: "host".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 1,
             last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
         },
@@ -499,6 +537,7 @@ fn contact_picker_blocks_selected_contact_locally() {
             nip05: None,
             source: "manual".to_string(),
             blocked: false,
+            hidden: false,
             unread_count: 0,
             last_activity_at: None,
         },
@@ -508,6 +547,42 @@ fn contact_picker_blocks_selected_contact_locally() {
 
     assert!(app.state.direct_contacts[0].blocked);
     assert_eq!(app.state.direct_contacts[0].unread_count, 0);
+}
+
+#[test]
+fn delete_hides_selected_thread_conversation_locally() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::Thread;
+    app.state.direct_contacts = vec![
+        DirectContactRow {
+            npub: "npub1sysop".to_string(),
+            label: "nc_sysop".to_string(),
+            nip05: None,
+            source: "host".to_string(),
+            blocked: false,
+            hidden: false,
+            unread_count: 0,
+            last_activity_at: None,
+        },
+        DirectContactRow {
+            npub: "npub1ally".to_string(),
+            label: "ally".to_string(),
+            nip05: None,
+            source: "manual".to_string(),
+            blocked: false,
+            hidden: false,
+            unread_count: 0,
+            last_activity_at: None,
+        },
+    ];
+
+    apply_key(&mut app, key(KeyCode::Delete));
+
+    assert!(app.state.direct_contacts.iter().any(|contact| contact.hidden));
+    assert_eq!(
+        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        Some("npub1ally")
+    );
 }
 
 #[test]

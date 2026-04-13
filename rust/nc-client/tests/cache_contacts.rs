@@ -9,6 +9,7 @@ fn direct_contact_metadata_round_trips_through_kdl_cache() {
         nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
         source: "host".to_string(),
         blocked: true,
+        hidden: true,
         unread_count: 3,
         last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
     });
@@ -25,6 +26,7 @@ fn direct_contact_metadata_round_trips_through_kdl_cache() {
             nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
             source: "host".to_string(),
             blocked: true,
+            hidden: true,
             unread_count: 3,
             last_activity_at: Some("2026-04-13T22:15:00Z".to_string()),
         }
