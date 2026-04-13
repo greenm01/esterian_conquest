@@ -77,9 +77,9 @@ pub fn parse_column_code(
         [] => {}
         [column] => return Ok(*column),
         _ => {
-            return Err(ColumnCodeParseError::Ambiguous(
-                dedupe_codes(&exact_matches),
-            ));
+            return Err(ColumnCodeParseError::Ambiguous(dedupe_codes(
+                &exact_matches,
+            )));
         }
     }
     let matches = columns
@@ -135,8 +135,12 @@ pub fn is_filter_column_char(ch: char) -> bool {
 pub fn is_filter_value_char(kind: FilterKind, ch: char) -> bool {
     match kind {
         FilterKind::Text => ch.is_ascii_alphanumeric() || matches!(ch, ' ' | '-' | '#' | '*' | '/'),
-        FilterKind::Number => ch.is_ascii_digit() || matches!(ch, '?' | '=' | '!' | '>' | '<' | '+' | '-'),
-        FilterKind::Coord => ch.is_ascii_digit() || matches!(ch, ',' | '/' | ' ' | '(' | ')' | '[' | ']' | '{' | '}'),
+        FilterKind::Number => {
+            ch.is_ascii_digit() || matches!(ch, '?' | '=' | '!' | '>' | '<' | '+' | '-')
+        }
+        FilterKind::Coord => {
+            ch.is_ascii_digit() || matches!(ch, ',' | '/' | ' ' | '(' | ')' | '[' | ']' | '{' | '}')
+        }
         FilterKind::Bool => ch.is_ascii_alphanumeric(),
     }
 }
@@ -154,7 +158,10 @@ impl TableFilterPredicate {
 
     pub fn matches_number(&self, value: Option<i64>) -> bool {
         match self {
-            Self::Number { op, value: expected } => value
+            Self::Number {
+                op,
+                value: expected,
+            } => value
                 .map(|actual| match op {
                     NumberOp::Eq => actual == *expected,
                     NumberOp::Ne => actual != *expected,
@@ -320,7 +327,8 @@ fn column_match_tokens(column: &TableFilterColumn) -> Vec<String> {
 }
 
 fn split_column_tokens(label: &str) -> Vec<String> {
-    label.split(|ch: char| !ch.is_ascii_alphanumeric())
+    label
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
         .filter(|part| !part.is_empty())
         .map(normalize_match_key)
         .collect()

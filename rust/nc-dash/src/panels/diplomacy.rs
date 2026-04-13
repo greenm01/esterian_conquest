@@ -114,7 +114,12 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<DiplomacyPanelRow> {
 pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
     let rows = body_rows(app);
     let metrics = column_metrics(&rows, usize::MAX / 2);
-    top_line_width(metrics.slot_width, PREFERRED_NAME_WIDTH, metrics.state_width).max(bottom_line_width(
+    top_line_width(
+        metrics.slot_width,
+        PREFERRED_NAME_WIDTH,
+        metrics.state_width,
+    )
+    .max(bottom_line_width(
         metrics.slot_width,
         metrics.cp_width,
         metrics.relation_width,
@@ -163,8 +168,7 @@ fn column_metrics(rows: &[DiplomacyPanelRow], available_width: usize) -> ColumnM
         .map(|row| row.relation.chars().count())
         .max()
         .unwrap_or("Neutral".chars().count());
-    let available_name =
-        available_width.saturating_sub(top_line_width(slot_width, 0, state_width));
+    let available_name = available_width.saturating_sub(top_line_width(slot_width, 0, state_width));
     let preferred_name = rows
         .iter()
         .map(|row| row.name.chars().count().min(PREFERRED_NAME_WIDTH))

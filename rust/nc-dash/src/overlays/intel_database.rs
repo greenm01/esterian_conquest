@@ -7,11 +7,11 @@ use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshot
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
-use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
 };
+use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table_selection;
 
 use crate::app::state::{
@@ -44,17 +44,72 @@ const COLUMNS: [TableColumn<'static>; 11] = [
 ];
 
 const FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
-    TableFilterColumn { code: "own", label: "Owner", aliases: &["empire"], kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
-    TableFilterColumn { code: "see", label: "Seen", aliases: &["year", "yearseen", "seenyear"], kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sco", label: "Scout", aliases: &["scoutyear"], kind: FilterKind::Number },
+    TableFilterColumn {
+        code: "coo",
+        label: "Coord",
+        aliases: &["coordinates", "location"],
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "pla",
+        label: "Planet",
+        aliases: &["name"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "own",
+        label: "Owner",
+        aliases: &["empire"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "max",
+        label: "Max",
+        aliases: &["maximum", "potential"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "see",
+        label: "Seen",
+        aliases: &["year", "yearseen", "seenyear"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "ars",
+        label: "Armies",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "gbs",
+        label: "Batteries",
+        aliases: &["groundbatteries"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sbs",
+        label: "Starbase",
+        aliases: &["starbases"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "cur",
+        label: "Current",
+        aliases: &["currentprod", "production", "current production"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "trs",
+        label: "Treasury",
+        aliases: &["points", "treasury points"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sco",
+        label: "Scout",
+        aliases: &["scoutyear"],
+        kind: FilterKind::Number,
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -587,30 +642,41 @@ fn parse_unknown_i64(label: &str) -> Option<i64> {
     }
 }
 
-pub(crate) fn intel_row_matches_clause(
-    row: &IntelOverlayRow,
-    clause: &TableFilterClause,
-) -> bool {
+pub(crate) fn intel_row_matches_clause(row: &IntelOverlayRow, clause: &TableFilterClause) -> bool {
     match clause.column.code {
         "coo" => clause.predicate.matches_coord(row.coords),
         "pla" => clause.predicate.matches_text(Some(&row.cells[1])),
-        "own" => clause.predicate.matches_text(
-            if row.known_owner_empire_id.is_some() {
+        "own" => clause
+            .predicate
+            .matches_text(if row.known_owner_empire_id.is_some() {
                 Some(&row.cells[2])
             } else {
                 None
-            },
-        ),
+            }),
         "max" => clause
             .predicate
             .matches_number(row.known_max_production.map(i64::from)),
-        "see" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[4])),
-        "ars" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[5])),
-        "gbs" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[6])),
-        "sbs" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[7])),
-        "cur" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[8])),
-        "trs" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[9])),
-        "sco" => clause.predicate.matches_number(parse_unknown_i64(&row.cells[10])),
+        "see" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[4])),
+        "ars" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[5])),
+        "gbs" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[6])),
+        "sbs" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[7])),
+        "cur" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[8])),
+        "trs" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[9])),
+        "sco" => clause
+            .predicate
+            .matches_number(parse_unknown_i64(&row.cells[10])),
         _ => true,
     }
 }
@@ -672,7 +738,10 @@ mod tests {
         );
         app.intel_overlay.sort_direction = SortDirection::Desc;
 
-        assert_eq!(overlay_title(&app), "TOTAL PLANET DATABASE: COO DESCENDING ALL");
+        assert_eq!(
+            overlay_title(&app),
+            "TOTAL PLANET DATABASE: COO DESCENDING ALL"
+        );
         assert_eq!(sort_footer_label(&app), "SORT DESC");
     }
 }

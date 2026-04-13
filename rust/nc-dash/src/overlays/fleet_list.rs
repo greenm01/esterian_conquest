@@ -6,11 +6,11 @@ use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label}
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::format_sector_coords_table;
 use nc_ui::modal::Rect;
-use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_table_window_with_theme_at,
 };
+use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table_selection;
 
 use crate::app::state::{
@@ -70,16 +70,66 @@ const COLUMNS: [TableColumn<'static>; 10] = [
 ];
 
 const FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "id", label: "Fleet ID", aliases: &["fleet", "fleetid"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sel", label: "Selected", aliases: &["marked"], kind: FilterKind::Bool },
-    TableFilterColumn { code: "loc", label: "Location", aliases: &["coord", "coordinates"], kind: FilterKind::Coord },
-    TableFilterColumn { code: "ord", label: "Order", aliases: &[], kind: FilterKind::Text },
-    TableFilterColumn { code: "tar", label: "Target", aliases: &["destination"], kind: FilterKind::Coord },
-    TableFilterColumn { code: "spd", label: "Speed", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "eta", label: "ETA", aliases: &["arrival"], kind: FilterKind::Text },
-    TableFilterColumn { code: "roe", label: "ROE", aliases: &["rules", "engagement"], kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "shi", label: "Ships", aliases: &["forces"], kind: FilterKind::Text },
+    TableFilterColumn {
+        code: "id",
+        label: "Fleet ID",
+        aliases: &["fleet", "fleetid"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sel",
+        label: "Selected",
+        aliases: &["marked"],
+        kind: FilterKind::Bool,
+    },
+    TableFilterColumn {
+        code: "loc",
+        label: "Location",
+        aliases: &["coord", "coordinates"],
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "ord",
+        label: "Order",
+        aliases: &[],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "tar",
+        label: "Target",
+        aliases: &["destination"],
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "spd",
+        label: "Speed",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "eta",
+        label: "ETA",
+        aliases: &["arrival"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "roe",
+        label: "ROE",
+        aliases: &["rules", "engagement"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "ars",
+        label: "Armies",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "shi",
+        label: "Ships",
+        aliases: &["forces"],
+        kind: FilterKind::Text,
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -494,13 +544,18 @@ fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
         },
         _ => unreachable!("change prompt expected"),
     };
-    let lines = vec![if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
-        app.selected_fleet_order_row_from_table()
-            .map(|row| format!("Fleet #{}", row.fleet_number))
-            .unwrap_or_else(|| "Selected fleet is no longer available.".to_string())
-    } else {
-        format!("Checked fleets: {}", app.selected_group_order_fleet_summary())
-    }];
+    let lines = vec![
+        if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
+            app.selected_fleet_order_row_from_table()
+                .map(|row| format!("Fleet #{}", row.fleet_number))
+                .unwrap_or_else(|| "Selected fleet is no longer available.".to_string())
+        } else {
+            format!(
+                "Checked fleets: {}",
+                app.selected_group_order_fleet_summary()
+            )
+        },
+    ];
     let body_width = lines
         .iter()
         .map(|line: &String| line.chars().count())
@@ -551,33 +606,36 @@ fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
 }
 
 fn draw_fleet_merge_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (title, lines, footer): (&str, Vec<String>, TableFooter) = match app.fleet_overlay.prompt_mode
-    {
-        FleetOverlayPromptMode::MergeHost => (
-            "MERGE FLEET",
-            vec![
-                app.selected_fleet_order_row()
-                    .map(|row| format!("Source Fleet #{}", row.fleet_number))
-                    .unwrap_or_else(|| "Selected fleet is no longer available.".to_string()),
-            ],
-            TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: "Into Fleet # ",
-                default: &app.fleet_overlay.aux_default,
-                input: &app.fleet_overlay.aux_input,
-            },
-        ),
-        FleetOverlayPromptMode::MergeConfirm => (
-            "MERGE FLEETS",
-            vec![format!("Checked fleets: {}", app.selected_group_order_fleet_summary())],
-            TableFooter::CommandPromptInput {
-                label: "COMMAND",
-                prompt: "Merge checked fleets? [Y]/N <Q> -> ",
-                input: &app.fleet_overlay.aux_input,
-            },
-        ),
-        _ => unreachable!("merge prompt expected"),
-    };
+    let (title, lines, footer): (&str, Vec<String>, TableFooter) =
+        match app.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::MergeHost => (
+                "MERGE FLEET",
+                vec![
+                    app.selected_fleet_order_row()
+                        .map(|row| format!("Source Fleet #{}", row.fleet_number))
+                        .unwrap_or_else(|| "Selected fleet is no longer available.".to_string()),
+                ],
+                TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: "Into Fleet # ",
+                    default: &app.fleet_overlay.aux_default,
+                    input: &app.fleet_overlay.aux_input,
+                },
+            ),
+            FleetOverlayPromptMode::MergeConfirm => (
+                "MERGE FLEETS",
+                vec![format!(
+                    "Checked fleets: {}",
+                    app.selected_group_order_fleet_summary()
+                )],
+                TableFooter::CommandPromptInput {
+                    label: "COMMAND",
+                    prompt: "Merge checked fleets? [Y]/N <Q> -> ",
+                    input: &app.fleet_overlay.aux_input,
+                },
+            ),
+            _ => unreachable!("merge prompt expected"),
+        };
     let body_width = lines
         .iter()
         .map(|line: &String| line.chars().count())
@@ -624,7 +682,10 @@ fn draw_fleet_merge_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
 
 fn draw_fleet_transfer_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let (prompt, default) = match app.fleet_overlay.prompt_mode {
-        FleetOverlayPromptMode::TransferHost => ("Transfer To Fleet # ".to_string(), app.fleet_overlay.aux_default.clone()),
+        FleetOverlayPromptMode::TransferHost => (
+            "Transfer To Fleet # ".to_string(),
+            app.fleet_overlay.aux_default.clone(),
+        ),
         FleetOverlayPromptMode::TransferStage => app.fleet_transfer_prompt_and_default(),
         _ => unreachable!("transfer prompt expected"),
     };
@@ -648,7 +709,12 @@ fn draw_fleet_transfer_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let body_width = lines
         .iter()
         .map(|line| line.chars().count())
-        .chain(app.fleet_overlay.aux_status.iter().map(|line| line.chars().count()))
+        .chain(
+            app.fleet_overlay
+                .aux_status
+                .iter()
+                .map(|line| line.chars().count()),
+        )
         .max()
         .unwrap_or(1);
     let body_height = lines.len() + usize::from(app.fleet_overlay.aux_status.is_some());
@@ -1070,17 +1136,27 @@ fn fleet_change_popup_rect(app: &DashApp) -> Rect {
         },
         _ => unreachable!("change popup expected"),
     };
-    let lines = vec![if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
-        app.selected_fleet_order_row_from_table()
-            .map(|row| format!("Fleet #{}", row.fleet_number))
-            .unwrap_or_else(|| "Selected fleet is no longer available.".to_string())
-    } else {
-        format!("Checked fleets: {}", app.selected_group_order_fleet_summary())
-    }];
+    let lines = vec![
+        if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
+            app.selected_fleet_order_row_from_table()
+                .map(|row| format!("Fleet #{}", row.fleet_number))
+                .unwrap_or_else(|| "Selected fleet is no longer available.".to_string())
+        } else {
+            format!(
+                "Checked fleets: {}",
+                app.selected_group_order_fleet_summary()
+            )
+        },
+    ];
     let body_width = lines
         .iter()
         .map(|line| line.chars().count())
-        .chain(app.fleet_overlay.aux_status.iter().map(|line| line.chars().count()))
+        .chain(
+            app.fleet_overlay
+                .aux_status
+                .iter()
+                .map(|line| line.chars().count()),
+        )
         .max()
         .unwrap_or(1);
     overlay_popup_rect_for_body_in_parent(
@@ -1100,37 +1176,45 @@ fn fleet_change_popup_rect(app: &DashApp) -> Rect {
 }
 
 fn fleet_merge_popup_rect(app: &DashApp) -> Rect {
-    let (title, lines, footer): (&str, Vec<String>, TableFooter) = match app.fleet_overlay.prompt_mode
-    {
-        FleetOverlayPromptMode::MergeHost => (
-            "MERGE FLEET",
-            vec![
-                app.selected_fleet_order_row()
-                    .map(|row| format!("Source Fleet #{}", row.fleet_number))
-                    .unwrap_or_else(|| "Selected fleet is no longer available.".to_string()),
-            ],
-            TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: "Into Fleet # ",
-                default: &app.fleet_overlay.aux_default,
-                input: &app.fleet_overlay.aux_input,
-            },
-        ),
-        FleetOverlayPromptMode::MergeConfirm => (
-            "MERGE FLEETS",
-            vec![format!("Checked fleets: {}", app.selected_group_order_fleet_summary())],
-            TableFooter::CommandPromptInput {
-                label: "COMMAND",
-                prompt: "Merge checked fleets? [Y]/N <Q> -> ",
-                input: &app.fleet_overlay.aux_input,
-            },
-        ),
-        _ => unreachable!("merge popup expected"),
-    };
+    let (title, lines, footer): (&str, Vec<String>, TableFooter) =
+        match app.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::MergeHost => (
+                "MERGE FLEET",
+                vec![
+                    app.selected_fleet_order_row()
+                        .map(|row| format!("Source Fleet #{}", row.fleet_number))
+                        .unwrap_or_else(|| "Selected fleet is no longer available.".to_string()),
+                ],
+                TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: "Into Fleet # ",
+                    default: &app.fleet_overlay.aux_default,
+                    input: &app.fleet_overlay.aux_input,
+                },
+            ),
+            FleetOverlayPromptMode::MergeConfirm => (
+                "MERGE FLEETS",
+                vec![format!(
+                    "Checked fleets: {}",
+                    app.selected_group_order_fleet_summary()
+                )],
+                TableFooter::CommandPromptInput {
+                    label: "COMMAND",
+                    prompt: "Merge checked fleets? [Y]/N <Q> -> ",
+                    input: &app.fleet_overlay.aux_input,
+                },
+            ),
+            _ => unreachable!("merge popup expected"),
+        };
     let body_width = lines
         .iter()
         .map(|line| line.chars().count())
-        .chain(app.fleet_overlay.aux_status.iter().map(|line| line.chars().count()))
+        .chain(
+            app.fleet_overlay
+                .aux_status
+                .iter()
+                .map(|line| line.chars().count()),
+        )
         .max()
         .unwrap_or(1);
     overlay_popup_rect_for_body_in_parent(
@@ -1146,9 +1230,10 @@ fn fleet_merge_popup_rect(app: &DashApp) -> Rect {
 
 fn fleet_transfer_popup_rect(app: &DashApp) -> Rect {
     let (prompt, default) = match app.fleet_overlay.prompt_mode {
-        FleetOverlayPromptMode::TransferHost => {
-            ("Transfer To Fleet # ".to_string(), app.fleet_overlay.aux_default.clone())
-        }
+        FleetOverlayPromptMode::TransferHost => (
+            "Transfer To Fleet # ".to_string(),
+            app.fleet_overlay.aux_default.clone(),
+        ),
         FleetOverlayPromptMode::TransferStage => app.fleet_transfer_prompt_and_default(),
         _ => unreachable!("transfer popup expected"),
     };
@@ -1166,7 +1251,12 @@ fn fleet_transfer_popup_rect(app: &DashApp) -> Rect {
     let body_width = lines
         .iter()
         .map(|line| line.chars().count())
-        .chain(app.fleet_overlay.aux_status.iter().map(|line| line.chars().count()))
+        .chain(
+            app.fleet_overlay
+                .aux_status
+                .iter()
+                .map(|line| line.chars().count()),
+        )
         .max()
         .unwrap_or(1);
     overlay_popup_rect_for_body_in_parent(
@@ -1552,11 +1642,10 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
             eta_sort_key(&left.eta_label).cmp(&eta_sort_key(&right.eta_label)),
         )
         .then_with(|| right.id_label.cmp(&left.id_label)),
-        FleetOverlaySort::Roe => apply_sort_direction(
-            app.fleet_overlay.sort_direction,
-            left.roe.cmp(&right.roe),
-        )
-        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Roe => {
+            apply_sort_direction(app.fleet_overlay.sort_direction, left.roe.cmp(&right.roe))
+                .then_with(|| right.id_label.cmp(&left.id_label))
+        }
         FleetOverlaySort::Armies => apply_sort_direction(
             app.fleet_overlay.sort_direction,
             left.loaded_armies.cmp(&right.loaded_armies),
@@ -1708,20 +1797,27 @@ pub(crate) fn filter_default_value(app: &DashApp, column: TableFilterColumn) -> 
     }
 }
 
-pub(crate) fn fleet_row_matches_clause(
-    row: &FleetOverlayRow,
-    clause: &TableFilterClause,
-) -> bool {
+pub(crate) fn fleet_row_matches_clause(row: &FleetOverlayRow, clause: &TableFilterClause) -> bool {
     match clause.column.code {
-        "id" => clause.predicate.matches_number(row.id_label.parse::<i64>().ok()),
-        "sel" => clause.predicate.matches_bool(!row.cells[1].trim().is_empty()),
+        "id" => clause
+            .predicate
+            .matches_number(row.id_label.parse::<i64>().ok()),
+        "sel" => clause
+            .predicate
+            .matches_bool(!row.cells[1].trim().is_empty()),
         "loc" => clause.predicate.matches_coord(row.coords),
         "ord" => clause.predicate.matches_text(Some(row.cells[3].as_str())),
         "tar" => clause.predicate.matches_coord(row.target_coords),
-        "spd" => clause.predicate.matches_number(row.cells[5].parse::<i64>().ok()),
+        "spd" => clause
+            .predicate
+            .matches_number(row.cells[5].parse::<i64>().ok()),
         "eta" => clause.predicate.matches_text(Some(&row.eta_label)),
-        "roe" => clause.predicate.matches_number(row.cells[7].parse::<i64>().ok()),
-        "ars" => clause.predicate.matches_number(row.cells[8].parse::<i64>().ok()),
+        "roe" => clause
+            .predicate
+            .matches_number(row.cells[7].parse::<i64>().ok()),
+        "ars" => clause
+            .predicate
+            .matches_number(row.cells[8].parse::<i64>().ok()),
         "shi" => clause.predicate.matches_text(Some(&row.cells[9])),
         _ => true,
     }

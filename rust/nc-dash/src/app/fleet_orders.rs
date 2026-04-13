@@ -2,22 +2,22 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use nc_data::{FleetDetachSelection, Order, PlanetIntelSnapshot, map_size_for_player_count};
 use nc_engine::{
-    FLEET_MISSION_OPTIONS, default_host_fleet_target, default_starbase_target,
+    FLEET_MISSION_OPTIONS, SelectedFleetRef, default_host_fleet_target, default_starbase_target,
     fleet_mission_option, fleet_order_target_rejects_owned_planet,
     fleet_order_target_rejects_owned_scout_target, fleet_order_target_requires_owned_planet,
     fleet_order_target_requires_planet_system, fleet_record_supports_mission_code,
     fleet_target_input_kind, fleet_target_status_line, format_guard_fleet_clause,
     guard_fleet_numbers_for_starbase, owned_fleet_targets, owned_starbase_targets,
     recommended_coordinate_target, recommended_coordinate_target_y_for_entered_x,
-    resolve_checked_fleet_merge_plan, resolve_checked_fleet_transfer_plan, target_available_for_mission,
-    SelectedFleetRef,
+    resolve_checked_fleet_merge_plan, resolve_checked_fleet_transfer_plan,
+    target_available_for_mission,
 };
 
 use crate::overlays::fleet_list;
 
 use super::state::{
-    DashApp, FleetOrderScope, FleetOverlayChangeField, FleetOverlayPromptMode,
-    FleetOverlayRowKey, FleetOverlayTransferClass, FleetOverlayTransferMode, HelpContext,
+    DashApp, FleetOrderScope, FleetOverlayChangeField, FleetOverlayPromptMode, FleetOverlayRowKey,
+    FleetOverlayTransferClass, FleetOverlayTransferMode, HelpContext,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,7 +118,8 @@ impl DashApp {
         self.fleet_overlay.aux_input.clear();
         self.fleet_overlay.aux_status = None;
         self.fleet_overlay.change_field = None;
-        self.fleet_overlay.open_prompt(FleetOverlayPromptMode::ChangeField);
+        self.fleet_overlay
+            .open_prompt(FleetOverlayPromptMode::ChangeField);
         self.help_context = HelpContext::FleetOrderInput;
     }
 
@@ -130,7 +131,8 @@ impl DashApp {
                     self.fleet_overlay.aux_input.clear();
                     self.fleet_overlay.aux_default = "Y".to_string();
                     self.fleet_overlay.aux_status = None;
-                    self.fleet_overlay.open_prompt(FleetOverlayPromptMode::MergeConfirm);
+                    self.fleet_overlay
+                        .open_prompt(FleetOverlayPromptMode::MergeConfirm);
                     self.help_context = HelpContext::FleetOrderInput;
                 }
                 Err(err) => self.fleet_overlay.aux_status = Some(err.to_string()),
@@ -147,17 +149,18 @@ impl DashApp {
                 && row.fleet_number < selected_row.fleet_number
         });
         if hosts.is_empty() {
-            self.fleet_overlay.aux_status = Some(
-                "Selected fleet must share a sector with a lower-numbered host.".to_string(),
-            );
+            self.fleet_overlay.aux_status =
+                Some("Selected fleet must share a sector with a lower-numbered host.".to_string());
             return;
         }
-        self.fleet_overlay.active_row_key =
-            Some(FleetOverlayRowKey::Fleet(selected_row.fleet_record_index_1_based));
+        self.fleet_overlay.active_row_key = Some(FleetOverlayRowKey::Fleet(
+            selected_row.fleet_record_index_1_based,
+        ));
         self.fleet_overlay.aux_input.clear();
         self.fleet_overlay.aux_default = hosts[0].fleet_number.to_string();
         self.fleet_overlay.aux_status = None;
-        self.fleet_overlay.open_prompt(FleetOverlayPromptMode::MergeHost);
+        self.fleet_overlay
+            .open_prompt(FleetOverlayPromptMode::MergeHost);
         self.help_context = HelpContext::FleetOrderInput;
     }
 
@@ -178,7 +181,8 @@ impl DashApp {
                         Some(plan.donor_record_index_1_based);
                     self.fleet_overlay.transfer_host_record_index_1_based =
                         Some(plan.host_record_index_1_based);
-                    self.fleet_overlay.open_prompt(FleetOverlayPromptMode::TransferStage);
+                    self.fleet_overlay
+                        .open_prompt(FleetOverlayPromptMode::TransferStage);
                 }
                 Err(err) => self.fleet_overlay.aux_status = Some(err.to_string()),
             }
@@ -194,9 +198,8 @@ impl DashApp {
                 && row.coords == selected_row.coords
         });
         if hosts.is_empty() {
-            self.fleet_overlay.aux_status = Some(
-                "Selected fleet must share a sector with another fleet.".to_string(),
-            );
+            self.fleet_overlay.aux_status =
+                Some("Selected fleet must share a sector with another fleet.".to_string());
             return;
         }
         self.fleet_overlay.transfer_donor_record_index_1_based =
@@ -204,7 +207,8 @@ impl DashApp {
         self.fleet_overlay.transfer_host_record_index_1_based = None;
         self.fleet_overlay.aux_input.clear();
         self.fleet_overlay.aux_default = hosts[0].fleet_number.to_string();
-        self.fleet_overlay.open_prompt(FleetOverlayPromptMode::TransferHost);
+        self.fleet_overlay
+            .open_prompt(FleetOverlayPromptMode::TransferHost);
         self.help_context = HelpContext::FleetOrderInput;
     }
 
@@ -686,7 +690,8 @@ impl DashApp {
                 self.fleet_overlay.aux_input.clear();
                 self.fleet_overlay.aux_status = None;
                 self.fleet_overlay.aux_default = self.fleet_change_value_default(field);
-                self.fleet_overlay.open_prompt(FleetOverlayPromptMode::ChangeValue);
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::ChangeValue);
                 Ok(())
             }
             FleetOverlayPromptMode::ChangeValue => {
@@ -728,7 +733,8 @@ impl DashApp {
                         }
                         if successful.is_empty() {
                             self.fleet_overlay.aux_status = Some(
-                                failure_detail.unwrap_or_else(|| "Unable to change ROE.".to_string()),
+                                failure_detail
+                                    .unwrap_or_else(|| "Unable to change ROE.".to_string()),
                             );
                             return Ok(());
                         }
@@ -751,7 +757,11 @@ impl DashApp {
                                 roe,
                                 successful.len(),
                                 failure_count,
-                                if failure_count == 1 { "fleet" } else { "fleets" },
+                                if failure_count == 1 {
+                                    "fleet"
+                                } else {
+                                    "fleets"
+                                },
                                 failure_detail
                                     .as_deref()
                                     .unwrap_or("Some fleets could not be changed.")
@@ -824,7 +834,9 @@ impl DashApp {
                             return Ok(());
                         }
                         for record_index in &successful {
-                            if let Some(fleet) = self.game_data.fleets.records.get(*record_index - 1) {
+                            if let Some(fleet) =
+                                self.game_data.fleets.records.get(*record_index - 1)
+                            {
                                 let aux = fleet.mission_aux_bytes();
                                 self.stage_hosted_fleet_order(
                                     *record_index,
@@ -852,7 +864,11 @@ impl DashApp {
                                 speed,
                                 successful.len(),
                                 failure_count,
-                                if failure_count == 1 { "fleet" } else { "fleets" },
+                                if failure_count == 1 {
+                                    "fleet"
+                                } else {
+                                    "fleets"
+                                },
                                 failure_detail
                                     .as_deref()
                                     .unwrap_or("Some fleets could not be changed.")
@@ -936,7 +952,8 @@ impl DashApp {
     ) -> Result<(), Box<dyn std::error::Error>> {
         match self.fleet_overlay.prompt_mode {
             FleetOverlayPromptMode::TransferHost => {
-                let Some(donor_index) = self.fleet_overlay.transfer_donor_record_index_1_based else {
+                let Some(donor_index) = self.fleet_overlay.transfer_donor_record_index_1_based
+                else {
                     self.fleet_overlay.aux_status = Some("Select a donor fleet first.".to_string());
                     return Ok(());
                 };
@@ -961,7 +978,8 @@ impl DashApp {
                 self.fleet_overlay.transfer_mode = FleetOverlayTransferMode::ChoosingClass;
                 self.fleet_overlay.aux_input.clear();
                 self.fleet_overlay.aux_status = None;
-                self.fleet_overlay.open_prompt(FleetOverlayPromptMode::TransferStage);
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::TransferStage);
                 Ok(())
             }
             FleetOverlayPromptMode::TransferStage => match self.fleet_overlay.transfer_mode {
@@ -1598,9 +1616,8 @@ impl DashApp {
         destination: [u8; 2],
     ) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_hosted_mode() {
-            self.fleet_overlay.order_status = Some(
-                "Hosted play does not support starbase move orders yet.".to_string(),
-            );
+            self.fleet_overlay.order_status =
+                Some("Hosted play does not support starbase move orders yet.".to_string());
             return Ok(());
         }
         if destination == row.coords {

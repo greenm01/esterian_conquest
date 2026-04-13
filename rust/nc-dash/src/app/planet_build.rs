@@ -1,9 +1,9 @@
 use nc_data::{EmpirePlanetEconomyRow, GameStateMutationError, ProductionItemKind};
 use nc_engine::{
-    build_unit_spec, build_unit_spec_by_kind, planet_build_list_entries, planet_build_max_quantity,
-    planet_build_max_selectable_unit_number, planet_build_orders, planet_build_specify_entries,
-    planet_build_unavailable_message, planet_build_view, planet_has_any_buildable_unit,
-    production_item_kind_raw, PlanetBuildListEntry,
+    PlanetBuildListEntry, build_unit_spec, build_unit_spec_by_kind, planet_build_list_entries,
+    planet_build_max_quantity, planet_build_max_selectable_unit_number, planet_build_orders,
+    planet_build_specify_entries, planet_build_unavailable_message, planet_build_view,
+    planet_has_any_buildable_unit, production_item_kind_raw,
 };
 
 use crate::overlays::planet_list;
@@ -99,7 +99,8 @@ impl DashApp {
             return;
         }
         self.clear_planet_overlay_footer_notice();
-        self.planet_overlay.open_prompt(PlanetOverlayPromptMode::BuildList);
+        self.planet_overlay
+            .open_prompt(PlanetOverlayPromptMode::BuildList);
     }
 
     pub(crate) fn open_planet_build_abort_prompt(&mut self) {
@@ -320,9 +321,7 @@ impl DashApp {
         self.help_context = HelpContext::PlanetList;
     }
 
-    pub(crate) fn confirm_planet_build_abort(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) fn confirm_planet_build_abort(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based()
         else {
             self.close_planet_build_abort_prompt();

@@ -943,7 +943,8 @@ impl DashApp {
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
             KeyCode::Char('f') | KeyCode::Char('F') => {
                 self.clear_planet_overlay_footer_notice();
-                self.planet_overlay.open_prompt(PlanetOverlayPromptMode::FilterMenu);
+                self.planet_overlay
+                    .open_prompt(PlanetOverlayPromptMode::FilterMenu);
                 self.planet_overlay.prompt_input.clear();
                 self.planet_overlay.prompt_default = "all".to_string();
                 self.planet_overlay.prompt_status = None;
@@ -1001,13 +1002,9 @@ impl DashApp {
                 KeyCode::Enter => {
                     let result = match prompt_mode {
                         FleetOverlayPromptMode::ChangeField
-                        | FleetOverlayPromptMode::ChangeValue => {
-                            self.submit_fleet_change_prompt()
-                        }
+                        | FleetOverlayPromptMode::ChangeValue => self.submit_fleet_change_prompt(),
                         FleetOverlayPromptMode::MergeHost
-                        | FleetOverlayPromptMode::MergeConfirm => {
-                            self.submit_fleet_merge_prompt()
-                        }
+                        | FleetOverlayPromptMode::MergeConfirm => self.submit_fleet_merge_prompt(),
                         FleetOverlayPromptMode::TransferHost
                         | FleetOverlayPromptMode::TransferStage => {
                             self.submit_fleet_transfer_prompt()
@@ -1037,9 +1034,9 @@ impl DashApp {
                                 crate::app::state::FleetOverlayTransferMode::ChoosingClass => {
                                     ch.is_ascii_alphanumeric() || ch == '*'
                                 }
-                                crate::app::state::FleetOverlayTransferMode::EnteringQuantity(_) => {
-                                    ch.is_ascii_digit()
-                                }
+                                crate::app::state::FleetOverlayTransferMode::EnteringQuantity(
+                                    _,
+                                ) => ch.is_ascii_digit(),
                             }
                         }
                         _ => false,
@@ -1296,7 +1293,8 @@ impl DashApp {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetList),
             KeyCode::Char('f') | KeyCode::Char('F') => {
-                self.fleet_overlay.open_prompt(FleetOverlayPromptMode::FilterMenu);
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::FilterMenu);
                 self.fleet_overlay.filter_prompt_input.clear();
                 self.fleet_overlay.filter_prompt_default = "all".to_string();
                 self.fleet_overlay.filter_prompt_status = None;
@@ -2495,12 +2493,18 @@ mod tests {
 
         app.open_planet_build_list();
 
-        assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::BuildList);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildList
+        );
 
         app.handle_key(key(KeyCode::Char('q')));
 
         assert_eq!(app.overlay, ActiveOverlay::PlanetList);
-        assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::None);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::None
+        );
     }
 
     #[test]
@@ -2519,7 +2523,10 @@ mod tests {
 
         app.handle_key(key(KeyCode::Char('y')));
 
-        assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::None);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::None
+        );
         assert_eq!(
             app.planet_overlay.footer_notice.as_deref(),
             Some("Build orders aborted.")
@@ -2588,10 +2595,7 @@ mod tests {
         );
 
         app.handle_key(key(KeyCode::Backspace));
-        assert_eq!(
-            app.planet_overlay.prompt_status,
-            None
-        );
+        assert_eq!(app.planet_overlay.prompt_status, None);
         app.handle_key(key(KeyCode::Char('d')));
         app.handle_key(key(KeyCode::Enter));
 
@@ -3270,9 +3274,7 @@ mod tests {
         let donor_record_index = selected_records[1];
         app.fleet_overlay.selected = fleet_list::table_rows(&app)
             .iter()
-            .position(|row| {
-                row.key == FleetOverlayRowKey::Fleet(donor_record_index)
-            })
+            .position(|row| row.key == FleetOverlayRowKey::Fleet(donor_record_index))
             .expect("selected donor row");
 
         app.handle_key(key(KeyCode::Char('t')));
@@ -3519,8 +3521,12 @@ mod tests {
             .enumerate()
             .filter_map(|(idx, fleet)| (fleet.owner_empire_raw() == 1).then_some(idx))
             .collect::<Vec<_>>();
-        assert!(!owned_fleet_indexes.is_empty(), "fixture should have owned fleets");
-        let target_fleet_number = app.game_data.fleets.records[owned_fleet_indexes[0]].local_slot_word_raw();
+        assert!(
+            !owned_fleet_indexes.is_empty(),
+            "fixture should have owned fleets"
+        );
+        let target_fleet_number =
+            app.game_data.fleets.records[owned_fleet_indexes[0]].local_slot_word_raw();
 
         app.handle_key(key(KeyCode::Char('f')));
         for ch in ['i', 'd'] {
@@ -3533,15 +3539,13 @@ mod tests {
         app.handle_key(key(KeyCode::Enter));
         assert!(app.fleet_overlay.filter_clause.is_some());
 
-        app.game_data.fleets.records[owned_fleet_indexes[0]]
-            .set_owner_empire_raw(0);
+        app.game_data.fleets.records[owned_fleet_indexes[0]].set_owner_empire_raw(0);
         app.handle_key(key(KeyCode::Down));
 
         assert!(app.fleet_overlay.filter_clause.is_none());
         assert!(!fleet_list::table_rows(&app).is_empty());
         assert!(
-            render_fleet_title_line(&app, "FLEET LIST:")
-                .contains("FLEET LIST: ID DESCENDING ALL")
+            render_fleet_title_line(&app, "FLEET LIST:").contains("FLEET LIST: ID DESCENDING ALL")
         );
     }
 
@@ -3629,7 +3633,12 @@ mod tests {
     fn fleet_sort_prompt_accepts_every_column_code() {
         let cases = [
             ("id", FleetOverlaySort::Id, SortDirection::Asc, "ID"),
-            ("sel", FleetOverlaySort::Selected, SortDirection::Desc, "SEL"),
+            (
+                "sel",
+                FleetOverlaySort::Selected,
+                SortDirection::Desc,
+                "SEL",
+            ),
             ("loc", FleetOverlaySort::Location, SortDirection::Asc, "LOC"),
             ("ord", FleetOverlaySort::Order, SortDirection::Asc, "ORD"),
             ("tar", FleetOverlaySort::Target, SortDirection::Asc, "TAR"),
@@ -3637,14 +3646,22 @@ mod tests {
             ("eta", FleetOverlaySort::Eta, SortDirection::Asc, "ETA"),
             ("roe", FleetOverlaySort::Roe, SortDirection::Desc, "ROE"),
             ("ars", FleetOverlaySort::Armies, SortDirection::Desc, "ARS"),
-            ("shi", FleetOverlaySort::Strength, SortDirection::Desc, "SHI"),
+            (
+                "shi",
+                FleetOverlaySort::Strength,
+                SortDirection::Desc,
+                "SHI",
+            ),
         ];
 
         for (code, expected_sort, expected_direction, expected_label) in cases {
             let mut app = dash_app();
             app.overlay = ActiveOverlay::FleetList;
             app.handle_key(key(KeyCode::Char('s')));
-            assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::SortMenu);
+            assert_eq!(
+                app.fleet_overlay.prompt_mode,
+                FleetOverlayPromptMode::SortMenu
+            );
             for ch in code.chars() {
                 app.handle_key(key(KeyCode::Char(ch)));
             }
@@ -3669,32 +3686,88 @@ mod tests {
     #[test]
     fn planet_sort_prompt_accepts_every_column_code() {
         let cases = [
-            ("coo", PlanetOverlaySort::Location, SortDirection::Asc, "COO"),
-            ("pla", PlanetOverlaySort::PlanetName, SortDirection::Asc, "PLA"),
-            ("max", PlanetOverlaySort::MaxProduction, SortDirection::Desc, "MAX"),
-            ("cur", PlanetOverlaySort::CurrentProduction, SortDirection::Asc, "CUR"),
-            ("trs", PlanetOverlaySort::Treasury, SortDirection::Desc, "TRS"),
+            (
+                "coo",
+                PlanetOverlaySort::Location,
+                SortDirection::Asc,
+                "COO",
+            ),
+            (
+                "pla",
+                PlanetOverlaySort::PlanetName,
+                SortDirection::Asc,
+                "PLA",
+            ),
+            (
+                "max",
+                PlanetOverlaySort::MaxProduction,
+                SortDirection::Desc,
+                "MAX",
+            ),
+            (
+                "cur",
+                PlanetOverlaySort::CurrentProduction,
+                SortDirection::Asc,
+                "CUR",
+            ),
+            (
+                "trs",
+                PlanetOverlaySort::Treasury,
+                SortDirection::Desc,
+                "TRS",
+            ),
             ("bdg", PlanetOverlaySort::Budget, SortDirection::Desc, "BDG"),
-            ("rev", PlanetOverlaySort::Revenue, SortDirection::Desc, "REV"),
+            (
+                "rev",
+                PlanetOverlaySort::Revenue,
+                SortDirection::Desc,
+                "REV",
+            ),
             ("gro", PlanetOverlaySort::Growth, SortDirection::Desc, "GRO"),
-            ("bui", PlanetOverlaySort::BuildQueue, SortDirection::Desc, "BUI"),
-            ("sta", PlanetOverlaySort::Stardock, SortDirection::Desc, "STA"),
-            ("sbs", PlanetOverlaySort::Starbase, SortDirection::Desc, "SBS"),
+            (
+                "bui",
+                PlanetOverlaySort::BuildQueue,
+                SortDirection::Desc,
+                "BUI",
+            ),
+            (
+                "sta",
+                PlanetOverlaySort::Stardock,
+                SortDirection::Desc,
+                "STA",
+            ),
+            (
+                "sbs",
+                PlanetOverlaySort::Starbase,
+                SortDirection::Desc,
+                "SBS",
+            ),
             ("ars", PlanetOverlaySort::Armies, SortDirection::Desc, "ARS"),
-            ("gbs", PlanetOverlaySort::Batteries, SortDirection::Desc, "GBS"),
+            (
+                "gbs",
+                PlanetOverlaySort::Batteries,
+                SortDirection::Desc,
+                "GBS",
+            ),
         ];
 
         for (code, expected_sort, expected_direction, expected_label) in cases {
             let mut app = dash_app();
             app.overlay = ActiveOverlay::PlanetList;
             app.handle_key(key(KeyCode::Char('s')));
-            assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::SortMenu);
+            assert_eq!(
+                app.planet_overlay.prompt_mode,
+                PlanetOverlayPromptMode::SortMenu
+            );
             for ch in code.chars() {
                 app.handle_key(key(KeyCode::Char(ch)));
             }
             app.handle_key(key(KeyCode::Enter));
 
-            assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::None);
+            assert_eq!(
+                app.planet_overlay.prompt_mode,
+                PlanetOverlayPromptMode::None
+            );
             assert_eq!(app.planet_overlay.sort, expected_sort);
             assert_eq!(app.planet_overlay.sort_direction, expected_direction);
 
@@ -3713,24 +3786,72 @@ mod tests {
     #[test]
     fn intel_sort_prompt_accepts_every_column_code() {
         let cases = [
-            ("coo", IntelOverlaySort::Location, SortDirection::Desc, "COO"),
-            ("pla", IntelOverlaySort::PlanetName, SortDirection::Asc, "PLA"),
+            (
+                "coo",
+                IntelOverlaySort::Location,
+                SortDirection::Desc,
+                "COO",
+            ),
+            (
+                "pla",
+                IntelOverlaySort::PlanetName,
+                SortDirection::Asc,
+                "PLA",
+            ),
             ("own", IntelOverlaySort::Owner, SortDirection::Asc, "OWN"),
-            ("max", IntelOverlaySort::MaxProduction, SortDirection::Desc, "MAX"),
-            ("see", IntelOverlaySort::YearSeen, SortDirection::Desc, "SEE"),
+            (
+                "max",
+                IntelOverlaySort::MaxProduction,
+                SortDirection::Desc,
+                "MAX",
+            ),
+            (
+                "see",
+                IntelOverlaySort::YearSeen,
+                SortDirection::Desc,
+                "SEE",
+            ),
             ("ars", IntelOverlaySort::Armies, SortDirection::Desc, "ARS"),
-            ("gbs", IntelOverlaySort::Batteries, SortDirection::Desc, "GBS"),
-            ("sbs", IntelOverlaySort::Starbases, SortDirection::Desc, "SBS"),
-            ("cur", IntelOverlaySort::CurrentProduction, SortDirection::Desc, "CUR"),
-            ("trs", IntelOverlaySort::Treasury, SortDirection::Desc, "TRS"),
-            ("sco", IntelOverlaySort::ScoutYear, SortDirection::Desc, "SCO"),
+            (
+                "gbs",
+                IntelOverlaySort::Batteries,
+                SortDirection::Desc,
+                "GBS",
+            ),
+            (
+                "sbs",
+                IntelOverlaySort::Starbases,
+                SortDirection::Desc,
+                "SBS",
+            ),
+            (
+                "cur",
+                IntelOverlaySort::CurrentProduction,
+                SortDirection::Desc,
+                "CUR",
+            ),
+            (
+                "trs",
+                IntelOverlaySort::Treasury,
+                SortDirection::Desc,
+                "TRS",
+            ),
+            (
+                "sco",
+                IntelOverlaySort::ScoutYear,
+                SortDirection::Desc,
+                "SCO",
+            ),
         ];
 
         for (code, expected_sort, expected_direction, expected_label) in cases {
             let mut app = dash_app();
             app.overlay = ActiveOverlay::IntelDatabase;
             app.handle_key(key(KeyCode::Char('s')));
-            assert_eq!(app.intel_overlay.prompt_mode, IntelOverlayPromptMode::SortMenu);
+            assert_eq!(
+                app.intel_overlay.prompt_mode,
+                IntelOverlayPromptMode::SortMenu
+            );
             for ch in code.chars() {
                 app.handle_key(key(KeyCode::Char(ch)));
             }
@@ -3754,13 +3875,18 @@ mod tests {
 
     #[test]
     fn fleet_filter_prompt_accepts_every_appendix_e_column_code() {
-        let codes = ["id", "loc", "ord", "tar", "spd", "eta", "roe", "ars", "shi", "sel"];
+        let codes = [
+            "id", "loc", "ord", "tar", "spd", "eta", "roe", "ars", "shi", "sel",
+        ];
 
         for code in codes {
             let mut app = dash_app();
             app.overlay = ActiveOverlay::FleetList;
             app.handle_key(key(KeyCode::Char('f')));
-            assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::FilterMenu);
+            assert_eq!(
+                app.fleet_overlay.prompt_mode,
+                FleetOverlayPromptMode::FilterMenu
+            );
             for ch in code.chars() {
                 app.handle_key(key(KeyCode::Char(ch)));
             }
@@ -3771,7 +3897,9 @@ mod tests {
                 FleetOverlayPromptMode::FilterValueInput
             );
             assert_eq!(
-                app.fleet_overlay.pending_filter_column.map(|column| column.code),
+                app.fleet_overlay
+                    .pending_filter_column
+                    .map(|column| column.code),
                 Some(code)
             );
         }
@@ -3788,7 +3916,10 @@ mod tests {
             let mut app = dash_app();
             app.overlay = ActiveOverlay::PlanetList;
             app.handle_key(key(KeyCode::Char('f')));
-            assert_eq!(app.planet_overlay.prompt_mode, PlanetOverlayPromptMode::FilterMenu);
+            assert_eq!(
+                app.planet_overlay.prompt_mode,
+                PlanetOverlayPromptMode::FilterMenu
+            );
             for ch in code.chars() {
                 app.handle_key(key(KeyCode::Char(ch)));
             }
@@ -3799,7 +3930,9 @@ mod tests {
                 PlanetOverlayPromptMode::FilterValueInput
             );
             assert_eq!(
-                app.planet_overlay.pending_filter_column.map(|column| column.code),
+                app.planet_overlay
+                    .pending_filter_column
+                    .map(|column| column.code),
                 Some(code)
             );
         }
@@ -3807,13 +3940,18 @@ mod tests {
 
     #[test]
     fn intel_filter_prompt_accepts_every_appendix_e_column_code() {
-        let codes = ["coo", "pla", "own", "max", "see", "ars", "gbs", "sbs", "cur", "trs", "sco"];
+        let codes = [
+            "coo", "pla", "own", "max", "see", "ars", "gbs", "sbs", "cur", "trs", "sco",
+        ];
 
         for code in codes {
             let mut app = dash_app();
             app.overlay = ActiveOverlay::IntelDatabase;
             app.handle_key(key(KeyCode::Char('f')));
-            assert_eq!(app.intel_overlay.prompt_mode, IntelOverlayPromptMode::FilterMenu);
+            assert_eq!(
+                app.intel_overlay.prompt_mode,
+                IntelOverlayPromptMode::FilterMenu
+            );
             for ch in code.chars() {
                 app.handle_key(key(KeyCode::Char(ch)));
             }
@@ -3824,7 +3962,9 @@ mod tests {
                 IntelOverlayPromptMode::FilterValueInput
             );
             assert_eq!(
-                app.intel_overlay.pending_filter_column.map(|column| column.code),
+                app.intel_overlay
+                    .pending_filter_column
+                    .map(|column| column.code),
                 Some(code)
             );
         }
@@ -3888,7 +4028,9 @@ mod tests {
         }
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(
-            app.fleet_overlay.pending_filter_column.map(|column| column.code),
+            app.fleet_overlay
+                .pending_filter_column
+                .map(|column| column.code),
             Some("spd")
         );
 
@@ -3900,7 +4042,9 @@ mod tests {
         }
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(
-            app.planet_overlay.pending_filter_column.map(|column| column.code),
+            app.planet_overlay
+                .pending_filter_column
+                .map(|column| column.code),
             Some("sta")
         );
 
@@ -3912,7 +4056,9 @@ mod tests {
         }
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(
-            app.planet_overlay.pending_filter_column.map(|column| column.code),
+            app.planet_overlay
+                .pending_filter_column
+                .map(|column| column.code),
             Some("trs")
         );
 
@@ -3924,7 +4070,9 @@ mod tests {
         }
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(
-            app.planet_overlay.pending_filter_column.map(|column| column.code),
+            app.planet_overlay
+                .pending_filter_column
+                .map(|column| column.code),
             Some("bdg")
         );
 
@@ -3936,7 +4084,9 @@ mod tests {
         }
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(
-            app.intel_overlay.pending_filter_column.map(|column| column.code),
+            app.intel_overlay
+                .pending_filter_column
+                .map(|column| column.code),
             Some("see")
         );
     }

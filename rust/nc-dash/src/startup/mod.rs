@@ -71,9 +71,7 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
     }
 
     Ok(LaunchCommand::Launch(LaunchTarget::Lobby(
-        LobbyStartupOptions {
-            relay_override,
-        },
+        LobbyStartupOptions { relay_override },
     )))
 }
 

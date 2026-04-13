@@ -53,11 +53,7 @@ impl DashApp {
         actions.insert(0, PlanetTurnAction::ClearBuildQueue);
     }
 
-    pub(crate) fn stage_hosted_fleet_roe(
-        &mut self,
-        fleet_record_index_1_based: usize,
-        value: u8,
-    ) {
+    pub(crate) fn stage_hosted_fleet_roe(&mut self, fleet_record_index_1_based: usize, value: u8) {
         let Some(submission) = self.hosted_turn_draft.as_mut() else {
             return;
         };
@@ -79,7 +75,10 @@ impl DashApp {
         };
         let actions = fleet_actions_mut(submission, fleet_record_index_1_based);
         actions.retain(|action| {
-            !matches!(action, FleetTurnAction::Order { .. } | FleetTurnAction::Join { .. })
+            !matches!(
+                action,
+                FleetTurnAction::Order { .. } | FleetTurnAction::Join { .. }
+            )
         });
         actions.push(FleetTurnAction::Order {
             speed,
@@ -100,7 +99,10 @@ impl DashApp {
         };
         let actions = fleet_actions_mut(submission, fleet_record_index_1_based);
         actions.retain(|action| {
-            !matches!(action, FleetTurnAction::Order { .. } | FleetTurnAction::Join { .. })
+            !matches!(
+                action,
+                FleetTurnAction::Order { .. } | FleetTurnAction::Join { .. }
+            )
         });
         actions.push(FleetTurnAction::Join {
             host_fleet_record_index_1_based,

@@ -27,7 +27,9 @@ pub fn keychain_exists() -> bool {
     keychain_path().exists()
 }
 
-pub fn load_keychain_stub_from(path: &Path) -> Result<Option<LobbyKeychainRecord>, Box<dyn std::error::Error>> {
+pub fn load_keychain_stub_from(
+    path: &Path,
+) -> Result<Option<LobbyKeychainRecord>, Box<dyn std::error::Error>> {
     match std::fs::read_to_string(path) {
         Ok(raw) => Ok(Some(parse_keychain_kdl(&raw)?)),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),

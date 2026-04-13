@@ -2,11 +2,11 @@
 
 #[cfg(test)]
 use nc_ui::modal::draw_modal_frame;
+#[cfg(test)]
+use nc_ui::modal::draw_modal_frame_in_parent;
 use nc_ui::modal::{
     ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent_with_placement, placed_rect,
 };
-#[cfg(test)]
-use nc_ui::modal::draw_modal_frame_in_parent;
 use nc_ui::table::{
     TableFooter, draw_table_footer_in_span, table_footer_row_count, table_footer_scaffold_width,
 };

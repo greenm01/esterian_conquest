@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use nc_data::{CampaignStore, PlayerAccessMode, PlanetIntelSnapshot, ReportBlockRow, player_access_mode};
+use nc_data::{
+    CampaignStore, PlanetIntelSnapshot, PlayerAccessMode, ReportBlockRow, player_access_mode,
+};
 
 use super::state::DashApp;
 

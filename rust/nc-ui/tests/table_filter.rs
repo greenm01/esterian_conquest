@@ -69,7 +69,10 @@ fn resolves_column_codes_case_insensitively() {
         parse_column_code(COLUMNS, "ORD").expect("column").code,
         "ord"
     );
-    assert_eq!(parse_column_code(COLUMNS, "or").expect("prefix").code, "ord");
+    assert_eq!(
+        parse_column_code(COLUMNS, "or").expect("prefix").code,
+        "ord"
+    );
     assert_eq!(
         parse_column_code(COLUMNS, "selected").expect("label").code,
         "sel"
@@ -78,8 +81,18 @@ fn resolves_column_codes_case_insensitively() {
 
 #[test]
 fn resolves_aliases_and_label_prefixes() {
-    assert_eq!(parse_column_code(PREFIX_COLUMNS, "scout").expect("label").code, "sco");
-    assert_eq!(parse_column_code(PREFIX_COLUMNS, "yea").expect("alias prefix").code, "sco");
+    assert_eq!(
+        parse_column_code(PREFIX_COLUMNS, "scout")
+            .expect("label")
+            .code,
+        "sco"
+    );
+    assert_eq!(
+        parse_column_code(PREFIX_COLUMNS, "yea")
+            .expect("alias prefix")
+            .code,
+        "sco"
+    );
 }
 
 #[test]
@@ -105,7 +118,10 @@ fn resolves_multiword_names_with_spaces_normalized() {
             .code,
         "trs"
     );
-    assert_eq!(parse_column_code(COLUMNS, "bgdt").expect("abbr alias").code, "bdg");
+    assert_eq!(
+        parse_column_code(COLUMNS, "bgdt").expect("abbr alias").code,
+        "bdg"
+    );
 }
 
 #[test]

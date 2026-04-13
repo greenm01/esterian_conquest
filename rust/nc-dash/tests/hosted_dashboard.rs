@@ -1,8 +1,8 @@
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
-    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStardockSlot,
-    HostedStatePayload, HostedStarmapState, HostedWorldState,
+    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStardockSlot, HostedStarmapState,
+    HostedStatePayload, HostedWorldState,
 };
 use nc_ui::ScreenGeometry;
 
@@ -124,14 +124,19 @@ fn hosted_snapshot_builds_real_dash_app() {
         }],
     };
 
-    let app = build_hosted_dash_app(&snapshot, ScreenGeometry::new(120, 40))
-        .expect("hosted dash app");
+    let app =
+        build_hosted_dash_app(&snapshot, ScreenGeometry::new(120, 40)).expect("hosted dash app");
 
     assert_eq!(app.game_data.conquest.game_year(), 3004);
     assert_eq!(app.player_record_index_1_based, 1);
     assert_eq!(app.game_data.player.records[0].tax_rate(), 33);
     assert_eq!(app.game_data.planets.records[0].planet_name(), "Sol");
-    assert_eq!(app.game_data.fleets.records[0].standing_order_kind().as_str(), "move");
+    assert_eq!(
+        app.game_data.fleets.records[0]
+            .standing_order_kind()
+            .as_str(),
+        "move"
+    );
     assert_eq!(app.queued_mail.len(), 1);
     assert_eq!(app.report_block_rows.len(), 1);
     assert_eq!(app.planet_intel_snapshots.len(), 2);

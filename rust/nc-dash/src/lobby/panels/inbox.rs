@@ -1,7 +1,7 @@
 use nc_ui::modal::Rect;
 
-use crate::lobby::{draw_panel_frame, focus_selected, write_panel_rows};
 use crate::lobby::state::{LobbyFocus, LobbyState};
+use crate::lobby::{draw_panel_frame, focus_selected, write_panel_rows};
 
 pub fn render(
     buffer: &mut nc_ui::PlayfieldBuffer,
@@ -13,7 +13,12 @@ pub fn render(
     let rows = state
         .inbox
         .iter()
-        .map(|item| format!("{} | {} | {} | {}", item.kind, item.game, item.status, item.message))
+        .map(|item| {
+            format!(
+                "{} | {} | {} | {}",
+                item.kind, item.game, item.status, item.message
+            )
+        })
         .collect::<Vec<_>>();
     write_panel_rows(
         buffer,

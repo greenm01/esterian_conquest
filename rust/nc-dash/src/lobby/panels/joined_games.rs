@@ -1,7 +1,7 @@
 use nc_ui::modal::Rect;
 
-use crate::lobby::{draw_panel_frame, focus_selected, write_panel_rows};
 use crate::lobby::state::{LobbyFocus, LobbyState};
+use crate::lobby::{draw_panel_frame, focus_selected, write_panel_rows};
 
 pub fn render(
     buffer: &mut nc_ui::PlayfieldBuffer,
@@ -9,7 +9,12 @@ pub fn render(
     state: &LobbyState,
     focus: LobbyFocus,
 ) {
-    draw_panel_frame(buffer, rect, "JOINED GAMES", focus == LobbyFocus::JoinedGames);
+    draw_panel_frame(
+        buffer,
+        rect,
+        "JOINED GAMES",
+        focus == LobbyFocus::JoinedGames,
+    );
     let rows = state
         .joined_games
         .iter()
@@ -18,7 +23,10 @@ pub fn render(
                 .seat
                 .map(|seat| format!("seat {seat}"))
                 .unwrap_or_else(|| "no seat".to_string());
-            format!("{} | {} | {} | {}", row.status, row.game, seat, row.turn_summary)
+            format!(
+                "{} | {} | {} | {}",
+                row.status, row.game, seat, row.turn_summary
+            )
         })
         .collect::<Vec<_>>();
     write_panel_rows(

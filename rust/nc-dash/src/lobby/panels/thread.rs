@@ -1,8 +1,8 @@
 use nc_ui::modal::Rect;
 
-use crate::lobby::{draw_panel_frame, focus_selected, write_panel_rows};
 use crate::lobby::state::{LobbyFocus, LobbyState};
 use crate::lobby::threads;
+use crate::lobby::{draw_panel_frame, focus_selected, write_panel_rows};
 
 pub fn render(
     buffer: &mut nc_ui::PlayfieldBuffer,

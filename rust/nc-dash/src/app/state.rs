@@ -1,5 +1,6 @@
 //! Dashboard application state.
 
+use nc_data::FleetDetachSelection;
 use nc_data::{
     CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
     ProductionItemKind, QueuedPlayerMail, ReportBlockRow, TurnSubmission, WinnerState,
@@ -7,7 +8,6 @@ use nc_data::{
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 use nc_ui::table_filter::{TableFilterClause, TableFilterColumn};
-use nc_data::FleetDetachSelection;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::client_settings::DashClientSettings;

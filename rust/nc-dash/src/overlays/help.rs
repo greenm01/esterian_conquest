@@ -104,8 +104,14 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         ],
         HelpContext::PlanetListSort => vec![
             ("Type", "Enter a column code or unique prefix, then Enter"),
-            ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
-            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
+            (
+                "Codes",
+                "coo pla max cur trs bdg rev gro bui sta sbs ars gbs",
+            ),
+            (
+                "Prefix",
+                "Ambiguous prefixes stay open and show matching codes",
+            ),
             ("Repeat", "Same sort flips ASC/DESC"),
             ("Q", "Return to the table"),
             ("Esc", "Return to the table"),
@@ -113,8 +119,14 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         ],
         HelpContext::PlanetListFilter => vec![
             ("Type", "Enter a column code or unique prefix, then Enter"),
-            ("Codes", "coo pla max cur trs bdg rev gro bui sta sbs ars gbs"),
-            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
+            (
+                "Codes",
+                "coo pla max cur trs bdg rev gro bui sta sbs ars gbs",
+            ),
+            (
+                "Prefix",
+                "Ambiguous prefixes stay open and show matching codes",
+            ),
             ("Coords", "coo accepts xx,yy or xx,yy/r"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),
             ("all", "Clear the current filter"),
@@ -151,7 +163,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("O", "Order checked fleets, or the selected fleet/starbase"),
             ("C", "Change checked fleets, or the selected fleet"),
             ("M", "Merge checked fleets, or the selected fleet"),
-            ("T", "Transfer ships between checked fleets, or the selected fleet"),
+            (
+                "T",
+                "Transfer ships between checked fleets, or the selected fleet",
+            ),
             (
                 "Fleet / SB ID",
                 "Typed jump; exact match clears the footer input",
@@ -163,7 +178,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::FleetListSort => vec![
             ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "id sel loc ord tar spd eta roe ars shi"),
-            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
+            (
+                "Prefix",
+                "Ambiguous prefixes stay open and show matching codes",
+            ),
             ("Repeat", "Same sort flips ASC/DESC"),
             ("Q", "Return to the table"),
             ("Esc", "Return to the table"),
@@ -172,7 +190,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::FleetListFilter => vec![
             ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "id sel loc ord tar spd eta roe ars shi"),
-            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
+            (
+                "Prefix",
+                "Ambiguous prefixes stay open and show matching codes",
+            ),
             ("Order", "ord also accepts holding, moving, and combat"),
             ("Selected", "sel accepts yes/no, selected, unselected, or x"),
             ("all", "Clear the current filter"),
@@ -220,7 +241,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
             ("rng", "Sort by range from a sector"),
-            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
+            (
+                "Prefix",
+                "Ambiguous prefixes stay open and show matching codes",
+            ),
             ("Repeat", "Same sort flips ASC/DESC"),
             ("Q", "Return to the table"),
             ("Esc", "Return to the table"),
@@ -229,7 +253,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::IntelDatabaseFilter => vec![
             ("Type", "Enter a column code or unique prefix, then Enter"),
             ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
-            ("Prefix", "Ambiguous prefixes stay open and show matching codes"),
+            (
+                "Prefix",
+                "Ambiguous prefixes stay open and show matching codes",
+            ),
             ("Coords", "coo accepts xx,yy or xx,yy/r"),
             ("Unknown", "Use ? for unknown database values"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),

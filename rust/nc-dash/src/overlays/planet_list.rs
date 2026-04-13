@@ -7,12 +7,12 @@ use nc_engine::{BUILD_UNITS, build_kind_count_label, planet_build_view};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
-use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
     write_stacked_table_window_with_theme_at, write_table_window_with_theme_at,
 };
+use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use nc_ui::table_selection;
 
 use crate::app::state::{
@@ -50,19 +50,84 @@ const COLUMNS: [TableColumn<'static>; 13] = [
 ];
 
 const FILTER_COLUMNS: &[TableFilterColumn] = &[
-    TableFilterColumn { code: "coo", label: "Coord", aliases: &["coordinates", "location"], kind: FilterKind::Coord },
-    TableFilterColumn { code: "pla", label: "Planet", aliases: &["name"], kind: FilterKind::Text },
-    TableFilterColumn { code: "max", label: "Max", aliases: &["maximum", "potential"], kind: FilterKind::Number },
-    TableFilterColumn { code: "cur", label: "Current", aliases: &["currentprod", "production", "current production"], kind: FilterKind::Number },
-    TableFilterColumn { code: "trs", label: "Treasury", aliases: &["points", "treasury points"], kind: FilterKind::Number },
-    TableFilterColumn { code: "bdg", label: "Budget", aliases: &["bdgt", "bgdt"], kind: FilterKind::Number },
-    TableFilterColumn { code: "rev", label: "Revenue", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "gro", label: "Growth", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "bui", label: "Build", aliases: &["queue"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sta", label: "Dock", aliases: &["stardock"], kind: FilterKind::Number },
-    TableFilterColumn { code: "sbs", label: "Starbase", aliases: &["starbases"], kind: FilterKind::Number },
-    TableFilterColumn { code: "ars", label: "Armies", aliases: &[], kind: FilterKind::Number },
-    TableFilterColumn { code: "gbs", label: "Batteries", aliases: &["groundbatteries"], kind: FilterKind::Number },
+    TableFilterColumn {
+        code: "coo",
+        label: "Coord",
+        aliases: &["coordinates", "location"],
+        kind: FilterKind::Coord,
+    },
+    TableFilterColumn {
+        code: "pla",
+        label: "Planet",
+        aliases: &["name"],
+        kind: FilterKind::Text,
+    },
+    TableFilterColumn {
+        code: "max",
+        label: "Max",
+        aliases: &["maximum", "potential"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "cur",
+        label: "Current",
+        aliases: &["currentprod", "production", "current production"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "trs",
+        label: "Treasury",
+        aliases: &["points", "treasury points"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "bdg",
+        label: "Budget",
+        aliases: &["bdgt", "bgdt"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "rev",
+        label: "Revenue",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "gro",
+        label: "Growth",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "bui",
+        label: "Build",
+        aliases: &["queue"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sta",
+        label: "Dock",
+        aliases: &["stardock"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "sbs",
+        label: "Starbase",
+        aliases: &["starbases"],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "ars",
+        label: "Armies",
+        aliases: &[],
+        kind: FilterKind::Number,
+    },
+    TableFilterColumn {
+        code: "gbs",
+        label: "Batteries",
+        aliases: &["groundbatteries"],
+        kind: FilterKind::Number,
+    },
 ];
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -1078,17 +1143,39 @@ pub(crate) fn planet_row_matches_clause(
     match clause.column.code {
         "coo" => clause.predicate.matches_coord(row.coords),
         "pla" => clause.predicate.matches_text(Some(&row.cells[1])),
-        "max" => clause.predicate.matches_number(row.cells[2].parse::<i64>().ok()),
-        "cur" => clause.predicate.matches_number(row.cells[3].parse::<i64>().ok()),
-        "trs" => clause.predicate.matches_number(row.cells[4].parse::<i64>().ok()),
-        "bdg" => clause.predicate.matches_number(row.cells[5].parse::<i64>().ok()),
-        "rev" => clause.predicate.matches_number(row.cells[6].parse::<i64>().ok()),
-        "gro" => clause.predicate.matches_number(row.cells[7].parse::<i64>().ok()),
-        "bui" => clause.predicate.matches_number(row.cells[8].parse::<i64>().ok()),
-        "sta" => clause.predicate.matches_number(row.cells[9].parse::<i64>().ok()),
-        "sbs" => clause.predicate.matches_number(row.cells[10].parse::<i64>().ok()),
-        "ars" => clause.predicate.matches_number(row.cells[11].parse::<i64>().ok()),
-        "gbs" => clause.predicate.matches_number(row.cells[12].parse::<i64>().ok()),
+        "max" => clause
+            .predicate
+            .matches_number(row.cells[2].parse::<i64>().ok()),
+        "cur" => clause
+            .predicate
+            .matches_number(row.cells[3].parse::<i64>().ok()),
+        "trs" => clause
+            .predicate
+            .matches_number(row.cells[4].parse::<i64>().ok()),
+        "bdg" => clause
+            .predicate
+            .matches_number(row.cells[5].parse::<i64>().ok()),
+        "rev" => clause
+            .predicate
+            .matches_number(row.cells[6].parse::<i64>().ok()),
+        "gro" => clause
+            .predicate
+            .matches_number(row.cells[7].parse::<i64>().ok()),
+        "bui" => clause
+            .predicate
+            .matches_number(row.cells[8].parse::<i64>().ok()),
+        "sta" => clause
+            .predicate
+            .matches_number(row.cells[9].parse::<i64>().ok()),
+        "sbs" => clause
+            .predicate
+            .matches_number(row.cells[10].parse::<i64>().ok()),
+        "ars" => clause
+            .predicate
+            .matches_number(row.cells[11].parse::<i64>().ok()),
+        "gbs" => clause
+            .predicate
+            .matches_number(row.cells[12].parse::<i64>().ok()),
         _ => true,
     }
 }
