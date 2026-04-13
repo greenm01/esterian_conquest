@@ -10,7 +10,8 @@ pub mod threads;
 pub mod transport;
 pub mod update;
 
-use crossterm::event::{KeyEvent, MouseEvent};
+use crossterm::event::KeyEvent;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use nc_ui::modal::{ModalTheme, Rect, centered_rect, draw_box, render_modal_box};
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 
@@ -18,7 +19,7 @@ use crate::native::NativeApp;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
-use self::state::{LobbyFocus, LobbyRoute};
+use self::state::{LobbyFocus, LobbyMouseGesture, LobbyRoute};
 
 pub use self::state::LobbyApp;
 
@@ -37,6 +38,8 @@ impl LobbyApp {
             transport: transport::LobbyTransport::new(options.relay_override),
             settings_path,
             clipboard: clipboard::Clipboard::new(),
+            popup_position: None,
+            mouse_gesture: LobbyMouseGesture::None,
         }
     }
 
@@ -50,6 +53,8 @@ impl LobbyApp {
             transport: transport::LobbyTransport::new(None),
             settings_path: storage::settings::settings_path(),
             clipboard: clipboard::Clipboard::new(),
+            popup_position: None,
+            mouse_gesture: LobbyMouseGesture::None,
         }
     }
 
@@ -61,141 +66,124 @@ impl LobbyApp {
         <Self as NativeApp>::render_playfield(self)
     }
 
-    fn render_header(&self, buffer: &mut PlayfieldBuffer) {
-        let title = "NOSTRIAN CONQUEST LOBBY";
-        buffer.write_text_clipped(0, 2, title, theme::shell_title_style());
-        let relay = self
-            .state
-            .relay_label()
-            .unwrap_or_else(|| "relay: not set".to_string());
-        let handle = self
-            .state
-            .player_handle_label()
-            .unwrap_or_else(|| "handle: unset".to_string());
-        let right = format!("{handle}   {relay}");
-        let start = buffer.width().saturating_sub(right.chars().count() + 2);
-        buffer.write_text_clipped(0, start, &right, theme::shell_label_style());
+    pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) {
+        <Self as NativeApp>::dispatch_mouse_event(self, mouse);
     }
 
-    fn render_footer(&self, buffer: &mut PlayfieldBuffer) {
-        let footer = match self.state.route {
-            LobbyRoute::Home => "COMMANDS <- Tab Shift-Tab J K Enter N M H S R Q ->",
-            LobbyRoute::FirstRun => {
-                "FIRST RUN <- type handle/password Enter next-create Up Down Q quit ->"
+    fn render_submit_turn(&self, buffer: &mut PlayfieldBuffer) {
+        let mut lines = vec![
+            format!(
+                "Game     : {}",
+                self.state
+                    .hosted_game
+                    .as_ref()
+                    .map(|hosted| hosted.row.game.as_str())
+                    .unwrap_or("<none>")
+            ),
+            format!(
+                "Turn     : {}",
+                self.state
+                    .hosted_game
+                    .as_ref()
+                    .map(|hosted| hosted.snapshot.turn.to_string())
+                    .unwrap_or_else(|| "-".to_string())
+            ),
+            "Staged turn.kdl:".to_string(),
+        ];
+        if let Some(hosted) = self.state.hosted_game.as_ref() {
+            if hosted.submit_input.is_empty() {
+                lines.push("  <no staged orders>".to_string());
+            } else {
+                lines.extend(
+                    hosted
+                        .submit_input
+                        .lines()
+                        .map(|line| format!("  {line}"))
+                        .collect::<Vec<_>>(),
+                );
             }
-            LobbyRoute::Locked => "LOCKED <- type password Enter unlock Q quit ->",
-            LobbyRoute::ComposeInvite => "REQUEST INVITE <- type message Enter send Esc close ->",
-            LobbyRoute::ComposeThread => "THREAD MESSAGE <- type message Enter send Esc close ->",
-            LobbyRoute::EditHandle => "EDIT HANDLE <- type handle Enter save Esc close ->",
-            LobbyRoute::Settings => "SETTINGS <- J K move Enter toggle/open S save Esc cancel ->",
-            LobbyRoute::ThemePicker => "THEMES <- J K preview Enter accept Esc cancel ->",
-            LobbyRoute::HostedGame => "HOSTED GAME <- R refresh T submit-turn Esc lobby ->",
-            LobbyRoute::SubmitTurn => "SUBMIT TURN <- type commands Enter send Esc cancel ->",
+            lines.push(
+                hosted.submit_status.clone().unwrap_or_else(|| {
+                    "Enter sends the staged hosted turn.kdl as 30522.".to_string()
+                }),
+            );
+        }
+        let _ = render_modal_box(buffer, "SUBMIT TURN", &lines, modal_theme());
+    }
+
+    fn handle_lobby_mouse_down(&mut self, mouse: MouseEvent) {
+        if ratatui::popup_title_bar_contains(self, mouse.column, mouse.row) {
+            if let Some(popup) = ratatui::active_popup_rect(self) {
+                self.mouse_gesture = LobbyMouseGesture::DraggingPopup {
+                    grab_col_offset: mouse.column.saturating_sub(popup.x) as usize,
+                    grab_row_offset: mouse.row.saturating_sub(popup.y) as usize,
+                };
+            }
+            return;
+        }
+
+        self.mouse_gesture = LobbyMouseGesture::None;
+        if self.state.route != LobbyRoute::Home {
+            return;
+        }
+
+        let Some(hit) = ratatui::hit_test_home(&self.state, self.geometry, mouse.column, mouse.row)
+        else {
+            return;
         };
-        let row = buffer.height().saturating_sub(1);
-        buffer.write_text_clipped(row, 1, footer, theme::prompt_style());
-    }
-
-    fn render_modal_route(&self, buffer: &mut PlayfieldBuffer) {
-        match self.state.route {
-            LobbyRoute::Home => ratatui::render_home(buffer, &self.state),
-            LobbyRoute::HostedGame => {}
-            LobbyRoute::Settings => {
-                ratatui::render_settings(buffer, &self.state);
-            }
-            LobbyRoute::ThemePicker => {
-                ratatui::render_theme_picker(buffer, &self.state);
-            }
-            LobbyRoute::FirstRun => {
-                onboarding::render_first_run(buffer, &self.state);
-            }
-            LobbyRoute::Locked => {
-                onboarding::render_locked(buffer, &self.state);
-            }
-            LobbyRoute::ComposeInvite => {
-                let _ = render_modal_box(
-                    buffer,
-                    "REQUEST INVITE",
-                    &vec![
-                        format!(
-                            "Game    : {}",
-                            self.state
-                                .selected_open_game()
-                                .map(|row| row.game.as_str())
-                                .unwrap_or("<none>")
-                        ),
-                        format!("Message : {}", self.state.compose_message_input),
-                        "Enter sends a 30513 invite request.".to_string(),
-                    ],
-                    modal_theme(),
-                );
-            }
-            LobbyRoute::ComposeThread => {
-                let _ = render_modal_box(
-                    buffer,
-                    "PRIVATE THREAD",
-                    &vec![
-                        format!("Game    : {}", self.state.thread_context_display()),
-                        format!("Message : {}", self.state.compose_message_input),
-                        "Enter sends an encrypted 30517 sysop thread message.".to_string(),
-                    ],
-                    modal_theme(),
-                );
-            }
-            LobbyRoute::EditHandle => {
-                let _ = render_modal_box(
-                    buffer,
-                    "EDIT HANDLE",
-                    &vec![
-                        format!(
-                            "Current handle: {}",
-                            self.state.player_handle.as_deref().unwrap_or("<unset>")
-                        ),
-                        format!("New handle   : {}", self.state.edit_handle_input),
-                        "Enter saves the local keychain handle.".to_string(),
-                    ],
-                    modal_theme(),
-                );
-            }
-            LobbyRoute::SubmitTurn => {
-                let mut lines = vec![
-                    format!(
-                        "Game     : {}",
-                        self.state
-                            .hosted_game
-                            .as_ref()
-                            .map(|hosted| hosted.row.game.as_str())
-                            .unwrap_or("<none>")
-                    ),
-                    format!(
-                        "Turn     : {}",
-                        self.state
-                            .hosted_game
-                            .as_ref()
-                            .map(|hosted| hosted.snapshot.turn.to_string())
-                            .unwrap_or_else(|| "-".to_string())
-                    ),
-                    "Staged turn.kdl:".to_string(),
-                ];
-                if let Some(hosted) = self.state.hosted_game.as_ref() {
-                    if hosted.submit_input.is_empty() {
-                        lines.push("  <no staged orders>".to_string());
-                    } else {
-                        lines.extend(
-                            hosted
-                                .submit_input
-                                .lines()
-                                .map(|line| format!("  {line}"))
-                                .collect::<Vec<_>>(),
-                        );
-                    }
-                    lines.push(hosted.submit_status.clone().unwrap_or_else(|| {
-                        "Enter sends the staged hosted turn.kdl as 30522.".to_string()
-                    }));
+        self.state.focus = hit.focus;
+        match hit.focus {
+            LobbyFocus::JoinedGames => {
+                if let Some(selected) = hit.selected_row {
+                    self.state.joined_selected = selected;
                 }
-                let _ = render_modal_box(buffer, "SUBMIT TURN", &lines, modal_theme());
+            }
+            LobbyFocus::Inbox => {
+                if let Some(selected) = hit.selected_row {
+                    self.state.inbox_selected = selected;
+                }
+            }
+            LobbyFocus::OpenGames => {
+                if let Some(selected) = hit.selected_row {
+                    self.state.open_selected = selected;
+                }
+            }
+            LobbyFocus::Notices => {
+                if let Some(selected) = hit.selected_row {
+                    self.state.notices_selected = selected;
+                }
+            }
+            LobbyFocus::Thread => {
+                if let Some(selected) = hit.selected_row {
+                    self.state.thread_selected = selected;
+                }
             }
         }
+    }
+
+    fn handle_lobby_mouse_drag(&mut self, mouse: MouseEvent) {
+        let LobbyMouseGesture::DraggingPopup {
+            grab_col_offset,
+            grab_row_offset,
+        } = self.mouse_gesture
+        else {
+            return;
+        };
+        let Some(layout) = ratatui::home_layout(::ratatui::layout::Rect::new(
+            0,
+            0,
+            self.geometry.width() as u16,
+            self.geometry.height() as u16,
+        )) else {
+            self.mouse_gesture = LobbyMouseGesture::None;
+            return;
+        };
+        let target_x = mouse.column.saturating_sub(grab_col_offset as u16);
+        let target_y = mouse.row.saturating_sub(grab_row_offset as u16);
+        self.popup_position = Some(crate::overlays::frame::RelativePopupOrigin {
+            col_offset: target_x.saturating_sub(layout.body.x) as usize,
+            row_offset: target_y.saturating_sub(layout.body.y) as usize,
+        });
     }
 }
 
@@ -220,6 +208,21 @@ impl NativeApp for LobbyApp {
                     self.should_quit = true;
                 }
             }
+            return;
+        }
+
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => self.handle_lobby_mouse_down(mouse),
+            MouseEventKind::Drag(MouseButton::Left) => self.handle_lobby_mouse_drag(mouse),
+            MouseEventKind::Up(MouseButton::Left) => {
+                self.mouse_gesture = LobbyMouseGesture::None;
+            }
+            MouseEventKind::Moved => {
+                if !matches!(self.mouse_gesture, LobbyMouseGesture::DraggingPopup { .. }) {
+                    self.mouse_gesture = LobbyMouseGesture::None;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -242,16 +245,18 @@ impl NativeApp for LobbyApp {
             theme::body_style(),
         );
         if matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked) {
-            self.render_modal_route(&mut buffer);
+            match self.state.route {
+                LobbyRoute::FirstRun => onboarding::render_first_run(&mut buffer, &self.state),
+                LobbyRoute::Locked => onboarding::render_locked(&mut buffer, &self.state),
+                _ => {}
+            }
             return Ok(buffer);
         }
-        if self.state.route == LobbyRoute::Home {
-            self.render_modal_route(&mut buffer);
+        if self.state.route == LobbyRoute::SubmitTurn {
+            self.render_submit_turn(&mut buffer);
             return Ok(buffer);
         }
-        self.render_header(&mut buffer);
-        self.render_modal_route(&mut buffer);
-        self.render_footer(&mut buffer);
+        ratatui::render_scene(&mut buffer, self);
         Ok(buffer)
     }
 

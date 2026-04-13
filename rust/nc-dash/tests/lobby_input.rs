@@ -1,8 +1,9 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::JoinedGameRow;
-use nc_dash::lobby::state::{FirstRunField, HostedGameView, LobbyRoute};
+use nc_dash::lobby::models::OpenGameRow;
+use nc_dash::lobby::state::{FirstRunField, HostedGameView, LobbyFocus, LobbyRoute};
 use nc_dash::lobby::update::apply_key;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
@@ -21,6 +22,15 @@ fn ctrl_key(code: KeyCode) -> KeyEvent {
 
 fn shift_key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::SHIFT)
+}
+
+fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
+    MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers: KeyModifiers::NONE,
+    }
 }
 
 #[test]
@@ -186,6 +196,151 @@ fn handle_moves_to_settings_and_returns_there_after_cancel() {
     apply_key(&mut app, key(KeyCode::Esc));
 
     assert_eq!(app.state.route, LobbyRoute::Settings);
+}
+
+#[test]
+fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.joined_games = vec![
+        JoinedGameRow::new(
+            "friday-night",
+            "joined",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "y3004 t4",
+        ),
+        JoinedGameRow::new(
+            "saturday-night",
+            "joined",
+            "Saturday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(2),
+            "y3005 t2",
+        ),
+    ];
+
+    let buffer = app.render_for_test().expect("render lobby");
+    let row = (0..buffer.height())
+        .find(|&idx| buffer.plain_line(idx).contains("Saturday Night"))
+        .expect("joined row");
+    let column = buffer
+        .plain_line(row)
+        .find("Saturday Night")
+        .expect("joined column") as u16;
+
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), column, row as u16));
+
+    assert_eq!(app.state.focus, LobbyFocus::JoinedGames);
+    assert_eq!(app.state.joined_selected, 1);
+}
+
+#[test]
+fn clicking_pane_border_focuses_without_changing_selection() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.open_games = vec![
+        OpenGameRow::new(
+            "friday-night",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            "new_players",
+            3,
+            "y3004 t4",
+            "summary",
+        ),
+        OpenGameRow::new(
+            "saturday-night",
+            "Saturday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            "new_players",
+            2,
+            "y3005 t2",
+            "summary",
+        ),
+    ];
+    app.state.focus = LobbyFocus::JoinedGames;
+    app.state.open_selected = 1;
+
+    let buffer = app.render_for_test().expect("render lobby");
+    let row = (0..buffer.height())
+        .find(|&idx| buffer.plain_line(idx).contains("Friday Night | nc-host"))
+        .expect("open games row");
+    let column = buffer
+        .plain_line(row)
+        .find("Friday Night")
+        .expect("row column") as u16;
+
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        column,
+        row.saturating_sub(1) as u16,
+    ));
+
+    assert_eq!(app.state.focus, LobbyFocus::OpenGames);
+    assert_eq!(app.state.open_selected, 1);
+}
+
+#[test]
+fn settings_popup_drags_from_title_row() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+
+    let buffer = app.render_for_test().expect("render settings");
+    let row = (0..buffer.height())
+        .find(|&idx| buffer.plain_line(idx).contains(" LOBBY SETTINGS "))
+        .expect("settings title row");
+    let column = buffer
+        .plain_line(row)
+        .find("LOBBY SETTINGS")
+        .expect("settings title") as u16;
+
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), column, row as u16));
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Drag(MouseButton::Left),
+        column.saturating_add(8),
+        row as u16 + 3,
+    ));
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Up(MouseButton::Left),
+        column.saturating_add(8),
+        row as u16 + 3,
+    ));
+
+    assert!(app.popup_position.is_some());
+}
+
+#[test]
+fn settings_popup_does_not_drag_from_side_border() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+
+    let buffer = app.render_for_test().expect("render settings");
+    let title_row = (0..buffer.height())
+        .find(|&idx| buffer.plain_line(idx).contains(" LOBBY SETTINGS "))
+        .expect("settings title row");
+    let left_border = buffer
+        .plain_line(title_row)
+        .find('┌')
+        .expect("left border") as u16;
+
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        left_border,
+        title_row as u16 + 2,
+    ));
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Drag(MouseButton::Left),
+        left_border.saturating_add(8),
+        title_row as u16 + 5,
+    ));
+
+    assert!(app.popup_position.is_none());
 }
 
 fn sample_hosted_snapshot() -> GameState {

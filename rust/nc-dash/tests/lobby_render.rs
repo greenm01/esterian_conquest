@@ -47,17 +47,19 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
     app.state.status_message = Some("Invite request sent.".to_string());
 
     let buffer = app.render_for_test().expect("render lobby");
-    let footer_row = buffer.height() - 2;
+    let footer_row = buffer.height() - 3;
     let footer = buffer.plain_line(footer_row);
     let footer_start = footer.find("? Help").expect("footer labels");
-    let toast_row = buffer.height() - 5;
+    let toast_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("Invite request sent."))
+        .expect("toast row");
 
-    assert!(buffer.plain_line(1).contains("NETWORK: SYNCED"));
+    assert!(buffer.plain_line(2).contains("NETWORK: SYNCED"));
     assert!(footer.contains("I<N>vite"));
     assert!(footer.contains("M>essage"));
     assert!(footer.contains("S>ettings"));
     assert!(footer_start > 0);
-    assert!(buffer.plain_line(toast_row).contains("Invite request sent."));
+    assert!(toast_row < footer_row);
 }
 
 #[test]
@@ -72,7 +74,7 @@ fn home_route_footer_spans_width_below_columns() {
                 .map(|col| (row, col))
         })
         .expect("inbox title");
-    let footer_border = buffer.height() - 3;
+    let footer_border = buffer.height() - 5;
     let footer_line = buffer.plain_line(footer_border);
 
     assert!(footer_border > inbox.0);
@@ -89,7 +91,7 @@ fn home_route_help_popup_renders_as_overlay() {
 
     assert!(lines.contains("LOBBY HELP"));
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
-    assert!(lines.contains("Settings   : open settings, including local handle"));
+    assert!(lines.contains("S          : open lobby settings, including local handle"));
     assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
@@ -97,6 +99,8 @@ fn home_route_help_popup_renders_as_overlay() {
 fn settings_route_renders_theme_controls() {
     let lines = render_lines(LobbyRoute::Settings);
 
+    assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
+    assert!(lines.contains("? Help"));
     assert!(lines.contains("LOBBY SETTINGS"));
     assert!(lines.contains("Handle"));
     assert!(lines.contains("Mouse Follow"));
@@ -109,11 +113,13 @@ fn settings_route_renders_theme_controls() {
 fn theme_picker_route_renders_theme_list() {
     let lines = render_lines(LobbyRoute::ThemePicker);
 
+    assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
+    assert!(lines.contains("? Help"));
     assert!(lines.contains("THEME PICKER"));
     assert!(lines.contains("Themes"));
     assert!(lines.contains("Preview"));
     assert!(lines.contains("Tokyo Night"));
-    assert!(lines.contains("Rose Pine"));
+    assert!(lines.contains("Current :"));
 }
 
 #[test]

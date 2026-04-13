@@ -2,6 +2,7 @@ use nc_nostr::state_sync::GameState;
 use nc_ui::ScreenGeometry;
 
 use crate::app::state::DashApp;
+use crate::overlays::frame::RelativePopupOrigin;
 use crate::startup::LobbyStartupOptions;
 use crate::theme::ThemeCatalogEntry;
 
@@ -294,4 +295,15 @@ pub struct LobbyApp {
     pub should_quit: bool,
     pub settings_path: std::path::PathBuf,
     pub(crate) clipboard: Clipboard,
+    pub popup_position: Option<RelativePopupOrigin>,
+    pub mouse_gesture: LobbyMouseGesture,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LobbyMouseGesture {
+    None,
+    DraggingPopup {
+        grab_col_offset: usize,
+        grab_row_offset: usize,
+    },
 }
