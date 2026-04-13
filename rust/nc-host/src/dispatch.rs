@@ -49,7 +49,9 @@ fn init_logging(parsed: &ParsedArgs) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn parse_args(args: impl Iterator<Item = String>) -> Result<ParsedArgs, Box<dyn std::error::Error>> {
+fn parse_args(
+    args: impl Iterator<Item = String>,
+) -> Result<ParsedArgs, Box<dyn std::error::Error>> {
     let mut args = args.peekable();
     let mut log_file = None;
     let mut log_level = nc_log::LogLevel::Info;

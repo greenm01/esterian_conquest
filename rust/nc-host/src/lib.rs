@@ -5,8 +5,8 @@ pub mod game;
 pub mod invite;
 pub mod lobby;
 pub mod status;
-pub mod support;
 pub mod supervisor;
+pub mod support;
 
 pub fn run_cli(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     dispatch::run_args(args)

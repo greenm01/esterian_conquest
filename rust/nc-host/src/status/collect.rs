@@ -2,12 +2,14 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::config::{host_config::HostConfig, relay::RelayConfig};
-use crate::status::model::{DaemonStatusReport, DaemonStatusTotals, GameStatusRow, RelayStatusReport};
+use crate::status::model::{
+    DaemonStatusReport, DaemonStatusTotals, GameStatusRow, RelayStatusReport,
+};
 use crate::support::paths::hosted_db_path;
 use crate::support::time::unix_now;
 use nc_data::hosted::{
-    count_by_status, count_pending_requests, count_pending_turns, count_unpublished_decisions,
-    get_game_metadata, get_settings, list_seats, HostedStore, OutboxStatus, RecruitingMode,
+    HostedStore, OutboxStatus, RecruitingMode, count_by_status, count_pending_requests,
+    count_pending_turns, count_unpublished_decisions, get_game_metadata, get_settings, list_seats,
 };
 use nostr_sdk::{Client, RelayStatus};
 
@@ -83,7 +85,8 @@ fn discover_games(games_root: &Path) -> Result<Vec<GameStatusRow>, Box<dyn std::
             };
 
             match HostedStore::open(&db_path) {
-                Ok(store) => match build_game_status_row(game_id.to_string(), path.clone(), &store) {
+                Ok(store) => match build_game_status_row(game_id.to_string(), path.clone(), &store)
+                {
                     Ok(game) => games.push(game),
                     Err(err) => tracing::warn!("Failed to collect status for {}: {}", game_id, err),
                 },
@@ -113,8 +116,8 @@ fn build_game_status_row(
         .count() as u32;
     let due_seconds = settings.maintenance_next_due_unix_seconds;
     let now = chrono::Utc::now().timestamp();
-    let maintenance_due_now = settings.maintenance_enabled
-        && due_seconds.map(|due| now >= due).unwrap_or(true);
+    let maintenance_due_now =
+        settings.maintenance_enabled && due_seconds.map(|due| now >= due).unwrap_or(true);
 
     Ok(GameStatusRow {
         game_id,

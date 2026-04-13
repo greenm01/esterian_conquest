@@ -21,7 +21,7 @@ impl RelayConfig {
             _ => {
                 return Err(RelayError::InvalidUrl(
                     "must be ws:// or wss://".to_string(),
-                ))
+                ));
             }
         }
 

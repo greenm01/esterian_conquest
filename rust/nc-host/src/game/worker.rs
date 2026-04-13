@@ -7,9 +7,9 @@ use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus}
 use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus};
 use nc_nostr::state_sync::StateRequest;
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::fmt;
 use tokio::sync::mpsc;
 
 pub struct GameWorker {
@@ -58,7 +58,11 @@ impl GameWorker {
             }
         };
 
-        let seat = match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &request.player_pubkey) {
+        let seat = match hosted::get_seat_by_pubkey(
+            store.connection(),
+            &self.game_id,
+            &request.player_pubkey,
+        ) {
             Ok(Some(seat)) => seat,
             Ok(None) => {
                 tracing::warn!(
@@ -75,7 +79,10 @@ impl GameWorker {
         };
 
         let Some(game_dir) = self.db_path.parent() else {
-            tracing::error!("Hosted db path has no parent for {}", self.db_path.display());
+            tracing::error!(
+                "Hosted db path has no parent for {}",
+                self.db_path.display()
+            );
             return;
         };
 
@@ -86,7 +93,11 @@ impl GameWorker {
         ) {
             Ok(payload) => payload,
             Err(e) => {
-                tracing::error!("Failed to build game state payload for {}: {}", self.game_id, e);
+                tracing::error!(
+                    "Failed to build game state payload for {}: {}",
+                    self.game_id,
+                    e
+                );
                 return;
             }
         };
@@ -114,7 +125,10 @@ impl GameWorker {
         ) {
             tracing::error!("Failed to enqueue state response: {}", e);
         } else {
-            tracing::info!("Queued encrypted state for {}", short_pubkey(&request.player_pubkey));
+            tracing::info!(
+                "Queued encrypted state for {}",
+                short_pubkey(&request.player_pubkey)
+            );
         }
     }
 
@@ -257,66 +271,69 @@ impl GameWorker {
             .to_ascii_lowercase();
 
         let invite_hash = blake3::hash(invite_token.as_bytes()).to_hex().to_string();
-        let result = match hosted::find_seat_by_invite_hash(store.connection(), &self.game_id, &invite_hash) {
-            Ok(Some(seat)) if seat.status == hosted::SeatStatus::Pending => {
-                match hosted::claim_seat(
-                    store.connection(),
-                    &self.game_id,
-                    seat.seat_number,
-                    &request.player_pubkey,
-                ) {
-                    Ok(()) => {
-                        let _ = hosted::mark_catalog_dirty(store.connection(), &self.game_id);
-                        SeatClaimResultPayload {
-                            nonce: request.nonce.clone(),
-                            game_id: Some(self.game_id.clone()),
-                            status: SeatClaimStatus::Claimed,
-                            message: format!("Seat {} claimed.", seat.seat_number),
-                            seat: Some(seat.seat_number),
+        let result =
+            match hosted::find_seat_by_invite_hash(store.connection(), &self.game_id, &invite_hash)
+            {
+                Ok(Some(seat)) if seat.status == hosted::SeatStatus::Pending => {
+                    match hosted::claim_seat(
+                        store.connection(),
+                        &self.game_id,
+                        seat.seat_number,
+                        &request.player_pubkey,
+                    ) {
+                        Ok(()) => {
+                            let _ = hosted::mark_catalog_dirty(store.connection(), &self.game_id);
+                            SeatClaimResultPayload {
+                                nonce: request.nonce.clone(),
+                                game_id: Some(self.game_id.clone()),
+                                status: SeatClaimStatus::Claimed,
+                                message: format!("Seat {} claimed.", seat.seat_number),
+                                seat: Some(seat.seat_number),
+                            }
                         }
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to claim seat {}: {}", seat.seat_number, e);
-                        SeatClaimResultPayload {
-                            nonce: request.nonce.clone(),
-                            game_id: Some(self.game_id.clone()),
-                            status: SeatClaimStatus::AlreadyClaimed,
-                            message: "That invite is no longer available.".to_string(),
-                            seat: Some(seat.seat_number),
+                        Err(e) => {
+                            tracing::error!("Failed to claim seat {}: {}", seat.seat_number, e);
+                            SeatClaimResultPayload {
+                                nonce: request.nonce.clone(),
+                                game_id: Some(self.game_id.clone()),
+                                status: SeatClaimStatus::AlreadyClaimed,
+                                message: "That invite is no longer available.".to_string(),
+                                seat: Some(seat.seat_number),
+                            }
                         }
                     }
                 }
-            }
-            Ok(Some(seat)) => {
-                let same_player = seat.player_pubkey.as_deref() == Some(request.player_pubkey.as_str());
-                SeatClaimResultPayload {
+                Ok(Some(seat)) => {
+                    let same_player =
+                        seat.player_pubkey.as_deref() == Some(request.player_pubkey.as_str());
+                    SeatClaimResultPayload {
+                        nonce: request.nonce.clone(),
+                        game_id: Some(self.game_id.clone()),
+                        status: if same_player {
+                            SeatClaimStatus::Claimed
+                        } else {
+                            SeatClaimStatus::AlreadyClaimed
+                        },
+                        message: if same_player {
+                            format!("Seat {} already claimed by this player.", seat.seat_number)
+                        } else {
+                            "That invite has already been claimed.".to_string()
+                        },
+                        seat: Some(seat.seat_number),
+                    }
+                }
+                Ok(None) => SeatClaimResultPayload {
                     nonce: request.nonce.clone(),
                     game_id: Some(self.game_id.clone()),
-                    status: if same_player {
-                        SeatClaimStatus::Claimed
-                    } else {
-                        SeatClaimStatus::AlreadyClaimed
-                    },
-                    message: if same_player {
-                        format!("Seat {} already claimed by this player.", seat.seat_number)
-                    } else {
-                        "That invite has already been claimed.".to_string()
-                    },
-                    seat: Some(seat.seat_number),
+                    status: SeatClaimStatus::InvalidInvite,
+                    message: "Unknown invite code.".to_string(),
+                    seat: None,
+                },
+                Err(e) => {
+                    tracing::error!("Failed to lookup invite hash: {}", e);
+                    return;
                 }
-            }
-            Ok(None) => SeatClaimResultPayload {
-                nonce: request.nonce.clone(),
-                game_id: Some(self.game_id.clone()),
-                status: SeatClaimStatus::InvalidInvite,
-                message: "Unknown invite code.".to_string(),
-                seat: None,
-            },
-            Err(e) => {
-                tracing::error!("Failed to lookup invite hash: {}", e);
-                return;
-            }
-        };
+            };
 
         let content = match serde_json::to_string(&result) {
             Ok(content) => content,
@@ -352,7 +369,11 @@ impl GameWorker {
             }
         };
 
-        let _seat = match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &commands.player_pubkey) {
+        let _seat = match hosted::get_seat_by_pubkey(
+            store.connection(),
+            &self.game_id,
+            &commands.player_pubkey,
+        ) {
             Ok(Some(s)) => s,
             Ok(None) => {
                 let receipt = TurnReceipt {
@@ -366,7 +387,8 @@ impl GameWorker {
                         message: "unclaimed_seat".to_string(),
                     }],
                 };
-                self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
+                self.publish_turn_receipt(&commands.player_pubkey, &receipt)
+                    .await;
                 return;
             }
             Err(e) => {
@@ -395,7 +417,8 @@ impl GameWorker {
                     message: e.to_string(),
                 }],
             };
-            self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
+            self.publish_turn_receipt(&commands.player_pubkey, &receipt)
+                .await;
             return;
         }
 
@@ -408,7 +431,8 @@ impl GameWorker {
             errors: vec![],
         };
 
-        self.publish_turn_receipt(&commands.player_pubkey, &receipt).await;
+        self.publish_turn_receipt(&commands.player_pubkey, &receipt)
+            .await;
     }
 
     async fn handle_thread_message(&self, message: nc_nostr::thread_message::SysopThreadMessage) {
@@ -420,7 +444,8 @@ impl GameWorker {
             }
         };
 
-        if let Err(e) = crate::lobby::threads::store_player_message(&store, &self.game_id, &message) {
+        if let Err(e) = crate::lobby::threads::store_player_message(&store, &self.game_id, &message)
+        {
             tracing::error!(
                 "Failed to store thread message {} for {}: {}",
                 message.message_id,
@@ -489,7 +514,10 @@ impl GameWorker {
         ) {
             tracing::error!("Failed to enqueue turn receipt: {}", e);
         } else {
-            tracing::info!("Queued encrypted turn receipt for {}", short_pubkey(player_pubkey));
+            tracing::info!(
+                "Queued encrypted turn receipt for {}",
+                short_pubkey(player_pubkey)
+            );
         }
     }
 }
@@ -514,39 +542,44 @@ impl GameWorkerHandle {
     }
 }
 
-pub fn spawn_worker(
-    game_id: String,
-    db_path: PathBuf,
-) -> GameWorkerHandle {
+pub fn spawn_worker(game_id: String, db_path: PathBuf) -> GameWorkerHandle {
     let (tx, mut rx) = mpsc::channel::<GameMsg>(100);
-    
+
     let worker = GameWorker::new(game_id.clone(), db_path);
     let worker = Arc::new(worker);
-    
+
     let game_id_clone = game_id.clone();
-    
+
     tokio::spawn(async move {
         tracing::debug!("Game worker started for {}", game_id_clone);
-        
+
         while let Some(msg) = rx.recv().await {
             match msg {
                 GameMsg::Tick => {}
                 GameMsg::PublishLobbyCatalog => {}
                 GameMsg::ProcessInviteRequest { request_id } => {
-                    tracing::debug!("Processing invite request {} for {}", request_id, game_id_clone);
+                    tracing::debug!(
+                        "Processing invite request {} for {}",
+                        request_id,
+                        game_id_clone
+                    );
                 }
                 GameMsg::ProcessTurnSubmission { submit_id } => {
-                    tracing::debug!("Processing turn submission {} for {}", submit_id, game_id_clone);
+                    tracing::debug!(
+                        "Processing turn submission {} for {}",
+                        submit_id,
+                        game_id_clone
+                    );
                 }
                 GameMsg::HandleEffect(effect) => {
                     worker.handle_effect(effect).await;
                 }
             }
         }
-        
+
         tracing::debug!("Game worker stopped for {}", game_id_clone);
     });
-    
+
     GameWorkerHandle {
         game_id,
         sender: tx,

@@ -1,6 +1,6 @@
-use nc_data::hosted::HostedStore;
-use nc_nostr::invite_request::{build_invite_decision_tags, InviteDecision, InviteDecisionPayload};
 use crate::support::pubkeys::short_pubkey;
+use nc_data::hosted::HostedStore;
+use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload, build_invite_decision_tags};
 
 pub fn enqueue_invite_decision(
     store: &HostedStore,

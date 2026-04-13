@@ -70,7 +70,9 @@ pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<G
 
     match kind {
         30507 => {
-            if let Some(req) = nc_nostr::state_sync::parse_state_request(host_secret_key, &routed.event) {
+            if let Some(req) =
+                nc_nostr::state_sync::parse_state_request(host_secret_key, &routed.event)
+            {
                 vec![GameEffects::HandleStateRequest { request: req }]
             } else {
                 vec![GameEffects::InvalidEvent {
@@ -79,7 +81,9 @@ pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<G
             }
         }
         30513 => {
-            if let Some(req) = nc_nostr::invite_request::parse_invite_request(host_secret_key, &routed.event) {
+            if let Some(req) =
+                nc_nostr::invite_request::parse_invite_request(host_secret_key, &routed.event)
+            {
                 vec![GameEffects::HandleInviteRequest {
                     request: req,
                     game_id: routed.game_id.clone(),
@@ -90,19 +94,19 @@ pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<G
                 }]
             }
         }
-        30510 => {
-            match nc_nostr::claim::parse_seat_claim_request(host_secret_key, &routed.event) {
-                Ok(req) => vec![GameEffects::HandleSeatClaim {
-                    request: req,
-                    game_id: routed.game_id.clone(),
-                }],
-                Err(err) => vec![GameEffects::InvalidEvent {
-                    reason: format!("failed to parse SeatClaimRequest: {}", err),
-                }],
-            }
-        }
+        30510 => match nc_nostr::claim::parse_seat_claim_request(host_secret_key, &routed.event) {
+            Ok(req) => vec![GameEffects::HandleSeatClaim {
+                request: req,
+                game_id: routed.game_id.clone(),
+            }],
+            Err(err) => vec![GameEffects::InvalidEvent {
+                reason: format!("failed to parse SeatClaimRequest: {}", err),
+            }],
+        },
         30522 => {
-            if let Some(cmds) = nc_nostr::turn_commands::parse_turn_commands(host_secret_key, &routed.event) {
+            if let Some(cmds) =
+                nc_nostr::turn_commands::parse_turn_commands(host_secret_key, &routed.event)
+            {
                 vec![GameEffects::HandleTurnCommands {
                     commands: cmds,
                     game_id: routed.game_id.clone(),

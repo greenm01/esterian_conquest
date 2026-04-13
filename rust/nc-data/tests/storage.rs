@@ -431,7 +431,8 @@ fn sqlite_store_rejects_prior_runtime_schema_version() {
     .expect("seed prior runtime schema");
     drop(conn);
 
-    let err = CampaignStore::open(&store_path).expect_err("prior runtime schema should be rejected");
+    let err =
+        CampaignStore::open(&store_path).expect_err("prior runtime schema should be rejected");
     assert!(
         matches!(
             err,

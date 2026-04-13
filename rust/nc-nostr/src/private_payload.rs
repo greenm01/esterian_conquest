@@ -147,9 +147,7 @@ fn parse_envelope(json: &str) -> Result<String, PrivatePayloadError> {
 
     match envelope.compression {
         CompressionKind::None => envelope.payload.ok_or_else(|| {
-            PrivatePayloadError::InvalidEnvelope(
-                "compression=none requires `payload`".to_string(),
-            )
+            PrivatePayloadError::InvalidEnvelope("compression=none requires `payload`".to_string())
         }),
         CompressionKind::Zstd => {
             let payload_b64 = envelope.payload_b64.ok_or_else(|| {
@@ -176,12 +174,11 @@ fn compress_if_worth_it(bytes: &[u8]) -> Result<Option<String>, PrivatePayloadEr
         return Ok(None);
     }
 
-    let compressed =
-        zstd::stream::encode_all(Cursor::new(bytes), ZSTD_LEVEL).map_err(PrivatePayloadError::Compress)?;
+    let compressed = zstd::stream::encode_all(Cursor::new(bytes), ZSTD_LEVEL)
+        .map_err(PrivatePayloadError::Compress)?;
     if compressed.len() >= bytes.len() {
         return Ok(None);
     }
 
     Ok(Some(BASE64_STANDARD.encode(compressed)))
 }
-

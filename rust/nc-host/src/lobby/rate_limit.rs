@@ -43,37 +43,41 @@ impl RateLimiter {
 
         if let Some(entry) = entries.get_mut(key) {
             let elapsed = now.duration_since(entry.window_start);
-            
+
             if elapsed > Duration::from_secs(self.config.window_seconds) {
                 entry.count = 1;
                 entry.window_start = now;
                 return RateLimitResult::Allowed;
             }
-            
+
             if entry.count >= self.config.max_requests_per_window {
                 return RateLimitResult::Rejected {
                     retry_after: self.config.window_seconds - elapsed.as_secs(),
                 };
             }
-            
+
             entry.count += 1;
             return RateLimitResult::Allowed;
         }
 
-        entries.insert(key.to_string(), RateLimitEntry {
-            count: 1,
-            window_start: now,
-        });
-        
+        entries.insert(
+            key.to_string(),
+            RateLimitEntry {
+                count: 1,
+                window_start: now,
+            },
+        );
+
         RateLimitResult::Allowed
     }
 
     pub async fn cleanup(&self) {
         let mut entries = self.entries.write().await;
         let now = Instant::now();
-        
+
         entries.retain(|_, entry| {
-            now.duration_since(entry.window_start) < Duration::from_secs(self.config.window_seconds * 2)
+            now.duration_since(entry.window_start)
+                < Duration::from_secs(self.config.window_seconds * 2)
         });
     }
 }
@@ -109,7 +113,7 @@ mod tests {
 
         limiter.check("player1").await;
         limiter.check("player1").await;
-        
+
         let result = limiter.check("player1").await;
         assert!(matches!(result, RateLimitResult::Rejected { .. }));
     }

@@ -1,7 +1,5 @@
 use crate::json::{escape_json_string, extract_str};
-use crate::private_payload::{
-    decrypt_private_json_from_event, encrypt_private_text,
-};
+use crate::private_payload::{decrypt_private_json_from_event, encrypt_private_text};
 use crate::tags::tag_content;
 use crate::timing::is_event_stale;
 use nostr_sdk::nips::nip44;
@@ -91,8 +89,8 @@ pub fn parse_seat_claim_request(
         .filter(|value| !value.is_empty())
         .ok_or(ParseSeatClaimError::MissingNonce)?
         .to_string();
-    let payload: SeatClaimRequestPayload =
-        decrypt_private_json_from_event(secret_key, event).map_err(|_| ParseSeatClaimError::InvalidPayload)?;
+    let payload: SeatClaimRequestPayload = decrypt_private_json_from_event(secret_key, event)
+        .map_err(|_| ParseSeatClaimError::InvalidPayload)?;
     let invite_code = payload.invite.trim().to_ascii_lowercase();
     if invite_code.is_empty() {
         return Err(ParseSeatClaimError::MissingInviteCode);
@@ -134,11 +132,9 @@ pub fn build_seat_claim_request_event(
                 .map(str::to_string),
         })?,
     )?;
-    Ok(
-        EventBuilder::new(Kind::Custom(30510), content)
-            .tags(tags)
-            .sign_with_keys(player_keys)?,
-    )
+    Ok(EventBuilder::new(Kind::Custom(30510), content)
+        .tags(tags)
+        .sign_with_keys(player_keys)?)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -183,7 +179,9 @@ pub fn build_seat_claim_error_event(
         .sign_with_keys(gate_keys)?)
 }
 
-pub fn build_seat_claim_result_tags(payload: &SeatClaimResultPayload) -> Vec<(&'static str, String)> {
+pub fn build_seat_claim_result_tags(
+    payload: &SeatClaimResultPayload,
+) -> Vec<(&'static str, String)> {
     let mut tags = vec![
         ("d", payload.nonce.clone()),
         ("status", payload.status.as_str().to_string()),

@@ -1,6 +1,6 @@
+use rusqlite::{OptionalExtension, params};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use rusqlite::{OptionalExtension, params};
 
 use super::{
     CampaignRuntimeState, CampaignStore, CampaignStoreError, PlanetIntelSnapshot,

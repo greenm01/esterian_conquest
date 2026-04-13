@@ -1,6 +1,8 @@
-use nc_data::hosted::{list_thread_messages, list_thread_players, store_thread_message, HostedStore};
+use nc_data::hosted::{
+    HostedStore, list_thread_messages, list_thread_players, store_thread_message,
+};
 use nc_nostr::pubkeys::hex_to_npub;
-use nc_nostr::thread_message::{build_thread_message_tags, SenderRole, SysopThreadMessage};
+use nc_nostr::thread_message::{SenderRole, SysopThreadMessage, build_thread_message_tags};
 
 pub fn store_player_message(
     store: &HostedStore,
@@ -79,5 +81,9 @@ pub fn list_messages(
     game_id: &str,
     player_pubkey: &str,
 ) -> Result<Vec<nc_data::hosted::HostedThreadMessage>, Box<dyn std::error::Error>> {
-    Ok(list_thread_messages(store.connection(), game_id, player_pubkey)?)
+    Ok(list_thread_messages(
+        store.connection(),
+        game_id,
+        player_pubkey,
+    )?)
 }

@@ -1,6 +1,6 @@
-use crate::invite::generate_invite_code;
 use crate::config::host_config::HostConfig;
-use nc_data::hosted::{list_seats, HostedStore};
+use crate::invite::generate_invite_code;
+use nc_data::hosted::{HostedStore, list_seats};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -209,7 +209,9 @@ fn print_usage() {
     println!(
         "  nc-host requests approve --dir <path> --request <id> --player N [--message \"...\"] [--config <path>]"
     );
-    println!("  nc-host requests reject --dir <path> --request <id> [--message \"...\"] [--config <path>]");
+    println!(
+        "  nc-host requests reject --dir <path> --request <id> [--message \"...\"] [--config <path>]"
+    );
 }
 
 fn load_config(path: Option<&PathBuf>) -> Result<HostConfig, Box<dyn std::error::Error>> {

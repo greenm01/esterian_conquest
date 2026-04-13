@@ -168,7 +168,10 @@ impl EventPublisher {
         )
         .await?;
         self.client.send_event(&event).await?;
-        tracing::info!("Published sysop summary DM to {}", short_pubkey(recipient_npub));
+        tracing::info!(
+            "Published sysop summary DM to {}",
+            short_pubkey(recipient_npub)
+        );
         Ok(())
     }
 }

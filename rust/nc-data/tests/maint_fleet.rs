@@ -4,11 +4,11 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use nc_data::{
-    fleet_motion_state::{reset_motion_state_for_new_orders, store_exact_position},
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
     DiplomaticRelation, FleetOrderValidationError, GameStateBuilder, JoinMissionHostEvent, Mission,
     MissionAbortReason, MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource,
     SalvageFailureReason, SalvageResolvedEvent,
+    fleet_motion_state::{reset_motion_state_for_new_orders, store_exact_position},
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
 use std::path::Path;
@@ -346,10 +346,12 @@ fn test_blockading_foreign_world_escalates_to_enemy() {
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
-    assert!(events
-        .diplomatic_escalation_events
-        .iter()
-        .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2));
+    assert!(
+        events
+            .diplomatic_escalation_events
+            .iter()
+            .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2)
+    );
     assert_eq!(
         game_data.player.records[0].diplomatic_relation_toward(2),
         Some(DiplomaticRelation::Enemy)
@@ -1411,10 +1413,12 @@ fn test_join_merge_occurs_without_combat_merge_flag() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
-    assert!(events
-        .fleet_merge_events
-        .iter()
-        .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side }));
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side })
+    );
 }
 
 #[test]
@@ -1498,10 +1502,12 @@ fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
-    assert!(events
-        .fleet_merge_events
-        .iter()
-        .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side }));
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side })
+    );
 }
 
 #[test]
@@ -1610,10 +1616,12 @@ fn test_rendezvous_does_not_merge_before_reaching_its_assigned_sector() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before);
-    assert!(events
-        .fleet_merge_events
-        .iter()
-        .all(|event| { event.kind != Mission::RendezvousSector }));
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .all(|event| { event.kind != Mission::RendezvousSector })
+    );
 }
 
 #[test]

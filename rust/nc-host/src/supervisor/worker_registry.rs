@@ -1,4 +1,4 @@
-use crate::game::worker::{spawn_worker, GameWorkerHandle};
+use crate::game::worker::{GameWorkerHandle, spawn_worker};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
@@ -18,18 +18,18 @@ impl WorkerRegistry {
 
     pub async fn get_or_create(&self, game_id: String) -> GameWorkerHandle {
         let mut workers = self.workers.write().await;
-        
+
         if let Some(handle) = workers.get(&game_id) {
             return handle.clone();
         }
 
         let db_path = self.games_root.join(&game_id).join("hosted.db");
-        
+
         let handle = spawn_worker(game_id.clone(), db_path);
-        
+
         workers.insert(game_id.clone(), handle.clone());
         tracing::debug!("Created new worker for game {}", game_id);
-        
+
         handle
     }
 

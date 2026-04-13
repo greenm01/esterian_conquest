@@ -2,15 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use nc_data::{
-    active_starbase_count_at, build_player_starmap_projection_from_snapshots, load_mail_queue,
-    merge_player_intel_from_runtime, CampaignSettings, CampaignStore, CoreGameData,
-    DiplomaticRelation, PlanetIntelSnapshot, PlayerRecord, ProductionItemKind, QueuedPlayerMail,
-    ReportBlockRow, STARDOCK_SLOT_COUNT, DEFAULT_CAMPAIGN_DB_NAME,
+    CampaignSettings, CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, DiplomaticRelation,
+    PlanetIntelSnapshot, PlayerRecord, ProductionItemKind, QueuedPlayerMail, ReportBlockRow,
+    STARDOCK_SLOT_COUNT, active_starbase_count_at, build_player_starmap_projection_from_snapshots,
+    load_mail_queue, merge_player_intel_from_runtime,
 };
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
-    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStatePayload,
-    HostedStardockSlot, HostedStarmapState, HostedWorldState,
+    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStardockSlot, HostedStarmapState,
+    HostedStatePayload, HostedWorldState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,9 +76,13 @@ pub fn build_game_state_payload(
     let queued_mail = visible_queued_mail(&snapshot.queued_mail, viewer_empire_id);
     let report_blocks = visible_report_blocks(&snapshot.report_block_rows, viewer_empire_id);
 
-    let state_hash = blake3::hash(&serde_json::to_vec(&(state.clone(), queued_mail.clone(), report_blocks.clone()))?)
-        .to_hex()
-        .to_string();
+    let state_hash = blake3::hash(&serde_json::to_vec(&(
+        state.clone(),
+        queued_mail.clone(),
+        report_blocks.clone(),
+    ))?)
+    .to_hex()
+    .to_string();
 
     Ok(GameState {
         game_id: game_id.to_string(),
@@ -139,7 +143,8 @@ fn load_player_runtime_snapshot(
 
     let game_data = CoreGameData::load(game_dir)?;
     let game_year = game_data.conquest.game_year();
-    let intel = merge_player_intel_from_runtime(&game_data, viewer_empire_id, game_year, None, None);
+    let intel =
+        merge_player_intel_from_runtime(&game_data, viewer_empire_id, game_year, None, None);
     let queued_mail = load_mail_queue(game_dir).unwrap_or_default();
 
     Ok(PlayerRuntimeSnapshot {
@@ -161,12 +166,12 @@ fn player_state(
     let diplomacy = (1..=player_count)
         .filter(|empire_id| *empire_id != viewer_empire_id)
         .filter_map(|empire_id| {
-            player.diplomatic_relation_toward(empire_id).map(|relation| {
-                HostedDiplomacyState {
+            player
+                .diplomatic_relation_toward(empire_id)
+                .map(|relation| HostedDiplomacyState {
                     empire_id,
                     relation: diplomacy_label(relation).to_string(),
-                }
-            })
+                })
         })
         .collect::<Vec<_>>();
 
@@ -188,23 +193,21 @@ fn starmap_state(projection: &nc_data::PlayerStarmapProjection) -> HostedStarmap
     let worlds = projection
         .worlds
         .iter()
-        .map(|world| {
-            HostedWorldState {
-                planet_index: world.planet_record_index_1_based,
-                coords: world.coords,
-                intel_tier: world.intel_tier.as_str().to_string(),
-                known_name: world.known_name.clone(),
-                known_owner_empire_id: world.known_owner_empire_id,
-                known_owner_empire_name: world.known_owner_empire_name.clone(),
-                known_potential_production: world.known_potential_production,
-                known_armies: world.known_armies,
-                known_ground_batteries: world.known_ground_batteries,
-                known_starbase_count: world.known_starbase_count,
-                known_current_production: world.known_current_production,
-                known_stored_points: world.known_stored_points,
-                known_docked_summary: world.known_docked_summary.clone(),
-                known_orbit_summary: world.known_orbit_summary.clone(),
-            }
+        .map(|world| HostedWorldState {
+            planet_index: world.planet_record_index_1_based,
+            coords: world.coords,
+            intel_tier: world.intel_tier.as_str().to_string(),
+            known_name: world.known_name.clone(),
+            known_owner_empire_id: world.known_owner_empire_id,
+            known_owner_empire_name: world.known_owner_empire_name.clone(),
+            known_potential_production: world.known_potential_production,
+            known_armies: world.known_armies,
+            known_ground_batteries: world.known_ground_batteries,
+            known_starbase_count: world.known_starbase_count,
+            known_current_production: world.known_current_production,
+            known_stored_points: world.known_stored_points,
+            known_docked_summary: world.known_docked_summary.clone(),
+            known_orbit_summary: world.known_orbit_summary.clone(),
         })
         .collect::<Vec<_>>();
 
@@ -261,29 +264,27 @@ fn owned_fleets_state(game_data: &CoreGameData, viewer_empire_id: u8) -> Vec<Hos
         .records
         .iter()
         .filter(|fleet| fleet.owner_empire_raw() == viewer_empire_id && fleet.has_any_force())
-        .map(|fleet| {
-            HostedOwnedFleet {
-                fleet_id: fleet.fleet_id(),
-                local_slot: fleet.local_slot(),
-                coords: fleet.current_location_coords_raw(),
-                target_coords: fleet.standing_order_target_coords_raw(),
-                order: fleet.standing_order_kind().as_str().to_string(),
-                order_summary: fleet.standing_order_summary(),
-                rules_of_engagement: fleet.rules_of_engagement(),
-                current_speed: fleet.current_speed(),
-                max_speed: fleet.max_speed(),
-                ships: HostedFleetShips {
-                    scout: u16::from(fleet.scout_count()),
-                    battleship: fleet.battleship_count(),
-                    cruiser: fleet.cruiser_count(),
-                    destroyer: fleet.destroyer_count(),
-                    transport: fleet.troop_transport_count(),
-                    army: fleet.army_count(),
-                    etac: fleet.etac_count(),
-                    total_starships: fleet.total_starships().min(u32::from(u16::MAX)) as u16,
-                    summary: fleet.ship_composition_table_summary(),
-                },
-            }
+        .map(|fleet| HostedOwnedFleet {
+            fleet_id: fleet.fleet_id(),
+            local_slot: fleet.local_slot(),
+            coords: fleet.current_location_coords_raw(),
+            target_coords: fleet.standing_order_target_coords_raw(),
+            order: fleet.standing_order_kind().as_str().to_string(),
+            order_summary: fleet.standing_order_summary(),
+            rules_of_engagement: fleet.rules_of_engagement(),
+            current_speed: fleet.current_speed(),
+            max_speed: fleet.max_speed(),
+            ships: HostedFleetShips {
+                scout: u16::from(fleet.scout_count()),
+                battleship: fleet.battleship_count(),
+                cruiser: fleet.cruiser_count(),
+                destroyer: fleet.destroyer_count(),
+                transport: fleet.troop_transport_count(),
+                army: fleet.army_count(),
+                etac: fleet.etac_count(),
+                total_starships: fleet.total_starships().min(u32::from(u16::MAX)) as u16,
+                summary: fleet.ship_composition_table_summary(),
+            },
         })
         .collect()
 }
@@ -295,14 +296,12 @@ fn visible_queued_mail(
     queued_mail
         .iter()
         .filter(|mail| mail.is_visible_to_recipient(viewer_empire_id))
-        .map(|mail| {
-            HostedQueuedMail {
-                sender_empire_id: mail.sender_empire_id,
-                recipient_empire_id: mail.recipient_empire_id,
-                year: mail.year,
-                subject: mail.subject.clone(),
-                body: mail.body.clone(),
-            }
+        .map(|mail| HostedQueuedMail {
+            sender_empire_id: mail.sender_empire_id,
+            recipient_empire_id: mail.recipient_empire_id,
+            year: mail.year,
+            subject: mail.subject.clone(),
+            body: mail.body.clone(),
         })
         .collect()
 }
@@ -314,12 +313,10 @@ fn visible_report_blocks(
     report_block_rows
         .iter()
         .filter(|row| !row.recipient_deleted && row.is_visible_to_viewer(viewer_empire_id))
-        .map(|row| {
-            HostedReportBlock {
-                viewer_empire_id: row.viewer_empire_id,
-                block_index: row.block_index,
-                decoded_text: row.decoded_text.clone(),
-            }
+        .map(|row| HostedReportBlock {
+            viewer_empire_id: row.viewer_empire_id,
+            block_index: row.block_index,
+            decoded_text: row.decoded_text.clone(),
         })
         .collect()
 }

@@ -7,7 +7,7 @@ use nc_data::{QueuedPlayerMail, ReportBlockRow};
 #[test]
 fn test_state_sync_structs() {
     use nc_nostr::state_sync::{
-        GameState, HostedPlayerState, HostedStatePayload, HostedStarmapState, StateDelta,
+        GameState, HostedPlayerState, HostedStarmapState, HostedStatePayload, StateDelta,
         StateDeltas,
     };
 

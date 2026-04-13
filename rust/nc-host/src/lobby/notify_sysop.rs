@@ -1,6 +1,6 @@
 use nc_data::hosted::{
-    enqueue_sysop_notification, get_game_metadata, get_pending_sysop_notifications,
-    mark_sysop_notification_failed, mark_sysop_notification_sent, HostedStore,
+    HostedStore, enqueue_sysop_notification, get_game_metadata, get_pending_sysop_notifications,
+    mark_sysop_notification_failed, mark_sysop_notification_sent,
 };
 use nc_nostr::pubkeys::hex_to_npub;
 
@@ -80,7 +80,11 @@ pub async fn publish_pending_notifications(
             let store = match HostedStore::open(&db_path) {
                 Ok(store) => store,
                 Err(err) => {
-                    tracing::warn!("Failed to open {} for sysop notifications: {}", game_id, err);
+                    tracing::warn!(
+                        "Failed to open {} for sysop notifications: {}",
+                        game_id,
+                        err
+                    );
                     continue;
                 }
             };
@@ -88,7 +92,11 @@ pub async fn publish_pending_notifications(
             let pending = match get_pending_sysop_notifications(store.connection(), game_id, 20) {
                 Ok(items) => items,
                 Err(err) => {
-                    tracing::warn!("Failed to read pending sysop notifications for {}: {}", game_id, err);
+                    tracing::warn!(
+                        "Failed to read pending sysop notifications for {}: {}",
+                        game_id,
+                        err
+                    );
                     continue;
                 }
             };
@@ -121,7 +129,10 @@ pub async fn publish_pending_notifications(
 }
 
 fn player_label(player_pubkey: &str, player_handle: Option<&str>) -> String {
-    if let Some(handle) = player_handle.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(handle) = player_handle
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         return handle.to_string();
     }
 

@@ -1,6 +1,6 @@
 mod common;
 
-use nc_host::supervisor::routing::{route_event, RoutingError};
+use nc_host::supervisor::routing::{RoutingError, route_event};
 use nostr_sdk::{Keys, Kind, Tag};
 
 fn make_test_keys() -> Keys {

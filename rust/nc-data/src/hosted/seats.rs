@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use rusqlite::{params, Connection, Result as SqliteResult};
+use rusqlite::{Connection, Result as SqliteResult, params};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seat {

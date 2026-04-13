@@ -1,5 +1,5 @@
-use nc_data::hosted::HostedStore;
 use nc_data::CoreGameData;
+use nc_data::hosted::HostedStore;
 use std::path::PathBuf;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
@@ -65,8 +65,13 @@ fn run_maintenance(
     let pending_turns = nc_data::hosted::list_pending_turns(store.connection(), game_id, 0)?;
     println!("  Pending turns: {}", pending_turns.len());
 
-    let mut game_data = CoreGameData::load(game_dir)
-        .map_err(|e| format!("Failed to load authoritative game data from {}: {}", game_dir.display(), e))?;
+    let mut game_data = CoreGameData::load(game_dir).map_err(|e| {
+        format!(
+            "Failed to load authoritative game data from {}: {}",
+            game_dir.display(),
+            e
+        )
+    })?;
 
     let current_turn = (game_data.conquest.game_year() - 3000) as u32;
 

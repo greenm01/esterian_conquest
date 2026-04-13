@@ -1,5 +1,5 @@
 use nc_data::hosted::{
-    get_settings, mark_catalog_dirty, update_settings, HostedStore, LobbyVisibility, RecruitingMode,
+    HostedStore, LobbyVisibility, RecruitingMode, get_settings, mark_catalog_dirty, update_settings,
 };
 use std::path::PathBuf;
 

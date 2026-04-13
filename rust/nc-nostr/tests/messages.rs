@@ -1,6 +1,6 @@
-use nc_nostr::lobby_notice::{parse_lobby_notice, LobbyNotice};
+use nc_nostr::lobby_notice::{LobbyNotice, parse_lobby_notice};
 use nc_nostr::private_payload::encrypt_private_json;
-use nc_nostr::thread_message::{decrypt_thread_message, SenderRole, SysopThreadMessage};
+use nc_nostr::thread_message::{SenderRole, SysopThreadMessage, decrypt_thread_message};
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag, ToBech32};
 
 #[test]

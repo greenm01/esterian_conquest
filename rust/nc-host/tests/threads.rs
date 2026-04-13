@@ -1,8 +1,8 @@
 mod common;
 
 use common::create_test_game;
-use nc_nostr::pubkeys::hex_to_npub;
 use nc_host::lobby::threads::{enqueue_sysop_message, store_player_message};
+use nc_nostr::pubkeys::hex_to_npub;
 use nc_nostr::thread_message::{SenderRole, SysopThreadMessage};
 
 #[test]
@@ -22,12 +22,9 @@ fn store_player_message_persists_private_thread_row() {
 
     store_player_message(&store, "thread-test-1", &payload).expect("store player message");
 
-    let messages = nc_data::hosted::list_thread_messages(
-        store.connection(),
-        "thread-test-1",
-        player_pubkey,
-    )
-    .expect("list thread messages");
+    let messages =
+        nc_data::hosted::list_thread_messages(store.connection(), "thread-test-1", player_pubkey)
+            .expect("list thread messages");
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].sender_role, "player");
     assert_eq!(messages[0].sender_pubkey, player_pubkey);
@@ -52,18 +49,15 @@ fn enqueue_sysop_message_stores_thread_and_outbox() {
     )
     .expect("queue sysop thread message");
 
-    let messages = nc_data::hosted::list_thread_messages(
-        store.connection(),
-        "thread-test-2",
-        player_pubkey,
-    )
-    .expect("list thread messages");
+    let messages =
+        nc_data::hosted::list_thread_messages(store.connection(), "thread-test-2", player_pubkey)
+            .expect("list thread messages");
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].sender_role, "sysop");
     assert_eq!(messages[0].sender_pubkey, host_pubkey);
 
-    let pending = nc_data::hosted::get_pending(store.connection(), "thread-test-2", 10)
-        .expect("list outbox");
+    let pending =
+        nc_data::hosted::get_pending(store.connection(), "thread-test-2", 10).expect("list outbox");
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].kind, 30517);
     assert_eq!(pending[0].pubkey, player_pubkey);

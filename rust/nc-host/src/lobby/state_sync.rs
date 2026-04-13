@@ -1,7 +1,7 @@
 use crate::game::effects::GameEffects;
 use nc_data::hosted::HostedStore;
 use nc_nostr::state_sync::{
-    GameState, HostedPlayerState, HostedStatePayload, HostedStarmapState, StateRequest,
+    GameState, HostedPlayerState, HostedStarmapState, HostedStatePayload, StateRequest,
 };
 use serde_json::json;
 use std::path::PathBuf;

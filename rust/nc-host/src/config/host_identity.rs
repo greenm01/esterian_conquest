@@ -60,10 +60,7 @@ pub fn save_identity(path: &PathBuf, identity: &HostIdentity) -> Result<(), Iden
         std::fs::create_dir_all(parent)?;
     }
 
-    let content = format!(
-        "# nc-host identity\n{}\n{}\n",
-        identity.npub, identity.nsec
-    );
+    let content = format!("# nc-host identity\n{}\n{}\n", identity.npub, identity.nsec);
     std::fs::write(path, content)?;
 
     #[cfg(unix)]

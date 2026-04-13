@@ -18,7 +18,10 @@ host {
     assert_eq!(config.games_root, PathBuf::from("/tmp/nc-host/games"));
     assert_eq!(config.relay_url, "ws://127.0.0.1:8080");
     assert_eq!(config.invite_relay_host, "localhost:8080");
-    assert_eq!(config.identity_path, PathBuf::from("/tmp/nc-host/host.nsec"));
+    assert_eq!(
+        config.identity_path,
+        PathBuf::from("/tmp/nc-host/host.nsec")
+    );
     assert_eq!(config.sysop_contact_npub, "npub1example");
 }
 
@@ -31,6 +34,9 @@ fn parse_host_config_accepts_property_style_kdl() {
     assert_eq!(config.games_root, PathBuf::from("/tmp/nc-host/games"));
     assert_eq!(config.relay_url, "ws://127.0.0.1:8080");
     assert_eq!(config.invite_relay_host, "localhost:8080");
-    assert_eq!(config.identity_path, PathBuf::from("/tmp/nc-host/host.nsec"));
+    assert_eq!(
+        config.identity_path,
+        PathBuf::from("/tmp/nc-host/host.nsec")
+    );
     assert_eq!(config.sysop_contact_npub, "npub1example");
 }

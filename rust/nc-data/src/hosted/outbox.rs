@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result as SqliteResult};
+use rusqlite::{Connection, Result as SqliteResult, params};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -138,9 +138,12 @@ pub fn delete_published_older_than(
     Ok(deleted as u64)
 }
 
-pub fn count_by_status(conn: &Connection, game_id: &str, status: OutboxStatus) -> SqliteResult<u32> {
-    let mut stmt = conn.prepare(
-        "SELECT COUNT(*) FROM outbox WHERE game_id = ?1 AND status = ?2",
-    )?;
+pub fn count_by_status(
+    conn: &Connection,
+    game_id: &str,
+    status: OutboxStatus,
+) -> SqliteResult<u32> {
+    let mut stmt =
+        conn.prepare("SELECT COUNT(*) FROM outbox WHERE game_id = ?1 AND status = ?2")?;
     stmt.query_row(params![game_id, status.as_str()], |row| row.get(0))
 }

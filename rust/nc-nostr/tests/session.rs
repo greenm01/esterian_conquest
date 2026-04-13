@@ -78,7 +78,8 @@ fn seat_claim_helpers_round_trip() {
         Some("claimer"),
     )
     .expect("build claim request");
-    let parsed = parse_seat_claim_request(gate_keys.secret_key(), &event).expect("parse claim request");
+    let parsed =
+        parse_seat_claim_request(gate_keys.secret_key(), &event).expect("parse claim request");
     assert_eq!(parsed.nonce, "claim123");
     assert_eq!(parsed.invite_code, "velvet-mountain");
     assert_eq!(parsed.game_id.as_deref(), Some("game-7"));

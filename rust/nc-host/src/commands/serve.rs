@@ -1,7 +1,7 @@
 use crate::config::{host_config, host_identity, relay};
 use crate::lobby::publish::EventPublisher;
-use crate::support::pubkeys::short_pubkey;
 use crate::supervisor::routing;
+use crate::support::pubkeys::short_pubkey;
 use nostr_sdk::{
     Alphabet, Client, Filter, Keys, Kind, RelayPoolNotification, SingleLetterTag, ToBech32,
 };
@@ -101,9 +101,7 @@ fn run_server(
     tracing::info!("Identity: {}", short_pubkey(&identity.npub));
 
     let runtime = tokio::runtime::Runtime::new()?;
-    runtime.block_on(async {
-        run_async_server(config, identity, relay_config).await
-    })
+    runtime.block_on(async { run_async_server(config, identity, relay_config).await })
 }
 
 async fn run_async_server(
@@ -118,8 +116,7 @@ async fn run_async_server(
 
     tracing::info!("Public key: {}", short_pubkey(&npub));
 
-    let client = Client::builder()
-        .build();
+    let client = Client::builder().build();
 
     client.add_relay(&relay_config.url).await?;
 
@@ -128,7 +125,7 @@ async fn run_async_server(
 
     let publisher = Arc::new(EventPublisher::new(client.clone(), keys.clone()));
     let games_root = Arc::new(config.games_root.clone());
-    
+
     let worker_registry = Arc::new(crate::supervisor::worker_registry::WorkerRegistry::new(
         config.games_root.clone(),
     ));
@@ -147,10 +144,12 @@ async fn run_async_server(
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
-    let mut catalog_interval =
-        tokio::time::interval(std::time::Duration::from_secs(CATALOG_PUBLISH_INTERVAL_SECS));
-    let mut decisions_interval =
-        tokio::time::interval(std::time::Duration::from_secs(DECISION_PUBLISH_INTERVAL_SECS));
+    let mut catalog_interval = tokio::time::interval(std::time::Duration::from_secs(
+        CATALOG_PUBLISH_INTERVAL_SECS,
+    ));
+    let mut decisions_interval = tokio::time::interval(std::time::Duration::from_secs(
+        DECISION_PUBLISH_INTERVAL_SECS,
+    ));
     let mut outbox_interval =
         tokio::time::interval(std::time::Duration::from_secs(OUTBOX_PUBLISH_INTERVAL_SECS));
     let mut sysop_notifications_interval = tokio::time::interval(std::time::Duration::from_secs(
@@ -184,7 +183,7 @@ async fn run_async_server(
                     Ok(RelayPoolNotification::Event { event, .. }) => {
                         let event = *event;
                         tracing::debug!("Received event: kind={}", u16::from(event.kind));
-                        
+
                         match routing::route_event(event.clone(), &games_root, &public_key) {
                             Ok(routed) => {
                                 let effects = if event.kind.as_u16() == 30517 {
@@ -201,12 +200,12 @@ async fn run_async_server(
                                     routing::process_event(&routed, keys.secret_key())
                                 };
                                 tracing::debug!("Processing {} effects for game {}", effects.len(), routed.game_id);
-                                
+
                                 let worker_registry = worker_registry.clone();
                                 let game_id = routed.game_id.clone();
                                 tokio::spawn(async move {
                                     let worker = worker_registry.get_or_create(game_id).await;
-                                    
+
                                     for effect in effects {
                                         let msg = crate::game::msg::GameMsg::HandleEffect(effect);
                                         if let Err(e) = worker.send(msg).await {
@@ -294,13 +293,13 @@ async fn publish_invite_request_receipt_direct(
     }
 }
 
-async fn publish_lobby_catalog(
-    games_root: &std::sync::Arc<std::path::PathBuf>,
-    force: bool,
-) {
+async fn publish_lobby_catalog(games_root: &std::sync::Arc<std::path::PathBuf>, force: bool) {
     use crate::lobby::catalog_publish::publish_game_definition;
+    use nc_data::hosted::{
+        HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty, get_catalog_dirty_since,
+        get_settings,
+    };
     use nc_nostr::game_definition::build_game_definition_tags;
-    use nc_data::hosted::{clear_catalog_dirty, get_catalog_dirty_since, get_settings, HostedStore, LobbyVisibility, RecruitingMode};
 
     if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
         for entry in entries.flatten() {
@@ -308,16 +307,16 @@ async fn publish_lobby_catalog(
             if !path.is_dir() {
                 continue;
             }
-            
+
             let db_path = path.join("hosted.db");
             if !db_path.exists() {
                 continue;
             }
-            
+
             let Some(game_id) = path.file_name().and_then(|n| n.to_str()) else {
                 continue;
             };
-            
+
             let store = match HostedStore::open(&db_path) {
                 Ok(s) => s,
                 Err(e) => {
@@ -325,14 +324,14 @@ async fn publish_lobby_catalog(
                     continue;
                 }
             };
-            
+
             if !force {
                 if let Ok(None) = get_catalog_dirty_since(store.connection(), game_id) {
                     tracing::debug!("Skipping {} (catalog clean)", game_id);
                     continue;
                 }
             }
-            
+
             let settings = match get_settings(store.connection(), game_id) {
                 Ok(s) => s,
                 Err(e) => {
@@ -340,14 +339,14 @@ async fn publish_lobby_catalog(
                     continue;
                 }
             };
-            
+
             if settings.lobby_visibility != LobbyVisibility::Public {
                 continue;
             }
             if settings.recruiting == RecruitingMode::None {
                 continue;
             }
-            
+
             match publish_game_definition(&store, game_id, settings.host_alias.as_deref()) {
                 Ok(Some(def)) => {
                     let tags = build_game_definition_tags(&def);
@@ -377,7 +376,7 @@ async fn publish_lobby_catalog(
 
 async fn publish_pending_decisions(games_root: &std::sync::Arc<std::path::PathBuf>) {
     use crate::lobby::invite_decisions::enqueue_invite_decision;
-    use nc_data::hosted::{list_pending_decisions, mark_decision_published, HostedStore};
+    use nc_data::hosted::{HostedStore, list_pending_decisions, mark_decision_published};
     use nc_nostr::invite_request::InviteDecision;
 
     if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
@@ -398,7 +397,9 @@ async fn publish_pending_decisions(games_root: &std::sync::Arc<std::path::PathBu
                         };
 
                         for request in pending {
-                            let decision = if request.status == nc_data::hosted::InviteRequestStatus::Approved {
+                            let decision = if request.status
+                                == nc_data::hosted::InviteRequestStatus::Approved
+                            {
                                 let invite = request.issued_invite_code.clone().unwrap_or_default();
                                 InviteDecision::Approved { invite }
                             } else {
@@ -414,13 +415,15 @@ async fn publish_pending_decisions(games_root: &std::sync::Arc<std::path::PathBu
                                 &request.id,
                                 decision,
                                 message,
-                            )
-                            {
+                            ) {
                                 Ok(_) => {
-                                    let _ = mark_decision_published(store.connection(), &request.id);
+                                    let _ =
+                                        mark_decision_published(store.connection(), &request.id);
                                     tracing::info!(
                                         "Published invite decision {} for request {}",
-                                        if request.status == nc_data::hosted::InviteRequestStatus::Approved {
+                                        if request.status
+                                            == nc_data::hosted::InviteRequestStatus::Approved
+                                        {
                                             "approved"
                                         } else {
                                             "rejected"
@@ -448,7 +451,7 @@ async fn process_outbox(
     publisher: &EventPublisher,
     games_root: &std::sync::Arc<std::path::PathBuf>,
 ) {
-    use nc_data::hosted::{get_pending, mark_failed, mark_published, HostedStore};
+    use nc_data::hosted::{HostedStore, get_pending, mark_failed, mark_published};
 
     if let Ok(entries) = std::fs::read_dir(games_root.as_path()) {
         for entry in entries.flatten() {
@@ -479,7 +482,9 @@ async fn process_outbox(
             for item in pending {
                 let tags: Vec<Vec<String>> = serde_json::from_str(&item.tags).unwrap_or_default();
                 let publish_result = if item.pubkey.is_empty() {
-                    publisher.publish_multi(item.kind, &item.content, tags).await
+                    publisher
+                        .publish_multi(item.kind, &item.content, tags)
+                        .await
                 } else {
                     publisher
                         .publish_encrypted_multi(&item.pubkey, item.kind, &item.content, tags)

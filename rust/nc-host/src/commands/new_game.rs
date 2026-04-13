@@ -95,14 +95,7 @@ fn create_game(
     let invite_codes = generate_invite_codes(players);
     nc_data::hosted::create_seats(store.connection(), &game_id, &invite_codes)?;
     nc_data::hosted::mark_catalog_dirty(store.connection(), &game_id)?;
-    crate::game::state::initialize_runtime_state(
-        dir,
-        &game_id,
-        name,
-        players as u8,
-        3000,
-        seed,
-    )?;
+    crate::game::state::initialize_runtime_state(dir, &game_id, name, players as u8, 3000, seed)?;
 
     Ok(())
 }

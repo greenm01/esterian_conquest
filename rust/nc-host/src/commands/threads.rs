@@ -125,7 +125,11 @@ fn run_show(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let player_pubkey = normalize_pubkey(player_pubkey.ok_or("missing --player argument")?)?;
     let messages = threads::list_messages(store, game_id, &player_pubkey)?;
-    println!("Thread for {} / {}:", game_id, display_pubkey(&player_pubkey));
+    println!(
+        "Thread for {} / {}:",
+        game_id,
+        display_pubkey(&player_pubkey)
+    );
     if messages.is_empty() {
         println!("  No messages");
     } else {
@@ -188,7 +192,9 @@ fn print_usage() {
     println!("Usage:");
     println!("  nc-host threads list --dir <path>");
     println!("  nc-host threads show --dir <path> --player <npub>");
-    println!("  nc-host threads send --dir <path> --player <npub> --message \"...\" [--handle <name>] [--config <path>] [--identity <path>]");
+    println!(
+        "  nc-host threads send --dir <path> --player <npub> --message \"...\" [--handle <name>] [--config <path>] [--identity <path>]"
+    );
 }
 
 fn normalize_pubkey(value: &str) -> Result<String, Box<dyn std::error::Error>> {

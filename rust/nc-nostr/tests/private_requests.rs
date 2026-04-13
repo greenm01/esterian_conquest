@@ -1,7 +1,7 @@
-use nc_nostr::invite_request::{parse_invite_request, InviteRequestPayload};
-use nc_nostr::state_sync::{parse_state_request, StateRequestPayload};
-use nc_nostr::turn_commands::{parse_turn_commands, TurnCommandsPayload};
+use nc_nostr::invite_request::{InviteRequestPayload, parse_invite_request};
 use nc_nostr::private_payload::encrypt_private_json;
+use nc_nostr::state_sync::{StateRequestPayload, parse_state_request};
+use nc_nostr::turn_commands::{TurnCommandsPayload, parse_turn_commands};
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
 
 #[test]

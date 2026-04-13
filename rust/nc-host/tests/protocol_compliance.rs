@@ -3,9 +3,9 @@ mod common;
 use common::create_test_game;
 use nc_host::lobby::catalog_publish::publish_game_definition;
 use nc_nostr::game_definition::build_game_definition_tags;
-use nc_nostr::invite_request::{build_invite_decision_tags, InviteDecision, InviteDecisionPayload};
+use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload, build_invite_decision_tags};
 use nc_nostr::state_sync::{
-    build_state_response_tags, GameState, HostedPlayerState, HostedStatePayload, HostedStarmapState,
+    GameState, HostedPlayerState, HostedStarmapState, HostedStatePayload, build_state_response_tags,
 };
 
 #[test]
@@ -17,9 +17,18 @@ fn game_definition_tags_are_per_field_and_slots_are_multivalue() {
 
     let tags = build_game_definition_tags(&def);
 
-    assert!(tags.iter().any(|t| t == &vec!["d".to_string(), "catalog-test".to_string()]));
-    assert!(tags.iter().any(|t| t.first().map(String::as_str) == Some("name")));
-    assert!(tags.iter().any(|t| t.first().map(String::as_str) == Some("recruiting")));
+    assert!(
+        tags.iter()
+            .any(|t| t == &vec!["d".to_string(), "catalog-test".to_string()])
+    );
+    assert!(
+        tags.iter()
+            .any(|t| t.first().map(String::as_str) == Some("name"))
+    );
+    assert!(
+        tags.iter()
+            .any(|t| t.first().map(String::as_str) == Some("recruiting"))
+    );
 
     let slot = tags
         .iter()

@@ -6,11 +6,11 @@ use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestPayload, Invi
 use nc_nostr::lobby_notice::LobbyNotice;
 use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
 use nc_nostr::state_sync::{GameState, StateDelta, StateRequestPayload};
-use nc_nostr::thread_message::{decrypt_thread_message, SenderRole, SysopThreadMessage};
 use nc_nostr::tags::tag_content;
+use nc_nostr::thread_message::{SenderRole, SysopThreadMessage, decrypt_thread_message};
 use nc_nostr::turn_commands::{TurnCommandsPayload, TurnReceipt};
 use nostr_sdk::{
-    Alphabet, Client, Event, EventBuilder, Filter, Kind, Keys, PublicKey, SingleLetterTag, Tag,
+    Alphabet, Client, Event, EventBuilder, Filter, Keys, Kind, PublicKey, SingleLetterTag, Tag,
     Timestamp, ToBech32,
 };
 
@@ -55,7 +55,10 @@ impl HostedClientSession {
     pub fn fetch_catalog(&self) -> Result<Vec<CatalogGame>, Box<dyn std::error::Error>> {
         self.with_client(async move |client| {
             let events = client
-                .fetch_events(Filter::new().kinds([Kind::Custom(30500)]), Duration::from_secs(8))
+                .fetch_events(
+                    Filter::new().kinds([Kind::Custom(30500)]),
+                    Duration::from_secs(8),
+                )
                 .await?;
             Ok(events
                 .iter()
@@ -220,7 +223,10 @@ impl HostedClientSession {
             sender_role: SenderRole::Player,
             sender_pubkey,
             sender_npub,
-            sender_handle: handle.map(str::trim).map(str::to_string).filter(|value| !value.is_empty()),
+            sender_handle: handle
+                .map(str::trim)
+                .map(str::to_string)
+                .filter(|value| !value.is_empty()),
             body: body.trim().to_string(),
             created_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

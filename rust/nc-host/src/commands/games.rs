@@ -1,4 +1,4 @@
-use nc_data::hosted::{get_game_metadata, HostedStore};
+use nc_data::hosted::{HostedStore, get_game_metadata};
 use std::path::PathBuf;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {

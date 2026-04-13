@@ -3,7 +3,9 @@ pub mod io;
 
 use nostr_sdk::{Keys, ToBech32};
 
-pub use io::{keychain_path, load_keychain, load_keychain_from, now_iso8601, save_keychain, save_keychain_to};
+pub use io::{
+    keychain_path, load_keychain, load_keychain_from, now_iso8601, save_keychain, save_keychain_to,
+};
 
 pub const MAX_IDENTITIES: usize = 10;
 

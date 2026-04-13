@@ -80,7 +80,11 @@ fn test_parse_invite_request_30513() {
         tags,
     );
     let tag_values: Vec<Vec<String>> = event.tags.iter().map(|tag| tag.clone().to_vec()).collect();
-    assert!(!tag_values.iter().any(|tag| tag.first().map(String::as_str) == Some("handle")));
+    assert!(
+        !tag_values
+            .iter()
+            .any(|tag| tag.first().map(String::as_str) == Some("handle"))
+    );
     assert!(!event.content.contains("I'd like to join this game."));
 
     let parsed = parse_invite_request(host_keys.secret_key(), &event).expect("should parse");
@@ -114,7 +118,11 @@ fn test_parse_turn_commands_30522() {
         tags,
     );
     let tag_values: Vec<Vec<String>> = event.tags.iter().map(|tag| tag.clone().to_vec()).collect();
-    assert!(!tag_values.iter().any(|tag| tag.first().map(String::as_str) == Some("handle")));
+    assert!(
+        !tag_values
+            .iter()
+            .any(|tag| tag.first().map(String::as_str) == Some("handle"))
+    );
     assert!(!event.content.contains("fleet 1 { order speed=3 }"));
 
     let parsed = parse_turn_commands(host_keys.secret_key(), &event).expect("should parse");

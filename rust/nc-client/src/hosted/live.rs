@@ -5,13 +5,13 @@ use std::time::Duration;
 use nc_nostr::claim::SeatClaimResultPayload;
 use nc_nostr::game_definition::parse_game_definition;
 use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestReceipt};
-use nc_nostr::lobby_notice::{parse_lobby_notice, LobbyNotice};
+use nc_nostr::lobby_notice::{LobbyNotice, parse_lobby_notice};
 use nc_nostr::private_payload::decrypt_private_json_from_event;
 use nc_nostr::state_sync::{GameState, StateDelta};
-use nc_nostr::thread_message::{decrypt_thread_message, SysopThreadMessage};
+use nc_nostr::thread_message::{SysopThreadMessage, decrypt_thread_message};
 use nc_nostr::turn_commands::TurnReceipt;
 use nostr_sdk::{
-    Alphabet, Client, Filter, Kind, Keys, RelayPoolNotification, SingleLetterTag, Timestamp,
+    Alphabet, Client, Filter, Keys, Kind, RelayPoolNotification, SingleLetterTag, Timestamp,
 };
 use tokio::sync::mpsc::{self as tokio_mpsc, UnboundedReceiver, UnboundedSender};
 
@@ -220,7 +220,9 @@ fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpd
             update.notices.push(parse_lobby_notice(event)?);
         }
         30517 => {
-            update.threads.push(decrypt_thread_message(keys.secret_key(), event)?);
+            update
+                .threads
+                .push(decrypt_thread_message(keys.secret_key(), event)?);
         }
         30511 => {
             update
@@ -263,6 +265,9 @@ fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpd
     Some(update)
 }
 
-fn decrypt_json<T: serde::de::DeserializeOwned>(keys: &Keys, event: &nostr_sdk::Event) -> Option<T> {
+fn decrypt_json<T: serde::de::DeserializeOwned>(
+    keys: &Keys,
+    event: &nostr_sdk::Event,
+) -> Option<T> {
     decrypt_private_json_from_event(keys.secret_key(), event).ok()
 }

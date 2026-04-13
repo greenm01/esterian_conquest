@@ -70,7 +70,11 @@ impl ClientCache {
     }
 
     pub fn upsert_game(&mut self, game: CachedGame) {
-        if let Some(existing) = self.games.iter_mut().find(|existing| existing.id == game.id) {
+        if let Some(existing) = self
+            .games
+            .iter_mut()
+            .find(|existing| existing.id == game.id)
+        {
             *existing = game;
         } else {
             self.games.push(game);
@@ -122,9 +126,7 @@ pub fn cache_path() -> PathBuf {
     data_root().join("cache.kdl")
 }
 
-pub fn load_cache(
-    password: &str,
-) -> Result<Option<ClientCache>, Box<dyn std::error::Error>> {
+pub fn load_cache(password: &str) -> Result<Option<ClientCache>, Box<dyn std::error::Error>> {
     load_cache_from(password, &cache_path())
 }
 
@@ -142,10 +144,7 @@ pub fn load_cache_from(
     }
 }
 
-pub fn save_cache(
-    cache: &ClientCache,
-    password: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_cache(cache: &ClientCache, password: &str) -> Result<(), Box<dyn std::error::Error>> {
     save_cache_to(cache, password, &cache_path())
 }
 

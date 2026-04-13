@@ -56,8 +56,9 @@ fn private_envelope_keeps_small_payload_uncompressed() {
         .sign_with_keys(&sender)
         .expect("sign");
 
-    let wire = nostr_sdk::nips::nip44::decrypt(recipient.secret_key(), &event.pubkey, &event.content)
-        .expect("decrypt wire envelope");
+    let wire =
+        nostr_sdk::nips::nip44::decrypt(recipient.secret_key(), &event.pubkey, &event.content)
+            .expect("decrypt wire envelope");
     assert!(wire.contains(r#""compression":"none""#));
 }
 
@@ -65,14 +66,18 @@ fn private_envelope_keeps_small_payload_uncompressed() {
 fn private_envelope_uses_zstd_for_large_compressible_payloads() {
     let sender = Keys::generate();
     let recipient = Keys::generate();
-    let encrypted =
-        encrypt_private_text(&sender, &recipient.public_key(), &"compressible".repeat(300))
-            .expect("encrypt");
+    let encrypted = encrypt_private_text(
+        &sender,
+        &recipient.public_key(),
+        &"compressible".repeat(300),
+    )
+    .expect("encrypt");
     let event = EventBuilder::new(Kind::Custom(30599), encrypted)
         .sign_with_keys(&sender)
         .expect("sign");
 
-    let wire = nostr_sdk::nips::nip44::decrypt(recipient.secret_key(), &event.pubkey, &event.content)
-        .expect("decrypt wire envelope");
+    let wire =
+        nostr_sdk::nips::nip44::decrypt(recipient.secret_key(), &event.pubkey, &event.content)
+            .expect("decrypt wire envelope");
     assert!(wire.contains(r#""compression":"zstd""#));
 }

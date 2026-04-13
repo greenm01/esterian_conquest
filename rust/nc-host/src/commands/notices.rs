@@ -1,7 +1,7 @@
 use crate::config::{host_config::HostConfig, host_identity::HostIdentity, relay::RelayConfig};
 use crate::lobby::publish::EventPublisher;
 use crate::support::ids::new_outbox_id;
-use nc_nostr::lobby_notice::{build_lobby_notice_tags, LobbyNotice};
+use nc_nostr::lobby_notice::{LobbyNotice, build_lobby_notice_tags};
 use nostr_sdk::Keys;
 use std::path::PathBuf;
 
@@ -60,7 +60,12 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     match subcmd {
-        Some("post") => run_post(message.as_deref(), handle.as_deref(), config_path.as_ref(), identity_path.as_ref()),
+        Some("post") => run_post(
+            message.as_deref(),
+            handle.as_deref(),
+            config_path.as_ref(),
+            identity_path.as_ref(),
+        ),
         Some(cmd) => Err(format!("unknown subcommand: {}", cmd).into()),
         None => Err("missing subcommand".into()),
     }
@@ -86,7 +91,9 @@ fn run_post(
     let payload = LobbyNotice {
         notice_id: new_outbox_id("notice", "host"),
         sender_npub: identity.npub.clone(),
-        sender_handle: handle.map(str::to_string).filter(|value| !value.trim().is_empty()),
+        sender_handle: handle
+            .map(str::to_string)
+            .filter(|value| !value.trim().is_empty()),
         body: message.to_string(),
         created_at: chrono::Utc::now().timestamp(),
     };
@@ -97,20 +104,21 @@ fn run_post(
         .collect::<Vec<_>>();
 
     let runtime = tokio::runtime::Runtime::new()?;
-    runtime.block_on(async move {
-        let client = nostr_sdk::Client::new(keys.clone());
-        client
-            .add_relay(&relay_config.url)
-            .await
-            .map_err(|err| err.to_string())?;
-        client.connect().await;
-        let publisher = EventPublisher::new(client, keys);
-        publisher
-            .publish_multi(30516, &content, tags)
-            .await
-            .map_err(|err| err.to_string())
-    })
-    .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
+    runtime
+        .block_on(async move {
+            let client = nostr_sdk::Client::new(keys.clone());
+            client
+                .add_relay(&relay_config.url)
+                .await
+                .map_err(|err| err.to_string())?;
+            client.connect().await;
+            let publisher = EventPublisher::new(client, keys);
+            publisher
+                .publish_multi(30516, &content, tags)
+                .await
+                .map_err(|err| err.to_string())
+        })
+        .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
     println!("Posted lobby notice {}", payload.notice_id);
     Ok(())
 }
@@ -127,5 +135,7 @@ fn load_config(path: Option<&PathBuf>) -> Result<HostConfig, Box<dyn std::error:
 
 fn print_usage() {
     println!("Usage:");
-    println!("  nc-host notices post --message \"...\" [--handle <name>] [--config <path>] [--identity <path>]");
+    println!(
+        "  nc-host notices post --message \"...\" [--handle <name>] [--config <path>] [--identity <path>]"
+    );
 }

@@ -27,12 +27,9 @@ fn invite_request_summary_is_queued_once() {
     )
     .expect("queue duplicate summary");
 
-    let pending = nc_data::hosted::get_pending_sysop_notifications(
-        store.connection(),
-        "notify-test-1",
-        10,
-    )
-    .expect("list pending notifications");
+    let pending =
+        nc_data::hosted::get_pending_sysop_notifications(store.connection(), "notify-test-1", 10)
+            .expect("list pending notifications");
 
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].category, "invite_request");
@@ -54,12 +51,9 @@ fn thread_message_summary_uses_game_name_not_body() {
     )
     .expect("queue thread summary");
 
-    let pending = nc_data::hosted::get_pending_sysop_notifications(
-        store.connection(),
-        "notify-test-2",
-        10,
-    )
-    .expect("list pending notifications");
+    let pending =
+        nc_data::hosted::get_pending_sysop_notifications(store.connection(), "notify-test-2", 10)
+            .expect("list pending notifications");
 
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].category, "thread_message");

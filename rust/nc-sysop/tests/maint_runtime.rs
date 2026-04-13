@@ -536,7 +536,10 @@ fn nc_sysop_maint_multi_turn_canary_preserves_playability_invariants() {
 
         for row in &runtime.report_block_rows {
             saw_view |= row.decoded_text.contains("Viewing mission report");
-            saw_bombard |= row.decoded_text.to_ascii_lowercase().contains("bombardment");
+            saw_bombard |= row
+                .decoded_text
+                .to_ascii_lowercase()
+                .contains("bombardment");
             saw_join |= row.decoded_text.contains("Join mission summary");
             saw_colonize |= row.decoded_text.contains("terraformed");
         }

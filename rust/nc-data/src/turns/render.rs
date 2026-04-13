@@ -1,6 +1,5 @@
 use super::{
-    FleetTurnAction, FleetTurnBlock, PlanetTurnAction, PlanetTurnBlock, TurnMessage,
-    TurnSubmission,
+    FleetTurnAction, FleetTurnBlock, PlanetTurnAction, PlanetTurnBlock, TurnMessage, TurnSubmission,
 };
 use crate::{FleetDetachSelection, Order, ProductionItemKind};
 
@@ -66,7 +65,10 @@ fn render_planet_block(out: &mut String, planet: &PlanetTurnBlock) {
 }
 
 fn render_fleet_block(out: &mut String, fleet: &FleetTurnBlock) {
-    out.push_str(&format!("fleet record={} {{\n", fleet.fleet_record_index_1_based));
+    out.push_str(&format!(
+        "fleet record={} {{\n",
+        fleet.fleet_record_index_1_based
+    ));
     for action in &fleet.actions {
         match action {
             FleetTurnAction::Order {
@@ -96,9 +98,7 @@ fn render_fleet_block(out: &mut String, fleet: &FleetTurnBlock) {
             }
             FleetTurnAction::Join {
                 host_fleet_record_index_1_based,
-            } => out.push_str(&format!(
-                "  join host={host_fleet_record_index_1_based}\n"
-            )),
+            } => out.push_str(&format!("  join host={host_fleet_record_index_1_based}\n")),
             FleetTurnAction::Detach {
                 selection,
                 donor_speed,

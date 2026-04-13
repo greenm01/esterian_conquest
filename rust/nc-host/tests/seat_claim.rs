@@ -13,10 +13,15 @@ fn test_create_seats() {
 
     for i in 1..=4 {
         assert!(seats.iter().any(|s| s.seat_number == i));
-        assert!(seats
+        assert!(
+            seats
+                .iter()
+                .any(|s| s.seat_number == i && s.status == SeatStatus::Pending)
+        );
+        let seat = seats
             .iter()
-            .any(|s| s.seat_number == i && s.status == SeatStatus::Pending));
-        let seat = seats.iter().find(|s| s.seat_number == i).expect("seat should exist");
+            .find(|s| s.seat_number == i)
+            .expect("seat should exist");
         assert!(seat.invite_code.contains('-'));
         assert!(!seat.invite_code.contains('@'));
     }

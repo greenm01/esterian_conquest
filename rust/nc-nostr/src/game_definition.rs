@@ -165,7 +165,10 @@ pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<Vec<String>> {
         vec!["name".to_string(), def.game_name.clone()],
         vec!["status".to_string(), def.status.as_str().to_string()],
         vec!["players".to_string(), def.players.to_string()],
-        vec!["recruiting".to_string(), def.recruiting.as_str().to_string()],
+        vec![
+            "recruiting".to_string(),
+            def.recruiting.as_str().to_string(),
+        ],
         vec!["open-seats".to_string(), def.open_seats.to_string()],
         vec!["year".to_string(), def.year.to_string()],
         vec!["turn".to_string(), def.turn.to_string()],

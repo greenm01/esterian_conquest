@@ -32,7 +32,8 @@ pub struct SysopThreadMessage {
 }
 
 pub fn decrypt_thread_message(secret_key: &SecretKey, event: &Event) -> Option<SysopThreadMessage> {
-    let mut message: SysopThreadMessage = decrypt_private_json_from_event(secret_key, event).ok()?;
+    let mut message: SysopThreadMessage =
+        decrypt_private_json_from_event(secret_key, event).ok()?;
     if message.message_id.trim().is_empty() {
         message.message_id = extract_tag(event, "d")?;
     }

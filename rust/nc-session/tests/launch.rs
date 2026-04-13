@@ -1,6 +1,7 @@
 use nc_data::{GameStateBuilder, SeatReservation};
 use nc_session::launch::{
-    LaunchBindingRequest, LaunchPlayerBinding, LaunchPlayerBindingSource, resolve_launch_player_binding,
+    LaunchBindingRequest, LaunchPlayerBinding, LaunchPlayerBindingSource,
+    resolve_launch_player_binding,
 };
 use nc_session::onboarding::{FirstTimeOnboardingMode, first_time_onboarding_mode};
 

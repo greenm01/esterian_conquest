@@ -1296,21 +1296,27 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
         .into_iter()
         .map(|(_, lines)| lines.join(" "))
         .collect::<Vec<_>>();
-    assert!(report_texts
-        .iter()
-        .any(|report| report.contains("From your 1st Fleet, located in System(11,11):")));
+    assert!(
+        report_texts
+            .iter()
+            .any(|report| report.contains("From your 1st Fleet, located in System(11,11):"))
+    );
     assert!(
         report_texts
             .iter()
             .any(|report| report.contains("Our forces: 3DD, 2TT*")),
         "expected friendly force summary with loaded armies, got: {report_texts:?}"
     );
-    assert!(report_texts
-        .iter()
-        .any(|report| { report.contains("Alien forces: 1DD, 2TT") }));
-    assert!(!report_texts
-        .iter()
-        .any(|report| report.contains("carrying 0 armies")));
+    assert!(
+        report_texts
+            .iter()
+            .any(|report| { report.contains("Alien forces: 1DD, 2TT") })
+    );
+    assert!(
+        !report_texts
+            .iter()
+            .any(|report| report.contains("carrying 0 armies"))
+    );
     cleanup_dir(&target);
 }
 
@@ -1349,13 +1355,15 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(game_data
-        .bases
-        .records
-        .iter()
-        .all(|base| !(base.coords_raw() == starbase_coords
-            && base.owner_empire_raw() == 1
-            && base.active_flag_raw() != 0)));
+    assert!(
+        game_data
+            .bases
+            .records
+            .iter()
+            .all(|base| !(base.coords_raw() == starbase_coords
+                && base.owner_empire_raw() == 1
+                && base.active_flag_raw() != 0))
+    );
 
     cleanup_dir(&target);
 }
@@ -3295,9 +3303,11 @@ fn maint_rust_destroyed_fleet_report_separates_last_contact_from_force_rows() {
         .expect("expected fleet contact lost report");
     let report = report_lines.join("\n");
 
-    assert!(report_lines
-        .iter()
-        .any(|line| line.starts_with("Last contact:")));
+    assert!(
+        report_lines
+            .iter()
+            .any(|line| line.starts_with("Last contact:"))
+    );
     assert!(
         report.contains("destroyed by") || report.contains("destroyed while intercepting"),
         "{report}"

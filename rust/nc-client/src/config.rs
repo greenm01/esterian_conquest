@@ -197,10 +197,18 @@ pub fn render_config(config: &ClientConfig) -> String {
         if relay.status != RelayStatus::Unknown {
             out.push_str(&format!(" status=\"{}\"", relay.status.as_str()));
         }
-        if let Some(last_error) = relay.last_error.as_deref().filter(|value| !value.is_empty()) {
+        if let Some(last_error) = relay
+            .last_error
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
             out.push_str(&format!(" last-error=\"{}\"", escape(last_error)));
         }
-        if let Some(last_checked) = relay.last_checked.as_deref().filter(|value| !value.is_empty()) {
+        if let Some(last_checked) = relay
+            .last_checked
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
             out.push_str(&format!(" checked=\"{}\"", escape(last_checked)));
         }
         out.push('\n');
