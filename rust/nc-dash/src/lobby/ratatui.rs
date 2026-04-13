@@ -530,7 +530,7 @@ fn panel_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
         .borders(Borders::ALL)
         .padding(Padding::uniform(1))
         .title(title)
-        .style(styles.panel)
+        .style(styles.body)
         .border_style(with_panel_bg(border))
         .title_style(with_panel_bg(title_style))
 }
@@ -540,7 +540,7 @@ fn chrome_block(border_style: Style) -> Block<'static> {
     Block::default()
         .borders(Borders::ALL)
         .padding(Padding::uniform(1))
-        .style(styles.panel)
+        .style(styles.body)
         .border_style(with_panel_bg(border_style))
 }
 
@@ -550,13 +550,13 @@ fn popup_block<'a>(title: &'a str, border_style: Style) -> Block<'a> {
         .borders(Borders::ALL)
         .padding(Padding::uniform(1))
         .title(title)
-        .style(styles.panel)
+        .style(styles.body)
         .border_style(with_panel_bg(border_style))
         .title_style(with_panel_bg(styles.title))
 }
 
 fn with_panel_bg(style: Style) -> Style {
-    let panel = theme::tui_theme().panel;
+    let panel = theme::tui_theme().body;
     let mut merged = Style::default();
     if let Some(fg) = style.fg.or(panel.fg) {
         merged = merged.fg(fg);
