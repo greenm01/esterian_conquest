@@ -112,6 +112,40 @@ fn submit_turn_paste_preserves_newlines() {
     );
 }
 
+#[test]
+fn settings_route_opens_from_home_and_toggles_values() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    assert_eq!(app.state.route, LobbyRoute::Settings);
+
+    let initial = app.state.settings_draft.follow_mouse_on_map;
+    apply_key(&mut app, key(KeyCode::Enter));
+    assert_eq!(app.state.settings_draft.follow_mouse_on_map, !initial);
+}
+
+#[test]
+fn theme_picker_previews_and_accepts_theme_choice() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    apply_key(&mut app, key(KeyCode::Down));
+    apply_key(&mut app, key(KeyCode::Down));
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::ThemePicker);
+
+    let original = app.state.settings_draft.theme_key.clone();
+    apply_key(&mut app, key(KeyCode::Down));
+    assert_ne!(app.state.settings_draft.theme_key, original);
+
+    let preview = app.state.settings_draft.theme_key.clone();
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::Settings);
+    assert_eq!(app.state.settings_draft.theme_key, preview);
+}
+
 fn sample_hosted_snapshot() -> GameState {
     GameState {
         game_id: "friday-night".to_string(),

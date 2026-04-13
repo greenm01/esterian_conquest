@@ -19,6 +19,8 @@ nc-nostr = { path = "../nc-nostr" }
 nc-session = { path = "../nc-session" }
 nc-ui = { path = "../nc-ui" }
 nc-log = { path = "../nc-log" }
+opaline = { path = "../opaline", default-features = false, features = ["builtin-themes", "gradients"] }
+ratatui = "0.30"
 serde_json = "1"
 tracing = "0.1"
 winit = "0.29"

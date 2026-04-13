@@ -1,0 +1,115 @@
+import { defineConfig } from 'vitepress'
+import llmstxt from 'vitepress-plugin-llms'
+
+export default defineConfig({
+  vite: {
+    plugins: [llmstxt()],
+  },
+  title: 'Opaline',
+  description: 'A token-based theme engine for Rust applications',
+  base: '/opaline/',
+
+  head: [
+    ['meta', { name: 'theme-color', content: '#e135ff' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'Opaline — Theme Engine for Rust' }],
+    [
+      'meta',
+      {
+        property: 'og:description',
+        content: 'Token-based theme engine with 39 builtin themes, gradients, and adapters for ratatui, egui, crossterm, syntect, and more',
+      },
+    ],
+  ],
+
+  themeConfig: {
+    nav: [
+      { text: 'Guide', link: '/getting-started/' },
+      { text: 'Themes', link: '/themes/' },
+      {
+        text: 'Reference',
+        items: [
+          { text: 'API', link: '/reference/api' },
+          { text: 'Feature Flags', link: '/reference/features' },
+          { text: 'Token Contract', link: '/reference/tokens' },
+          { text: 'Errors', link: '/reference/errors' },
+        ],
+      },
+    ],
+
+    sidebar: {
+      '/getting-started/': [
+        {
+          text: 'Getting Started',
+          items: [
+            { text: 'Introduction', link: '/getting-started/' },
+            { text: 'Installation', link: '/getting-started/installation' },
+            { text: 'Quick Start', link: '/getting-started/quick-start' },
+          ],
+        },
+      ],
+      '/guide/': [
+        {
+          text: 'Guide',
+          items: [
+            { text: 'Theme System', link: '/guide/themes' },
+            { text: 'Tokens', link: '/guide/tokens' },
+            { text: 'Styles & Modifiers', link: '/guide/styles' },
+            { text: 'Gradients', link: '/guide/gradients' },
+            { text: 'Ratatui Adapter', link: '/guide/ratatui' },
+            { text: 'CLI Adapter', link: '/guide/cli' },
+            { text: 'Crossterm Adapter', link: '/guide/crossterm' },
+            { text: 'owo-colors Adapter', link: '/guide/owo-colors' },
+            { text: 'CSS Adapter', link: '/guide/css' },
+            { text: 'Syntect Adapter', link: '/guide/syntect' },
+            { text: 'egui Adapter', link: '/guide/egui' },
+            { text: 'Color Manipulation', link: '/guide/color-manipulation' },
+            { text: 'App-Level Derivation', link: '/guide/derivation' },
+            { text: 'ThemeBuilder', link: '/guide/builder' },
+            { text: 'ThemeSelector Widget', link: '/guide/theme-selector' },
+            { text: 'Custom Themes', link: '/guide/custom-themes' },
+          ],
+        },
+      ],
+      '/themes/': [
+        {
+          text: 'Theme Gallery',
+          items: [
+            { text: 'Overview', link: '/themes/' },
+            { text: 'SilkCircuit', link: '/themes/silkcircuit' },
+            { text: 'Community Themes', link: '/themes/community' },
+          ],
+        },
+      ],
+      '/reference/': [
+        {
+          text: 'Reference',
+          items: [
+            { text: 'API', link: '/reference/api' },
+            { text: 'Feature Flags', link: '/reference/features' },
+            { text: 'Token Contract', link: '/reference/tokens' },
+            { text: 'Errors', link: '/reference/errors' },
+          ],
+        },
+      ],
+    },
+
+    socialLinks: [{ icon: 'github', link: 'https://github.com/hyperb1iss/opaline' }],
+
+    footer: {
+      message: 'Released under the MIT License.',
+      copyright: 'Copyright \u00a9 2025 Stefanie Jane',
+    },
+
+    search: {
+      provider: 'local',
+    },
+  },
+
+  markdown: {
+    theme: {
+      light: 'github-light',
+      dark: 'one-dark-pro',
+    },
+  },
+})

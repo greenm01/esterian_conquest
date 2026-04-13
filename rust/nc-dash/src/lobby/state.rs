@@ -3,9 +3,11 @@ use nc_ui::ScreenGeometry;
 
 use crate::app::state::DashApp;
 use crate::startup::LobbyStartupOptions;
+use crate::theme::ThemeCatalogEntry;
 
 use super::clipboard::Clipboard;
 use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
+use super::storage::settings::LobbySettingsRecord;
 use super::transport::LobbyTransport;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,6 +18,8 @@ pub enum LobbyRoute {
     ComposeInvite,
     ComposeThread,
     EditHandle,
+    Settings,
+    ThemePicker,
     HostedGame,
     SubmitTurn,
 }
@@ -108,11 +112,20 @@ pub struct LobbyState {
     pub unlock_password_input: String,
     pub compose_message_input: String,
     pub edit_handle_input: String,
+    pub settings: LobbySettingsRecord,
+    pub settings_draft: LobbySettingsRecord,
+    pub settings_selected: usize,
+    pub theme_selected: usize,
+    pub theme_original_key: String,
     pub hosted_game: Option<HostedGameView>,
 }
 
 impl LobbyState {
-    pub fn new(options: LobbyStartupOptions, route: LobbyRoute) -> Self {
+    pub fn new(
+        options: LobbyStartupOptions,
+        route: LobbyRoute,
+        settings: LobbySettingsRecord,
+    ) -> Self {
         Self {
             route,
             focus: LobbyFocus::OpenGames,
@@ -146,6 +159,11 @@ impl LobbyState {
             unlock_password_input: String::new(),
             compose_message_input: String::new(),
             edit_handle_input: String::new(),
+            settings_draft: settings.clone(),
+            settings,
+            settings_selected: 0,
+            theme_selected: 0,
+            theme_original_key: crate::theme::default_theme_key().to_string(),
             hosted_game: None,
         }
     }
@@ -223,6 +241,10 @@ impl LobbyState {
             .filter(|message| message.game_id == game_id)
             .collect()
     }
+
+    pub fn available_themes(&self) -> Vec<ThemeCatalogEntry> {
+        crate::theme::catalog()
+    }
 }
 
 pub struct LobbyApp {
@@ -230,5 +252,6 @@ pub struct LobbyApp {
     pub state: LobbyState,
     pub transport: LobbyTransport,
     pub should_quit: bool,
+    pub settings_path: std::path::PathBuf,
     pub(crate) clipboard: Clipboard,
 }

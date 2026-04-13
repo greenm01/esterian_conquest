@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit version (e.g., 0.2.0) — leave empty to use bump type"
+        required: false
+        default: ""
+      bump:
+        description: "Version bump type (if version not specified)"
+        required: false
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: "Dry run (build & test only, skip publish)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    uses: hyperb1iss/shared-workflows/.github/workflows/rust-release.yml@main
+    with:
+      version: ${{ inputs.version }}
+      bump: ${{ inputs.bump }}
+      dry_run: ${{ inputs.dry_run }}
+    permissions:
+      contents: write
+      actions: write
+    secrets: inherit

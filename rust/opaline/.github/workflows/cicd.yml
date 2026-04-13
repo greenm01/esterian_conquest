@@ -1,0 +1,37 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*.*.*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ── CI ─────────────────────────────────────────────────────────
+  ci:
+    uses: hyperb1iss/shared-workflows/.github/workflows/rust-ci.yml@main
+    permissions:
+      contents: read
+      pull-requests: read
+    secrets: inherit
+
+  # ── Publish to crates.io ───────────────────────────────────────
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: hyperb1iss/shared-workflows/.github/workflows/rust-publish.yml@main
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
+
+  # ── Create GitHub Release ──────────────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: publish
+    uses: hyperb1iss/shared-workflows/.github/workflows/github-release.yml@main
+    permissions:
+      contents: write
+      actions: read
+    secrets: inherit

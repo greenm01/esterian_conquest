@@ -2,8 +2,8 @@
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
+use crate::theme::classic::status_value_style;
 use nc_data::{ProductionItemKind, build_queue_unit_counts};
-use nc_ui::theme::classic::status_value_style;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "MY PLANETS";

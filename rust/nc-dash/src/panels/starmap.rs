@@ -582,7 +582,7 @@ mod tests {
     #[test]
     fn owner_markers_use_empire_slot_colors() {
         let owner = Some(4);
-        let expected = nc_ui::theme::classic::empire_slot_color(4);
+        let expected = crate::theme::classic::empire_slot_color(4);
 
         let (_, owned_style) = marker_for_world_kind(owner, StarmapMarkerKind::Owned);
         let (_, enemy_style) = marker_for_world_kind(owner, StarmapMarkerKind::Enemy);

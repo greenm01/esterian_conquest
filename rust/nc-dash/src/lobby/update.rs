@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::hosted::dashboard::build_hosted_dash_app;
 use super::state::{FirstRunField, HostedGameView, LobbyApp, LobbyFocus, LobbyRoute};
+use crate::theme;
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
     match app.state.route {
@@ -10,6 +11,8 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
         LobbyRoute::ComposeThread => handle_compose_thread_key(app, key),
         LobbyRoute::EditHandle => handle_edit_handle_key(app, key),
+        LobbyRoute::Settings => handle_settings_key(app, key),
+        LobbyRoute::ThemePicker => handle_theme_picker_key(app, key),
         LobbyRoute::HostedGame => handle_hosted_game_key(app, key),
         LobbyRoute::SubmitTurn => handle_submit_turn_key(app, key),
         LobbyRoute::Home => handle_home_key(app, key),
@@ -47,6 +50,7 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.edit_handle_input = app.state.player_handle.clone().unwrap_or_default();
             app.state.route = LobbyRoute::EditHandle;
         }
+        KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
         _ => {}
     }
@@ -251,6 +255,70 @@ fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
     }
 }
 
+fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => cancel_settings(app),
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.state.settings_selected = app.state.settings_selected.saturating_sub(1);
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.state.settings_selected = (app.state.settings_selected + 1).min(4);
+        }
+        KeyCode::Char('s' | 'S') => save_settings(app),
+        KeyCode::Char(' ') | KeyCode::Enter => match app.state.settings_selected {
+            0 => {
+                app.state.settings_draft.follow_mouse_on_map =
+                    !app.state.settings_draft.follow_mouse_on_map;
+            }
+            1 => {
+                app.state.settings_draft.dense_empty_sector_dots =
+                    !app.state.settings_draft.dense_empty_sector_dots;
+            }
+            2 => open_theme_picker(app),
+            3 => save_settings(app),
+            4 => cancel_settings(app),
+            _ => {}
+        },
+        _ => {}
+    }
+}
+
+fn handle_theme_picker_key(app: &mut LobbyApp, key: KeyEvent) {
+    let themes = app.state.available_themes();
+    if themes.is_empty() {
+        app.state.route = LobbyRoute::Settings;
+        return;
+    }
+
+    match key.code {
+        KeyCode::Esc => {
+            let _ = theme::apply_theme_key(&app.state.theme_original_key);
+            app.state.settings_draft.theme_key = app.state.theme_original_key.clone();
+            app.state.route = LobbyRoute::Settings;
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            if app.state.theme_selected > 0 {
+                app.state.theme_selected -= 1;
+                preview_selected_theme(app, &themes);
+            }
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            if app.state.theme_selected + 1 < themes.len() {
+                app.state.theme_selected += 1;
+                preview_selected_theme(app, &themes);
+            }
+        }
+        KeyCode::Enter => {
+            if let Some(entry) = themes.get(app.state.theme_selected) {
+                app.state.settings_draft.theme_key = entry.key.clone();
+                let _ = theme::apply_theme_key(&entry.key);
+            }
+            app.state.route = LobbyRoute::Settings;
+        }
+        _ => {}
+    }
+}
+
 fn open_submit_turn(app: &mut LobbyApp) {
     let Some(hosted) = app.state.hosted_game.as_mut() else {
         app.state.route = LobbyRoute::Home;
@@ -323,6 +391,54 @@ fn refresh_lobby(app: &mut LobbyApp) {
     match app.transport.refresh() {
         Ok(loaded) => app.state.apply_loaded(loaded),
         Err(err) => app.state.status_message = Some(err),
+    }
+}
+
+fn open_settings(app: &mut LobbyApp) {
+    app.state.settings_draft = app.state.settings.clone();
+    app.state.settings_selected = 0;
+    app.state.status_message = None;
+    app.state.route = LobbyRoute::Settings;
+}
+
+fn cancel_settings(app: &mut LobbyApp) {
+    app.state.settings_draft = app.state.settings.clone();
+    let _ = theme::apply_theme_key(&app.state.settings.theme_key);
+    app.state.route = LobbyRoute::Home;
+}
+
+fn save_settings(app: &mut LobbyApp) {
+    match super::storage::settings::save_settings_to(&app.state.settings_draft, &app.settings_path) {
+        Ok(()) => {
+            app.state.settings = app.state.settings_draft.clone();
+            let _ = theme::apply_theme_key(&app.state.settings.theme_key);
+            app.state.status_message = Some("Saved local settings".to_string());
+            app.state.route = LobbyRoute::Home;
+        }
+        Err(err) => {
+            app.state.status_message = Some(format!("Save failed: {err}"));
+        }
+    }
+}
+
+fn open_theme_picker(app: &mut LobbyApp) {
+    let themes = app.state.available_themes();
+    if themes.is_empty() {
+        return;
+    }
+    app.state.theme_original_key = app.state.settings_draft.theme_key.clone();
+    app.state.theme_selected = themes
+        .iter()
+        .position(|entry| entry.key == app.state.settings_draft.theme_key)
+        .unwrap_or(0);
+    preview_selected_theme(app, &themes);
+    app.state.route = LobbyRoute::ThemePicker;
+}
+
+fn preview_selected_theme(app: &mut LobbyApp, themes: &[crate::theme::ThemeCatalogEntry]) {
+    if let Some(entry) = themes.get(app.state.theme_selected) {
+        app.state.settings_draft.theme_key = entry.key.clone();
+        let _ = theme::apply_theme_key(&entry.key);
     }
 }
 

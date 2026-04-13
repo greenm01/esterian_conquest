@@ -29,6 +29,28 @@ fn home_route_renders_three_pane_shell_copy() {
 }
 
 #[test]
+fn settings_route_renders_theme_controls() {
+    let lines = render_lines(LobbyRoute::Settings);
+
+    assert!(lines.contains("LOBBY SETTINGS"));
+    assert!(lines.contains("Mouse Follow"));
+    assert!(lines.contains("Grid Dots"));
+    assert!(lines.contains("Theme"));
+    assert!(lines.contains("Tokyo Night"));
+}
+
+#[test]
+fn theme_picker_route_renders_theme_list() {
+    let lines = render_lines(LobbyRoute::ThemePicker);
+
+    assert!(lines.contains("THEME PICKER"));
+    assert!(lines.contains("Themes"));
+    assert!(lines.contains("Preview"));
+    assert!(lines.contains("Tokyo Night"));
+    assert!(lines.contains("Rose Pine"));
+}
+
+#[test]
 fn first_run_route_renders_logo_and_handle_copy() {
     let lines = render_lines(LobbyRoute::FirstRun);
 

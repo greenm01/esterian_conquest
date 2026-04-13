@@ -3,7 +3,6 @@
 use nc_ui::PlayfieldBuffer;
 use nc_ui::modal::Rect;
 use nc_ui::table::{TableFooter, draw_scrollbar_at};
-use nc_ui::theme::classic;
 
 use crate::app::state::{ActiveOverlay, DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, matches_filter, project_inbox_items};
@@ -89,12 +88,12 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let table_theme = theme::table_theme();
     let list_focus = matches!(app.inbox_overlay.focus, InboxFocus::List);
     let divider_style = if list_focus {
-        classic::notice_style()
+        theme::classic::notice_style()
     } else {
         theme::border_style()
     };
     let list_header_style = if list_focus {
-        classic::notice_style()
+        theme::classic::notice_style()
     } else {
         table_theme.header_style
     };

@@ -13,6 +13,7 @@ use nc_ui::ScreenGeometry;
 use crate::app::state::DashApp;
 use crate::client_settings;
 use crate::layout;
+use crate::theme;
 
 pub struct DashLaunchState {
     pub game_dir: PathBuf,
@@ -37,8 +38,8 @@ impl DashLaunchState {
             .load_latest_runtime_state()?
             .ok_or("No runtime snapshots found — run maintenance first.")?;
         let player_record_index_1_based = 1usize;
-        let owned_planet_years =
-            campaign_store.latest_owned_planet_years_for_empire(player_record_index_1_based as u8)?;
+        let owned_planet_years = campaign_store
+            .latest_owned_planet_years_for_empire(player_record_index_1_based as u8)?;
         let planet_intel_snapshots =
             campaign_store.latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
         let player_war_stats = campaign_store
@@ -46,10 +47,10 @@ impl DashLaunchState {
             .get(player_record_index_1_based.saturating_sub(1))
             .copied()
             .unwrap_or_else(|| PlayerWarStatsState::for_player(player_record_index_1_based));
-        let player_activity_states =
-            campaign_store.latest_player_activity_states(state.game_data.conquest.player_count())?;
-        let player_lifecycle_states =
-            campaign_store.latest_player_lifecycle_states(state.game_data.conquest.player_count())?;
+        let player_activity_states = campaign_store
+            .latest_player_activity_states(state.game_data.conquest.player_count())?;
+        let player_lifecycle_states = campaign_store
+            .latest_player_lifecycle_states(state.game_data.conquest.player_count())?;
 
         Ok(Self {
             game_dir,
@@ -68,9 +69,7 @@ impl DashLaunchState {
         })
     }
 
-    pub fn from_hosted_snapshot(
-        snapshot: &GameState,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_hosted_snapshot(snapshot: &GameState) -> Result<Self, Box<dyn std::error::Error>> {
         let player_count = infer_player_count(snapshot);
         let mut game_data = GameStateBuilder::new()
             .with_player_count(player_count)
@@ -151,6 +150,9 @@ impl DashLaunchState {
         let client_settings_path = client_settings::settings_path();
         app.client_settings = client_settings::load_client_settings_from(&client_settings_path)?;
         app.client_settings_path = Some(client_settings_path);
+        if theme::apply_theme_key(&app.client_settings.theme_key).is_err() {
+            theme::apply_default_theme();
+        }
         let required = layout::dashboard::required_dashboard_frame(&app);
         app.geometry = required;
         app.frame = required;
@@ -164,7 +166,9 @@ impl DashLaunchState {
 }
 
 fn infer_player_count(snapshot: &GameState) -> u8 {
-    let mut max_empire = snapshot.player_seat.max(snapshot.state.starmap.viewer_empire_id as u32);
+    let mut max_empire = snapshot
+        .player_seat
+        .max(snapshot.state.starmap.viewer_empire_id as u32);
     for relation in &snapshot.state.player.diplomacy {
         max_empire = max_empire.max(u32::from(relation.empire_id));
     }
@@ -212,7 +216,11 @@ fn set_player_records(game_data: &mut CoreGameData, snapshot: &GameState, player
     }
 
     let viewer_index = snapshot.player_seat as usize;
-    if let Some(player) = game_data.player.records.get_mut(viewer_index.saturating_sub(1)) {
+    if let Some(player) = game_data
+        .player
+        .records
+        .get_mut(viewer_index.saturating_sub(1))
+    {
         player.set_controlled_empire_name_raw(&snapshot.state.player.empire_name);
         if let Some(handle) = snapshot.state.player.handle.as_deref() {
             player.set_assigned_player_handle_raw(handle);
@@ -220,7 +228,11 @@ fn set_player_records(game_data: &mut CoreGameData, snapshot: &GameState, player
         player.set_tax_rate_raw(snapshot.state.player.tax_rate);
         player.set_starbase_count_raw(u16::from(snapshot.state.player.starbase_count));
         player.set_homeworld_planet_index_1_based_raw(
-            snapshot.state.player.homeworld_planet_index.min(u16::from(u8::MAX)) as u8,
+            snapshot
+                .state
+                .player
+                .homeworld_planet_index
+                .min(u16::from(u8::MAX)) as u8,
         );
         player.set_last_run_year_raw(snapshot.state.player.last_run_year);
     }
@@ -414,7 +426,10 @@ fn intel_snapshot_from_world(
     }
 }
 
-fn build_player_activity_states(snapshot: &GameState, player_count: u8) -> Vec<PlayerActivityState> {
+fn build_player_activity_states(
+    snapshot: &GameState,
+    player_count: u8,
+) -> Vec<PlayerActivityState> {
     (1..=player_count as usize)
         .map(|player_record_index_1_based| PlayerActivityState {
             player_record_index_1_based,

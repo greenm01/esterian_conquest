@@ -17,8 +17,9 @@ topology and wire contract remain in:
 
 ## Core Direction
 
-- keep `nc-lobby` on the existing `nc-ui` native cell-grid stack
-- do not introduce `ratatui` or a second UI framework inside `nc-dash`
+- keep `nc-dash` on the existing fullscreen native `nc-ui` window/cell-grid shell
+- use `ratatui` inside `nc-dash` for lobby-owned settings/theme flows
+- keep `nc-game` and `nc-door` on the existing `nc-ui` theme/runtime path
 - keep local client state in KDL files under platform-specific user paths
 - encrypt the local keychain with the user's password
 - treat the player's pubkey as authoritative and the handle as editable display
@@ -36,7 +37,7 @@ Required local files:
 - `cache.kdl`: encrypted joined-games cache, approved invite cache, inbox
   summaries, and per-game thread pointers
 - `config.kdl`: optional relay and client preferences
-- `settings.kdl`: local UI toggles
+- `settings.kdl`: local UI toggles plus the selected `nc-dash` theme key
 
 Use platform-specific user paths:
 
@@ -98,6 +99,11 @@ Use overlays for:
 
 The tables should follow the existing repo table standards and stay data-dense,
 not widget-heavy.
+
+Theme ownership for hosted play now lives in lobby settings rather than the
+hosted dashboard overlay. The selected theme applies to the whole `nc-dash`
+process, including the hosted dashboard, but that theme runtime is local to
+`nc-dash` and does not replace `nc-game` or `nc-door` theme handling.
 
 ## Joined Games Table
 

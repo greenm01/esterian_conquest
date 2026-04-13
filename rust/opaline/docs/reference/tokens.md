@@ -1,0 +1,131 @@
+# Token Contract
+
+Every builtin theme must define a minimum set of semantic tokens, styles, and gradients. This contract ensures that consuming applications can rely on these names existing in any theme.
+
+## Required Tokens (26)
+
+These tokens must be present in every builtin theme:
+
+### Text (4)
+
+```
+text.primary
+text.secondary
+text.muted
+text.dim
+```
+
+### Background (5)
+
+```
+bg.base
+bg.panel
+bg.code
+bg.highlight
+bg.selection
+```
+
+### Accent (4)
+
+```
+accent.primary
+accent.secondary
+accent.tertiary
+accent.deep
+```
+
+### Status (4)
+
+```
+success
+error
+warning
+info
+```
+
+### Border (2)
+
+```
+border.focused
+border.unfocused
+```
+
+### Code (7)
+
+```
+code.keyword
+code.function
+code.string
+code.number
+code.comment
+code.type
+code.line_number
+```
+
+## Required Styles (13)
+
+```
+keyword
+line_number
+selected
+active_selected
+focused_border
+unfocused_border
+success_style
+error_style
+warning_style
+info_style
+dimmed
+muted
+inline_code
+```
+
+## Required Gradients (5)
+
+```
+primary
+warm
+success_gradient
+error_gradient
+aurora
+```
+
+## Name Constants
+
+The `opaline::names` module provides compile-time constants for every required token, style, and gradient:
+
+```rust
+use opaline::names::{tokens, styles, gradients};
+
+// tokens::TEXT_PRIMARY      → "text.primary"
+// styles::KEYWORD           → "keyword"
+// gradients::AURORA          → "aurora"
+```
+
+Use these instead of raw strings for autocomplete support and typo prevention.
+
+## Enforcement
+
+The contract is enforced by integration tests in `tests/builtins_tests.rs`. Every builtin theme is loaded and checked for all required tokens, styles, and gradients.
+
+```rust
+// From builtins_tests.rs
+#[test]
+fn all_builtins_have_required_tokens() {
+    for &(id, _) in builtins::builtin_names() {
+        let theme = builtins::load_by_name(id).expect("loads");
+        for &token in REQUIRED_TOKENS {
+            assert!(
+                theme.has_token(token),
+                "theme '{id}' missing required token: {token}"
+            );
+        }
+    }
+}
+```
+
+## Adding Tokens to Your Theme
+
+If you're creating a custom theme, you don't need to satisfy the full contract — it's only enforced for builtins. However, following the contract ensures your theme works with any Opaline-powered app. Domain-specific semantics such as git status colors, diff colors, and mode indicators should be derived by the consuming app instead of being treated as core contract names.
+
+Use the [custom themes template](../guide/custom-themes) as a starting point.

@@ -59,11 +59,11 @@ fn config_and_settings_round_trip_through_kdl() {
     let settings = LobbySettingsRecord {
         follow_mouse_on_map: false,
         dense_empty_sector_dots: true,
+        theme_key: "rose-pine".to_string(),
     };
 
     let reparsed_config = parse_config_kdl(&render_config_kdl(&config)).expect("config");
-    let reparsed_settings =
-        parse_settings_kdl(&render_settings_kdl(&settings)).expect("settings");
+    let reparsed_settings = parse_settings_kdl(&render_settings_kdl(&settings)).expect("settings");
 
     assert_eq!(reparsed_config, config);
     assert_eq!(reparsed_settings, settings);

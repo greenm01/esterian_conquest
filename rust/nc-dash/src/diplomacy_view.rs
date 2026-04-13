@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn empire_name_style_uses_theme_slot_color() {
         let style = empire_name_style(3, GameColor::Black, false);
-        assert_eq!(style.fg, nc_ui::theme::classic::empire_slot_color(3));
+        assert_eq!(style.fg, crate::theme::classic::empire_slot_color(3));
         assert_eq!(style.bg, GameColor::Black);
     }
 }

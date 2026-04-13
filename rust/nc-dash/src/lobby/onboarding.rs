@@ -1,7 +1,8 @@
 use nc_ui::PlayfieldBuffer;
 use nc_ui::branding::NOSTRIAN_CONQUEST_LOGO;
 use nc_ui::modal::{Rect, centered_rect, draw_box, wrap_modal_text_lines};
-use nc_ui::theme::classic;
+
+use crate::theme;
 
 use super::state::{FirstRunField, LobbyRoute, LobbyState};
 
@@ -130,15 +131,15 @@ fn render_gate(
         buffer,
         popup,
         title,
-        classic::table_chrome_style(),
-        classic::table_header_style(),
+        theme::table_chrome_style(),
+        theme::table_header_style(),
     );
     buffer.fill_rect(
         popup.y as usize + 1,
         popup.x as usize + 1,
         popup.width.saturating_sub(2) as usize,
         popup.height.saturating_sub(2) as usize,
-        classic::table_body_style(),
+        theme::table_body_style(),
     );
 
     let left = popup.x as usize + GATE_SIDE_PADDING;
@@ -152,7 +153,7 @@ fn render_gate(
         content_width,
         content_bottom.saturating_add(1).saturating_sub(row),
         &wrapped_status,
-        classic::error_style(),
+        theme::error_style(),
     );
     if !wrapped_status.is_empty() {
         row += 1;
@@ -168,7 +169,7 @@ fn render_gate(
         content_width,
         content_bottom.saturating_add(1).saturating_sub(row),
         &wrapped_copy,
-        classic::prompt_notice_action_style(),
+        theme::prompt_notice_action_style(),
     );
     row += 1;
 
@@ -190,14 +191,14 @@ fn write_field(
 ) {
     let marker = if field.active { ">" } else { " " };
     let marker_style = if field.active {
-        classic::prompt_hotkey_style()
+        theme::prompt_hotkey_style()
     } else {
-        classic::status_label_style()
+        theme::status_label_style()
     };
     let value_style = if field.active {
-        classic::prompt_style()
+        theme::prompt_style()
     } else {
-        classic::table_body_style()
+        theme::table_body_style()
     };
     let label = format!(
         "{marker} {:<width$} :",
@@ -233,9 +234,9 @@ fn draw_logo(buffer: &mut PlayfieldBuffer, start_row: usize, popup: Rect) -> usi
                 continue;
             }
             let style = if is_star_decoration(ch) {
-                classic::star_decoration_style(row_offset + col_offset)
+                theme::classic::star_decoration_style(row_offset + col_offset)
             } else {
-                classic::logo_style()
+                theme::logo_style()
             };
             buffer.write_text(
                 start_row + row_offset,
@@ -256,9 +257,9 @@ fn render_tiny(buffer: &mut PlayfieldBuffer, title: &str) {
         let row = start_row + idx;
         let col = buffer.width().saturating_sub(line.chars().count()) / 2;
         let style = if idx == 0 {
-            classic::logo_style()
+            theme::logo_style()
         } else {
-            classic::table_body_style()
+            theme::table_body_style()
         };
         buffer.write_text_clipped(row, col, line, style);
     }

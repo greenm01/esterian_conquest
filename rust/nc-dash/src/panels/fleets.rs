@@ -2,8 +2,8 @@
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
+use crate::theme::classic::status_value_style;
 use nc_data::{Order, STARDOCK_SLOT_COUNT};
-use nc_ui::theme::classic::status_value_style;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "MY FLEETS";
