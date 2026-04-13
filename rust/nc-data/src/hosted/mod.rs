@@ -1,5 +1,6 @@
 pub mod invite_requests;
 pub mod outbox;
+pub mod player_messages;
 pub mod schema;
 pub mod seats;
 pub mod settings;
@@ -16,6 +17,10 @@ pub use invite_requests::{
 pub use outbox::{
     OutboxEvent, OutboxItem, OutboxStatus, count_by_status, delete_published_older_than, enqueue,
     get_pending, increment_retry, mark_failed, mark_published,
+};
+pub use player_messages::{
+    PlayerMessage as HostedPlayerMessage, list_messages as list_player_messages,
+    store_message as store_player_message,
 };
 pub use schema::INIT_SQL;
 pub use seats::{

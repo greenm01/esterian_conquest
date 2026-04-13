@@ -1,4 +1,5 @@
 pub mod claim;
+pub mod contact_message;
 pub mod discovery;
 pub mod game_definition;
 pub mod hash;
@@ -9,6 +10,7 @@ pub mod lobby_notice;
 pub mod nonce;
 pub mod private_payload;
 pub mod pubkeys;
+pub mod player_message;
 pub mod session;
 pub mod state_sync;
 pub mod tags;

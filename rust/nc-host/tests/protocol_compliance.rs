@@ -11,7 +11,14 @@ use nc_nostr::state_sync::{
 #[test]
 fn game_definition_tags_are_per_field_and_slots_are_multivalue() {
     let (_temp, _game_dir, store) = create_test_game("catalog-test", 4);
-    let def = publish_game_definition(&store, "catalog-test", Some("Test Host"))
+    let def = publish_game_definition(
+        &store,
+        "catalog-test",
+        Some("Test Host"),
+        None,
+        None,
+        None,
+    )
         .expect("definition should build")
         .expect("definition should exist");
 
@@ -74,6 +81,7 @@ fn state_response_tags_do_not_leak_player_identity() {
                 last_run_year: 3012,
                 diplomacy: Vec::new(),
             },
+            roster: Vec::new(),
             starmap: HostedStarmapState {
                 map_width: 18,
                 map_height: 18,

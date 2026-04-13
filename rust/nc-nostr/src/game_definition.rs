@@ -14,6 +14,9 @@ pub struct GameDefinition {
     pub turn: u32,
     pub summary: Option<String>,
     pub host_alias: Option<String>,
+    pub host_contact_npub: Option<String>,
+    pub host_contact_label: Option<String>,
+    pub host_contact_nip05: Option<String>,
     pub slots: Vec<SeatSlot>,
 }
 
@@ -112,6 +115,9 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
     let mut turn = None;
     let mut summary = None;
     let mut host_alias = None;
+    let mut host_contact_npub = None;
+    let mut host_contact_label = None;
+    let mut host_contact_nip05 = None;
     let mut slots = Vec::new();
 
     for tag in event.tags.iter() {
@@ -131,6 +137,9 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
             "turn" if values.len() >= 2 => turn = values[1].parse().ok(),
             "summary" if values.len() >= 2 => summary = Some(values[1].clone()),
             "host-alias" if values.len() >= 2 => host_alias = Some(values[1].clone()),
+            "host-contact-npub" if values.len() >= 2 => host_contact_npub = Some(values[1].clone()),
+            "host-contact-label" if values.len() >= 2 => host_contact_label = Some(values[1].clone()),
+            "host-contact-nip05" if values.len() >= 2 => host_contact_nip05 = Some(values[1].clone()),
             "slot" if values.len() >= 5 => {
                 let seat = values[1].parse().ok()?;
                 let invite_code_hash = values[2].clone();
@@ -159,6 +168,9 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
         turn: turn?,
         summary,
         host_alias,
+        host_contact_npub,
+        host_contact_label,
+        host_contact_nip05,
         slots,
     })
 }
@@ -188,6 +200,15 @@ pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<Vec<String>> {
 
     if let Some(ref alias) = def.host_alias {
         tags.push(vec!["host-alias".to_string(), alias.clone()]);
+    }
+    if let Some(ref npub) = def.host_contact_npub {
+        tags.push(vec!["host-contact-npub".to_string(), npub.clone()]);
+    }
+    if let Some(ref label) = def.host_contact_label {
+        tags.push(vec!["host-contact-label".to_string(), label.clone()]);
+    }
+    if let Some(ref nip05) = def.host_contact_nip05 {
+        tags.push(vec!["host-contact-nip05".to_string(), nip05.clone()]);
     }
 
     for slot in &def.slots {

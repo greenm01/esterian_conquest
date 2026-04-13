@@ -1,9 +1,13 @@
 use std::time::Duration;
 
 use nc_nostr::claim::{SeatClaimRequestPayload, SeatClaimResultPayload};
+use nc_nostr::contact_message::{ContactMessage, decrypt_contact_message};
 use nc_nostr::game_definition::{GameDefinition, parse_game_definition};
 use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestPayload, InviteRequestReceipt};
 use nc_nostr::lobby_notice::LobbyNotice;
+use nc_nostr::player_message::{
+    PlayerMessage, PlayerMessageRequest, decrypt_player_message,
+};
 use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
 use nc_nostr::state_sync::{GameState, StateDelta, StateRequestPayload};
 use nc_nostr::tags::tag_content;
@@ -34,6 +38,8 @@ pub struct PlayerEventBatch {
     pub states: Vec<GameState>,
     pub deltas: Vec<StateDelta>,
     pub turn_receipts: Vec<TurnReceipt>,
+    pub contact_messages: Vec<ContactMessage>,
+    pub player_messages: Vec<PlayerMessage>,
 }
 
 impl HostedClientSession {
@@ -123,9 +129,11 @@ impl HostedClientSession {
         self.with_client(async move |client| {
             let filter = Filter::new()
                 .kinds([
+                    Kind::Custom(30518),
                     Kind::Custom(30511),
                     Kind::Custom(30514),
                     Kind::Custom(30515),
+                    Kind::Custom(30523),
                     Kind::Custom(30520),
                     Kind::Custom(30521),
                     Kind::Custom(30524),
@@ -139,6 +147,11 @@ impl HostedClientSession {
             let mut batch = PlayerEventBatch::default();
             for event in events.iter() {
                 match event.kind.as_u16() {
+                    30518 => {
+                        if let Some(payload) = decrypt_contact_message(&secret_key, event) {
+                            batch.contact_messages.push(payload);
+                        }
+                    }
                     30511 => {
                         if let Some(payload) =
                             decrypt_json::<SeatClaimResultPayload>(&secret_key, event)
@@ -163,6 +176,11 @@ impl HostedClientSession {
                     30520 => {
                         if let Some(payload) = decrypt_json::<GameState>(&secret_key, event) {
                             batch.states.push(payload);
+                        }
+                    }
+                    30523 => {
+                        if let Some(payload) = decrypt_player_message(&secret_key, event) {
+                            batch.player_messages.push(payload);
                         }
                     }
                     30521 => {
@@ -247,6 +265,65 @@ impl HostedClientSession {
             client.send_event(&event).await?;
             Ok(payload)
         })
+    }
+
+    pub fn send_contact_message(
+        &self,
+        contact_npub: &str,
+        body: &str,
+        label: Option<&str>,
+    ) -> Result<ContactMessage, Box<dyn std::error::Error>> {
+        let message_id = random_nonce_hex();
+        let keys = self.keys.clone();
+        let public_key = PublicKey::parse(contact_npub)?;
+        let payload = ContactMessage {
+            message_id: message_id.clone(),
+            sender_pubkey: keys.public_key().to_hex(),
+            sender_npub: keys.public_key().to_bech32()?,
+            sender_label: normalize_handle(label),
+            body: body.trim().to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs() as i64)
+                .unwrap_or(0),
+        };
+        self.with_client(async move |client| {
+            let event = build_private_json_event(&keys, &public_key, 30518, &payload, &message_id, None)?;
+            client.send_event(&event).await?;
+            Ok(payload)
+        })
+    }
+
+    pub fn send_player_message(
+        &self,
+        game_id: &str,
+        daemon_pubkey: &str,
+        recipient_empire_id: u8,
+        body: &str,
+    ) -> Result<PlayerMessageRequest, Box<dyn std::error::Error>> {
+        let message_id = random_nonce_hex();
+        let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let payload = PlayerMessageRequest {
+            message_id: message_id.clone(),
+            game_id: game_id.to_string(),
+            sender_pubkey: self.keys.public_key().to_hex(),
+            recipient_empire_id,
+            body: body.trim().to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs() as i64)
+                .unwrap_or(0),
+        };
+        let event = build_private_json_event(
+            &self.keys,
+            &daemon_pubkey,
+            30523,
+            &payload,
+            &message_id,
+            Some(game_id),
+        )?;
+        self.send_signed_event(event)?;
+        Ok(payload)
     }
 
     pub fn claim_invite(

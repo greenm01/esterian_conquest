@@ -9,15 +9,12 @@ pub fn render(
     state: &LobbyState,
     focus: LobbyFocus,
 ) {
-    draw_panel_frame(buffer, rect, "INBOX", focus == LobbyFocus::Inbox);
+    draw_panel_frame(buffer, rect, "GAME INBOX", focus == LobbyFocus::Inbox);
     let rows = state
-        .inbox
+        .filtered_game_inbox()
         .iter()
         .map(|item| {
-            format!(
-                "{} | {} | {} | {}",
-                item.kind, item.game, item.status, item.message
-            )
+            format!("{} | {} | {}", item.game, item.other_empire_name, item.preview)
         })
         .collect::<Vec<_>>();
     write_panel_rows(

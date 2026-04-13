@@ -64,6 +64,8 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
             invite_relay_host: "relay.example.com".to_string(),
             identity_path: PathBuf::from("/etc/nc-host/host.nsec"),
             sysop_contact_npub: String::new(),
+            sysop_contact_label: None,
+            sysop_contact_nip05: None,
         };
         default
     };
@@ -135,12 +137,13 @@ async fn run_async_server(
         .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
         .kind(Kind::Custom(30517))
+        .kind(Kind::Custom(30523))
         .kind(Kind::Custom(30522))
         .custom_tag(SingleLetterTag::lowercase(Alphabet::P), host_hex.as_str());
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522");
+    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
@@ -159,7 +162,13 @@ async fn run_async_server(
     loop {
         tokio::select! {
             _ = catalog_interval.tick() => {
-                publish_lobby_catalog(&games_root, false).await;
+                publish_lobby_catalog(
+                    &games_root,
+                    false,
+                    &config.sysop_contact_npub,
+                    config.sysop_contact_label.as_deref(),
+                    config.sysop_contact_nip05.as_deref(),
+                ).await;
             }
             _ = decisions_interval.tick() => {
                 publish_pending_decisions(&games_root).await;
@@ -293,7 +302,13 @@ async fn publish_invite_request_receipt_direct(
     }
 }
 
-async fn publish_lobby_catalog(games_root: &std::sync::Arc<std::path::PathBuf>, force: bool) {
+async fn publish_lobby_catalog(
+    games_root: &std::sync::Arc<std::path::PathBuf>,
+    force: bool,
+    host_contact_npub: &str,
+    host_contact_label: Option<&str>,
+    host_contact_nip05: Option<&str>,
+) {
     use crate::lobby::catalog_publish::publish_game_definition;
     use nc_data::hosted::{
         HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty, get_catalog_dirty_since,
@@ -347,7 +362,14 @@ async fn publish_lobby_catalog(games_root: &std::sync::Arc<std::path::PathBuf>, 
                 continue;
             }
 
-            match publish_game_definition(&store, game_id, settings.host_alias.as_deref()) {
+            match publish_game_definition(
+                &store,
+                game_id,
+                settings.host_alias.as_deref(),
+                Some(host_contact_npub),
+                host_contact_label,
+                host_contact_nip05,
+            ) {
                 Ok(Some(def)) => {
                     let tags = build_game_definition_tags(&def);
                     if let Err(e) = crate::game::outbox::enqueue_public_event(

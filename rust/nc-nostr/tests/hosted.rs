@@ -9,6 +9,9 @@ fn build_game_definition_event() -> nostr_sdk::Event {
         Tag::parse(["status", "active"]).unwrap(),
         Tag::parse(["ssh-host", "play.example.com"]).unwrap(),
         Tag::parse(["ssh-port", "22"]).unwrap(),
+        Tag::parse(["host-contact-npub", "npub1host"]).unwrap(),
+        Tag::parse(["host-contact-label", "nc_sysop"]).unwrap(),
+        Tag::parse(["host-contact-nip05", "nc_sysop@nostrian-conquest.com"]).unwrap(),
         Tag::parse(["slot", "2", "abc123", "", "pending"]).unwrap(),
         Tag::parse(["slot", "3", "def456", "0123deadbeef", "claimed"]).unwrap(),
     ];
@@ -40,4 +43,10 @@ fn parse_game_definition_extracts_slots_and_ssh_target() {
     assert_eq!(game.slots[0].player_npub, None);
     assert_eq!(game.slots[0].status, "pending");
     assert_eq!(game.slots[1].player_npub.as_deref(), Some("0123deadbeef"));
+    assert_eq!(game.host_contact_npub.as_deref(), Some("npub1host"));
+    assert_eq!(game.host_contact_label.as_deref(), Some("nc_sysop"));
+    assert_eq!(
+        game.host_contact_nip05.as_deref(),
+        Some("nc_sysop@nostrian-conquest.com")
+    );
 }

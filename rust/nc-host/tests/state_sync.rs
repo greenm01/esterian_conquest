@@ -31,6 +31,7 @@ fn test_state_sync_structs() {
                 last_run_year: 3005,
                 diplomacy: Vec::new(),
             },
+            roster: Vec::new(),
             starmap: HostedStarmapState {
                 map_width: 18,
                 map_height: 18,

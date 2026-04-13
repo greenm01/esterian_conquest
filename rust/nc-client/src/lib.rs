@@ -1,4 +1,5 @@
 pub mod cache;
+pub mod contacts;
 pub mod config;
 pub mod hosted;
 pub mod keychain;

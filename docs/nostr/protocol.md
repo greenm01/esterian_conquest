@@ -12,6 +12,8 @@ This protocol covers the future relay-native hosted path:
 
 - public recruiting-game discovery
 - daemon-mediated invite requests
+- encrypted direct contact chat
+- encrypted anonymous per-game diplomacy
 - private invite approval/rejection delivery
 - hosted state sync
 - hosted turn submission
@@ -51,10 +53,12 @@ deduplication key unless a later implementation constraint proves otherwise.
 | `30514` | `InviteRequestReceipt` | `nc-host` | NIP-44 | Request accepted or immediately rejected |
 | `30515` | `InviteDecision` | `nc-host` | NIP-44 | Final sysop approval or rejection |
 | `30516` | `LobbyNotice` | `nc-host` | None | Public host-wide notice board item |
-| `30517` | `SysopThreadMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted per-game sysop thread message |
+| `30517` | `SysopThreadMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted legacy/operator thread surface |
+| `30518` | `ContactMessage` | `nc-dash` | NIP-44 | Encrypted direct contact chat by known `npub` |
 | `30520` | `GameState` | `nc-host` | NIP-44 | Full fog-of-war-filtered state snapshot |
 | `30521` | `StateDelta` | `nc-host` | NIP-44 | Incremental state update |
 | `30522` | `TurnCommands` | `nc-dash` | NIP-44 | Submitted player turn orders |
+| `30523` | `PlayerMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted anonymous player-to-player game mail |
 | `30524` | `TurnReceipt` | `nc-host` | NIP-44 | Turn submission accepted or rejected |
 
 Legacy SSH-oriented kinds `30501`/`30502`/`30503` and related map/session
@@ -109,6 +113,9 @@ Optional tags:
 
 - `summary`: short lobby-facing description
 - `host-alias`: display name for the host/sysop
+- `host-contact-npub`: direct contact `npub` for the listed host contact
+- `host-contact-label`: compact label shown in the lobby contact list and host column
+- `host-contact-nip05`: optional full NIP-05 stored privately by the client
 - `slot`: hashed seat metadata for invite matching and diagnostics
 
 `slot` shape:
@@ -245,8 +252,8 @@ Rules:
 
 ## 7B. 30517 `SysopThreadMessage`
 
-`SysopThreadMessage` is the encrypted per-game private thread event between a
-player and the daemon/sysop.
+`SysopThreadMessage` remains available for host/operator-specific private
+threads, but it is no longer the canonical player-to-player diplomacy channel.
 
 Required tags:
 
@@ -269,12 +276,88 @@ Recommended payload fields:
 
 Rules:
 
-- one persistent thread per player/game pair
+- one persistent thread per player/game pair when the host chooses to expose it
 - available before approval and after join
 - sender handle is display metadata only and should be snapshotted at send time
 - pubkey plus `game-id` remain authoritative
-- `30517` remains the canonical game-thread transport even if the host also
-  emits summary-only NIP-17 sysop notifications
+- `30517` is appropriate for sysop/operator contact and legacy hosted flows
+
+## 7C. 30518 `ContactMessage`
+
+`ContactMessage` is the encrypted direct-contact event used by the `THREADS`
+surface in `nc-dash`.
+
+Required tags:
+
+- `d`: message id
+- `p`: recipient pubkey
+
+Payload fields:
+
+```json
+{
+  "message_id": "<message-id>",
+  "sender_npub": "<player-npub>",
+  "sender_label": "nc_sysop",
+  "body": "Relay maintenance window starts tonight.",
+  "created_at": 1770000200
+}
+```
+
+Rules:
+
+- direct contacts are keyed by known `npub`
+- the lobby may seed host contacts from `30500 host-contact-*` metadata
+- manual contacts may be added by `npub` or resolved NIP-05
+- clients should persist contact metadata and direct chat history locally in the
+  encrypted cache
+
+## 7D. 30523 `PlayerMessage`
+
+`PlayerMessage` is the canonical encrypted player-to-player diplomacy channel
+for joined hosted games.
+
+Required tags:
+
+- `d`: message id
+- `p`: recipient pubkey
+- `game-id`
+
+Sender-to-host request payload:
+
+```json
+{
+  "message_id": "<message-id>",
+  "game_id": "friday-night",
+  "sender_pubkey": "<player-pubkey>",
+  "recipient_empire_id": 2,
+  "body": "Shall we arrange a cease-fire?",
+  "created_at": 1770000300
+}
+```
+
+Recipient-facing payload:
+
+```json
+{
+  "message_id": "<message-id>",
+  "game_id": "friday-night",
+  "sender_empire_id": 1,
+  "sender_empire_name": "Terran Union",
+  "recipient_empire_id": 2,
+  "recipient_empire_name": "Rigel Empire",
+  "body": "Shall we arrange a cease-fire?",
+  "created_at": 1770000300
+}
+```
+
+Rules:
+
+- players never learn another player's `npub` from `30523`
+- `nc-host` validates seat ownership and recipient empire before routing
+- the client should label these conversations by game name plus empire name, not
+  by pubkey
+- this is the canonical `GAME INBOX` transport
 
 ## 8. 30510 `SeatClaimRequest`
 
@@ -481,7 +564,9 @@ The daemon side must:
 - submit `30513` for invite requests
 - listen for `30514` and `30515`
 - subscribe to public `30516` notice posts
-- send and receive encrypted `30517` per-game thread messages
+- seed host contacts from `30500 host-contact-*`
+- send and receive encrypted `30518` direct contact messages
+- send and receive encrypted `30523` anonymous game mail
 - store approved invite strings in the encrypted local cache
 - use `30507`, `30520`, `30521`, `30522`, and `30524` for live hosted play
 
@@ -489,7 +574,6 @@ The daemon side must:
 
 This draft intentionally defers:
 
-- player-to-player diplomacy messaging
 - relay federation
 - per-game relay overrides
 - automatic invite issuance for public seats

@@ -142,6 +142,8 @@ fn collect_status_aggregates_games_and_queues() {
         invite_relay_host: "relay.example.com".to_string(),
         identity_path: temp.path().join("host.nsec"),
         sysop_contact_npub: "npub1test".to_string(),
+        sysop_contact_label: None,
+        sysop_contact_nip05: None,
     };
 
     let report = collect::collect_status(&config, None).expect("status should collect");
@@ -194,6 +196,8 @@ fn render_human_mentions_totals_and_games() {
         invite_relay_host: "relay.example.com".to_string(),
         identity_path: temp.path().join("host.nsec"),
         sysop_contact_npub: "npub1test".to_string(),
+        sysop_contact_label: None,
+        sysop_contact_nip05: None,
     };
 
     let report = collect::collect_status(&config, None).expect("status should collect");

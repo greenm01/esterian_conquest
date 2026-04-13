@@ -1,7 +1,9 @@
 use nc_client::cache::{
-    CachedGame, ClientCache, InboxEntry, NoticeEntry, ThreadEntry, load_cache, save_cache,
+    CachedGame, ClientCache, ContactEntry, ContactMessageEntry, GameInboxMessageEntry,
+    GameRosterEntry, NoticeEntry, load_cache, save_cache,
 };
 use nc_client::config::{ClientConfig, load_config};
+use nc_client::contacts::{resolve_contact_input, short_contact_label};
 use nc_client::hosted::live::{HostedLiveSession, HostedSessionUpdate};
 use nc_client::hosted::session::{CatalogGame, HostedClientSession, PlayerEventBatch};
 use nc_client::keychain::{
@@ -13,11 +15,14 @@ use nc_client::relay::validate_relay_url;
 use nc_nostr::game_definition::{GameStatus, RecruitingMode};
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
 use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
+use nc_nostr::pubkeys::hex_to_npub;
 use nc_nostr::state_sync::GameState;
-use nc_nostr::thread_message::SysopThreadMessage;
 use nc_nostr::turn_commands::TurnReceiptStatus;
 
-use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
+use super::models::{
+    DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
+    ThreadMessage,
+};
 use super::state::{LobbyNetworkStatus, LobbyStatusTone};
 
 fn format_catalog_created_date(created_at: Option<i64>) -> String {
@@ -25,6 +30,25 @@ fn format_catalog_created_date(created_at: Option<i64>) -> String {
         .and_then(|secs| chrono::DateTime::from_timestamp(secs, 0))
         .map(|dt| dt.date_naive().format("%Y-%m-%d").to_string())
         .unwrap_or_else(|| "-".to_string())
+}
+
+fn format_host_label(
+    host_alias: Option<&str>,
+    host_contact_label: Option<&str>,
+    host_contact_npub: Option<&str>,
+) -> String {
+    host_contact_label
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            host_alias
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+        })
+        .or_else(|| host_contact_npub.map(short_contact_label))
+        .unwrap_or_else(|| "daemon".to_string())
 }
 
 fn open_game_status(game: &CatalogGame) -> (&'static str, u8) {
@@ -43,9 +67,11 @@ pub struct LobbyLoadedState {
     pub player_handle: Option<String>,
     pub joined_games: Vec<JoinedGameRow>,
     pub open_games: Vec<OpenGameRow>,
-    pub inbox: Vec<InboxItem>,
+    pub game_inbox: Vec<GameInboxRow>,
     pub notices: Vec<LobbyNotice>,
+    pub direct_contacts: Vec<DirectContactRow>,
     pub thread_messages: Vec<ThreadMessage>,
+    pub game_inbox_messages: Vec<GameInboxMessage>,
     pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
     pub status_tone: LobbyStatusTone,
@@ -246,7 +272,7 @@ impl LobbyTransport {
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
         let handle = current_handle(&unlocked.keychain);
-        let request_id = session
+        session
             .send_invite_request(&row.game_id, &row.daemon_pubkey, message, handle.as_deref())
             .map_err(|err| err.to_string())?;
         let updated_at = now_iso8601();
@@ -254,6 +280,9 @@ impl LobbyTransport {
             id: row.game_id.clone(),
             name: row.game.clone(),
             host_alias: Some(row.host.clone()),
+            host_contact_npub: row.host_contact_npub.clone(),
+            host_contact_label: Some(row.host.clone()),
+            host_contact_nip05: None,
             relay_url: row.relay_url.clone(),
             daemon_pubkey: row.daemon_pubkey.clone(),
             seat: None,
@@ -261,17 +290,6 @@ impl LobbyTransport {
             invite_address: None,
             last_turn: None,
             last_hash: None,
-            updated_at: updated_at.clone(),
-        });
-        unlocked.cache.upsert_inbox(InboxEntry {
-            kind: "request".to_string(),
-            request_id: Some(request_id),
-            game_id: row.game_id.clone(),
-            game_name: Some(row.game.clone()),
-            status: "sent".to_string(),
-            message: message.trim().to_string(),
-            invite_address: None,
-            turn: None,
             updated_at,
         });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
@@ -300,17 +318,6 @@ impl LobbyTransport {
         let result = session
             .claim_invite(&row.game_id, &row.daemon_pubkey, invite, handle.as_deref())
             .map_err(|err| err.to_string())?;
-        unlocked.cache.upsert_inbox(InboxEntry {
-            kind: "claim".to_string(),
-            request_id: Some(result.nonce.clone()),
-            game_id: row.game_id.clone(),
-            game_name: Some(row.game.clone()),
-            status: result.status.as_str().to_string(),
-            message: result.message.clone(),
-            invite_address: row.invite_address.clone(),
-            turn: None,
-            updated_at: now_iso8601(),
-        });
         if result.status.as_str() == "claimed" {
             let mut updated = cache_game_from_row(row);
             updated.status = "joined".to_string();
@@ -353,6 +360,20 @@ impl LobbyTransport {
         cached.last_hash = Some(state.state_hash.clone());
         cached.updated_at = now_iso8601();
         unlocked.cache.upsert_game(cached);
+        unlocked.cache.replace_roster(
+            &state.game_id,
+            state
+                .state
+                .roster
+                .iter()
+                .map(|entry| GameRosterEntry {
+                    game_id: state.game_id.clone(),
+                    empire_id: entry.empire_id,
+                    empire_name: entry.empire_name.clone(),
+                    is_self: entry.is_self,
+                })
+                .collect(),
+        );
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(state)
     }
@@ -372,7 +393,7 @@ impl LobbyTransport {
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
         let handle = current_handle(&unlocked.keychain);
-        let receipt = session
+        session
             .submit_turn(
                 &row.game_id,
                 &row.daemon_pubkey,
@@ -381,21 +402,6 @@ impl LobbyTransport {
                 handle.as_deref(),
             )
             .map_err(|err| err.to_string())?;
-        unlocked.cache.upsert_inbox(InboxEntry {
-            kind: "turn".to_string(),
-            request_id: Some(receipt.submit_id.clone()),
-            game_id: row.game_id.clone(),
-            game_name: Some(row.game.clone()),
-            status: receipt.status.as_str().to_string(),
-            message: receipt
-                .message
-                .clone()
-                .unwrap_or_else(|| "turn receipt received".to_string()),
-            invite_address: None,
-            turn: Some(receipt.turn),
-            updated_at: now_iso8601(),
-        });
-        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
             Some("Turn submitted. Waiting for nc-host receipt.".to_string()),
@@ -404,9 +410,71 @@ impl LobbyTransport {
         ))
     }
 
-    pub fn send_thread_message(
+    pub fn add_direct_contact(
         &mut self,
-        game_id: &str,
+        raw_input: &str,
+    ) -> Result<(LobbyLoadedState, String), String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let resolved = resolve_contact_input(raw_input)?;
+        unlocked.cache.upsert_contact(ContactEntry {
+            npub: resolved.npub.clone(),
+            label: resolved.label.clone(),
+            nip05: resolved.nip05.clone(),
+            source: "manual".to_string(),
+        });
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        Ok((
+            build_loaded_state(
+                unlocked,
+                Some(format!("Added direct contact {}.", resolved.label)),
+                LobbyStatusTone::Success,
+                None,
+            ),
+            resolved.npub,
+        ))
+    }
+
+    pub fn send_direct_message(
+        &mut self,
+        contact_npub: &str,
+        body: &str,
+    ) -> Result<LobbyLoadedState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let session = unlocked
+            .session
+            .as_ref()
+            .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+        let sender_label = current_handle(&unlocked.keychain);
+        let payload = session
+            .send_contact_message(contact_npub, body, sender_label.as_deref())
+            .map_err(|err| err.to_string())?;
+        unlocked.cache.upsert_contact_message(ContactMessageEntry {
+            message_id: payload.message_id,
+            contact_npub: contact_npub.to_string(),
+            sender_npub: payload.sender_npub,
+            sender_label: payload.sender_label,
+            body: payload.body,
+            outgoing: true,
+            created_at: iso8601_from_secs(payload.created_at),
+        });
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        Ok(build_loaded_state(
+            unlocked,
+            Some("Encrypted direct message sent.".to_string()),
+            LobbyStatusTone::Success,
+            None,
+        ))
+    }
+
+    pub fn send_game_inbox_message(
+        &mut self,
+        row: &GameInboxRow,
         daemon_pubkey: &str,
         body: &str,
     ) -> Result<LobbyLoadedState, String> {
@@ -418,24 +486,30 @@ impl LobbyTransport {
             .session
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
-        let handle = current_handle(&unlocked.keychain);
         let payload = session
-            .send_thread_message(game_id, daemon_pubkey, body, handle.as_deref())
+            .send_player_message(&row.game_id, daemon_pubkey, row.other_empire_id, body)
             .map_err(|err| err.to_string())?;
-        unlocked.cache.upsert_thread(ThreadEntry {
+        unlocked.cache.upsert_game_inbox_message(GameInboxMessageEntry {
             message_id: payload.message_id,
-            game_id: payload.game_id,
-            sender_role: payload.sender_role.as_str().to_string(),
-            sender_npub: payload.sender_npub,
-            sender_handle: payload.sender_handle,
-            body: payload.body,
+            game_id: row.game_id.clone(),
+            other_empire_id: row.other_empire_id,
+            other_empire_name: row.other_empire_name.clone(),
+            sender_empire_id: 0,
+            sender_empire_name: unlocked
+                .cache
+                .rosters
+                .iter()
+                .find(|entry| entry.game_id == row.game_id && entry.is_self)
+                .map(|entry| entry.empire_name.clone())
+                .unwrap_or_else(|| "You".to_string()),
+            body: body.trim().to_string(),
             outgoing: true,
-            created_at: payload.created_at.to_string(),
+            created_at: iso8601_from_secs(payload.created_at),
         });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
-            Some("Thread message sent to nc-host.".to_string()),
+            Some("Encrypted game message sent through nc-host.".to_string()),
             LobbyStatusTone::Success,
             None,
         ))
@@ -495,7 +569,8 @@ fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate)
     let catalog = unlocked.catalog.clone();
     apply_player_events(unlocked, update.player_events, &catalog);
     apply_notices(unlocked, update.notices);
-    apply_threads(unlocked, update.threads);
+    apply_direct_messages(unlocked, update.contact_messages);
+    apply_game_inbox_messages(unlocked, update.player_messages, &catalog);
 }
 
 fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
@@ -509,6 +584,7 @@ fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
         } else {
             unlocked.catalog.push(catalog_game.clone());
         }
+
         if let Some(cached) = unlocked
             .cache
             .games
@@ -517,9 +593,19 @@ fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
         {
             cached.name = catalog_game.definition.game_name.clone();
             cached.host_alias = catalog_game.definition.host_alias.clone();
+            cached.host_contact_npub = catalog_game.definition.host_contact_npub.clone();
+            cached.host_contact_label = catalog_game.definition.host_contact_label.clone();
+            cached.host_contact_nip05 = catalog_game.definition.host_contact_nip05.clone();
             cached.daemon_pubkey = catalog_game.daemon_pubkey.clone();
             cached.relay_url = unlocked.relay_url.clone().unwrap_or_default();
         }
+
+        maybe_cache_host_contact(
+            &mut unlocked.cache,
+            catalog_game.definition.host_contact_npub.as_deref(),
+            catalog_game.definition.host_contact_label.as_deref(),
+            catalog_game.definition.host_contact_nip05.as_deref(),
+        );
     }
 }
 
@@ -529,36 +615,20 @@ fn apply_player_events(
     catalog: &[CatalogGame],
 ) {
     for receipt in batch.receipts {
-        unlocked.cache.upsert_inbox(InboxEntry {
-            kind: "request".to_string(),
-            request_id: Some(receipt.request_id.clone()),
-            game_id: receipt.game_id.clone(),
-            game_name: lookup_game_name(&receipt.game_id, &unlocked.cache, catalog),
-            status: receipt.status.as_str().to_string(),
-            message: receipt.message.clone(),
-            invite_address: None,
-            turn: None,
-            updated_at: now_iso8601(),
-        });
+        if let Some(game) = unlocked
+            .cache
+            .games
+            .iter_mut()
+            .find(|game| game.id == receipt.game_id)
+        {
+            game.status = receipt.status.as_str().to_string();
+            game.updated_at = now_iso8601();
+        }
     }
     for decision in batch.decisions {
         apply_decision(unlocked, decision, catalog);
     }
     for result in batch.claim_results {
-        unlocked.cache.upsert_inbox(InboxEntry {
-            kind: "claim".to_string(),
-            request_id: Some(result.nonce.clone()),
-            game_id: result.game_id.clone().unwrap_or_default(),
-            game_name: result
-                .game_id
-                .as_deref()
-                .and_then(|game_id| lookup_game_name(game_id, &unlocked.cache, catalog)),
-            status: result.status.as_str().to_string(),
-            message: result.message.clone(),
-            invite_address: None,
-            turn: None,
-            updated_at: now_iso8601(),
-        });
         if let Some(game_id) = result.game_id.as_deref() {
             if let Some(game) = unlocked
                 .cache
@@ -569,8 +639,8 @@ fn apply_player_events(
                 if result.status.as_str() == "claimed" {
                     game.status = "joined".to_string();
                     game.seat = result.seat;
-                    game.updated_at = now_iso8601();
                 }
+                game.updated_at = now_iso8601();
             }
         }
     }
@@ -587,22 +657,39 @@ fn apply_player_events(
             game.status = "joined".to_string();
             game.updated_at = now_iso8601();
         }
+        unlocked.cache.replace_roster(
+            &state.game_id,
+            state
+                .state
+                .roster
+                .iter()
+                .map(|entry| GameRosterEntry {
+                    game_id: state.game_id.clone(),
+                    empire_id: entry.empire_id,
+                    empire_name: entry.empire_name.clone(),
+                    is_self: entry.is_self,
+                })
+                .collect(),
+        );
+    }
+    for message in batch.contact_messages {
+        apply_direct_message(unlocked, message);
+    }
+    for message in batch.player_messages {
+        apply_game_inbox_message(unlocked, message, catalog);
     }
     for receipt in batch.turn_receipts {
-        unlocked.cache.upsert_inbox(InboxEntry {
-            kind: "turn".to_string(),
-            request_id: Some(receipt.submit_id.clone()),
-            game_id: receipt.game_id.clone(),
-            game_name: lookup_game_name(&receipt.game_id, &unlocked.cache, catalog),
-            status: receipt.status.as_str().to_string(),
-            message: receipt
-                .message
-                .clone()
-                .unwrap_or_else(|| default_turn_message(receipt.status)),
-            invite_address: None,
-            turn: Some(receipt.turn),
-            updated_at: now_iso8601(),
-        });
+        if matches!(receipt.status, TurnReceiptStatus::Accepted | TurnReceiptStatus::Superseded) {
+            if let Some(game) = unlocked
+                .cache
+                .games
+                .iter_mut()
+                .find(|game| game.id == receipt.game_id)
+            {
+                game.last_turn = Some(receipt.turn);
+                game.updated_at = now_iso8601();
+            }
+        }
     }
 }
 
@@ -613,24 +700,98 @@ fn apply_notices(unlocked: &mut UnlockedClient, notices: Vec<NoticePayload>) {
             sender_npub: notice.sender_npub,
             sender_handle: notice.sender_handle,
             body: notice.body,
-            created_at: notice.created_at.to_string(),
+            created_at: iso8601_from_secs(notice.created_at),
         });
     }
 }
 
-fn apply_threads(unlocked: &mut UnlockedClient, messages: Vec<SysopThreadMessage>) {
+fn apply_direct_messages(
+    unlocked: &mut UnlockedClient,
+    messages: Vec<nc_nostr::contact_message::ContactMessage>,
+) {
     for message in messages {
-        unlocked.cache.upsert_thread(ThreadEntry {
-            message_id: message.message_id,
-            game_id: message.game_id,
-            sender_role: message.sender_role.as_str().to_string(),
-            sender_npub: message.sender_npub,
-            sender_handle: message.sender_handle,
-            body: message.body,
-            outgoing: false,
-            created_at: message.created_at.to_string(),
-        });
+        apply_direct_message(unlocked, message);
     }
+}
+
+fn apply_direct_message(
+    unlocked: &mut UnlockedClient,
+    message: nc_nostr::contact_message::ContactMessage,
+) {
+    let current_npub: String = active_keys(&unlocked.keychain)
+        .ok()
+        .and_then(|keys| hex_to_npub(&keys.public_key().to_hex()))
+        .unwrap_or_default();
+    let contact_npub = if message.sender_npub == current_npub {
+        current_npub.clone()
+    } else {
+        message.sender_npub.clone()
+    };
+    if message.sender_npub != current_npub {
+        maybe_cache_host_contact(
+            &mut unlocked.cache,
+            Some(&message.sender_npub),
+            message.sender_label.as_deref(),
+            None,
+        );
+    }
+    unlocked.cache.upsert_contact_message(ContactMessageEntry {
+        message_id: message.message_id,
+        contact_npub: if message.sender_npub == current_npub {
+            contact_npub
+        } else {
+            message.sender_npub.clone()
+        },
+        sender_npub: message.sender_npub,
+        sender_label: message.sender_label,
+        body: message.body,
+        outgoing: false,
+        created_at: iso8601_from_secs(message.created_at),
+    });
+}
+
+fn apply_game_inbox_messages(
+    unlocked: &mut UnlockedClient,
+    messages: Vec<nc_nostr::player_message::PlayerMessage>,
+    catalog: &[CatalogGame],
+) {
+    for message in messages {
+        apply_game_inbox_message(unlocked, message, catalog);
+    }
+}
+
+fn apply_game_inbox_message(
+    unlocked: &mut UnlockedClient,
+    message: nc_nostr::player_message::PlayerMessage,
+    catalog: &[CatalogGame],
+) {
+    let game_name = lookup_game_name(&message.game_id, &unlocked.cache, catalog)
+        .unwrap_or_else(|| message.game_id.clone());
+    let self_empire_id = unlocked
+        .cache
+        .rosters
+        .iter()
+        .find(|entry| entry.game_id == message.game_id && entry.is_self)
+        .map(|entry| entry.empire_id)
+        .unwrap_or(0);
+    let outgoing = self_empire_id != 0 && message.sender_empire_id == self_empire_id;
+    let (other_empire_id, other_empire_name) = if outgoing {
+        (message.recipient_empire_id, message.recipient_empire_name.clone())
+    } else {
+        (message.sender_empire_id, message.sender_empire_name.clone())
+    };
+    unlocked.cache.upsert_game_inbox_message(GameInboxMessageEntry {
+        message_id: message.message_id,
+        game_id: message.game_id,
+        other_empire_id,
+        other_empire_name,
+        sender_empire_id: message.sender_empire_id,
+        sender_empire_name: message.sender_empire_name,
+        body: message.body,
+        outgoing,
+        created_at: iso8601_from_secs(message.created_at),
+    });
+    let _ = game_name;
 }
 
 fn apply_decision(
@@ -639,7 +800,8 @@ fn apply_decision(
     catalog: &[CatalogGame],
 ) {
     let updated_at = now_iso8601();
-    let game_name = lookup_game_name(&decision.game_id, &unlocked.cache, catalog);
+    let game_name = lookup_game_name(&decision.game_id, &unlocked.cache, catalog)
+        .unwrap_or_else(|| decision.game_id.clone());
     let catalog_match = catalog
         .iter()
         .find(|game| game.definition.game_id == decision.game_id);
@@ -647,10 +809,14 @@ fn apply_decision(
         InviteDecision::Approved { invite } => {
             unlocked.cache.upsert_game(CachedGame {
                 id: decision.game_id.clone(),
-                name: game_name
-                    .clone()
-                    .unwrap_or_else(|| decision.game_id.clone()),
+                name: game_name,
                 host_alias: catalog_match.and_then(|game| game.definition.host_alias.clone()),
+                host_contact_npub: catalog_match
+                    .and_then(|game| game.definition.host_contact_npub.clone()),
+                host_contact_label: catalog_match
+                    .and_then(|game| game.definition.host_contact_label.clone()),
+                host_contact_nip05: catalog_match
+                    .and_then(|game| game.definition.host_contact_nip05.clone()),
                 relay_url: unlocked.relay_url.clone().unwrap_or_default(),
                 daemon_pubkey: catalog_match
                     .map(|game| game.daemon_pubkey.clone())
@@ -668,7 +834,7 @@ fn apply_decision(
                 invite_address: Some(invite.clone()),
                 last_turn: None,
                 last_hash: None,
-                updated_at: updated_at.clone(),
+                updated_at,
             });
         }
         InviteDecision::Rejected => {
@@ -679,27 +845,10 @@ fn apply_decision(
                 .find(|game| game.id == decision.game_id)
             {
                 game.status = "rejected".to_string();
-                game.updated_at = updated_at.clone();
+                game.updated_at = updated_at;
             }
         }
     }
-    unlocked.cache.upsert_inbox(InboxEntry {
-        kind: "decision".to_string(),
-        request_id: Some(decision.request_id.clone()),
-        game_id: decision.game_id.clone(),
-        game_name,
-        status: match decision.decision {
-            InviteDecision::Approved { .. } => "approved".to_string(),
-            InviteDecision::Rejected => "rejected".to_string(),
-        },
-        message: decision.message,
-        invite_address: match decision.decision {
-            InviteDecision::Approved { invite } => Some(invite),
-            InviteDecision::Rejected => None,
-        },
-        turn: None,
-        updated_at,
-    });
 }
 
 fn build_loaded_state(
@@ -716,22 +865,23 @@ fn build_loaded_state(
             (
                 sort_key,
                 OpenGameRow {
-            game_id: game.definition.game_id.clone(),
-            status: status.to_string(),
-            game: game.definition.game_name.clone(),
-            host: game
-                .definition
-                .host_alias
-                .clone()
-                .unwrap_or_else(|| "daemon".to_string()),
-            relay_url: unlocked.relay_url.clone().unwrap_or_default(),
-            daemon_pubkey: game.daemon_pubkey.clone(),
-            recruiting: game.definition.recruiting.as_str().to_string(),
-            open_seats: game.definition.open_seats as u8,
-            total_seats: game.definition.players as u8,
-            created_date: format_catalog_created_date(game.definition.created_at),
-            turn_summary: format!("Y{} T{}", game.definition.year, game.definition.turn),
-            summary: game.definition.summary.clone().unwrap_or_default(),
+                    game_id: game.definition.game_id.clone(),
+                    status: status.to_string(),
+                    game: game.definition.game_name.clone(),
+                    host: format_host_label(
+                        game.definition.host_alias.as_deref(),
+                        game.definition.host_contact_label.as_deref(),
+                        game.definition.host_contact_npub.as_deref(),
+                    ),
+                    host_contact_npub: game.definition.host_contact_npub.clone(),
+                    relay_url: unlocked.relay_url.clone().unwrap_or_default(),
+                    daemon_pubkey: game.daemon_pubkey.clone(),
+                    recruiting: game.definition.recruiting.as_str().to_string(),
+                    open_seats: game.definition.open_seats as u8,
+                    total_seats: game.definition.players as u8,
+                    created_date: format_catalog_created_date(game.definition.created_at),
+                    turn_summary: format!("Y{} T{}", game.definition.year, game.definition.turn),
+                    summary: game.definition.summary.clone().unwrap_or_default(),
                 },
             )
         })
@@ -756,10 +906,12 @@ fn build_loaded_state(
             game_id: game.id.clone(),
             status: game.status.clone(),
             game: game.name.clone(),
-            host: game
-                .host_alias
-                .clone()
-                .unwrap_or_else(|| "daemon".to_string()),
+            host: format_host_label(
+                game.host_alias.as_deref(),
+                game.host_contact_label.as_deref(),
+                game.host_contact_npub.as_deref(),
+            ),
+            host_contact_npub: game.host_contact_npub.clone(),
             relay_url: game.relay_url.clone(),
             daemon_pubkey: game.daemon_pubkey.clone(),
             seat: game.seat.map(|seat| seat as u8),
@@ -773,23 +925,7 @@ fn build_loaded_state(
         })
         .collect::<Vec<_>>();
 
-    let inbox = unlocked
-        .cache
-        .inbox
-        .iter()
-        .map(|entry| InboxItem {
-            kind: entry.kind.clone(),
-            request_id: entry.request_id.clone(),
-            game_id: entry.game_id.clone(),
-            game: entry
-                .game_name
-                .clone()
-                .unwrap_or_else(|| entry.game_id.clone()),
-            status: entry.status.clone(),
-            message: entry.message.clone(),
-            invite_address: entry.invite_address.clone(),
-        })
-        .collect::<Vec<_>>();
+    let game_inbox = build_game_inbox_rows(&joined_games, &unlocked.cache);
 
     let notices = unlocked
         .cache
@@ -806,17 +942,55 @@ fn build_loaded_state(
         })
         .collect::<Vec<_>>();
 
+    let direct_contacts = unlocked
+        .cache
+        .direct_contacts
+        .iter()
+        .map(|entry| DirectContactRow {
+            npub: entry.npub.clone(),
+            label: entry.label.clone(),
+            nip05: entry.nip05.clone(),
+            source: entry.source.clone(),
+        })
+        .collect::<Vec<_>>();
+
     let thread_messages = unlocked
         .cache
-        .threads
+        .direct_messages
         .iter()
         .map(|entry| ThreadMessage {
             message_id: entry.message_id.clone(),
-            game_id: entry.game_id.clone(),
+            contact_npub: entry.contact_npub.clone(),
             sender: entry
-                .sender_handle
+                .sender_label
                 .clone()
-                .unwrap_or_else(|| entry.sender_role.clone()),
+                .or_else(|| {
+                    unlocked
+                        .cache
+                        .direct_contacts
+                        .iter()
+                        .find(|contact| contact.npub == entry.sender_npub)
+                        .map(|contact| contact.label.clone())
+                })
+                .unwrap_or_else(|| short_contact_label(&entry.sender_npub)),
+            body: entry.body.clone(),
+            outgoing: entry.outgoing,
+            created_at: entry.created_at.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    let game_inbox_messages = unlocked
+        .cache
+        .game_inbox_messages
+        .iter()
+        .map(|entry| GameInboxMessage {
+            message_id: entry.message_id.clone(),
+            game_id: entry.game_id.clone(),
+            game: lookup_game_name(&entry.game_id, &unlocked.cache, &unlocked.catalog)
+                .unwrap_or_else(|| entry.game_id.clone()),
+            other_empire_id: entry.other_empire_id,
+            other_empire_name: entry.other_empire_name.clone(),
+            sender: entry.sender_empire_name.clone(),
             body: entry.body.clone(),
             outgoing: entry.outgoing,
             created_at: entry.created_at.clone(),
@@ -831,9 +1005,11 @@ fn build_loaded_state(
         player_handle: current_handle(&unlocked.keychain),
         joined_games,
         open_games,
-        inbox,
+        game_inbox,
         notices,
+        direct_contacts,
         thread_messages,
+        game_inbox_messages,
         network_status: network_status.unwrap_or_else(|| {
             if unlocked.session.is_some() {
                 LobbyNetworkStatus::Connected
@@ -846,12 +1022,46 @@ fn build_loaded_state(
     }
 }
 
-fn initial_network_status(unlocked: &UnlockedClient) -> LobbyNetworkStatus {
-    if unlocked.session.is_some() {
-        LobbyNetworkStatus::Connecting
-    } else {
-        LobbyNetworkStatus::NoRelay
+fn build_game_inbox_rows(joined_games: &[JoinedGameRow], cache: &ClientCache) -> Vec<GameInboxRow> {
+    let mut rows = Vec::new();
+    for game in joined_games {
+        let mut roster_entries = cache
+            .rosters
+            .iter()
+            .filter(|entry| entry.game_id == game.game_id && !entry.is_self)
+            .collect::<Vec<_>>();
+        roster_entries.sort_by(|left, right| left.empire_id.cmp(&right.empire_id));
+
+        for roster in roster_entries {
+            let latest = cache
+                .game_inbox_messages
+                .iter()
+                .rev()
+                .find(|entry| {
+                    entry.game_id == game.game_id && entry.other_empire_id == roster.empire_id
+                });
+            rows.push(GameInboxRow {
+                game_id: game.game_id.clone(),
+                game: game.game.clone(),
+                other_empire_id: roster.empire_id,
+                other_empire_name: roster.empire_name.clone(),
+                preview: latest
+                    .map(|entry| entry.body.clone())
+                    .unwrap_or_else(|| "<no messages yet>".to_string()),
+                updated_at: latest
+                    .map(|entry| entry.created_at.clone())
+                    .unwrap_or_default(),
+            });
+        }
     }
+    rows.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.game.to_lowercase().cmp(&right.game.to_lowercase()))
+            .then_with(|| left.other_empire_name.cmp(&right.other_empire_name))
+    });
+    rows
 }
 
 fn lookup_game_name(game_id: &str, cache: &ClientCache, catalog: &[CatalogGame]) -> Option<String> {
@@ -868,14 +1078,28 @@ fn lookup_game_name(game_id: &str, cache: &ClientCache, catalog: &[CatalogGame])
         })
 }
 
-fn default_turn_message(status: TurnReceiptStatus) -> String {
-    match status {
-        TurnReceiptStatus::Accepted => "turn accepted".to_string(),
-        TurnReceiptStatus::Rejected => "turn rejected".to_string(),
-        TurnReceiptStatus::Superseded => "turn superseded".to_string(),
-        TurnReceiptStatus::NotClaimed => "turn rejected: unclaimed seat".to_string(),
-        TurnReceiptStatus::WrongTurn => "turn rejected: wrong turn".to_string(),
-    }
+fn maybe_cache_host_contact(
+    cache: &mut ClientCache,
+    npub: Option<&str>,
+    label: Option<&str>,
+    nip05: Option<&str>,
+) {
+    let Some(npub) = npub.map(str::trim).filter(|value| !value.is_empty()) else {
+        return;
+    };
+    cache.upsert_contact(ContactEntry {
+        npub: npub.to_string(),
+        label: label
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| short_contact_label(npub)),
+        nip05: nip05
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
+        source: "host".to_string(),
+    });
 }
 
 fn cache_game_from_row(row: &JoinedGameRow) -> CachedGame {
@@ -883,6 +1107,9 @@ fn cache_game_from_row(row: &JoinedGameRow) -> CachedGame {
         id: row.game_id.clone(),
         name: row.game.clone(),
         host_alias: Some(row.host.clone()),
+        host_contact_npub: row.host_contact_npub.clone(),
+        host_contact_label: Some(row.host.clone()),
+        host_contact_nip05: None,
         relay_url: row.relay_url.clone(),
         daemon_pubkey: row.daemon_pubkey.clone(),
         seat: row.seat.map(u32::from),
@@ -892,4 +1119,18 @@ fn cache_game_from_row(row: &JoinedGameRow) -> CachedGame {
         last_hash: row.last_hash.clone(),
         updated_at: now_iso8601(),
     }
+}
+
+fn initial_network_status(unlocked: &UnlockedClient) -> LobbyNetworkStatus {
+    if unlocked.session.is_some() {
+        LobbyNetworkStatus::Connecting
+    } else {
+        LobbyNetworkStatus::NoRelay
+    }
+}
+
+fn iso8601_from_secs(secs: i64) -> String {
+    chrono::DateTime::from_timestamp(secs, 0)
+        .map(|dt| dt.to_rfc3339())
+        .unwrap_or_else(now_iso8601)
 }

@@ -12,6 +12,9 @@ pub struct CachedGame {
     pub id: String,
     pub name: String,
     pub host_alias: Option<String>,
+    pub host_contact_npub: Option<String>,
+    pub host_contact_label: Option<String>,
+    pub host_contact_nip05: Option<String>,
     pub relay_url: String,
     pub daemon_pubkey: String,
     pub seat: Option<u32>,
@@ -19,19 +22,6 @@ pub struct CachedGame {
     pub invite_address: Option<String>,
     pub last_turn: Option<u32>,
     pub last_hash: Option<String>,
-    pub updated_at: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InboxEntry {
-    pub kind: String,
-    pub request_id: Option<String>,
-    pub game_id: String,
-    pub game_name: Option<String>,
-    pub status: String,
-    pub message: String,
-    pub invite_address: Option<String>,
-    pub turn: Option<u32>,
     pub updated_at: String,
 }
 
@@ -45,23 +35,53 @@ pub struct NoticeEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ThreadEntry {
+pub struct ContactEntry {
+    pub npub: String,
+    pub label: String,
+    pub nip05: Option<String>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContactMessageEntry {
     pub message_id: String,
-    pub game_id: String,
-    pub sender_role: String,
+    pub contact_npub: String,
     pub sender_npub: String,
-    pub sender_handle: Option<String>,
+    pub sender_label: Option<String>,
     pub body: String,
     pub outgoing: bool,
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GameInboxMessageEntry {
+    pub message_id: String,
+    pub game_id: String,
+    pub other_empire_id: u8,
+    pub other_empire_name: String,
+    pub sender_empire_id: u8,
+    pub sender_empire_name: String,
+    pub body: String,
+    pub outgoing: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GameRosterEntry {
+    pub game_id: String,
+    pub empire_id: u8,
+    pub empire_name: String,
+    pub is_self: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClientCache {
     pub games: Vec<CachedGame>,
-    pub inbox: Vec<InboxEntry>,
     pub notices: Vec<NoticeEntry>,
-    pub threads: Vec<ThreadEntry>,
+    pub direct_contacts: Vec<ContactEntry>,
+    pub direct_messages: Vec<ContactMessageEntry>,
+    pub game_inbox_messages: Vec<GameInboxMessageEntry>,
+    pub rosters: Vec<GameRosterEntry>,
 }
 
 impl ClientCache {
@@ -70,26 +90,10 @@ impl ClientCache {
     }
 
     pub fn upsert_game(&mut self, game: CachedGame) {
-        if let Some(existing) = self
-            .games
-            .iter_mut()
-            .find(|existing| existing.id == game.id)
-        {
+        if let Some(existing) = self.games.iter_mut().find(|existing| existing.id == game.id) {
             *existing = game;
         } else {
             self.games.push(game);
-        }
-    }
-
-    pub fn upsert_inbox(&mut self, entry: InboxEntry) {
-        if let Some(existing) = self.inbox.iter_mut().find(|existing| {
-            existing.kind == entry.kind
-                && existing.request_id == entry.request_id
-                && existing.game_id == entry.game_id
-        }) {
-            *existing = entry;
-        } else {
-            self.inbox.push(entry);
         }
     }
 
@@ -107,18 +111,60 @@ impl ClientCache {
             .sort_by(|left, right| left.created_at.cmp(&right.created_at));
     }
 
-    pub fn upsert_thread(&mut self, entry: ThreadEntry) {
+    pub fn upsert_contact(&mut self, entry: ContactEntry) {
         if let Some(existing) = self
-            .threads
+            .direct_contacts
+            .iter_mut()
+            .find(|existing| existing.npub == entry.npub)
+        {
+            *existing = entry;
+        } else {
+            self.direct_contacts.push(entry);
+        }
+        self.direct_contacts.sort_by(|left, right| {
+            left.label
+                .to_lowercase()
+                .cmp(&right.label.to_lowercase())
+                .then_with(|| left.npub.cmp(&right.npub))
+        });
+    }
+
+    pub fn upsert_contact_message(&mut self, entry: ContactMessageEntry) {
+        if let Some(existing) = self
+            .direct_messages
             .iter_mut()
             .find(|existing| existing.message_id == entry.message_id)
         {
             *existing = entry;
         } else {
-            self.threads.push(entry);
+            self.direct_messages.push(entry);
         }
-        self.threads
+        self.direct_messages
             .sort_by(|left, right| left.created_at.cmp(&right.created_at));
+    }
+
+    pub fn upsert_game_inbox_message(&mut self, entry: GameInboxMessageEntry) {
+        if let Some(existing) = self
+            .game_inbox_messages
+            .iter_mut()
+            .find(|existing| existing.message_id == entry.message_id)
+        {
+            *existing = entry;
+        } else {
+            self.game_inbox_messages.push(entry);
+        }
+        self.game_inbox_messages
+            .sort_by(|left, right| left.created_at.cmp(&right.created_at));
+    }
+
+    pub fn replace_roster(&mut self, game_id: &str, entries: Vec<GameRosterEntry>) {
+        self.rosters.retain(|entry| entry.game_id != game_id);
+        self.rosters.extend(entries);
+        self.rosters.sort_by(|left, right| {
+            left.game_id
+                .cmp(&right.game_id)
+                .then_with(|| left.empire_id.cmp(&right.empire_id))
+        });
     }
 }
 
@@ -178,6 +224,9 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     id: req_string(node, "id", "game")?,
                     name: req_string(node, "name", "game")?,
                     host_alias: opt_string(node, "host-alias"),
+                    host_contact_npub: opt_string(node, "host-contact-npub"),
+                    host_contact_label: opt_string(node, "host-contact-label"),
+                    host_contact_nip05: opt_string(node, "host-contact-nip05"),
                     relay_url: req_string(node, "relay-url", "game")?,
                     daemon_pubkey: req_string(node, "daemon-pubkey", "game")?,
                     seat: opt_integer(node, "seat").map(|value| value as u32),
@@ -186,19 +235,6 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     last_turn: opt_integer(node, "last-turn").map(|value| value as u32),
                     last_hash: opt_string(node, "last-hash"),
                     updated_at: req_string(node, "updated-at", "game")?,
-                });
-            }
-            "inbox" => {
-                cache.inbox.push(InboxEntry {
-                    kind: req_string(node, "kind", "inbox")?,
-                    request_id: opt_string(node, "request-id"),
-                    game_id: req_string(node, "game-id", "inbox")?,
-                    game_name: opt_string(node, "game-name"),
-                    status: req_string(node, "status", "inbox")?,
-                    message: req_string(node, "message", "inbox")?,
-                    invite_address: opt_string(node, "invite"),
-                    turn: opt_integer(node, "turn").map(|value| value as u32),
-                    updated_at: req_string(node, "updated-at", "inbox")?,
                 });
             }
             "notice" => {
@@ -210,16 +246,44 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     created_at: req_string(node, "created-at", "notice")?,
                 });
             }
-            "thread" => {
-                cache.threads.push(ThreadEntry {
-                    message_id: req_string(node, "id", "thread")?,
-                    game_id: req_string(node, "game-id", "thread")?,
-                    sender_role: req_string(node, "sender-role", "thread")?,
-                    sender_npub: req_string(node, "sender-npub", "thread")?,
-                    sender_handle: opt_string(node, "sender-handle"),
-                    body: req_string(node, "body", "thread")?,
+            "contact" => {
+                cache.direct_contacts.push(ContactEntry {
+                    npub: req_string(node, "npub", "contact")?,
+                    label: req_string(node, "label", "contact")?,
+                    nip05: opt_string(node, "nip05"),
+                    source: req_string(node, "source", "contact")?,
+                });
+            }
+            "contact-message" => {
+                cache.direct_messages.push(ContactMessageEntry {
+                    message_id: req_string(node, "id", "contact-message")?,
+                    contact_npub: req_string(node, "contact-npub", "contact-message")?,
+                    sender_npub: req_string(node, "sender-npub", "contact-message")?,
+                    sender_label: opt_string(node, "sender-label"),
+                    body: req_string(node, "body", "contact-message")?,
                     outgoing: opt_integer(node, "outgoing").unwrap_or(0) != 0,
-                    created_at: req_string(node, "created-at", "thread")?,
+                    created_at: req_string(node, "created-at", "contact-message")?,
+                });
+            }
+            "game-mail" => {
+                cache.game_inbox_messages.push(GameInboxMessageEntry {
+                    message_id: req_string(node, "id", "game-mail")?,
+                    game_id: req_string(node, "game-id", "game-mail")?,
+                    other_empire_id: req_integer(node, "other-empire-id", "game-mail")? as u8,
+                    other_empire_name: req_string(node, "other-empire-name", "game-mail")?,
+                    sender_empire_id: req_integer(node, "sender-empire-id", "game-mail")? as u8,
+                    sender_empire_name: req_string(node, "sender-empire-name", "game-mail")?,
+                    body: req_string(node, "body", "game-mail")?,
+                    outgoing: opt_integer(node, "outgoing").unwrap_or(0) != 0,
+                    created_at: req_string(node, "created-at", "game-mail")?,
+                });
+            }
+            "roster" => {
+                cache.rosters.push(GameRosterEntry {
+                    game_id: req_string(node, "game-id", "roster")?,
+                    empire_id: req_integer(node, "empire-id", "roster")? as u8,
+                    empire_name: req_string(node, "empire-name", "roster")?,
+                    is_self: opt_integer(node, "is-self").unwrap_or(0) != 0,
                 });
             }
             _ => {}
@@ -244,6 +308,24 @@ pub fn render_cache(cache: &ClientCache) -> String {
         if let Some(host_alias) = game.host_alias.as_deref() {
             out.push_str(&format!(" host-alias=\"{}\"", escape(host_alias)));
         }
+        if let Some(host_contact_npub) = game.host_contact_npub.as_deref() {
+            out.push_str(&format!(
+                " host-contact-npub=\"{}\"",
+                escape(host_contact_npub)
+            ));
+        }
+        if let Some(host_contact_label) = game.host_contact_label.as_deref() {
+            out.push_str(&format!(
+                " host-contact-label=\"{}\"",
+                escape(host_contact_label)
+            ));
+        }
+        if let Some(host_contact_nip05) = game.host_contact_nip05.as_deref() {
+            out.push_str(&format!(
+                " host-contact-nip05=\"{}\"",
+                escape(host_contact_nip05)
+            ));
+        }
         if let Some(seat) = game.seat {
             out.push_str(&format!(" seat={seat}"));
         }
@@ -255,29 +337,6 @@ pub fn render_cache(cache: &ClientCache) -> String {
         }
         if let Some(last_hash) = game.last_hash.as_deref() {
             out.push_str(&format!(" last-hash=\"{}\"", escape(last_hash)));
-        }
-        out.push('\n');
-    }
-    for entry in &cache.inbox {
-        out.push_str(&format!(
-            "inbox kind=\"{}\" game-id=\"{}\" status=\"{}\" message=\"{}\" updated-at=\"{}\"",
-            escape(&entry.kind),
-            escape(&entry.game_id),
-            escape(&entry.status),
-            escape(&entry.message),
-            escape(&entry.updated_at),
-        ));
-        if let Some(request_id) = entry.request_id.as_deref() {
-            out.push_str(&format!(" request-id=\"{}\"", escape(request_id)));
-        }
-        if let Some(game_name) = entry.game_name.as_deref() {
-            out.push_str(&format!(" game-name=\"{}\"", escape(game_name)));
-        }
-        if let Some(invite) = entry.invite_address.as_deref() {
-            out.push_str(&format!(" invite=\"{}\"", escape(invite)));
-        }
-        if let Some(turn) = entry.turn {
-            out.push_str(&format!(" turn={turn}"));
         }
         out.push('\n');
     }
@@ -294,21 +353,56 @@ pub fn render_cache(cache: &ClientCache) -> String {
         }
         out.push('\n');
     }
-    for entry in &cache.threads {
+    for contact in &cache.direct_contacts {
         out.push_str(&format!(
-            "thread id=\"{}\" game-id=\"{}\" sender-role=\"{}\" sender-npub=\"{}\" body=\"{}\" outgoing={} created-at=\"{}\"",
+            "contact npub=\"{}\" label=\"{}\" source=\"{}\"",
+            escape(&contact.npub),
+            escape(&contact.label),
+            escape(&contact.source),
+        ));
+        if let Some(nip05) = contact.nip05.as_deref() {
+            out.push_str(&format!(" nip05=\"{}\"", escape(nip05)));
+        }
+        out.push('\n');
+    }
+    for entry in &cache.direct_messages {
+        out.push_str(&format!(
+            "contact-message id=\"{}\" contact-npub=\"{}\" sender-npub=\"{}\" body=\"{}\" outgoing={} created-at=\"{}\"",
             escape(&entry.message_id),
-            escape(&entry.game_id),
-            escape(&entry.sender_role),
+            escape(&entry.contact_npub),
             escape(&entry.sender_npub),
             escape(&entry.body),
             if entry.outgoing { 1 } else { 0 },
             escape(&entry.created_at),
         ));
-        if let Some(sender_handle) = entry.sender_handle.as_deref() {
-            out.push_str(&format!(" sender-handle=\"{}\"", escape(sender_handle)));
+        if let Some(sender_label) = entry.sender_label.as_deref() {
+            out.push_str(&format!(" sender-label=\"{}\"", escape(sender_label)));
         }
         out.push('\n');
+    }
+    for entry in &cache.game_inbox_messages {
+        out.push_str(&format!(
+            "game-mail id=\"{}\" game-id=\"{}\" other-empire-id={} other-empire-name=\"{}\" sender-empire-id={} sender-empire-name=\"{}\" body=\"{}\" outgoing={} created-at=\"{}\"",
+            escape(&entry.message_id),
+            escape(&entry.game_id),
+            entry.other_empire_id,
+            escape(&entry.other_empire_name),
+            entry.sender_empire_id,
+            escape(&entry.sender_empire_name),
+            escape(&entry.body),
+            if entry.outgoing { 1 } else { 0 },
+            escape(&entry.created_at),
+        ));
+        out.push('\n');
+    }
+    for entry in &cache.rosters {
+        out.push_str(&format!(
+            "roster game-id=\"{}\" empire-id={} empire-name=\"{}\" is-self={}\n",
+            escape(&entry.game_id),
+            entry.empire_id,
+            escape(&entry.empire_name),
+            if entry.is_self { 1 } else { 0 }
+        ));
     }
     out
 }
@@ -318,22 +412,26 @@ fn req_string(
     key: &str,
     node_name: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    node.get(key)
-        .and_then(|value| value.as_string())
-        .map(str::to_string)
-        .ok_or_else(|| format!("{node_name} node missing `{key}`").into())
+    opt_string(node, key).ok_or_else(|| format!("missing {key} on {node_name} node").into())
+}
+
+fn req_integer(
+    node: &kdl::KdlNode,
+    key: &str,
+    node_name: &str,
+) -> Result<i64, Box<dyn std::error::Error>> {
+    opt_integer(node, key).ok_or_else(|| format!("missing {key} on {node_name} node").into())
 }
 
 fn opt_string(node: &kdl::KdlNode, key: &str) -> Option<String> {
     node.get(key)
-        .and_then(|value| value.as_string())
+        .and_then(kdl::KdlValue::as_string)
         .map(str::to_string)
-        .filter(|value| !value.is_empty())
 }
 
 fn opt_integer(node: &kdl::KdlNode, key: &str) -> Option<i64> {
     node.get(key)
-        .and_then(|value| value.as_integer())
+        .and_then(kdl::KdlValue::as_integer)
         .and_then(|value| i64::try_from(value).ok())
 }
 

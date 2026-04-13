@@ -187,7 +187,7 @@ impl LobbyApp {
         else {
             return;
         };
-        let previous_context = self.state.thread_context_game_id().map(str::to_string);
+        let previous_context = self.state.preferred_game_context_id().map(str::to_string);
         self.state.focus = hit.focus;
         match hit.focus {
             LobbyFocus::JoinedGames => {
@@ -214,7 +214,7 @@ impl LobbyApp {
                 self.state.thread_composing = false;
             }
         }
-        update::reset_thread_view_if_context_changed(self, previous_context);
+        update::reset_context_dependent_views(self, previous_context);
     }
 
     fn handle_lobby_mouse_drag(&mut self, mouse: MouseEvent) {

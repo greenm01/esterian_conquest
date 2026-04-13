@@ -1,8 +1,8 @@
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
-    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStardockSlot, HostedStarmapState,
-    HostedStatePayload, HostedWorldState,
+    HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
+    HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
 };
 use nc_ui::ScreenGeometry;
 
@@ -31,6 +31,18 @@ fn hosted_snapshot_builds_real_dash_app() {
                     relation: "enemy".to_string(),
                 }],
             },
+            roster: vec![
+                HostedPlayerRosterEntry {
+                    empire_id: 1,
+                    empire_name: "Terran Union".to_string(),
+                    is_self: true,
+                },
+                HostedPlayerRosterEntry {
+                    empire_id: 2,
+                    empire_name: "Rigel Empire".to_string(),
+                    is_self: false,
+                },
+            ],
             starmap: HostedStarmapState {
                 map_width: 18,
                 map_height: 18,

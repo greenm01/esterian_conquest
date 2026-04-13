@@ -14,7 +14,10 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::MatrixLocked => handle_matrix_locked_key(app, key),
         LobbyRoute::Locked => handle_locked_key(app, key),
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
+        LobbyRoute::GameInboxThread => handle_game_inbox_thread_key(app, key),
         LobbyRoute::ComposeThread => handle_compose_thread_key(app, key),
+        LobbyRoute::ContactPicker => handle_contact_picker_key(app, key),
+        LobbyRoute::AddContact => handle_add_contact_key(app, key),
         LobbyRoute::EditHandle => handle_edit_handle_key(app, key),
         LobbyRoute::Settings => handle_settings_key(app, key),
         LobbyRoute::ThemePicker => handle_theme_picker_key(app, key),
@@ -48,7 +51,7 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         return;
     }
     if app.state.thread_composing {
-        let _ = handle_inline_thread_key(app, key);
+        let _ = handle_direct_thread_entry_key(app, key, None);
         return;
     }
     if !matches!(key.code, KeyCode::Char('?')) {
@@ -61,18 +64,24 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         {
             app.should_quit = true;
         }
-        KeyCode::Enter => {
-            if app.state.focus == LobbyFocus::OpenGames {
+        KeyCode::Enter => match app.state.focus {
+            LobbyFocus::OpenGames => {
                 app.state.compose_message_input.clear();
                 open_popup_route(app, LobbyRoute::ComposeInvite);
-            } else if app.state.focus == LobbyFocus::JoinedGames {
-                open_or_claim_selected_game(app);
-            } else if app.state.focus == LobbyFocus::Thread {
-                open_thread_modal(app);
             }
+            LobbyFocus::JoinedGames => open_or_claim_selected_game(app),
+            LobbyFocus::Inbox => open_game_inbox_modal(app),
+            LobbyFocus::Thread => open_thread_modal(app),
+            LobbyFocus::Notices => {}
+        },
+        KeyCode::Tab => {
+            app.state.focus = app.state.focus.next();
+            app.state.sync_default_contact_selection();
         }
-        KeyCode::Tab => app.state.focus = app.state.focus.next(),
-        KeyCode::BackTab => app.state.focus = app.state.focus.prev(),
+        KeyCode::BackTab => {
+            app.state.focus = app.state.focus.prev();
+            app.state.sync_default_contact_selection();
+        }
         KeyCode::Up | KeyCode::Char('k') => move_selection(app, -1),
         KeyCode::Down | KeyCode::Char('j') => move_selection(app, 1),
         KeyCode::Char('n' | 'N') => {
@@ -80,6 +89,8 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             open_popup_route(app, LobbyRoute::ComposeInvite);
         }
         KeyCode::Char('m' | 'M') => start_inline_thread_compose(app),
+        KeyCode::Char('c' | 'C') => open_contact_picker(app),
+        KeyCode::Char('f' | 'F') => cycle_game_inbox_filter(app),
         KeyCode::Char('l' | 'L') => app.enter_session_lock(),
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
@@ -165,7 +176,9 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
                 app.should_quit = true;
             }
         }
-        KeyCode::Char('q' | 'Q') if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) => {
+        KeyCode::Char('q' | 'Q')
+            if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
+        {
             app.should_quit = true;
         }
         KeyCode::Backspace => {
@@ -243,16 +256,86 @@ fn handle_compose_thread_key(app: &mut LobbyApp, key: KeyEvent) {
         KeyCode::Down | KeyCode::Char('j') => scroll_thread(app, -1),
         _ => {
             app.state.thread_composing = true;
-            let _ = handle_thread_entry_key(app, key, Some(LobbyRoute::Home));
+            let _ = handle_direct_thread_entry_key(app, key, Some(LobbyRoute::Home));
         }
     }
 }
 
-fn handle_inline_thread_key(app: &mut LobbyApp, key: KeyEvent) -> bool {
-    handle_thread_entry_key(app, key, None)
+fn handle_game_inbox_thread_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => {
+            app.state.game_inbox_composing = false;
+            close_popup_route(app, LobbyRoute::Home);
+        }
+        KeyCode::Up | KeyCode::Char('k') => scroll_game_inbox(app, 1),
+        KeyCode::Down | KeyCode::Char('j') => scroll_game_inbox(app, -1),
+        _ => {
+            app.state.game_inbox_composing = true;
+            let _ = handle_game_inbox_entry_key(app, key, Some(LobbyRoute::Home));
+        }
+    }
 }
 
-fn handle_thread_entry_key(
+fn handle_contact_picker_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => close_popup_route(app, LobbyRoute::Home),
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.state.contact_picker_selected = app.state.contact_picker_selected.saturating_sub(1);
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            if app.state.contact_picker_selected + 1 < app.state.direct_contacts.len() {
+                app.state.contact_picker_selected += 1;
+            }
+        }
+        KeyCode::Char('a' | 'A') => {
+            app.state.add_contact_input.clear();
+            open_popup_route(app, LobbyRoute::AddContact);
+        }
+        KeyCode::Enter => {
+            if app.state.contact_picker_selected < app.state.direct_contacts.len() {
+                app.state.contact_selected = app.state.contact_picker_selected;
+            }
+            close_popup_route(app, LobbyRoute::Home);
+        }
+        _ => {}
+    }
+}
+
+fn handle_add_contact_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_single_line_paste(app, key, |state| &mut state.add_contact_input) {
+        return;
+    }
+
+    match key.code {
+        KeyCode::Esc => close_popup_route(app, LobbyRoute::ContactPicker),
+        KeyCode::Backspace => {
+            app.state.add_contact_input.pop();
+        }
+        KeyCode::Enter => match app.transport.add_direct_contact(&app.state.add_contact_input) {
+            Ok((loaded, npub)) => {
+                app.state.apply_loaded(loaded);
+                if let Some(index) = app
+                    .state
+                    .direct_contacts
+                    .iter()
+                    .position(|contact| contact.npub == npub)
+                {
+                    app.state.contact_selected = index;
+                    app.state.contact_picker_selected = index;
+                }
+                app.state.add_contact_input.clear();
+                close_popup_route(app, LobbyRoute::ContactPicker);
+            }
+            Err(err) => set_status(app, LobbyStatusTone::Error, err),
+        },
+        KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.state.add_contact_input.push(ch);
+        }
+        _ => {}
+    }
+}
+
+fn handle_direct_thread_entry_key(
     app: &mut LobbyApp,
     key: KeyEvent,
     success_route: Option<LobbyRoute>,
@@ -272,11 +355,42 @@ fn handle_thread_entry_key(
             true
         }
         KeyCode::Enter => {
-            submit_thread_message(app, success_route);
+            submit_direct_thread_message(app, success_route);
             true
         }
         KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.state.compose_message_input.push(ch);
+            true
+        }
+        _ => false,
+    }
+}
+
+fn handle_game_inbox_entry_key(
+    app: &mut LobbyApp,
+    key: KeyEvent,
+    success_route: Option<LobbyRoute>,
+) -> bool {
+    if handle_single_line_paste(app, key, |state| &mut state.game_inbox_message_input) {
+        return true;
+    }
+
+    match key.code {
+        KeyCode::Esc => {
+            app.state.game_inbox_composing = false;
+            app.state.game_inbox_message_input.clear();
+            true
+        }
+        KeyCode::Backspace => {
+            app.state.game_inbox_message_input.pop();
+            true
+        }
+        KeyCode::Enter => {
+            submit_game_inbox_message(app, success_route);
+            true
+        }
+        KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.state.game_inbox_message_input.push(ch);
             true
         }
         _ => false,
@@ -343,9 +457,7 @@ fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
                 app.state.edit_handle_return_route = LobbyRoute::Settings;
                 open_popup_route(app, LobbyRoute::EditHandle);
             }
-            1 => {
-                cycle_lock_timeout(app);
-            }
+            1 => cycle_lock_timeout(app),
             2 => {
                 app.state.settings_draft.follow_mouse_on_map =
                     !app.state.settings_draft.follow_mouse_on_map;
@@ -449,7 +561,7 @@ fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
                 Ok(loaded) => {
                     if let Some(hosted) = app.state.hosted_game.as_mut() {
                         hosted.submit_status =
-                            Some("Turn submitted; check inbox for receipt.".to_string());
+                            Some("Turn submitted; check hosted status for receipt.".to_string());
                         hosted.submit_input.clear();
                     }
                     app.state.apply_loaded(loaded);
@@ -488,12 +600,28 @@ fn open_settings(app: &mut LobbyApp) {
     open_popup_route(app, LobbyRoute::Settings);
 }
 
+fn open_contact_picker(app: &mut LobbyApp) {
+    app.state.contact_picker_selected = app.state.contact_selected;
+    open_popup_route(app, LobbyRoute::ContactPicker);
+}
+
+fn cycle_game_inbox_filter(app: &mut LobbyApp) {
+    let option_count = app.state.game_filter_options().len();
+    if option_count == 0 {
+        return;
+    }
+    app.state.game_inbox_filter_selected = (app.state.game_inbox_filter_selected + 1) % option_count;
+    app.state.inbox_selected = 0;
+    app.state.reset_game_inbox_view();
+}
+
 fn start_inline_thread_compose(app: &mut LobbyApp) {
-    if selected_thread_target(app).is_none() {
+    if app.state.selected_direct_contact().is_none() {
+        open_contact_picker(app);
         set_status(
             app,
-            LobbyStatusTone::Error,
-            "select an open or joined game first".to_string(),
+            LobbyStatusTone::Info,
+            "Choose a direct contact first.".to_string(),
         );
         return;
     }
@@ -504,31 +632,88 @@ fn start_inline_thread_compose(app: &mut LobbyApp) {
 }
 
 fn open_thread_modal(app: &mut LobbyApp) {
+    if app.state.selected_direct_contact().is_none() {
+        open_contact_picker(app);
+        set_status(
+            app,
+            LobbyStatusTone::Info,
+            "Choose a direct contact first.".to_string(),
+        );
+        return;
+    }
     app.state.focus = LobbyFocus::Thread;
     app.state.thread_composing = true;
     app.state.thread_scroll = 0;
     open_popup_route(app, LobbyRoute::ComposeThread);
 }
 
-fn submit_thread_message(app: &mut LobbyApp, success_route: Option<LobbyRoute>) {
-    let Some((game_id, daemon_pubkey)) = selected_thread_target(app) else {
+fn open_game_inbox_modal(app: &mut LobbyApp) {
+    if app.state.selected_game_inbox().is_none() {
         set_status(
             app,
             LobbyStatusTone::Error,
-            "select an open or joined game first".to_string(),
+            "select a game inbox thread first".to_string(),
+        );
+        return;
+    }
+    app.state.focus = LobbyFocus::Inbox;
+    app.state.game_inbox_composing = true;
+    app.state.game_inbox_scroll = 0;
+    open_popup_route(app, LobbyRoute::GameInboxThread);
+}
+
+fn submit_direct_thread_message(app: &mut LobbyApp, success_route: Option<LobbyRoute>) {
+    let Some(contact) = app.state.selected_direct_contact().cloned() else {
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "choose a direct contact first".to_string(),
         );
         return;
     };
-    match app.transport.send_thread_message(
-        &game_id,
-        &daemon_pubkey,
-        &app.state.compose_message_input,
-    ) {
+    match app
+        .transport
+        .send_direct_message(&contact.npub, &app.state.compose_message_input)
+    {
         Ok(loaded) => {
             app.state.apply_loaded(loaded);
             app.state.compose_message_input.clear();
             app.state.thread_composing = false;
             app.state.thread_scroll = 0;
+            if let Some(route) = success_route {
+                close_popup_route(app, route);
+            }
+        }
+        Err(err) => set_status(app, LobbyStatusTone::Error, err),
+    }
+}
+
+fn submit_game_inbox_message(app: &mut LobbyApp, success_route: Option<LobbyRoute>) {
+    let Some(row) = app.state.selected_game_inbox().cloned() else {
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "select a game inbox thread first".to_string(),
+        );
+        return;
+    };
+    let Some(daemon_pubkey) = selected_game_mail_target(app, &row.game_id) else {
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "selected joined game is missing its host target".to_string(),
+        );
+        return;
+    };
+    match app
+        .transport
+        .send_game_inbox_message(&row, &daemon_pubkey, &app.state.game_inbox_message_input)
+    {
+        Ok(loaded) => {
+            app.state.apply_loaded(loaded);
+            app.state.game_inbox_message_input.clear();
+            app.state.game_inbox_composing = false;
+            app.state.game_inbox_scroll = 0;
             if let Some(route) = success_route {
                 close_popup_route(app, route);
             }
@@ -684,20 +869,20 @@ fn move_selection(app: &mut LobbyApp, delta: isize) {
         }
         return;
     }
-    let previous_context = app.state.thread_context_game_id().map(str::to_string);
+    let previous_context = app.state.preferred_game_context_id().map(str::to_string);
     let len = match app.state.focus {
         LobbyFocus::JoinedGames => app.state.joined_games.len(),
-        LobbyFocus::Inbox => app.state.inbox.len(),
+        LobbyFocus::Inbox => app.state.filtered_game_inbox().len(),
         LobbyFocus::OpenGames => app.state.open_games.len(),
         LobbyFocus::Notices => app.state.notices.len(),
-        LobbyFocus::Thread => app.state.visible_thread_messages().len(),
+        LobbyFocus::Thread => 0,
     };
     let selection = match app.state.focus {
         LobbyFocus::JoinedGames => &mut app.state.joined_selected,
         LobbyFocus::Inbox => &mut app.state.inbox_selected,
         LobbyFocus::OpenGames => &mut app.state.open_selected,
         LobbyFocus::Notices => &mut app.state.notices_selected,
-        LobbyFocus::Thread => &mut app.state.thread_selected,
+        LobbyFocus::Thread => return,
     };
     if len == 0 {
         *selection = 0;
@@ -705,7 +890,7 @@ fn move_selection(app: &mut LobbyApp, delta: isize) {
     }
     let next = (*selection as isize + delta).clamp(0, len.saturating_sub(1) as isize);
     *selection = next as usize;
-    reset_thread_view_if_context_changed(app, previous_context);
+    reset_context_dependent_views(app, previous_context);
 }
 
 fn scroll_thread(app: &mut LobbyApp, delta: isize) {
@@ -716,29 +901,31 @@ fn scroll_thread(app: &mut LobbyApp, delta: isize) {
     }
 }
 
-fn selected_thread_target(app: &LobbyApp) -> Option<(String, String)> {
-    let game_id = app.state.thread_context_game_id()?;
+fn scroll_game_inbox(app: &mut LobbyApp, delta: isize) {
+    if delta < 0 {
+        app.state.game_inbox_scroll = app.state.game_inbox_scroll.saturating_sub((-delta) as usize);
+    } else {
+        app.state.game_inbox_scroll = app.state.game_inbox_scroll.saturating_add(delta as usize);
+    }
+}
+
+fn selected_game_mail_target(app: &LobbyApp, game_id: &str) -> Option<String> {
     app.state
         .joined_games
         .iter()
         .find(|row| row.game_id == game_id)
-        .map(|row| (row.game_id.clone(), row.daemon_pubkey.clone()))
-        .or_else(|| {
-            app.state
-                .open_games
-                .iter()
-                .find(|row| row.game_id == game_id)
-                .map(|row| (row.game_id.clone(), row.daemon_pubkey.clone()))
-        })
+        .map(|row| row.daemon_pubkey.clone())
 }
 
-pub(crate) fn reset_thread_view_if_context_changed(
+pub(crate) fn reset_context_dependent_views(
     app: &mut LobbyApp,
     previous_context: Option<String>,
 ) {
-    let current = app.state.thread_context_game_id().map(str::to_string);
+    let current = app.state.preferred_game_context_id().map(str::to_string);
     if current != previous_context {
         app.state.reset_thread_view();
+        app.state.reset_game_inbox_view();
+        app.state.sync_default_contact_selection();
     }
 }
 
@@ -762,9 +949,7 @@ fn handle_submit_turn_paste(app: &mut LobbyApp, key: KeyEvent) -> bool {
     let Some(hosted) = app.state.hosted_game.as_mut() else {
         return false;
     };
-    hosted
-        .submit_input
-        .push_str(&sanitize_multiline_paste(&text));
+    hosted.submit_input.push_str(&sanitize_multiline_paste(&text));
     true
 }
 

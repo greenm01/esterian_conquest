@@ -10,7 +10,10 @@ use crate::theme::ThemeCatalogEntry;
 
 use super::clipboard::Clipboard;
 use super::onboarding::MatrixRain;
-use super::models::{InboxItem, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage};
+use super::models::{
+    DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
+    ThreadMessage,
+};
 use super::storage::settings::LobbySettingsRecord;
 use super::transport::LobbyTransport;
 
@@ -21,7 +24,10 @@ pub enum LobbyRoute {
     Locked,
     Home,
     ComposeInvite,
+    GameInboxThread,
     ComposeThread,
+    ContactPicker,
+    AddContact,
     EditHandle,
     Settings,
     ThemePicker,
@@ -139,16 +145,22 @@ pub struct LobbyState {
     pub player_handle: Option<String>,
     pub joined_games: Vec<JoinedGameRow>,
     pub open_games: Vec<OpenGameRow>,
-    pub inbox: Vec<InboxItem>,
+    pub game_inbox: Vec<GameInboxRow>,
     pub notices: Vec<LobbyNotice>,
+    pub direct_contacts: Vec<DirectContactRow>,
     pub thread_messages: Vec<ThreadMessage>,
+    pub game_inbox_messages: Vec<GameInboxMessage>,
     pub joined_selected: usize,
     pub open_selected: usize,
     pub inbox_selected: usize,
     pub notices_selected: usize,
-    pub thread_selected: usize,
+    pub contact_selected: usize,
+    pub contact_picker_selected: usize,
+    pub game_inbox_filter_selected: usize,
     pub thread_scroll: usize,
     pub thread_composing: bool,
+    pub game_inbox_scroll: usize,
+    pub game_inbox_composing: bool,
     pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
     pub status_tone: LobbyStatusTone,
@@ -159,6 +171,8 @@ pub struct LobbyState {
     pub first_run_confirm_input: String,
     pub unlock_password_input: String,
     pub compose_message_input: String,
+    pub game_inbox_message_input: String,
+    pub add_contact_input: String,
     pub edit_handle_input: String,
     pub edit_handle_return_route: LobbyRoute,
     pub settings: LobbySettingsRecord,
@@ -187,23 +201,25 @@ impl LobbyState {
             player_handle: None,
             joined_games: Vec::new(),
             open_games: Vec::new(),
-            inbox: Vec::new(),
+            game_inbox: Vec::new(),
             notices: vec![LobbyNotice::new(
                 "nc-host",
                 "Waiting for live public notices from nc-host.",
             )],
-            thread_messages: vec![ThreadMessage::incoming(
-                "lobby",
-                "nc-host",
-                "Select an open or joined game to load its private sysop thread.",
-            )],
+            direct_contacts: Vec::new(),
+            thread_messages: Vec::new(),
+            game_inbox_messages: Vec::new(),
             joined_selected: 0,
             open_selected: 0,
             inbox_selected: 0,
             notices_selected: 0,
-            thread_selected: 0,
+            contact_selected: 0,
+            contact_picker_selected: 0,
+            game_inbox_filter_selected: 0,
             thread_scroll: 0,
             thread_composing: false,
+            game_inbox_scroll: 0,
+            game_inbox_composing: false,
             network_status: LobbyNetworkStatus::NoRelay,
             status_message: None,
             status_tone: LobbyStatusTone::Info,
@@ -214,6 +230,8 @@ impl LobbyState {
             first_run_confirm_input: String::new(),
             unlock_password_input: String::new(),
             compose_message_input: String::new(),
+            game_inbox_message_input: String::new(),
+            add_contact_input: String::new(),
             edit_handle_input: String::new(),
             edit_handle_return_route: LobbyRoute::Settings,
             settings_draft: settings.clone(),
@@ -230,9 +248,11 @@ impl LobbyState {
         self.player_handle = loaded.player_handle;
         self.joined_games = loaded.joined_games;
         self.open_games = loaded.open_games;
-        self.inbox = loaded.inbox;
+        self.game_inbox = loaded.game_inbox;
         self.notices = loaded.notices;
+        self.direct_contacts = loaded.direct_contacts;
         self.thread_messages = loaded.thread_messages;
+        self.game_inbox_messages = loaded.game_inbox_messages;
         self.network_status = loaded.network_status;
         self.status_message = loaded.status_message;
         self.status_tone = loaded.status_tone;
@@ -242,15 +262,24 @@ impl LobbyState {
         self.open_selected = self
             .open_selected
             .min(self.open_games.len().saturating_sub(1));
-        self.inbox_selected = self.inbox_selected.min(self.inbox.len().saturating_sub(1));
+        self.inbox_selected = self
+            .inbox_selected
+            .min(self.filtered_game_inbox().len().saturating_sub(1));
         self.notices_selected = self
             .notices_selected
             .min(self.notices.len().saturating_sub(1));
-        self.thread_selected = self
-            .thread_selected
-            .min(self.visible_thread_messages().len().saturating_sub(1));
+        self.contact_selected = self
+            .contact_selected
+            .min(self.direct_contacts.len().saturating_sub(1));
+        self.contact_picker_selected = self
+            .contact_picker_selected
+            .min(self.direct_contacts.len().saturating_sub(1));
         self.thread_scroll = self.thread_scroll.min(self.visible_thread_messages().len());
+        self.game_inbox_scroll = self
+            .game_inbox_scroll
+            .min(self.visible_game_inbox_messages().len());
         self.edit_handle_input = self.player_handle.clone().unwrap_or_default();
+        self.sync_default_contact_selection();
     }
 
     pub fn relay_label(&self) -> Option<String> {
@@ -271,15 +300,51 @@ impl LobbyState {
         self.joined_games.get(self.joined_selected)
     }
 
-    pub fn thread_context_game_id(&self) -> Option<&str> {
+    pub fn selected_game_inbox(&self) -> Option<&GameInboxRow> {
+        self.filtered_game_inbox()
+            .get(self.inbox_selected)
+            .map(|row| *row)
+    }
+
+    pub fn selected_direct_contact(&self) -> Option<&DirectContactRow> {
+        self.direct_contacts.get(self.contact_selected)
+    }
+
+    pub fn game_filter_options(&self) -> Vec<(Option<String>, String)> {
+        let mut options = vec![(None, "All".to_string())];
+        options.extend(
+            self.joined_games
+                .iter()
+                .map(|row| (Some(row.game_id.clone()), row.game.clone())),
+        );
+        options
+    }
+
+    pub fn selected_game_filter(&self) -> Option<String> {
+        self.game_filter_options()
+            .get(self.game_inbox_filter_selected)
+            .and_then(|(game_id, _)| game_id.clone())
+    }
+
+    pub fn filtered_game_inbox(&self) -> Vec<&GameInboxRow> {
+        match self.selected_game_filter() {
+            Some(game_id) => self
+                .game_inbox
+                .iter()
+                .filter(|row| row.game_id == game_id)
+                .collect(),
+            None => self.game_inbox.iter().collect(),
+        }
+    }
+
+    pub fn preferred_game_context_id(&self) -> Option<&str> {
         match self.focus {
             LobbyFocus::JoinedGames => self
                 .selected_joined_game()
                 .map(|row| row.game_id.as_str())
                 .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
             LobbyFocus::Inbox => self
-                .inbox
-                .get(self.inbox_selected)
+                .selected_game_inbox()
                 .map(|row| row.game_id.as_str())
                 .or_else(|| self.selected_joined_game().map(|row| row.game_id.as_str()))
                 .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
@@ -294,19 +359,66 @@ impl LobbyState {
         }
     }
 
-    pub fn thread_context_display(&self) -> String {
-        self.thread_context_game_id()
-            .map(str::to_string)
-            .unwrap_or_else(|| "no game selected".to_string())
+    pub fn preferred_host_contact_npub(&self) -> Option<&str> {
+        if self.focus == LobbyFocus::Inbox {
+            let game_id = self.selected_game_inbox()?.game_id.as_str();
+            return self
+                .joined_games
+                .iter()
+                .find(|row| row.game_id == game_id)
+                .and_then(|row| row.host_contact_npub.as_deref())
+                .or_else(|| {
+                    self.open_games
+                        .iter()
+                        .find(|row| row.game_id == game_id)
+                        .and_then(|row| row.host_contact_npub.as_deref())
+                });
+        }
+        self.selected_joined_game()
+            .and_then(|row| row.host_contact_npub.as_deref())
+            .or_else(|| {
+                self.selected_open_game()
+                    .and_then(|row| row.host_contact_npub.as_deref())
+            })
+    }
+
+    pub fn direct_thread_context_display(&self) -> String {
+        self.selected_direct_contact()
+            .map(|contact| {
+                contact
+                    .nip05
+                    .clone()
+                    .unwrap_or_else(|| contact.label.clone())
+            })
+            .unwrap_or_else(|| "no direct contact selected".to_string())
+    }
+
+    pub fn game_inbox_context_display(&self) -> String {
+        self.selected_game_inbox()
+            .map(|row| format!("{} / {}", row.game, row.other_empire_name))
+            .unwrap_or_else(|| "no game inbox thread selected".to_string())
     }
 
     pub fn visible_thread_messages(&self) -> Vec<&ThreadMessage> {
-        let Some(game_id) = self.thread_context_game_id() else {
+        let Some(contact_npub) = self.selected_direct_contact().map(|contact| contact.npub.as_str())
+        else {
             return Vec::new();
         };
         self.thread_messages
             .iter()
-            .filter(|message| message.game_id == game_id)
+            .filter(|message| message.contact_npub == contact_npub)
+            .collect()
+    }
+
+    pub fn visible_game_inbox_messages(&self) -> Vec<&GameInboxMessage> {
+        let Some(row) = self.selected_game_inbox() else {
+            return Vec::new();
+        };
+        self.game_inbox_messages
+            .iter()
+            .filter(|message| {
+                message.game_id == row.game_id && message.other_empire_id == row.other_empire_id
+            })
             .collect()
     }
 
@@ -318,6 +430,26 @@ impl LobbyState {
         self.thread_scroll = 0;
         self.thread_composing = false;
         self.compose_message_input.clear();
+    }
+
+    pub fn reset_game_inbox_view(&mut self) {
+        self.game_inbox_scroll = 0;
+        self.game_inbox_composing = false;
+        self.game_inbox_message_input.clear();
+    }
+
+    pub fn sync_default_contact_selection(&mut self) {
+        let Some(host_npub) = self.preferred_host_contact_npub() else {
+            return;
+        };
+        if let Some(index) = self
+            .direct_contacts
+            .iter()
+            .position(|contact| contact.npub == host_npub)
+        {
+            self.contact_selected = index;
+            self.contact_picker_selected = index;
+        }
     }
 }
 

@@ -109,6 +109,7 @@ impl StateSync {
                     last_run_year: current_year as u16,
                     diplomacy: Vec::new(),
                 },
+                roster: Vec::new(),
                 starmap: HostedStarmapState {
                     map_width: 0,
                     map_height: 0,

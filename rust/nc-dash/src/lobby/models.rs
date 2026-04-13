@@ -4,6 +4,7 @@ pub struct JoinedGameRow {
     pub status: String,
     pub game: String,
     pub host: String,
+    pub host_contact_npub: Option<String>,
     pub relay_url: String,
     pub daemon_pubkey: String,
     pub seat: Option<u8>,
@@ -14,6 +15,7 @@ pub struct JoinedGameRow {
 }
 
 impl JoinedGameRow {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         game_id: &str,
         status: &str,
@@ -29,6 +31,7 @@ impl JoinedGameRow {
             status: status.to_string(),
             game: game.to_string(),
             host: host.to_string(),
+            host_contact_npub: None,
             relay_url: relay_url.to_string(),
             daemon_pubkey: daemon_pubkey.to_string(),
             seat,
@@ -46,6 +49,7 @@ pub struct OpenGameRow {
     pub status: String,
     pub game: String,
     pub host: String,
+    pub host_contact_npub: Option<String>,
     pub relay_url: String,
     pub daemon_pubkey: String,
     pub recruiting: String,
@@ -57,6 +61,7 @@ pub struct OpenGameRow {
 }
 
 impl OpenGameRow {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         game_id: &str,
         status: &str,
@@ -76,6 +81,7 @@ impl OpenGameRow {
             status: status.to_string(),
             game: game.to_string(),
             host: host.to_string(),
+            host_contact_npub: None,
             relay_url: relay_url.to_string(),
             daemon_pubkey: daemon_pubkey.to_string(),
             recruiting: recruiting.to_string(),
@@ -89,35 +95,13 @@ impl OpenGameRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InboxItem {
-    pub kind: String,
-    pub request_id: Option<String>,
+pub struct GameInboxRow {
     pub game_id: String,
     pub game: String,
-    pub status: String,
-    pub message: String,
-    pub invite_address: Option<String>,
-}
-
-impl InboxItem {
-    pub fn new(
-        kind: &str,
-        request_id: Option<String>,
-        game_id: &str,
-        game: &str,
-        status: &str,
-        message: &str,
-    ) -> Self {
-        Self {
-            kind: kind.to_string(),
-            request_id,
-            game_id: game_id.to_string(),
-            game: game.to_string(),
-            status: status.to_string(),
-            message: message.to_string(),
-            invite_address: None,
-        }
-    }
+    pub other_empire_id: u8,
+    pub other_empire_name: String,
+    pub preview: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,9 +124,17 @@ impl LobbyNotice {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DirectContactRow {
+    pub npub: String,
+    pub label: String,
+    pub nip05: Option<String>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThreadMessage {
     pub message_id: String,
-    pub game_id: String,
+    pub contact_npub: String,
     pub sender: String,
     pub body: String,
     pub outgoing: bool,
@@ -150,10 +142,10 @@ pub struct ThreadMessage {
 }
 
 impl ThreadMessage {
-    pub fn incoming(game_id: &str, sender: &str, body: &str) -> Self {
+    pub fn incoming(contact_npub: &str, sender: &str, body: &str) -> Self {
         Self {
-            message_id: format!("thread-in-{game_id}"),
-            game_id: game_id.to_string(),
+            message_id: format!("thread-in-{contact_npub}"),
+            contact_npub: contact_npub.to_string(),
             sender: sender.to_string(),
             body: body.to_string(),
             outgoing: false,
@@ -161,14 +153,27 @@ impl ThreadMessage {
         }
     }
 
-    pub fn outgoing(game_id: &str, sender: &str, body: &str) -> Self {
+    pub fn outgoing(contact_npub: &str, sender: &str, body: &str) -> Self {
         Self {
-            message_id: format!("thread-out-{game_id}"),
-            game_id: game_id.to_string(),
+            message_id: format!("thread-out-{contact_npub}"),
+            contact_npub: contact_npub.to_string(),
             sender: sender.to_string(),
             body: body.to_string(),
             outgoing: true,
             created_at: String::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GameInboxMessage {
+    pub message_id: String,
+    pub game_id: String,
+    pub game: String,
+    pub other_empire_id: u8,
+    pub other_empire_name: String,
+    pub sender: String,
+    pub body: String,
+    pub outgoing: bool,
+    pub created_at: String,
 }

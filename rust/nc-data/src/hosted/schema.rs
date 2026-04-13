@@ -89,6 +89,20 @@ CREATE TABLE IF NOT EXISTS thread_messages (
     FOREIGN KEY (game_id) REFERENCES game_metadata(id)
 );
 
+CREATE TABLE IF NOT EXISTS player_messages (
+    id TEXT PRIMARY KEY,
+    game_id TEXT NOT NULL,
+    sender_pubkey TEXT NOT NULL,
+    sender_empire_id INTEGER NOT NULL,
+    sender_empire_name TEXT NOT NULL,
+    recipient_pubkey TEXT NOT NULL,
+    recipient_empire_id INTEGER NOT NULL,
+    recipient_empire_name TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (game_id) REFERENCES game_metadata(id)
+);
+
 CREATE TABLE IF NOT EXISTS sysop_notifications (
     id TEXT PRIMARY KEY,
     game_id TEXT NOT NULL,
@@ -112,6 +126,8 @@ CREATE INDEX IF NOT EXISTS idx_outbox_game_id ON outbox(game_id);
 CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status);
 CREATE INDEX IF NOT EXISTS idx_thread_messages_game_player
     ON thread_messages(game_id, player_pubkey, created_at);
+CREATE INDEX IF NOT EXISTS idx_player_messages_game_player
+    ON player_messages(game_id, sender_pubkey, recipient_pubkey, created_at);
 CREATE INDEX IF NOT EXISTS idx_sysop_notifications_status
     ON sysop_notifications(status, created_at);
 "#;

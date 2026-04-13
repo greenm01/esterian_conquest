@@ -8,6 +8,9 @@ pub struct PublishedGameDefinition {
     pub game_name: String,
     pub ssh_host: String,
     pub ssh_port: u16,
+    pub host_contact_npub: Option<String>,
+    pub host_contact_label: Option<String>,
+    pub host_contact_nip05: Option<String>,
     pub slots: Vec<PublishedSeatSlot>,
 }
 
@@ -59,6 +62,9 @@ pub fn parse_game_definition(event: &Event) -> Option<PublishedGameDefinition> {
     let mut game_name = None;
     let mut ssh_host = None;
     let mut ssh_port = None;
+    let mut host_contact_npub = None;
+    let mut host_contact_label = None;
+    let mut host_contact_nip05 = None;
     let mut slots = Vec::new();
 
     for tag in event.tags.iter() {
@@ -72,6 +78,15 @@ pub fn parse_game_definition(event: &Event) -> Option<PublishedGameDefinition> {
             "ssh-host" if values.len() >= 2 => ssh_host = Some(values[1].clone()),
             "ssh-port" if values.len() >= 2 => {
                 ssh_port = values[1].parse::<u16>().ok();
+            }
+            "host-contact-npub" if values.len() >= 2 => {
+                host_contact_npub = Some(values[1].clone());
+            }
+            "host-contact-label" if values.len() >= 2 => {
+                host_contact_label = Some(values[1].clone());
+            }
+            "host-contact-nip05" if values.len() >= 2 => {
+                host_contact_nip05 = Some(values[1].clone());
             }
             "slot" if values.len() >= 5 => slots.push(PublishedSeatSlot {
                 seat: values[1].parse::<u32>().ok()?,
@@ -89,6 +104,9 @@ pub fn parse_game_definition(event: &Event) -> Option<PublishedGameDefinition> {
         game_name: game_name?,
         ssh_host: ssh_host?,
         ssh_port: ssh_port?,
+        host_contact_npub,
+        host_contact_label,
+        host_contact_nip05,
         slots,
     })
 }

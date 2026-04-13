@@ -55,6 +55,7 @@ pub struct StateDeltas {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostedStatePayload {
     pub player: HostedPlayerState,
+    pub roster: Vec<HostedPlayerRosterEntry>,
     pub starmap: HostedStarmapState,
     pub owned_planets: Vec<HostedOwnedPlanet>,
     pub owned_fleets: Vec<HostedOwnedFleet>,
@@ -72,6 +73,13 @@ pub struct HostedPlayerState {
     pub homeworld_planet_index: u16,
     pub last_run_year: u16,
     pub diplomacy: Vec<HostedDiplomacyState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostedPlayerRosterEntry {
+    pub empire_id: u8,
+    pub empire_name: String,
+    pub is_self: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -8,6 +8,8 @@ pub struct HostConfig {
     pub invite_relay_host: String,
     pub identity_path: PathBuf,
     pub sysop_contact_npub: String,
+    pub sysop_contact_label: Option<String>,
+    pub sysop_contact_nip05: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -57,6 +59,8 @@ impl HostConfig {
         let sysop_contact_npub = string_field(host, "sysop-contact-npub")
             .map(|s| s.to_string())
             .ok_or_else(|| ConfigError::MissingField("sysop-contact-npub".to_string()))?;
+        let sysop_contact_label = string_field(host, "sysop-contact-label").map(|s| s.to_string());
+        let sysop_contact_nip05 = string_field(host, "sysop-contact-nip05").map(|s| s.to_string());
 
         Ok(HostConfig {
             games_root,
@@ -64,6 +68,8 @@ impl HostConfig {
             invite_relay_host,
             identity_path,
             sysop_contact_npub,
+            sysop_contact_label,
+            sysop_contact_nip05,
         })
     }
 
@@ -90,6 +96,8 @@ pub fn generate_default_config() -> String {
     invite-relay-host "relay.example.com"
     identity-path "/etc/nc-host/host.nsec"
     sysop-contact-npub "npub1..."
+    sysop-contact-label "nc_sysop"
+    sysop-contact-nip05 "nc_sysop@example.com"
 }
 "#
     .to_string()

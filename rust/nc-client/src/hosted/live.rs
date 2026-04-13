@@ -3,9 +3,11 @@ use std::thread;
 use std::time::Duration;
 
 use nc_nostr::claim::SeatClaimResultPayload;
+use nc_nostr::contact_message::{ContactMessage, decrypt_contact_message};
 use nc_nostr::game_definition::parse_game_definition;
 use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestReceipt};
 use nc_nostr::lobby_notice::{LobbyNotice, parse_lobby_notice};
+use nc_nostr::player_message::{PlayerMessage, decrypt_player_message};
 use nc_nostr::private_payload::decrypt_private_json_from_event;
 use nc_nostr::state_sync::{GameState, StateDelta};
 use nc_nostr::thread_message::{SysopThreadMessage, decrypt_thread_message};
@@ -24,6 +26,8 @@ pub struct HostedSessionUpdate {
     pub catalog: Vec<CatalogGame>,
     pub notices: Vec<LobbyNotice>,
     pub threads: Vec<SysopThreadMessage>,
+    pub contact_messages: Vec<ContactMessage>,
+    pub player_messages: Vec<PlayerMessage>,
     pub player_events: PlayerEventBatch,
 }
 
@@ -106,12 +110,14 @@ async fn run_live_session(
         .since(Timestamp::now() - Duration::from_secs(LOOKBACK_SECS));
     let private_filter = Filter::new()
         .kinds([
+            Kind::Custom(30518),
             Kind::Custom(30511),
             Kind::Custom(30514),
             Kind::Custom(30515),
             Kind::Custom(30517),
             Kind::Custom(30520),
             Kind::Custom(30521),
+            Kind::Custom(30523),
             Kind::Custom(30524),
         ])
         .custom_tag(
@@ -137,12 +143,14 @@ async fn run_live_session(
                             &Filter::new().kinds([Kind::Custom(30500), Kind::Custom(30516)]),
                             &Filter::new()
                                 .kinds([
+                                    Kind::Custom(30518),
                                     Kind::Custom(30511),
                                     Kind::Custom(30514),
                                     Kind::Custom(30515),
                                     Kind::Custom(30517),
                                     Kind::Custom(30520),
                                     Kind::Custom(30521),
+                                    Kind::Custom(30523),
                                     Kind::Custom(30524),
                                 ])
                                 .custom_tag(
@@ -224,6 +232,11 @@ fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpd
                 .threads
                 .push(decrypt_thread_message(keys.secret_key(), event)?);
         }
+        30518 => {
+            update
+                .contact_messages
+                .push(decrypt_contact_message(keys.secret_key(), event)?);
+        }
         30511 => {
             update
                 .player_events
@@ -247,6 +260,11 @@ fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpd
                 .player_events
                 .states
                 .push(decrypt_json::<GameState>(keys, event)?);
+        }
+        30523 => {
+            update
+                .player_messages
+                .push(decrypt_player_message(keys.secret_key(), event)?);
         }
         30521 => {
             update

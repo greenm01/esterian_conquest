@@ -39,6 +39,9 @@ impl GameWorker {
             GameEffects::HandleThreadMessage { message, .. } => {
                 self.handle_thread_message(message).await;
             }
+            GameEffects::HandlePlayerMessage { message, .. } => {
+                self.handle_player_message(message).await;
+            }
             GameEffects::QueueEvent { .. } => {}
             GameEffects::UpdateLobbyCatalog { .. } => {}
             GameEffects::NotifySysop { .. } => {}
@@ -480,6 +483,148 @@ impl GameWorker {
         );
     }
 
+    async fn handle_player_message(&self, message: nc_nostr::player_message::PlayerMessageRequest) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
+        let sender_seat = match hosted::get_seat_by_pubkey(
+            store.connection(),
+            &self.game_id,
+            &message.sender_pubkey,
+        ) {
+            Ok(Some(seat)) => seat,
+            Ok(None) => {
+                tracing::warn!(
+                    "Ignoring player message {} from unclaimed player {} in {}",
+                    message.message_id,
+                    short_pubkey(&message.sender_pubkey),
+                    self.game_id
+                );
+                return;
+            }
+            Err(err) => {
+                tracing::error!("Failed to lookup sender seat: {}", err);
+                return;
+            }
+        };
+
+        if sender_seat.seat_number == u32::from(message.recipient_empire_id) {
+            tracing::warn!("Ignoring self-directed player message {}", message.message_id);
+            return;
+        }
+
+        let recipient_seat = match hosted::get_seat_by_number(
+            store.connection(),
+            &self.game_id,
+            u32::from(message.recipient_empire_id),
+        ) {
+            Ok(Some(seat)) if seat.status == hosted::SeatStatus::Claimed => seat,
+            Ok(_) => {
+                tracing::warn!(
+                    "Ignoring player message {} for unavailable empire {}",
+                    message.message_id,
+                    message.recipient_empire_id
+                );
+                return;
+            }
+            Err(err) => {
+                tracing::error!("Failed to lookup recipient seat: {}", err);
+                return;
+            }
+        };
+
+        let Some(recipient_pubkey) = recipient_seat.player_pubkey.as_deref() else {
+            tracing::warn!(
+                "Ignoring player message {} with missing recipient pubkey",
+                message.message_id
+            );
+            return;
+        };
+
+        let Some(game_dir) = self.db_path.parent() else {
+            tracing::error!(
+                "Hosted db path has no parent for {}",
+                self.db_path.display()
+            );
+            return;
+        };
+        let game_data = match nc_data::CoreGameData::load(game_dir) {
+            Ok(game_data) => game_data,
+            Err(err) => {
+                tracing::error!("Failed to load core game data for player message: {}", err);
+                return;
+            }
+        };
+        let sender_name = player_empire_name(&game_data, sender_seat.seat_number as u8);
+        let recipient_name = player_empire_name(&game_data, message.recipient_empire_id);
+        let payload = nc_nostr::player_message::PlayerMessage {
+            message_id: message.message_id.clone(),
+            game_id: self.game_id.clone(),
+            sender_empire_id: sender_seat.seat_number as u8,
+            sender_empire_name: sender_name,
+            recipient_empire_id: message.recipient_empire_id,
+            recipient_empire_name: recipient_name,
+            body: message.body.trim().to_string(),
+            created_at: message.created_at,
+        };
+
+        if let Err(err) = crate::lobby::player_messages::store_message(
+            &store,
+            &self.game_id,
+            &payload,
+            &message.sender_pubkey,
+            recipient_pubkey,
+        ) {
+            tracing::error!(
+                "Failed to store player message {} for {}: {}",
+                payload.message_id,
+                self.game_id,
+                err
+            );
+            return;
+        }
+
+        if let Err(err) = crate::lobby::player_messages::enqueue_message(
+            &store,
+            &self.game_id,
+            recipient_pubkey,
+            &payload,
+        ) {
+            tracing::error!(
+                "Failed to enqueue recipient player message {}: {}",
+                payload.message_id,
+                err
+            );
+            return;
+        }
+        if let Err(err) = crate::lobby::player_messages::enqueue_message(
+            &store,
+            &self.game_id,
+            &message.sender_pubkey,
+            &payload,
+        ) {
+            tracing::error!(
+                "Failed to enqueue sender player message copy {}: {}",
+                payload.message_id,
+                err
+            );
+            return;
+        }
+
+        tracing::info!(
+            "Stored player message {} for game {} from empire {} to empire {}",
+            payload.message_id,
+            self.game_id,
+            payload.sender_empire_id,
+            payload.recipient_empire_id
+        );
+    }
+
     async fn publish_turn_receipt(&self, player_pubkey: &str, receipt: &TurnReceipt) {
         let content = match serde_json::to_string(receipt) {
             Ok(content) => content,
@@ -519,6 +664,18 @@ impl GameWorker {
                 short_pubkey(player_pubkey)
             );
         }
+    }
+}
+
+fn player_empire_name(game_data: &nc_data::CoreGameData, empire_id: u8) -> String {
+    let Some(player) = game_data.player.records.get(empire_id.saturating_sub(1) as usize) else {
+        return format!("Seat {}", empire_id);
+    };
+    let empire_name = player.controlled_empire_name_summary();
+    if empire_name.is_empty() {
+        format!("Seat {}", empire_id)
+    } else {
+        empire_name
     }
 }
 

@@ -1,15 +1,15 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
-use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow, ThreadMessage};
+use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{
     FirstRunField, HostedGameView, KeychainGateMode, LobbyFocus, LobbyRoute,
 };
 use nc_dash::lobby::update::apply_key;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
-    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStardockSlot, HostedStarmapState,
-    HostedStatePayload, HostedWorldState,
+    HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
+    HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
 };
 use nc_ui::ScreenGeometry;
 
@@ -209,20 +209,12 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 #[test]
 fn m_starts_inline_thread_compose_without_popup() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
-    app.state.open_games = vec![OpenGameRow::new(
-        "friday-night",
-        "Open",
-        "Friday Night",
-        "nc-host",
-        "ws://127.0.0.1:8080",
-        "daemon",
-        "new_players",
-        3,
-        4,
-        "2026-04-13",
-        "y3004 t4",
-        "summary",
-    )];
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: Some("nc_sysop@nostrian-conquest.com".to_string()),
+        source: "host".to_string(),
+    }];
 
     apply_key(&mut app, shift_key(KeyCode::Char('m')));
 
@@ -234,6 +226,12 @@ fn m_starts_inline_thread_compose_without_popup() {
 #[test]
 fn enter_on_thread_focus_opens_centered_thread_modal() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+    }];
     app.state.focus = LobbyFocus::Thread;
 
     apply_key(&mut app, key(KeyCode::Enter));
@@ -246,9 +244,15 @@ fn enter_on_thread_focus_opens_centered_thread_modal() {
 fn thread_focus_scrolls_instead_of_selecting_rows() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+    }];
     app.state.thread_messages = vec![
-        ThreadMessage::incoming("friday-night", "sysop", "first"),
-        ThreadMessage::incoming("friday-night", "sysop", "second"),
+        ThreadMessage::incoming("npub1sysop", "sysop", "first"),
+        ThreadMessage::incoming("npub1sysop", "sysop", "second"),
     ];
     app.state.joined_games = vec![JoinedGameRow::new(
         "friday-night",
@@ -264,7 +268,6 @@ fn thread_focus_scrolls_instead_of_selecting_rows() {
     apply_key(&mut app, key(KeyCode::Up));
 
     assert_eq!(app.state.thread_scroll, 1);
-    assert_eq!(app.state.thread_selected, 0);
 }
 
 #[test]
@@ -490,6 +493,18 @@ fn sample_hosted_snapshot() -> GameState {
                     relation: "enemy".to_string(),
                 }],
             },
+            roster: vec![
+                HostedPlayerRosterEntry {
+                    empire_id: 1,
+                    empire_name: "Terran Union".to_string(),
+                    is_self: true,
+                },
+                HostedPlayerRosterEntry {
+                    empire_id: 2,
+                    empire_name: "Rigel Empire".to_string(),
+                    is_self: false,
+                },
+            ],
             starmap: HostedStarmapState {
                 map_width: 18,
                 map_height: 18,

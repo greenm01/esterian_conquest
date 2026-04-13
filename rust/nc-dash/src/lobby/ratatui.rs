@@ -81,7 +81,10 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
         LobbyRoute::Settings => render_settings_popup(&mut buffer, app, layout.body),
         LobbyRoute::ThemePicker => render_theme_picker_popup(&mut buffer, app, layout.body),
         LobbyRoute::ComposeInvite => render_compose_invite_popup(&mut buffer, app, layout.body),
+        LobbyRoute::GameInboxThread => render_game_inbox_popup(&mut buffer, app, layout.body),
         LobbyRoute::ComposeThread => render_compose_thread_popup(&mut buffer, app, layout.body),
+        LobbyRoute::ContactPicker => render_contact_picker_popup(&mut buffer, app, layout.body),
+        LobbyRoute::AddContact => render_add_contact_popup(&mut buffer, app, layout.body),
         LobbyRoute::EditHandle => render_edit_handle_popup(&mut buffer, app, layout.body),
         _ => {}
     }
@@ -135,7 +138,7 @@ pub fn hit_test_home(
         .or_else(|| pane_hit(state, layout.inbox, LobbyFocus::Inbox, column, row, state.inbox_selected))
         .or_else(|| pane_hit(state, layout.open, LobbyFocus::OpenGames, column, row, state.open_selected))
         .or_else(|| pane_hit(state, layout.notices, LobbyFocus::Notices, column, row, state.notices_selected))
-        .or_else(|| pane_hit(state, layout.thread, LobbyFocus::Thread, column, row, state.thread_selected))
+        .or_else(|| pane_hit(state, layout.thread, LobbyFocus::Thread, column, row, 0))
 }
 
 pub fn popup_title_bar_contains(app: &LobbyApp, column: u16, row: u16) -> bool {
@@ -151,7 +154,10 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
         LobbyRoute::Settings => Some((60, 17)),
         LobbyRoute::ThemePicker => Some((82, 20)),
         LobbyRoute::ComposeInvite => Some((64, 11)),
+        LobbyRoute::GameInboxThread => Some((88, 22)),
         LobbyRoute::ComposeThread => Some((88, 22)),
+        LobbyRoute::ContactPicker => Some((56, 18)),
+        LobbyRoute::AddContact => Some((62, 11)),
         LobbyRoute::EditHandle => Some((58, 11)),
         _ if app.state.show_help => Some(help_popup_size(layout.body)),
         _ => None,
@@ -330,11 +336,88 @@ fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
 fn render_compose_thread_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
     let popup = popup_rect(parent, (88, 22), app.popup_position);
     let styles = theme::tui_theme();
-    let block = popup_block(" PRIVATE THREAD CHAT ", styles.border);
+    let block = popup_block(" DIRECT THREAD ", styles.border);
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
     render_thread_surface(buffer, inner, app.state_ref(), true);
+}
+
+fn render_game_inbox_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let popup = popup_rect(parent, (88, 22), app.popup_position);
+    let styles = theme::tui_theme();
+    let block = popup_block(" GAME INBOX ", styles.border);
+    let inner = block.inner(popup);
+    Clear.render(popup, buffer);
+    block.render(popup, buffer);
+    render_game_inbox_surface(buffer, inner, app.state_ref(), true);
+}
+
+fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let popup = popup_rect(parent, (56, 18), app.popup_position);
+    let styles = theme::tui_theme();
+    let block = popup_block(" CONTACTS ", styles.border);
+    let inner = block.inner(popup);
+    Clear.render(popup, buffer);
+    block.render(popup, buffer);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    let footer_row = inner.bottom().saturating_sub(1);
+    let visible_rows = footer_row.saturating_sub(inner.y) as usize;
+    for (offset, contact) in app
+        .state
+        .direct_contacts
+        .iter()
+        .take(visible_rows)
+        .enumerate()
+    {
+        let row = inner.y + offset as u16;
+        let prefix = if app.state.contact_picker_selected == offset {
+            ">"
+        } else {
+            " "
+        };
+        let detail = contact
+            .nip05
+            .clone()
+            .unwrap_or_else(|| contact.source.clone());
+        let style = if app.state.contact_picker_selected == offset {
+            styles.selected
+        } else {
+            with_panel_bg(styles.value)
+        };
+        buffer.set_stringn(
+            inner.x,
+            row,
+            format!("{prefix} {:<16} {}", contact.label, detail),
+            inner.width as usize,
+            style,
+        );
+    }
+    if footer_row >= inner.y {
+        buffer.set_stringn(
+            inner.x,
+            footer_row,
+            "Enter selects   A adds contact   Esc closes",
+            inner.width as usize,
+            with_panel_bg(styles.dim),
+        );
+    }
+}
+
+fn render_add_contact_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    render_popup_lines(
+        buffer,
+        popup_rect(parent, (62, 11), app.popup_position),
+        " ADD CONTACT ",
+        &[
+            "Enter an npub or NIP-05 address.".to_string(),
+            format!("Contact : {}", app.state.add_contact_input),
+            "Enter saves it to encrypted cache.kdl.".to_string(),
+        ],
+        theme::tui_theme().value,
+    );
 }
 
 fn render_edit_handle_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
@@ -367,7 +450,9 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
             "Enter      : open selected game or pop out the focused thread chat",
             "L          : lock nc-dash",
             "N          : compose an invite request",
-            "M          : start inline thread compose in the THREAD panel",
+            "M          : start inline compose in THREADS",
+            "C          : open direct contact picker",
+            "F          : cycle GAME INBOX filter",
             "S          : open lobby settings, including handle and idle lock",
             "R          : refresh the hosted lobby",
             "? / Esc    : close this help popup",
@@ -464,13 +549,10 @@ fn focus_rows(state: &LobbyState, focus: LobbyFocus) -> Vec<String> {
             })
             .collect(),
         LobbyFocus::Inbox => state
-            .inbox
+            .filtered_game_inbox()
             .iter()
             .map(|item| {
-                format!(
-                    "{} | {} | {} | {}",
-                    item.kind, item.game, item.status, item.message
-                )
+                format!("{} | {} | {}", item.game, item.other_empire_name, item.preview)
             })
             .collect(),
         LobbyFocus::OpenGames => state
@@ -677,11 +759,11 @@ impl Widget for InboxWidget<'_> {
         render_rows_panel(
             buffer,
             area,
-            " INBOX ",
+            " GAME INBOX ",
             &rows,
             focused_selection(self.state, LobbyFocus::Inbox, self.state.inbox_selected),
             self.state.focus == LobbyFocus::Inbox,
-            "<no inbox activity>",
+            "<no joined game message threads>",
         );
     }
 }
@@ -726,7 +808,7 @@ struct ThreadWidget<'a> {
 
 impl Widget for ThreadWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let block = panel_block(" THREAD ", self.state.focus == LobbyFocus::Thread);
+        let block = panel_block(" THREADS ", self.state.focus == LobbyFocus::Thread);
         let inner = block.inner(area);
         block.render(area, buffer);
         if inner.width == 0 || inner.height == 0 {
@@ -853,7 +935,7 @@ fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, mo
         return;
     }
     let styles = theme::tui_theme();
-    let context_line = format!("*** game: {}", state.thread_context_display());
+    let context_line = format!("*** direct: {}", state.direct_thread_context_display());
     buffer.set_stringn(
         area.x,
         area.y,
@@ -865,12 +947,12 @@ fn render_thread_history(buffer: &mut Buffer, area: Rect, state: &LobbyState, mo
         return;
     }
     let transcript_area = Rect::new(area.x, area.y + 1, area.width, area.height - 1);
-    let lines = threads::thread_render_lines(state, transcript_area.width as usize);
+    let lines = threads::direct_thread_render_lines(state, transcript_area.width as usize);
     if lines.is_empty() {
         buffer.set_stringn(
             transcript_area.x,
             transcript_area.y,
-            "<no private thread messages>",
+            "<no encrypted direct messages>",
             transcript_area.width as usize,
             with_panel_bg(styles.dim),
         );
@@ -926,7 +1008,7 @@ fn render_thread_prompt(
     } else if modal {
         ""
     } else {
-        "press M to chat"
+        "press C to choose contact"
     };
     let prompt_style = if state.thread_composing || modal {
         with_panel_bg(styles.value)
@@ -938,6 +1020,96 @@ fn render_thread_prompt(
     let remaining = area.right().saturating_sub(col) as usize;
     if remaining > 0 {
         buffer.set_stringn(col, area.y, prompt_text, remaining, prompt_style);
+    }
+}
+
+fn render_game_inbox_surface(
+    buffer: &mut Buffer,
+    area: Rect,
+    state: &LobbyState,
+    modal: bool,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    let [history_area, prompt_area] =
+        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
+    let context_line = format!("*** game inbox: {}", state.game_inbox_context_display());
+    buffer.set_stringn(
+        history_area.x,
+        history_area.y,
+        &context_line,
+        history_area.width as usize,
+        with_panel_bg(styles.dim),
+    );
+    if history_area.height > 1 {
+        let transcript_area = Rect::new(
+            history_area.x,
+            history_area.y + 1,
+            history_area.width,
+            history_area.height - 1,
+        );
+        let lines = threads::game_inbox_render_lines(state, transcript_area.width as usize);
+        if lines.is_empty() {
+            buffer.set_stringn(
+                transcript_area.x,
+                transcript_area.y,
+                "<no encrypted game messages>",
+                transcript_area.width as usize,
+                with_panel_bg(styles.dim),
+            );
+        } else {
+            let visible_rows = transcript_area.height as usize;
+            let max_scroll = lines.len().saturating_sub(visible_rows);
+            let scroll = state.game_inbox_scroll.min(max_scroll);
+            let end = lines.len().saturating_sub(scroll);
+            let start = end.saturating_sub(visible_rows);
+            let visible = &lines[start..end];
+            let first_row = transcript_area
+                .bottom()
+                .saturating_sub(visible.len() as u16);
+            for (idx, line) in visible.iter().enumerate() {
+                let row = first_row + idx as u16;
+                render_thread_line(
+                    buffer,
+                    row,
+                    transcript_area.x,
+                    transcript_area.width as usize,
+                    line,
+                );
+            }
+        }
+    }
+
+    let nick = threads::thread_prompt_label(state);
+    let prompt = format!("<{nick}>: ");
+    let mut col = prompt_area.x;
+    col = write_text(
+        buffer,
+        prompt_area.y,
+        col,
+        prompt_area.right(),
+        &prompt,
+        self_nick_style(),
+    );
+    let remaining = prompt_area.right().saturating_sub(col) as usize;
+    if remaining > 0 {
+        buffer.set_stringn(
+            col,
+            prompt_area.y,
+            if state.game_inbox_composing || modal {
+                state.game_inbox_message_input.as_str()
+            } else {
+                "Enter opens thread"
+            },
+            remaining,
+            with_panel_bg(if state.game_inbox_composing || modal {
+                styles.value
+            } else {
+                styles.dim
+            }),
+        );
     }
 }
 

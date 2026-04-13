@@ -1,6 +1,6 @@
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::onboarding::matrix_glyph;
-use nc_dash::lobby::models::{JoinedGameRow, OpenGameRow, ThreadMessage};
+use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute};
 use nc_ui::ScreenGeometry;
 
@@ -52,7 +52,7 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("Status"));
     assert!(lines.contains("Seat"));
     assert!(lines.contains("Year"));
-    assert!(lines.contains("INBOX"));
+    assert!(lines.contains("GAME INBOX"));
     assert!(lines.contains("? Help"));
     assert!(lines.contains("I<N>vite"));
     assert!(lines.contains("L<ock"));
@@ -65,7 +65,7 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("Seats"));
     assert!(lines.contains("Turn"));
     assert!(lines.contains("NOTICES"));
-    assert!(lines.contains("THREAD"));
+    assert!(lines.contains("THREADS"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
 }
@@ -190,7 +190,8 @@ fn home_route_help_popup_renders_as_overlay() {
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
     assert!(lines.contains("Enter      : open selected game or pop out the focused thread chat"));
     assert!(lines.contains("L          : lock nc-dash"));
-    assert!(lines.contains("M          : start inline thread compose in the THREAD panel"));
+    assert!(lines.contains("M          : start inline compose in THREADS"));
+    assert!(lines.contains("C          : open direct contact picker"));
     assert!(lines.contains("? / Esc    : close this help popup"));
 }
 
@@ -285,20 +286,16 @@ fn settings_route_renders_theme_controls() {
 fn thread_panel_renders_irc_style_transcript_and_prompt() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
     app.state.player_handle = Some("niltempus".to_string());
-    app.state.joined_games = vec![JoinedGameRow::new(
-        "friday-night",
-        "joined",
-        "Friday Night",
-        "nc-host",
-        "ws://127.0.0.1:8080",
-        "daemon",
-        Some(1),
-        "Y3004 T4",
-    )];
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+    }];
     app.state.thread_messages = vec![
         ThreadMessage {
             message_id: "one".to_string(),
-            game_id: "friday-night".to_string(),
+            contact_npub: "npub1sysop".to_string(),
             sender: "sysop".to_string(),
             body: "hello from the frontier".to_string(),
             outgoing: false,
@@ -306,7 +303,7 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
         },
         ThreadMessage {
             message_id: "two".to_string(),
-            game_id: "friday-night".to_string(),
+            contact_npub: "npub1sysop".to_string(),
             sender: "niltempus".to_string(),
             body: "reply acknowledged".to_string(),
             outgoing: true,
@@ -318,7 +315,7 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("*** game: friday-night"));
+    assert!(lines.contains("*** direct: nc_sysop"));
     assert!(lines.contains("[--:--] <sysop>: hello from the frontier"));
     assert!(lines.contains("[--:--] <niltempus>: reply acknowledged"));
     assert!(lines.contains("<niltempus>: draft line"));
@@ -328,12 +325,18 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
 fn compose_thread_route_renders_centered_chat_modal() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::ComposeThread, ScreenGeometry::new(140, 40));
     app.state.player_handle = Some("niltempus".to_string());
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+    }];
     app.state.thread_composing = true;
     app.state.compose_message_input = "draft".to_string();
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("PRIVATE THREAD CHAT"));
+    assert!(lines.contains("DIRECT THREAD"));
     assert!(lines.contains("<niltempus>: draft"));
 }
 

@@ -23,6 +23,8 @@ host {
         PathBuf::from("/tmp/nc-host/host.nsec")
     );
     assert_eq!(config.sysop_contact_npub, "npub1example");
+    assert_eq!(config.sysop_contact_label, None);
+    assert_eq!(config.sysop_contact_nip05, None);
 }
 
 #[test]
@@ -39,4 +41,6 @@ fn parse_host_config_accepts_property_style_kdl() {
         PathBuf::from("/tmp/nc-host/host.nsec")
     );
     assert_eq!(config.sysop_contact_npub, "npub1example");
+    assert_eq!(config.sysop_contact_label, None);
+    assert_eq!(config.sysop_contact_nip05, None);
 }

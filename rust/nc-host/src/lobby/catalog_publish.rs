@@ -10,6 +10,9 @@ pub fn publish_game_definition(
     store: &HostedStore,
     game_id: &str,
     host_alias: Option<&str>,
+    host_contact_npub: Option<&str>,
+    host_contact_label: Option<&str>,
+    host_contact_nip05: Option<&str>,
 ) -> Result<Option<GameDefinition>, Box<dyn std::error::Error>> {
     let settings = match get_settings(store.connection(), game_id) {
         Ok(s) => s,
@@ -82,6 +85,18 @@ pub fn publish_game_definition(
         host_alias: host_alias
             .map(String::from)
             .or_else(|| settings.host_alias.clone()),
+        host_contact_npub: host_contact_npub
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
+        host_contact_label: host_contact_label
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
+        host_contact_nip05: host_contact_nip05
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
         slots: slot_tags,
     };
 
@@ -101,7 +116,9 @@ pub fn collect_lobby_games(
                 if db_path.exists() {
                     if let Some(game_id) = path.file_name().and_then(|n| n.to_str()) {
                         let store = HostedStore::open(&db_path)?;
-                        if let Ok(Some(def)) = publish_game_definition(&store, game_id, None) {
+                        if let Ok(Some(def)) =
+                            publish_game_definition(&store, game_id, None, None, None, None)
+                        {
                             games.push(def);
                         }
                     }

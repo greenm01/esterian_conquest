@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 
-use super::models::{LobbyNotice, ThreadMessage};
+use super::models::{GameInboxMessage, LobbyNotice, ThreadMessage};
 use super::state::LobbyState;
 
 pub fn notice_rows(state: &LobbyState) -> Vec<String> {
@@ -17,30 +17,19 @@ pub struct ThreadRenderLine {
     pub outgoing: bool,
 }
 
-pub fn thread_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine> {
+pub fn direct_thread_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine> {
     state
         .visible_thread_messages()
         .iter()
-        .flat_map(|message| format_thread_message(state, message, width))
+        .flat_map(|message| format_direct_thread_message(state, message, width))
         .collect()
 }
 
-pub fn thread_rows(state: &LobbyState) -> Vec<String> {
-    thread_render_lines(state, 72)
-        .into_iter()
-        .map(|line| {
-            let mut row = String::new();
-            if let Some(timestamp) = line.timestamp {
-                row.push_str(&timestamp);
-            } else if line.indent > 0 {
-                row.push_str(&" ".repeat(line.indent));
-            }
-            if let Some(nick) = line.nick {
-                row.push_str(&nick);
-            }
-            row.push_str(&line.body);
-            row
-        })
+pub fn game_inbox_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine> {
+    state
+        .visible_game_inbox_messages()
+        .iter()
+        .flat_map(|message| format_game_inbox_message(message, width))
         .collect()
 }
 
@@ -57,24 +46,57 @@ fn format_notice(notice: &LobbyNotice) -> String {
     format!("{}: {}", notice.sender, notice.body)
 }
 
-fn format_thread_message(
+fn format_direct_thread_message(
     state: &LobbyState,
     message: &&ThreadMessage,
     width: usize,
 ) -> Vec<ThreadRenderLine> {
-    let timestamp = short_local_time(&message.created_at);
-    let nick = if message.outgoing {
-        thread_prompt_label(state)
-    } else if message.sender.trim().is_empty() {
-        "daemon".to_string()
-    } else {
-        message.sender.clone()
-    };
+    format_chat_message(
+        &message.created_at,
+        if message.outgoing {
+            thread_prompt_label(state)
+        } else if message.sender.trim().is_empty() {
+            "contact".to_string()
+        } else {
+            message.sender.clone()
+        },
+        &message.body,
+        message.outgoing,
+        width,
+    )
+}
+
+fn format_game_inbox_message(message: &&GameInboxMessage, width: usize) -> Vec<ThreadRenderLine> {
+    format_chat_message(
+        &message.created_at,
+        if message.sender.trim().is_empty() {
+            if message.outgoing {
+                "you".to_string()
+            } else {
+                message.other_empire_name.clone()
+            }
+        } else {
+            message.sender.clone()
+        },
+        &message.body,
+        message.outgoing,
+        width,
+    )
+}
+
+fn format_chat_message(
+    created_at: &str,
+    nick: String,
+    body: &str,
+    outgoing: bool,
+    width: usize,
+) -> Vec<ThreadRenderLine> {
+    let timestamp = short_local_time(created_at);
     let timestamp_prefix = format!("[{timestamp}] ");
     let nick_prefix = format!("<{nick}>: ");
     let indent = timestamp_prefix.chars().count() + nick_prefix.chars().count();
     let available_width = width.saturating_sub(indent).max(1);
-    let wrapped = wrap_chat_body(&message.body, available_width);
+    let wrapped = wrap_chat_body(body, available_width);
     wrapped
         .into_iter()
         .enumerate()
@@ -84,7 +106,7 @@ fn format_thread_message(
             body: segment,
             indent: if idx == 0 { 0 } else { indent },
             nick_key: nick.clone(),
-            outgoing: message.outgoing,
+            outgoing,
         })
         .collect()
 }

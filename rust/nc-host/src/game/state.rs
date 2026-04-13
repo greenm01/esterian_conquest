@@ -9,8 +9,8 @@ use nc_data::{
 };
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
-    HostedPlayerState, HostedQueuedMail, HostedReportBlock, HostedStardockSlot, HostedStarmapState,
-    HostedStatePayload, HostedWorldState,
+    HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
+    HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +69,7 @@ pub fn build_game_state_payload(
     );
     let state = HostedStatePayload {
         player: player_state(player, &snapshot.game_data, viewer_empire_id),
+        roster: roster_state(&snapshot.game_data, viewer_empire_id),
         starmap: starmap_state(&starmap),
         owned_planets: owned_planets_state(&snapshot.game_data, viewer_empire_id),
         owned_fleets: owned_fleets_state(&snapshot.game_data, viewer_empire_id),
@@ -187,6 +188,25 @@ fn player_state(
         last_run_year: player.last_run_year_raw(),
         diplomacy,
     }
+}
+
+fn roster_state(game_data: &CoreGameData, viewer_empire_id: u8) -> Vec<HostedPlayerRosterEntry> {
+    let player_count = usize::from(game_data.conquest.player_count());
+    game_data
+        .player
+        .records
+        .iter()
+        .take(player_count)
+        .enumerate()
+        .map(|(idx, player)| {
+            let empire_id = (idx + 1) as u8;
+            HostedPlayerRosterEntry {
+                empire_id,
+                empire_name: display_player_name(player, u32::from(empire_id)),
+                is_self: empire_id == viewer_empire_id,
+            }
+        })
+        .collect()
 }
 
 fn starmap_state(projection: &nc_data::PlayerStarmapProjection) -> HostedStarmapState {

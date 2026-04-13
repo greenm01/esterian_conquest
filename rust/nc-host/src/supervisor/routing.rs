@@ -117,6 +117,20 @@ pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<G
                 }]
             }
         }
+        30523 => {
+            if let Some(message) =
+                nc_nostr::player_message::parse_player_message_request(host_secret_key, &routed.event)
+            {
+                vec![GameEffects::HandlePlayerMessage {
+                    message,
+                    game_id: routed.game_id.clone(),
+                }]
+            } else {
+                vec![GameEffects::InvalidEvent {
+                    reason: "failed to parse PlayerMessage".to_string(),
+                }]
+            }
+        }
 
         _ => {
             vec![GameEffects::InvalidEvent {

@@ -1,5 +1,6 @@
 use nc_nostr::claim::SeatClaimRequest;
 use nc_nostr::invite_request::InviteRequest;
+use nc_nostr::player_message::PlayerMessageRequest;
 use nc_nostr::state_sync::StateRequest;
 use nc_nostr::thread_message::SysopThreadMessage;
 use nc_nostr::turn_commands::TurnCommands;
@@ -23,6 +24,10 @@ pub enum GameEffects {
     },
     HandleThreadMessage {
         message: SysopThreadMessage,
+        game_id: String,
+    },
+    HandlePlayerMessage {
+        message: PlayerMessageRequest,
         game_id: String,
     },
     QueueEvent {

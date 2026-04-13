@@ -34,8 +34,9 @@ on `nc-host`.
 Required local files:
 
 - `keychain.kdl`: encrypted single-identity keychain
-- `cache.kdl`: encrypted joined-games cache, approved invite cache, inbox
-  summaries, and per-game thread pointers
+- `cache.kdl`: encrypted joined-games cache, approved invite cache, direct
+  contacts, direct chat history, anonymous game-mail history, and joined-game
+  diplomacy rosters
 - `config.kdl`: optional relay and client preferences
 - `settings.kdl`: local UI toggles plus the selected `nc-dash` theme key
 
@@ -82,10 +83,9 @@ payload body. It is not exposed in public relay tags.
 The lobby uses a three-pane layout inside the existing fullscreen `nc-dash`
 shell.
 
-- left pane: `Joined Games` table and `Inbox`
+- left pane: `Joined Games` table and `Game Inbox`
 - center pane: `Open Games` recruiting table
-- right pane: communication pane with `Notices` and the selected private
-  `Thread`
+- right pane: communication pane with `Notices` and `Threads`
 
 Use overlays for:
 
@@ -168,23 +168,36 @@ The public area is one host-wide notice board.
 
 This is not a player chat room in v1.
 
-### Private Per-Game Threads
+### Game Inbox
 
-Each game has one persistent encrypted private thread between the player and
-the sysop.
+`GAME INBOX` is the anonymous hosted diplomacy surface for joined games only.
 
-- available before invite approval
-- remains available after approval and after seat claim
-- scoped to one game
-- snapshots sender handle at send time for display history
+- encrypted by default
+- scoped to joined games only
+- keyed by `(game_id, other_empire_id)`
+- labeled only by game name and empire name
+- routed by `nc-host`
+- never reveals another player's `npub`
 
-Use the private thread for:
+Use `GAME INBOX` for:
 
-- invite request context and follow-up
-- sysop questions or clarifications
-- post-join hosted admin contact
+- player-to-player diplomacy
+- quiet coordination inside one hosted game
+- empire-to-empire chat that should stay anonymous at the Nostr identity layer
 
-The structured invite workflow remains separate from freeform thread messages.
+### Threads
+
+`THREADS` is the global direct-contact surface.
+
+- encrypted by default
+- keyed by known contact `npub`
+- seeded automatically with the selected game's published host contact
+- manual contacts may be added by `npub` or NIP-05
+
+The default thread target for a selected game should be that game's published
+host contact. In production this may be the relay or game server owner account
+such as `nc_sysop@nostrian-conquest.com`, but the lobby should normally display
+the compact label, not the full NIP-05, in dense widgets.
 
 ## Hosted Event Mapping
 
@@ -195,13 +208,15 @@ The structured invite workflow remains separate from freeform thread messages.
 - `30514 InviteRequestReceipt`: immediate daemon intake result
 - `30515 InviteDecision`: approval or rejection, including full invite string
 - `30516 LobbyNotice`: public host-wide notice post
-- `30517 SysopThreadMessage`: encrypted per-game private thread message
+- `30517 SysopThreadMessage`: optional host/operator private thread surface
+- `30518 ContactMessage`: encrypted direct contact chat
 - `30510 SeatClaimRequest`: claim approved invite
 - `30511 SeatClaimResult`: claim success/failure
 - `30507 StateRequest`: refresh hosted state
 - `30520 GameState`: full hosted snapshot
 - `30521 StateDelta`: incremental hosted update
 - `30522 TurnCommands`: hosted order submission
+- `30523 PlayerMessage`: encrypted anonymous player-to-player diplomacy
 - `30524 TurnReceipt`: hosted order intake result
 
 Approved invite strings should be cached locally in `cache.kdl` for the active
@@ -219,10 +234,13 @@ The lobby keeps a small client-owned model:
 - player handle
 - relay target and connection health
 - joined-games cache
-- pending requests inbox
 - approved-but-unclaimed invites
+- joined-game diplomacy rosters
+- `GAME INBOX` thread summaries and history
+- direct contact list
+- direct `THREADS` history
 - public notice feed window
-- selected private thread transcript window
+- selected direct thread transcript window
 
 The daemon remains authoritative for:
 
