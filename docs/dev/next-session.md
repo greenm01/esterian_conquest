@@ -73,3 +73,5 @@ Keep this file short. Historical detail belongs in
    exercise the hosted dashboard.
 7. Finish the remaining unsupported hosted dashboard actions or explicitly
    scope them out of the hosted flow.
+8. If modal drag pacing still feels rough in `nc-dash`, evaluate a future
+   GPU/vsynced native renderer path as follow-up work.

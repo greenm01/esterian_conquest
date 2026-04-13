@@ -1703,6 +1703,13 @@ impl NativeApp for DashApp {
         Self::render_playfield(self)
     }
 
+    fn is_dragging_surface(&self) -> bool {
+        matches!(
+            self.mouse_gesture,
+            ActiveMouseGesture::DraggingOverlay { .. } | ActiveMouseGesture::DraggingPopup { .. }
+        )
+    }
+
     fn should_quit(&self) -> bool {
         self.should_quit
     }
@@ -2180,6 +2187,7 @@ mod tests {
         PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
     };
     use crate::layout::dashboard::dashboard_layout;
+    use crate::native::NativeApp;
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crate::planet_view;
     use crossterm::event::{
@@ -4290,6 +4298,30 @@ mod tests {
             .expect("restored popup rect");
         assert_eq!(restored_popup.x, moved_popup.x);
         assert_eq!(restored_popup.y, moved_popup.y);
+    }
+
+    #[test]
+    fn dragging_overlay_reports_dragging_surface_state() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("inbox popup rect");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            popup.x + 2,
+            popup.y,
+        ));
+        assert!(<DashApp as NativeApp>::is_dragging_surface(&app));
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Up(MouseButton::Left),
+            popup.x + 2,
+            popup.y,
+        ));
+        assert!(!<DashApp as NativeApp>::is_dragging_surface(&app));
     }
 
     #[test]

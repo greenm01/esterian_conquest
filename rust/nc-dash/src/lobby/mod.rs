@@ -275,6 +275,10 @@ impl NativeApp for LobbyApp {
         }
     }
 
+    fn is_dragging_surface(&self) -> bool {
+        matches!(self.mouse_gesture, LobbyMouseGesture::DraggingPopup { .. })
+    }
+
     fn should_quit(&self) -> bool {
         self.should_quit
     }
@@ -354,4 +358,40 @@ pub(crate) fn focus_selected(
     selected: usize,
 ) -> Option<usize> {
     (focus == target).then_some(selected)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyModifiers;
+    use crate::native::NativeApp;
+
+    #[test]
+    fn popup_drag_reports_dragging_surface_state() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+        let buffer = app.render_for_test().expect("render settings");
+        let row = (0..buffer.height())
+            .find(|&idx| buffer.plain_line(idx).contains(" LOBBY SETTINGS "))
+            .expect("settings title row");
+        let column = buffer
+            .plain_line(row)
+            .find("LOBBY SETTINGS")
+            .expect("settings title") as u16;
+
+        app.dispatch_mouse_event(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row: row as u16,
+            modifiers: KeyModifiers::empty(),
+        });
+        assert!(<LobbyApp as NativeApp>::is_dragging_surface(&app));
+
+        app.dispatch_mouse_event(MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column,
+            row: row as u16,
+            modifiers: KeyModifiers::empty(),
+        });
+        assert!(!<LobbyApp as NativeApp>::is_dragging_surface(&app));
+    }
 }
