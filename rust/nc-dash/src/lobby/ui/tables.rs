@@ -53,7 +53,7 @@ pub(super) fn render_table_panel(
                 body_area.y,
                 empty,
                 body_area.width as usize,
-                with_panel_bg(styles.dim),
+                with_panel_bg(styles.error),
             );
         }
         return;

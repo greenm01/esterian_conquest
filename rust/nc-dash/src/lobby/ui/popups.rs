@@ -214,7 +214,7 @@ pub(super) fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, p
             inner.y,
             "<no contacts>",
             inner.width as usize,
-            with_panel_bg(styles.dim),
+            with_panel_bg(styles.error),
         );
     } else {
         let selected = app
@@ -287,12 +287,11 @@ pub(super) fn render_help_popup(
     block.render(area, buffer);
     Paragraph::new(
         [
-            "Tab        : cycle focus across lobby panels",
-            "J / K      : move within the focused panel",
+            "Tab        : cycle dashboard tabs",
+            "J / K      : move within the active tab",
             "Enter      : open selected game or open the selected COMMS thread",
             "J          : compose a join request",
-            "T          : open full-screen COMMS",
-            "COMMS Tab  : cycle Chat / New / Threads",
+            "COMMS L/R  : cycle Chat / New / Threads",
             "COMMS Enter: send chat or open selected unread/thread row",
             "Alt-A      : open the address book from COMMS",
             "B / Delete : block or hide the active direct contact",

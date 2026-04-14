@@ -2,7 +2,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::widgets::Widget;
 
-use crate::lobby::state::{LobbyFocus, LobbyState};
+use crate::lobby::state::{LobbyApp, LobbyState, LobbyTab};
 use crate::lobby::threads;
 use crate::theme;
 
@@ -10,11 +10,72 @@ use super::chrome::{chrome_block, network_style, with_panel_bg};
 use super::layout::HomeLayout;
 use super::tables::{render_table_panel, TableCellAlign, TableColumnSpec};
 
-pub(super) fn render_home_base(buffer: &mut Buffer, state: &LobbyState, layout: HomeLayout) {
+pub(super) fn hit_test_tabs(state: &LobbyState, area: Rect, col: u16, row: u16) -> Option<LobbyTab> {
+    let block = chrome_block(ratatui::style::Style::default());
+    let inner = block.inner(area);
+    if inner.height <= 1 || row != inner.y + 1 {
+        return None;
+    }
+    let specs = get_tab_specs(state);
+    let gap = 2u16;
+    let total_width: u16 = specs.iter().map(|s| s.width).sum::<u16>() + gap * (specs.len() as u16 - 1);
+    let mut current_col = inner.x + inner.width.saturating_sub(total_width) / 2;
+
+    for spec in specs {
+        if col >= current_col && col < current_col + spec.width {
+            return Some(spec.tab);
+        }
+        current_col += spec.width + gap;
+    }
+    None
+}
+
+struct TabSpec {
+    tab: LobbyTab,
+    label: String,
+    width: u16,
+}
+
+fn get_tab_specs(state: &LobbyState) -> Vec<TabSpec> {
+    let unread = state.thread_unread_total();
+    let comms_label = if unread > 0 {
+        format!(" Comms ({}) ", unread)
+    } else {
+        " Comms ".to_string()
+    };
+    vec![
+        TabSpec {
+            tab: LobbyTab::MyGames,
+            label: " My Games ".to_string(),
+            width: 12,
+        },
+        TabSpec {
+            tab: LobbyTab::OpenGames,
+            label: " Open Games ".to_string(),
+            width: 14,
+        },
+        TabSpec {
+            tab: LobbyTab::Comms,
+            label: comms_label,
+            width: 9 + if unread > 0 { unread.to_string().len() as u16 + 2 } else { 0 },
+        },
+    ]
+}
+
+pub(super) fn render_home_base(buffer: &mut Buffer, app: &LobbyApp, layout: HomeLayout) {
+    let state = &app.state;
     HeaderHudWidget { state }.render(layout.header, buffer);
-    JoinedGamesWidget { state }.render(layout.joined, buffer);
-    OpenGamesWidget { state }.render(layout.open, buffer);
-    CommsWidget { state }.render(layout.comms, buffer);
+    match state.active_tab {
+        LobbyTab::MyGames => {
+            render_joined_games_panel(buffer, layout.body, true, state);
+        }
+        LobbyTab::OpenGames => {
+            render_open_games_panel(buffer, layout.body, true, state);
+        }
+        LobbyTab::Comms => {
+            threads::render_comms_scene(buffer, layout.body, app);
+        }
+    }
     FooterMenuWidget.render(layout.footer, buffer);
 }
 
@@ -49,52 +110,49 @@ impl Widget for HeaderHudWidget<'_> {
             &network_line,
             with_panel_bg(network_style(self.state.network_status)),
         );
+
+        if inner.height > 1 {
+            self.render_tabs(Rect::new(inner.x, inner.y + 1, inner.width, 1), buffer);
+        }
     }
 }
 
-struct JoinedGamesWidget<'a> {
-    state: &'a LobbyState,
-}
+impl HeaderHudWidget<'_> {
+    fn render_tabs(&self, area: Rect, buffer: &mut Buffer) {
+        let specs = get_tab_specs(self.state);
+        let gap = 2u16;
+        let total_width: u16 =
+            specs.iter().map(|s| s.width).sum::<u16>() + gap * (specs.len() as u16 - 1);
+        let mut col = area.x + area.width.saturating_sub(total_width) / 2;
 
-impl Widget for JoinedGamesWidget<'_> {
-    fn render(self, area: Rect, buffer: &mut Buffer) {
-        render_joined_games_panel(
-            buffer,
-            area,
-            self.state.focus == LobbyFocus::JoinedGames,
-            self.state,
-        );
+        for spec in specs {
+            self.render_tab(buffer, col, area.y, &spec.label, spec.tab);
+            col += spec.width + gap;
+        }
+    }
+
+    fn render_tab(&self, buffer: &mut Buffer, x: u16, y: u16, label: &str, tab: LobbyTab) -> u16 {
+        let styles = theme::tui_theme();
+        let is_active = self.state.active_tab == tab;
+        let has_unread = tab == LobbyTab::Comms && self.state.thread_unread_total() > 0;
+        
+        let style = if is_active {
+            styles.selected
+        } else if has_unread {
+            styles.accent
+        } else {
+            styles.label
+        };
+
+        let text = format!("[{}]", label);
+        buffer.set_stringn(x, y, &text, area_width_limit(x, text.len(), buffer), with_panel_bg(style));
+        x + text.chars().count() as u16
     }
 }
 
-struct OpenGamesWidget<'a> {
-    state: &'a LobbyState,
-}
-
-impl Widget for OpenGamesWidget<'_> {
-    fn render(self, area: Rect, buffer: &mut Buffer) {
-        render_open_games_panel(
-            buffer,
-            area,
-            self.state.focus == LobbyFocus::OpenGames,
-            self.state,
-        );
-    }
-}
-
-struct CommsWidget<'a> {
-    state: &'a LobbyState,
-}
-
-impl Widget for CommsWidget<'_> {
-    fn render(self, area: Rect, buffer: &mut Buffer) {
-        threads::render_comms_hotlist_panel(
-            buffer,
-            area,
-            self.state.focus == LobbyFocus::Thread,
-            self.state,
-        );
-    }
+fn area_width_limit(x: u16, len: usize, buffer: &Buffer) -> usize {
+    let remaining = buffer.area.width.saturating_sub(x) as usize;
+    len.min(remaining)
 }
 
 struct FooterMenuWidget;
@@ -118,11 +176,11 @@ fn render_joined_games_panel(
     focused: bool,
     state: &LobbyState,
 ) {
-    const COLUMNS: [TableColumnSpec; 5] = [
+    const COLUMNS: [TableColumnSpec; 4] = [
         TableColumnSpec {
             title_top: None,
             title: "Status",
-            constraint: Constraint::Length(8),
+            constraint: Constraint::Length(10),
             align: TableCellAlign::Left,
         },
         TableColumnSpec {
@@ -134,19 +192,13 @@ fn render_joined_games_panel(
         TableColumnSpec {
             title_top: None,
             title: "Seat",
-            constraint: Constraint::Length(4),
+            constraint: Constraint::Length(6),
             align: TableCellAlign::Right,
         },
         TableColumnSpec {
             title_top: None,
-            title: "Year",
-            constraint: Constraint::Length(4),
-            align: TableCellAlign::Right,
-        },
-        TableColumnSpec {
-            title_top: None,
-            title: "Turn",
-            constraint: Constraint::Length(4),
+            title: "Time (Y:T)",
+            constraint: Constraint::Length(12),
             align: TableCellAlign::Right,
         },
     ];
@@ -154,13 +206,13 @@ fn render_joined_games_panel(
     render_table_panel(
         buffer,
         area,
-        " MY GAMES ",
+        " MY ACTIVE GAMES ",
         focused,
         &COLUMNS,
         1,
         state.joined_games.len(),
-        focused_selection(state, LobbyFocus::JoinedGames, state.joined_selected),
-        "<no games yet>",
+        Some(state.joined_selected),
+        "<no games yet - press 'j' to join an open game>",
         |index| {
             let row = &state.joined_games[index];
             let (year, turn) = split_turn_summary(&row.turn_summary);
@@ -170,8 +222,7 @@ fn render_joined_games_panel(
                 row.seat
                     .map(|seat| seat.to_string())
                     .unwrap_or_else(|| "-".to_string()),
-                year,
-                turn,
+                format!("Y{}:T{}", year, turn),
             ]
         },
     );
@@ -183,11 +234,11 @@ fn render_open_games_panel(
     focused: bool,
     state: &LobbyState,
 ) {
-    const COLUMNS: [TableColumnSpec; 10] = [
+    const COLUMNS: [TableColumnSpec; 7] = [
         TableColumnSpec {
             title_top: None,
             title: "Status",
-            constraint: Constraint::Length(6),
+            constraint: Constraint::Length(10),
             align: TableCellAlign::Left,
         },
         TableColumnSpec {
@@ -204,44 +255,26 @@ fn render_open_games_panel(
         },
         TableColumnSpec {
             title_top: None,
-            title: "Recruiting",
-            constraint: Constraint::Length(11),
-            align: TableCellAlign::Left,
-        },
-        TableColumnSpec {
-            title_top: Some("Open"),
             title: "Seats",
-            constraint: Constraint::Length(5),
+            constraint: Constraint::Length(8),
             align: TableCellAlign::Right,
         },
         TableColumnSpec {
             title_top: None,
-            title: "Seats",
-            constraint: Constraint::Length(5),
+            title: "Map",
+            constraint: Constraint::Length(8),
             align: TableCellAlign::Right,
         },
         TableColumnSpec {
-            title_top: Some("Map"),
-            title: "Size",
-            constraint: Constraint::Length(5),
-            align: TableCellAlign::Right,
-        },
-        TableColumnSpec {
-            title_top: Some("Date"),
+            title_top: None,
             title: "Created",
+            constraint: Constraint::Length(12),
+            align: TableCellAlign::Right,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Time",
             constraint: Constraint::Length(10),
-            align: TableCellAlign::Right,
-        },
-        TableColumnSpec {
-            title_top: None,
-            title: "Year",
-            constraint: Constraint::Length(4),
-            align: TableCellAlign::Right,
-        },
-        TableColumnSpec {
-            title_top: None,
-            title: "Turn",
-            constraint: Constraint::Length(4),
             align: TableCellAlign::Right,
         },
     ];
@@ -249,13 +282,13 @@ fn render_open_games_panel(
     render_table_panel(
         buffer,
         area,
-        " GAMES ",
+        " OPEN GAMES AVAILABLE TO JOIN ",
         focused,
         &COLUMNS,
-        2,
+        1,
         state.open_games.len(),
-        focused_selection(state, LobbyFocus::OpenGames, state.open_selected),
-        "<no hosted games>",
+        Some(state.open_selected),
+        "<no open games - press 'h' to host a new game>",
         |index| {
             let row = &state.open_games[index];
             let (year, turn) = split_turn_summary(&row.turn_summary);
@@ -263,13 +296,10 @@ fn render_open_games_panel(
                 row.status.clone(),
                 row.game.clone(),
                 row.host.clone(),
-                row.recruiting.clone(),
-                row.open_seats.to_string(),
-                row.total_seats.to_string(),
+                format!("{}/{}", row.open_seats, row.total_seats),
                 map_size_summary(row.total_seats),
                 row.created_date.clone(),
-                year,
-                turn,
+                format!("Y{}:T{}", year, turn),
             ]
         },
     );
@@ -285,7 +315,7 @@ fn split_turn_summary(summary: &str) -> (String, String) {
     let turn = parts
         .next()
         .map(|part| part.trim_start_matches(['T', 't']).to_string())
-        .unwrap_or_default();
+        .unwrap_or_else(|| "0".to_string());
     (year, turn)
 }
 
@@ -308,10 +338,6 @@ fn map_size_summary(total_seats: u8) -> String {
     format!("{edge}x{edge}")
 }
 
-fn focused_selection(state: &LobbyState, target: LobbyFocus, selected: usize) -> Option<usize> {
-    (state.focus == target).then_some(selected)
-}
-
 fn right_align(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: ratatui::style::Style) {
     let width = text.chars().count().min(area.width as usize) as u16;
     let start = area.right().saturating_sub(width);
@@ -321,10 +347,10 @@ fn right_align(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: rat
 fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
     let styles = theme::tui_theme();
     let tokens = [
+        FooterToken::leading("Tab", " Next Tab"),
         FooterToken::leading("?", " Help"),
         FooterToken::leading("J", ">oin"),
         FooterToken::embedded("Alt-", "L", "ock"),
-        FooterToken::leading("T", ">Comms"),
         FooterToken::leading("S", ">ettings"),
         FooterToken::leading("R", ">efresh"),
         FooterToken::leading("Q", ">uit"),

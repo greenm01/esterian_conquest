@@ -4,6 +4,12 @@ mod layout;
 mod popups;
 mod tables;
 
+pub use self::chrome::{panel_block, truncate_title, with_panel_bg, write_text};
+pub use self::layout::{
+    active_popup_rect, contains, hit_test_home, home_layout, padded_inner, popup_title_bar_contains,
+    scroll_offset,
+};
+
 use nc_ui::PlayfieldBuffer;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -12,10 +18,6 @@ use ratatui::style::Modifier;
 use crate::lobby::state::{LobbyApp, LobbyRoute};
 use crate::lobby::threads;
 use crate::theme;
-
-pub(crate) use chrome::{panel_block, truncate_title, with_panel_bg, write_text};
-pub use layout::{active_popup_rect, hit_test_home, home_layout, popup_title_bar_contains};
-pub(crate) use layout::{contains, padded_inner, scroll_offset};
 
 pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
     let width = playfield.width() as u16;
@@ -30,23 +32,22 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
     };
 
     match app.state.route {
-        LobbyRoute::Comms | LobbyRoute::ContactPicker | LobbyRoute::AddContact => {
-            threads::render_comms_scene(&mut buffer, area, app)
+        LobbyRoute::Home => {
+            home::render_home_base(&mut buffer, app, layout);
         }
-        _ => home::render_home_base(&mut buffer, app.state_ref(), layout),
+        LobbyRoute::ContactPicker | LobbyRoute::AddContact => {
+            threads::render_comms_scene(&mut buffer, layout.body, app)
+        }
+        _ => home::render_home_base(&mut buffer, app, layout),
     }
 
-    if matches!(app.state.route, LobbyRoute::Home | LobbyRoute::Comms)
+    if app.state.route == LobbyRoute::Home
         && app.state.status_message.is_some()
         && !app.state.show_help
     {
         popups::render_toast(
             &mut buffer,
-            if app.state.route == LobbyRoute::Comms {
-                area
-            } else {
-                layout.body
-            },
+            layout.body,
             app.state_ref(),
         );
     }
@@ -58,7 +59,7 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
     }
 
     match app.state.route {
-        LobbyRoute::Home | LobbyRoute::Comms => {}
+        LobbyRoute::Home => {}
         LobbyRoute::Settings => popups::render_settings_popup(&mut buffer, app, layout.body),
         LobbyRoute::ThemePicker => popups::render_theme_picker_popup(&mut buffer, app, layout.body),
         LobbyRoute::ComposeInvite => {

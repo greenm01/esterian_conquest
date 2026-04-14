@@ -23,7 +23,6 @@ pub enum LobbyRoute {
     MatrixLocked,
     Locked,
     Home,
-    Comms,
     ComposeInvite,
     GameInboxThread,
     ComposeThread,
@@ -98,10 +97,28 @@ impl FirstRunField {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LobbyFocus {
-    JoinedGames,
+pub enum LobbyTab {
+    MyGames,
     OpenGames,
-    Thread,
+    Comms,
+}
+
+impl LobbyTab {
+    pub fn next(self) -> Self {
+        match self {
+            Self::MyGames => Self::OpenGames,
+            Self::OpenGames => Self::Comms,
+            Self::Comms => Self::MyGames,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::MyGames => Self::Comms,
+            Self::OpenGames => Self::MyGames,
+            Self::Comms => Self::OpenGames,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,24 +126,6 @@ pub enum ThreadPaneFocus {
     Chat,
     New,
     Threads,
-}
-
-impl LobbyFocus {
-    pub fn next(self) -> Self {
-        match self {
-            Self::JoinedGames => Self::OpenGames,
-            Self::OpenGames => Self::Thread,
-            Self::Thread => Self::JoinedGames,
-        }
-    }
-
-    pub fn prev(self) -> Self {
-        match self {
-            Self::JoinedGames => Self::Thread,
-            Self::OpenGames => Self::JoinedGames,
-            Self::Thread => Self::OpenGames,
-        }
-    }
 }
 
 pub struct HostedGameView {
@@ -141,7 +140,7 @@ pub struct LobbyState {
     pub route: LobbyRoute,
     pub gate_mode: KeychainGateMode,
     pub unlock_return_route: LobbyRoute,
-    pub focus: LobbyFocus,
+    pub active_tab: LobbyTab,
     pub relay_override: Option<String>,
     pub relay_label: Option<String>,
     pub player_handle: Option<String>,
@@ -198,7 +197,7 @@ impl LobbyState {
             route,
             gate_mode: KeychainGateMode::Startup,
             unlock_return_route: LobbyRoute::Home,
-            focus: LobbyFocus::OpenGames,
+            active_tab: LobbyTab::OpenGames,
             relay_override: options.relay_override.clone(),
             relay_label: options
                 .relay_override
@@ -467,12 +466,12 @@ impl LobbyState {
     }
 
     pub fn preferred_game_context_id(&self) -> Option<&str> {
-        match self.focus {
-            LobbyFocus::JoinedGames => self
+        match self.active_tab {
+            LobbyTab::MyGames => self
                 .selected_joined_game()
                 .map(|row| row.game_id.as_str())
                 .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
-            LobbyFocus::OpenGames => self
+            LobbyTab::OpenGames => self
                 .selected_open_game()
                 .map(|row| row.game_id.as_str())
                 .or_else(|| self.selected_joined_game().map(|row| row.game_id.as_str())),

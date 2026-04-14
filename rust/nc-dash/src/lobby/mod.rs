@@ -19,7 +19,7 @@ use crate::native::NativeApp;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
-use self::state::{LobbyFocus, LobbyMouseGesture, LobbyRoute, ThreadPaneFocus};
+use self::state::{LobbyMouseGesture, LobbyRoute, LobbyTab, ThreadPaneFocus};
 
 pub use self::state::LobbyApp;
 
@@ -126,7 +126,8 @@ impl LobbyApp {
     }
 
     fn scheduled_wakeup(&self) -> Option<Instant> {
-        let cursor_wakeup = if self.state.route == LobbyRoute::Comms
+        let cursor_wakeup = if self.state.route == LobbyRoute::Home
+            && self.state.active_tab == LobbyTab::Comms
             && self.state.thread_pane_focus == ThreadPaneFocus::Chat
             && self
                 .state
@@ -216,7 +217,8 @@ impl LobbyApp {
             self.begin_unlock_prompt();
             return;
         }
-        if self.state.route == LobbyRoute::Comms {
+
+        if self.state.route == LobbyRoute::Home && self.state.active_tab == LobbyTab::Comms {
             if let Some(hit) = threads::hit_test_workspace(
                 &self.state,
                 ::ratatui::layout::Rect::new(
@@ -254,6 +256,7 @@ impl LobbyApp {
             }
             return;
         }
+
         if self.state.route != LobbyRoute::Home {
             return;
         }
@@ -263,25 +266,23 @@ impl LobbyApp {
             return;
         };
         let previous_context = self.state.preferred_game_context_id().map(str::to_string);
-        self.state.focus = hit.focus;
-        match hit.focus {
-            LobbyFocus::JoinedGames => {
+        match hit.tab {
+            LobbyTab::MyGames => {
                 if let Some(selected) = hit.selected_row {
                     self.state.joined_selected = selected;
                 }
             }
-            LobbyFocus::OpenGames => {
+            LobbyTab::OpenGames => {
                 if let Some(selected) = hit.selected_row {
                     self.state.open_selected = selected;
                 }
             }
-            LobbyFocus::Thread => {
+            LobbyTab::Comms => {
                 if let Some(selected) = hit.selected_row {
                     self.state.comms_selected = selected;
                     if let Some(row) = self.state.selected_comms_hotlist() {
                         self.state.set_active_comms(row.key);
                     }
-                    self.state.route = LobbyRoute::Comms;
                 }
                 self.state.thread_pane_focus = ThreadPaneFocus::Chat;
                 self.state.comms_scroll = 0;
@@ -428,7 +429,8 @@ impl NativeApp for LobbyApp {
             self.next_matrix_frame_at = now + MATRIX_FRAME_STEP;
             return true;
         }
-        if self.state.route == LobbyRoute::Comms
+        if self.state.route == LobbyRoute::Home
+            && self.state.active_tab == LobbyTab::Comms
             && self.state.thread_pane_focus == ThreadPaneFocus::Chat
             && self
                 .state
@@ -453,7 +455,8 @@ impl NativeApp for LobbyApp {
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
                 self.state.apply_loaded(loaded);
-                if self.state.route == LobbyRoute::Comms
+                if self.state.route == LobbyRoute::Home
+                    && self.state.active_tab == LobbyTab::Comms
                     && self.state.thread_pane_focus == ThreadPaneFocus::Chat
                     && self.state.comms_scroll == 0
                     && self

@@ -381,14 +381,6 @@ pub fn body_style() -> CellStyle {
     active_cell_theme().body
 }
 
-pub fn shell_title_style() -> CellStyle {
-    active_cell_theme().shell_title
-}
-
-pub fn shell_label_style() -> CellStyle {
-    active_cell_theme().shell_label
-}
-
 pub fn prompt_style() -> CellStyle {
     active_cell_theme().prompt
 }

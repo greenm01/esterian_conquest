@@ -1,26 +1,24 @@
 use ratatui::layout::{Constraint, Layout, Rect};
 
-use crate::lobby::state::{LobbyApp, LobbyFocus, LobbyRoute, LobbyState};
+use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
 use crate::overlays::frame::RelativePopupOrigin;
 
 const HOME_MIN_WIDTH: u16 = 72;
-const HOME_MIN_HEIGHT: u16 = 26;
-const HEADER_HEIGHT: u16 = 5;
-const FOOTER_HEIGHT: u16 = 5;
+const HOME_MIN_HEIGHT: u16 = 20;
+const MAX_HOME_WIDTH: u16 = 140;
+const HEADER_HEIGHT: u16 = 4;
+const FOOTER_HEIGHT: u16 = 3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct HomeLayout {
     pub header: Rect,
-    pub joined: Rect,
-    pub open: Rect,
-    pub comms: Rect,
-    pub footer: Rect,
     pub body: Rect,
+    pub footer: Rect,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaneHit {
-    pub focus: LobbyFocus,
+    pub tab: LobbyTab,
     pub selected_row: Option<usize>,
 }
 
@@ -28,26 +26,23 @@ pub fn home_layout(area: Rect) -> Option<HomeLayout> {
     if area.width < HOME_MIN_WIDTH || area.height < HOME_MIN_HEIGHT {
         return None;
     }
+    let [_, centered_area, _] = Layout::horizontal([
+        Constraint::Fill(1),
+        Constraint::Max(MAX_HOME_WIDTH),
+        Constraint::Fill(1),
+    ])
+    .areas(area);
+
     let [header, body, footer] = Layout::vertical([
         Constraint::Length(HEADER_HEIGHT),
         Constraint::Min(0),
         Constraint::Length(FOOTER_HEIGHT),
     ])
-    .areas(area);
-    let [joined, open, comms] = Layout::horizontal([
-        Constraint::Fill(28),
-        Constraint::Fill(38),
-        Constraint::Fill(34),
-    ])
-    .spacing(1)
-    .areas(body);
+    .areas(centered_area);
     Some(HomeLayout {
         header,
-        joined,
-        open,
-        comms,
-        footer,
         body,
+        footer,
     })
 }
 
@@ -58,33 +53,29 @@ pub fn hit_test_home(
     row: u16,
 ) -> Option<PaneHit> {
     let layout = home_layout(Rect::new(0, 0, geometry.width() as u16, geometry.height() as u16))?;
-    pane_hit(
-        state,
-        layout.joined,
-        LobbyFocus::JoinedGames,
-        column,
-        row,
-        state.joined_selected,
-    )
-    .or_else(|| {
-        pane_hit(
-            state,
-            layout.open,
-            LobbyFocus::OpenGames,
-            column,
+    if contains(layout.header, column, row) {
+        if let Some(tab) = super::home::hit_test_tabs(state, layout.header, column, row) {
+            return Some(PaneHit { tab, selected_row: None });
+        }
+    }
+    if !contains(layout.body, column, row) {
+        return None;
+    }
+    let content = padded_inner(layout.body);
+    let selected_row = if contains(content, column, row) {
+        clicked_row(
+            tab_row_count(state),
+            content,
+            tab_selected_index(state),
             row,
-            state.open_selected,
+            tab_header_rows(state.active_tab),
         )
-    })
-    .or_else(|| {
-        pane_hit(
-            state,
-            layout.comms,
-            LobbyFocus::Thread,
-            column,
-            row,
-            state.comms_selected,
-        )
+    } else {
+        None
+    };
+    Some(PaneHit {
+        tab: state.active_tab,
+        selected_row,
     })
 }
 
@@ -110,11 +101,11 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
     Some(popup_rect(layout.body, size, app.popup_position))
 }
 
-pub(crate) fn contains(area: Rect, column: u16, row: u16) -> bool {
+pub fn contains(area: Rect, column: u16, row: u16) -> bool {
     column >= area.x && column < area.right() && row >= area.y && row < area.bottom()
 }
 
-pub(crate) fn padded_inner(area: Rect) -> Rect {
+pub fn padded_inner(area: Rect) -> Rect {
     Rect::new(
         area.x.saturating_add(2),
         area.y.saturating_add(2),
@@ -123,7 +114,7 @@ pub(crate) fn padded_inner(area: Rect) -> Rect {
     )
 }
 
-pub(crate) fn scroll_offset(total_rows: usize, visible_rows: usize, selected: usize) -> usize {
+pub fn scroll_offset(total_rows: usize, visible_rows: usize, selected: usize) -> usize {
     if total_rows == 0 || visible_rows == 0 {
         return 0;
     }
@@ -132,7 +123,7 @@ pub(crate) fn scroll_offset(total_rows: usize, visible_rows: usize, selected: us
         .min(total_rows.saturating_sub(visible_rows))
 }
 
-pub(super) fn popup_rect(
+pub fn popup_rect(
     parent: Rect,
     preferred: (u16, u16),
     origin: Option<RelativePopupOrigin>,
@@ -156,40 +147,19 @@ pub(super) fn help_popup_size(parent: Rect) -> (u16, u16) {
     (parent.width.saturating_sub(8).min(72), 17)
 }
 
-fn pane_hit(
-    state: &LobbyState,
-    area: Rect,
-    focus: LobbyFocus,
-    column: u16,
-    row: u16,
-    selected: usize,
-) -> Option<PaneHit> {
-    if !contains(area, column, row) {
-        return None;
+fn tab_row_count(state: &LobbyState) -> usize {
+    match state.active_tab {
+        LobbyTab::MyGames => state.joined_games.len(),
+        LobbyTab::OpenGames => state.open_games.len(),
+        LobbyTab::Comms => state.comms_hotlist_rows().len(),
     }
-    let content = padded_inner(area);
-    let selected_row = if contains(content, column, row) {
-        clicked_row(
-            focus_row_count(state, focus),
-            content,
-            selected,
-            row,
-            table_header_rows(focus),
-        )
-    } else {
-        None
-    };
-    Some(PaneHit {
-        focus,
-        selected_row,
-    })
 }
 
-fn focus_row_count(state: &LobbyState, focus: LobbyFocus) -> usize {
-    match focus {
-        LobbyFocus::JoinedGames => state.joined_games.len(),
-        LobbyFocus::OpenGames => state.open_games.len(),
-        LobbyFocus::Thread => state.comms_hotlist_rows().len(),
+fn tab_selected_index(state: &LobbyState) -> usize {
+    match state.active_tab {
+        LobbyTab::MyGames => state.joined_selected,
+        LobbyTab::OpenGames => state.open_selected,
+        LobbyTab::Comms => state.comms_selected,
     }
 }
 
@@ -216,10 +186,10 @@ fn clicked_row(
     (absolute_row < total_rows).then_some(absolute_row)
 }
 
-fn table_header_rows(focus: LobbyFocus) -> usize {
-    match focus {
-        LobbyFocus::JoinedGames => 1,
-        LobbyFocus::OpenGames => 2,
-        LobbyFocus::Thread => 1,
+fn tab_header_rows(tab: LobbyTab) -> usize {
+    match tab {
+        LobbyTab::MyGames => 1,
+        LobbyTab::OpenGames => 2,
+        LobbyTab::Comms => 1,
     }
 }

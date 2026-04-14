@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Widget};
 
@@ -8,138 +8,13 @@ use crate::lobby::models::{CommsConversationKind, CommsConversationRow, DirectCo
 use crate::lobby::ui::{
     panel_block, scroll_offset, truncate_title, with_panel_bg, write_text,
 };
-use crate::lobby::state::{LobbyFocus, LobbyState, ThreadPaneFocus};
+use crate::lobby::state::{LobbyState, LobbyTab, ThreadPaneFocus};
 use crate::theme;
 
 use super::format::{
     ThreadRenderLine, direct_thread_render_lines, notice_render_lines,
 };
 use super::layout::workspace_layout;
-
-pub fn render_comms_hotlist_panel(
-    buffer: &mut Buffer,
-    area: Rect,
-    focused: bool,
-    state: &LobbyState,
-) {
-    const TYPE_WIDTH: u16 = 8;
-    let styles = theme::tui_theme();
-    let block = panel_block(" COMMS ", focused);
-    let inner = block.inner(area);
-    block.render(area, buffer);
-    if inner.width == 0 || inner.height == 0 {
-        return;
-    }
-
-    let [header_area, body_area] =
-        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
-    buffer.set_stringn(
-        header_area.x,
-        header_area.y,
-        &" ".repeat(header_area.width as usize),
-        header_area.width as usize,
-        with_panel_bg(styles.label),
-    );
-    let [type_area, title_area, preview_area] = Layout::horizontal([
-        Constraint::Length(TYPE_WIDTH),
-        Constraint::Fill(2),
-        Constraint::Fill(3),
-    ])
-    .spacing(1)
-    .areas(header_area);
-    buffer.set_stringn(
-        type_area.x,
-        type_area.y,
-        "Type",
-        type_area.width as usize,
-        with_panel_bg(styles.label),
-    );
-    buffer.set_stringn(
-        title_area.x,
-        title_area.y,
-        "Thread",
-        title_area.width as usize,
-        with_panel_bg(styles.label),
-    );
-    buffer.set_stringn(
-        preview_area.x,
-        preview_area.y,
-        "Preview",
-        preview_area.width as usize,
-        with_panel_bg(styles.label),
-    );
-
-    let rows = state.comms_hotlist_rows();
-    if rows.is_empty() {
-        buffer.set_stringn(
-            body_area.x,
-            body_area.y,
-            "<no messages yet>",
-            body_area.width as usize,
-            with_panel_bg(styles.dim),
-        );
-        return;
-    }
-
-    let visible_rows = body_area.height as usize;
-    if visible_rows == 0 {
-        return;
-    }
-    let scroll = scroll_offset(rows.len(), visible_rows, state.comms_selected);
-    for (offset, row) in rows.iter().skip(scroll).take(visible_rows).enumerate() {
-        let line_area = Rect::new(body_area.x, body_area.y + offset as u16, body_area.width, 1);
-        let row_style = if focused && state.comms_selected == scroll + offset {
-            styles.selected
-        } else {
-            with_panel_bg(styles.value)
-        };
-        buffer.set_stringn(
-            line_area.x,
-            line_area.y,
-            &" ".repeat(line_area.width as usize),
-            line_area.width as usize,
-            row_style,
-        );
-        let [type_area, title_area, preview_area] = Layout::horizontal([
-            Constraint::Length(TYPE_WIDTH),
-            Constraint::Fill(2),
-            Constraint::Fill(3),
-        ])
-        .spacing(1)
-        .areas(line_area);
-        let unread = if row.unread_count == 0 {
-            String::new()
-        } else {
-            format!(" {}", row.unread_count)
-        };
-        let title = format!(
-            "{}{}",
-            truncate_title(&row.title, title_area.width.saturating_sub(unread.len() as u16) as usize),
-            unread
-        );
-        buffer.set_stringn(
-            type_area.x,
-            type_area.y,
-            conversation_kind_label(row.kind),
-            type_area.width as usize,
-            row_style,
-        );
-        buffer.set_stringn(
-            title_area.x,
-            title_area.y,
-            &title,
-            title_area.width as usize,
-            row_style,
-        );
-        buffer.set_stringn(
-            preview_area.x,
-            preview_area.y,
-            &row.preview.replace('\n', " "),
-            preview_area.width as usize,
-            row_style,
-        );
-    }
-}
 
 pub fn render_comms_scene(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
     if area.width == 0 || area.height == 0 {
@@ -191,7 +66,7 @@ fn render_comms_transcript(buffer: &mut Buffer, area: Rect, state: &LobbyState) 
     let title = format!(" THREAD: {} ", truncate_title(&active_label, 28));
     let block = panel_block(
         &title,
-        state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Chat,
+        state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::Chat,
     );
     let inner = block.inner(area);
     block.render(area, buffer);
@@ -206,7 +81,7 @@ fn render_comms_transcript(buffer: &mut Buffer, area: Rect, state: &LobbyState) 
             inner.y,
             "<no conversation selected>",
             inner.width as usize,
-            with_panel_bg(styles.dim),
+            with_panel_bg(styles.error),
         );
         return;
     }
@@ -242,13 +117,13 @@ fn render_comms_transcript(buffer: &mut Buffer, area: Rect, state: &LobbyState) 
 fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
     let styles = theme::tui_theme();
     let state = &app.state;
-    let border = if state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Chat
+    let border = if state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::Chat
     {
         styles.accent
     } else {
         styles.border
     };
-    let title = if state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Chat
+    let title = if state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::Chat
     {
         styles.selected
     } else {
@@ -272,7 +147,7 @@ fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
             inner.y,
             "<no active thread>",
             inner.width as usize,
-            with_panel_bg(styles.dim),
+            with_panel_bg(styles.error),
         );
         return;
     };
@@ -291,7 +166,7 @@ fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
     let draft_x = inner.x.saturating_add(1);
     let draft_width = inner.width.saturating_sub(1) as usize;
     let draft = trailing_chars(&state.compose_message_input, draft_width.saturating_sub(1));
-    let style = if state.focus == LobbyFocus::Thread
+    let style = if state.active_tab == LobbyTab::Comms
         && state.thread_pane_focus == ThreadPaneFocus::Chat
     {
         with_panel_bg(styles.value)
@@ -302,7 +177,7 @@ fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
         return;
     }
     buffer.set_stringn(draft_x, inner.y, &draft, draft_width, style);
-    if state.focus == LobbyFocus::Thread
+    if state.active_tab == LobbyTab::Comms
         && state.thread_pane_focus == ThreadPaneFocus::Chat
         && app.comms_cursor_visible
     {
@@ -330,7 +205,7 @@ fn render_comms_unread(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
     };
     let block = panel_block(
         &title,
-        state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::New,
+        state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::New,
     );
     let inner = block.inner(area);
     block.render(area, buffer);
@@ -345,7 +220,7 @@ fn render_comms_unread(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
             inner.y,
             "<no unread threads>",
             inner.width as usize,
-            with_panel_bg(styles.dim),
+            with_panel_bg(styles.error),
         );
         return;
     }
@@ -356,7 +231,7 @@ fn render_comms_unread(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
         let line_row = inner.y + offset as u16;
         let is_selected = selected == scroll + offset;
         let style = if is_selected
-            && state.focus == LobbyFocus::Thread
+            && state.active_tab == LobbyTab::Comms
             && state.thread_pane_focus == ThreadPaneFocus::New
         {
             styles.selected
@@ -376,7 +251,7 @@ fn render_comms_sidebar(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
     let styles = theme::tui_theme();
     let block = panel_block(
         " THREADS ",
-        state.focus == LobbyFocus::Thread && state.thread_pane_focus == ThreadPaneFocus::Threads,
+        state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::Threads,
     );
     let inner = block.inner(area);
     block.render(area, buffer);
@@ -392,7 +267,7 @@ fn render_comms_sidebar(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
             inner.y,
             "<no conversations>",
             inner.width as usize,
-            with_panel_bg(styles.dim),
+            with_panel_bg(styles.error),
         );
         return;
     }
@@ -423,7 +298,7 @@ fn render_comms_sidebar(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
             SidebarLine::Conversation(item) => {
                 let is_selected = selected == scroll + offset;
                 let style = if is_selected
-                    && state.focus == LobbyFocus::Thread
+                    && state.active_tab == LobbyTab::Comms
                     && state.thread_pane_focus == ThreadPaneFocus::Threads
                 {
                     styles.selected
@@ -456,14 +331,6 @@ fn active_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine
         Some(CommsConversationKind::Direct) => direct_thread_render_lines(state, width),
         Some(CommsConversationKind::GameMail) => Vec::new(),
         None => Vec::new(),
-    }
-}
-
-fn conversation_kind_label(kind: CommsConversationKind) -> &'static str {
-    match kind {
-        CommsConversationKind::Announcement => "BCAST",
-        CommsConversationKind::GameMail => "GAME",
-        CommsConversationKind::Direct => "DIRECT",
     }
 }
 

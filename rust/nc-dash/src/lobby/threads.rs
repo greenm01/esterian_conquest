@@ -7,4 +7,4 @@ pub use format::{
     notice_render_lines, notice_rows, thread_prompt_label,
 };
 pub use layout::{ThreadWorkspaceHit, hit_test_workspace};
-pub use render::{render_comms_hotlist_panel, render_comms_scene, render_thread_line};
+pub use render::{render_comms_scene, render_thread_line};

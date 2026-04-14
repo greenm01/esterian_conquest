@@ -3,7 +3,7 @@ use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{
-    FirstRunField, HostedGameView, KeychainGateMode, LobbyFocus, LobbyRoute,
+    FirstRunField, HostedGameView, KeychainGateMode, LobbyRoute, LobbyTab,
 };
 use nc_dash::lobby::transport::LobbyLoadedState;
 use nc_dash::lobby::update::apply_key;
@@ -88,7 +88,7 @@ fn paste_shortcuts_fill_single_line_lobby_fields() {
     assert_eq!(app.state.compose_message_input, "hellothere");
 
     app.state.route = LobbyRoute::Comms;
-    app.state.focus = LobbyFocus::Thread;
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -201,13 +201,13 @@ fn theme_picker_previews_and_accepts_theme_choice() {
 #[test]
 fn question_mark_toggles_help_and_suppresses_home_navigation() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
-    let original_focus = app.state.focus;
+    let original_tab = app.state.active_tab;
 
     apply_key(&mut app, key(KeyCode::Char('?')));
     assert!(app.state.show_help);
 
     apply_key(&mut app, key(KeyCode::Down));
-    assert_eq!(app.state.focus, original_focus);
+    assert_eq!(app.state.active_tab, original_tab);
 
     apply_key(&mut app, key(KeyCode::Enter));
     assert!(!app.state.show_help);
@@ -363,7 +363,7 @@ fn apply_loaded_updates_stale_host_contact_label() {
 
 #[test]
 fn typing_in_chat_focus_appends_to_comms_draft() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -374,21 +374,21 @@ fn typing_in_chat_focus_appends_to_comms_draft() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.focus = LobbyFocus::Thread;
+    app.state.active_tab = LobbyTab::Comms;
     app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
         contact_npub: "npub1sysop".to_string(),
     });
 
     apply_key(&mut app, key(KeyCode::Char('m')));
 
-    assert_eq!(app.state.route, LobbyRoute::Comms);
-    assert_eq!(app.state.focus, LobbyFocus::Thread);
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(app.state.active_tab, LobbyTab::Comms);
     assert_eq!(app.state.compose_message_input, "m");
 }
 
 #[test]
 fn hjkl_do_not_navigate_when_chat_is_focused() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -399,7 +399,7 @@ fn hjkl_do_not_navigate_when_chat_is_focused() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.focus = LobbyFocus::Thread;
+    app.state.active_tab = LobbyTab::Comms;
     app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
         contact_npub: "npub1sysop".to_string(),
     });
@@ -407,7 +407,7 @@ fn hjkl_do_not_navigate_when_chat_is_focused() {
 
     apply_key(&mut app, key(KeyCode::Char('h')));
 
-    assert_eq!(app.state.route, LobbyRoute::Comms);
+    assert_eq!(app.state.route, LobbyRoute::Home);
     assert_eq!(app.state.compose_message_input, "h");
 }
 
@@ -424,11 +424,12 @@ fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
         unread_count: 2,
         last_activity_at: None,
     }];
-    app.state.focus = LobbyFocus::Thread;
+    app.state.active_tab = LobbyTab::Comms;
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::New;
 
     apply_key(&mut app, key(KeyCode::Enter));
 
-    assert_eq!(app.state.route, LobbyRoute::Comms);
+    assert_eq!(app.state.route, LobbyRoute::Home);
     assert_eq!(
         app.state.thread_pane_focus,
         nc_dash::lobby::state::ThreadPaneFocus::Chat
@@ -438,8 +439,8 @@ fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
 
 #[test]
 fn enter_in_chat_focus_keeps_comms_open_when_no_draft() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
-    app.state.focus = LobbyFocus::Thread;
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -457,13 +458,13 @@ fn enter_in_chat_focus_keeps_comms_open_when_no_draft() {
 
     apply_key(&mut app, key(KeyCode::Enter));
 
-    assert_eq!(app.state.route, LobbyRoute::Comms);
+    assert_eq!(app.state.route, LobbyRoute::Home);
 }
 
 #[test]
 fn thread_contact_list_moves_selection_before_transcript_scroll() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
-    app.state.focus = LobbyFocus::Thread;
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![
         DirectContactRow {
             npub: "npub1host".to_string(),
@@ -503,8 +504,8 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
 
 #[test]
 fn tab_cycles_comms_focus() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
-    app.state.focus = LobbyFocus::Thread;
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -519,13 +520,13 @@ fn tab_cycles_comms_focus() {
         contact_npub: "npub1sysop".to_string(),
     });
 
-    apply_key(&mut app, key(KeyCode::Tab));
+    apply_key(&mut app, key(KeyCode::Right));
     assert_eq!(
         app.state.thread_pane_focus,
         nc_dash::lobby::state::ThreadPaneFocus::New
     );
 
-    apply_key(&mut app, key(KeyCode::Tab));
+    apply_key(&mut app, key(KeyCode::Right));
     assert_eq!(
         app.state.thread_pane_focus,
         nc_dash::lobby::state::ThreadPaneFocus::Threads
@@ -534,8 +535,8 @@ fn tab_cycles_comms_focus() {
 
 #[test]
 fn thread_transcript_scrolls_when_chat_focus_is_active() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
-    app.state.focus = LobbyFocus::Thread;
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Chat;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -572,7 +573,7 @@ fn thread_transcript_scrolls_when_chat_focus_is_active() {
 
 #[test]
 fn address_book_blocks_selected_contact_locally() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![
         DirectContactRow {
             npub: "npub1sysop".to_string(),
@@ -609,8 +610,8 @@ fn address_book_blocks_selected_contact_locally() {
 
 #[test]
 fn delete_hides_selected_thread_conversation_locally() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
-    app.state.focus = LobbyFocus::Thread;
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![
         DirectContactRow {
             npub: "npub1sysop".to_string(),
@@ -674,17 +675,17 @@ fn locked_resume_escape_returns_to_matrix_lock() {
 fn resume_sync_overlay_blocks_home_input_until_dismissed() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.show_resume_sync_overlay = true;
-    app.state.focus = LobbyFocus::OpenGames;
+    app.state.active_tab = LobbyTab::OpenGames;
 
     app.dispatch_key_event_for_test(key(KeyCode::Tab));
 
     assert!(app.state.show_resume_sync_overlay);
-    assert_eq!(app.state.focus, LobbyFocus::OpenGames);
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
 
     app.dispatch_key_event_for_test(key(KeyCode::Enter));
 
     assert!(!app.state.show_resume_sync_overlay);
-    assert_eq!(app.state.focus, LobbyFocus::OpenGames);
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
 }
 
 #[test]
@@ -732,12 +733,13 @@ fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
         ),
     ];
 
+    app.state.active_tab = LobbyTab::MyGames;
     let buffer = app.render_for_test().expect("render lobby");
     let (title_row, title_col) = (0..buffer.height())
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find(" MY GAMES ")
+                .find(" MY ACTIVE GAMES ")
                 .map(|col| (row, col))
         })
         .expect("joined panel");
@@ -748,14 +750,14 @@ fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
         (title_row + 4) as u16,
     ));
 
-    assert_eq!(app.state.focus, LobbyFocus::JoinedGames);
+    assert_eq!(app.state.active_tab, LobbyTab::MyGames);
     assert_eq!(app.state.joined_selected, 1);
 }
 
 #[test]
 fn enter_on_requested_or_rejected_row_does_not_open_hosted_game() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
-    app.state.focus = LobbyFocus::JoinedGames;
+    app.state.active_tab = LobbyTab::MyGames;
     app.state.joined_games = vec![
         JoinedGameRow::new(
             "friday-night",
@@ -828,15 +830,16 @@ fn clicking_pane_border_focuses_without_changing_selection() {
             "summary",
         ),
     ];
-    app.state.focus = LobbyFocus::JoinedGames;
+    app.state.active_tab = LobbyTab::MyGames;
     app.state.open_selected = 1;
 
+    app.state.active_tab = LobbyTab::OpenGames;
     let buffer = app.render_for_test().expect("render lobby");
     let (header_row, header_col) = (0..buffer.height())
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find("Open")
+                .find(" OPEN GAMES AVAILABLE TO JOIN ")
                 .map(|col| (row, col))
         })
         .expect("open games header");
@@ -847,7 +850,7 @@ fn clicking_pane_border_focuses_without_changing_selection() {
         header_row as u16,
     ));
 
-    assert_eq!(app.state.focus, LobbyFocus::OpenGames);
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
     assert_eq!(app.state.open_selected, 1);
 }
 

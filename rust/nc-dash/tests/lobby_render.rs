@@ -43,47 +43,25 @@ fn find_first_char(buffer: &nc_ui::PlayfieldBuffer, ch: char) -> Option<(usize, 
 }
 
 #[test]
-fn home_route_renders_three_pane_shell_copy() {
+fn home_route_renders_tabbed_shell_copy() {
     let lines = render_lines_at(LobbyRoute::Home, 180, 40);
 
     assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
     assert!(lines.contains("NETWORK: NO RELAY"));
-    assert!(lines.contains("MY GAMES"));
+    assert!(lines.contains("[ My Games ]"));
+    assert!(lines.contains("[ Open Games ]"));
+    assert!(lines.contains("[ Comms ]"));
+    assert!(lines.contains("MY ACTIVE GAMES"));
     assert!(lines.contains("Status"));
     assert!(lines.contains("Seat"));
-    assert!(lines.contains("Year"));
-    assert!(lines.contains("COMMS"));
+    assert!(lines.contains("Time (Y:T)"));
     assert!(lines.contains("? Help"));
     assert!(lines.contains("J>oin"));
     assert!(lines.contains("Alt-Lock"));
     assert!(lines.contains("S>ettings"));
-    assert!(lines.contains("GAMES"));
-    assert!(lines.contains("Map"));
-    assert!(lines.contains("Size"));
-    assert!(lines.contains("Date"));
-    assert!(lines.contains("Created"));
-    assert!(lines.contains("Seats"));
-    assert!(lines.contains("Turn"));
-    assert!(lines.contains("Thread"));
-    assert!(lines.contains("Preview"));
+    assert!(lines.contains("OPEN GAMES AVAILABLE TO JOIN"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
-}
-
-#[test]
-fn open_games_header_stacks_open_above_seats() {
-    let buffer = render_app_buffer(LobbyApp::new_for_tests(
-        LobbyRoute::Home,
-        ScreenGeometry::new(180, 40),
-    ));
-    let open_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("Open"))
-        .expect("open header row");
-    let seats_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("Seats"))
-        .expect("seats header row");
-
-    assert_eq!(open_row + 1, seats_row);
 }
 
 #[test]
@@ -187,9 +165,8 @@ fn home_route_help_popup_renders_as_overlay() {
     let lines = render_app_lines(app);
 
     assert!(lines.contains("HELP"));
-    assert!(lines.contains("Tab        : cycle focus across lobby panels"));
+    assert!(lines.contains("Tab        : cycle dashboard tabs"));
     assert!(lines.contains("Enter      : open selected game"));
-    assert!(lines.contains("T          : open full-screen COMMS"));
     assert!(lines.contains("J          : compose a join request"));
     assert!(lines.contains("Alt-A      : open the address book from COMMS"));
     assert!(lines.contains("Alt-L      : lock nc-dash"));
