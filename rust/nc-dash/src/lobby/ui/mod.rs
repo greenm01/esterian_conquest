@@ -6,9 +6,10 @@ mod tables;
 
 pub use self::chrome::{panel_block, truncate_title, with_panel_bg, write_text};
 pub use self::layout::{
-    active_popup_rect, contains, hit_test_home, home_layout, padded_inner, popup_title_bar_contains,
-    scroll_offset,
+    active_popup_rect, contains, hit_test_home, home_layout, home_tab_content_area, padded_inner,
+    popup_title_bar_contains, scroll_offset,
 };
+pub(crate) use self::home::hit_test_tabs;
 
 use nc_ui::PlayfieldBuffer;
 use ratatui::buffer::Buffer;

@@ -1,5 +1,6 @@
+use ratatui::layout::Rect;
 use ratatui::style::Style;
-use ratatui::widgets::{Block, Borders, Padding};
+use ratatui::widgets::{Block, BorderType, Borders, Padding};
 
 use crate::lobby::state::{LobbyNetworkStatus, LobbyStatusTone};
 use crate::theme;
@@ -15,6 +16,20 @@ pub fn panel_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
         .style(styles.body)
         .border_style(with_panel_bg(border))
         .title_style(with_panel_bg(title_style))
+}
+
+pub(super) fn shell_block(border_style: Style) -> Block<'static> {
+    let styles = theme::tui_theme();
+    Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .padding(Padding::horizontal(1))
+        .style(styles.body)
+        .border_style(with_panel_bg(border_style))
+}
+
+pub(super) fn shell_inner(area: Rect) -> Rect {
+    shell_block(Style::default()).inner(area)
 }
 
 pub(super) fn chrome_block(border_style: Style) -> Block<'static> {

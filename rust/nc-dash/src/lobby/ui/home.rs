@@ -6,26 +6,24 @@ use crate::lobby::state::{LobbyApp, LobbyState, LobbyTab};
 use crate::lobby::threads;
 use crate::theme;
 
-use super::chrome::{chrome_block, network_style, with_panel_bg};
-use super::layout::HomeLayout;
+use super::chrome::{network_style, shell_block, with_panel_bg};
+use super::layout::{home_tab_content_area, HomeLayout};
 use super::tables::{render_table_panel, TableCellAlign, TableColumnSpec};
 
-pub(super) fn hit_test_tabs(state: &LobbyState, area: Rect, col: u16, row: u16) -> Option<LobbyTab> {
-    let block = chrome_block(ratatui::style::Style::default());
-    let inner = block.inner(area);
-    if inner.height <= 1 || row != inner.y + 1 {
+pub(crate) fn hit_test_tabs(
+    state: &LobbyState,
+    area: Rect,
+    col: u16,
+    row: u16,
+) -> Option<LobbyTab> {
+    if area.height < 2 || row != area.y + 1 {
         return None;
     }
-    let specs = get_tab_specs(state);
-    let gap = 2u16;
-    let total_width: u16 = specs.iter().map(|s| s.width).sum::<u16>() + gap * (specs.len() as u16 - 1);
-    let mut current_col = inner.x + inner.width.saturating_sub(total_width) / 2;
 
-    for spec in specs {
-        if col >= current_col && col < current_col + spec.width {
-            return Some(spec.tab);
+    for span in tab_spans(state, Rect::new(area.x, area.y + 1, area.width, 1)) {
+        if col >= span.x && col < span.x + span.width {
+            return Some(span.tab);
         }
-        current_col += spec.width + gap;
     }
     None
 }
@@ -33,6 +31,14 @@ pub(super) fn hit_test_tabs(state: &LobbyState, area: Rect, col: u16, row: u16) 
 struct TabSpec {
     tab: LobbyTab,
     label: String,
+    width: u16,
+}
+
+#[derive(Clone)]
+struct TabSpan {
+    tab: LobbyTab,
+    text: String,
+    x: u16,
     width: u16,
 }
 
@@ -47,95 +53,117 @@ fn get_tab_specs(state: &LobbyState) -> Vec<TabSpec> {
         TabSpec {
             tab: LobbyTab::MyGames,
             label: " My Games ".to_string(),
-            width: 12,
+            width: "[ My Games ]".chars().count() as u16,
         },
         TabSpec {
             tab: LobbyTab::OpenGames,
             label: " Open Games ".to_string(),
-            width: 14,
+            width: "[ Open Games ]".chars().count() as u16,
         },
         TabSpec {
             tab: LobbyTab::Comms,
             label: comms_label,
-            width: 9 + if unread > 0 { unread.to_string().len() as u16 + 2 } else { 0 },
+            width: if unread > 0 {
+                format!("[ Comms ({}) ]", unread).chars().count() as u16
+            } else {
+                "[ Comms ]".chars().count() as u16
+            },
         },
     ]
 }
 
+fn tab_spans(state: &LobbyState, area: Rect) -> Vec<TabSpan> {
+    let specs = get_tab_specs(state);
+    let gap = 2u16;
+    let total_width =
+        specs.iter().map(|spec| spec.width).sum::<u16>() + gap * (specs.len() as u16 - 1);
+    let mut x = area.x + area.width.saturating_sub(total_width) / 2;
+
+    specs
+        .into_iter()
+        .map(|spec| {
+            let span = TabSpan {
+                tab: spec.tab,
+                text: format!("[{}]", spec.label),
+                x,
+                width: spec.width,
+            };
+            x += spec.width + gap;
+            span
+        })
+        .collect()
+}
+
 pub(super) fn render_home_base(buffer: &mut Buffer, app: &LobbyApp, layout: HomeLayout) {
     let state = &app.state;
-    HeaderHudWidget { state }.render(layout.header, buffer);
+    render_shell(buffer, state, layout);
     match state.active_tab {
         LobbyTab::MyGames => {
-            render_joined_games_panel(buffer, layout.body, true, state);
+            render_joined_games_panel(
+                buffer,
+                home_tab_content_area(layout.body, LobbyTab::MyGames),
+                true,
+                state,
+            );
         }
         LobbyTab::OpenGames => {
-            render_open_games_panel(buffer, layout.body, true, state);
+            render_open_games_panel(
+                buffer,
+                home_tab_content_area(layout.body, LobbyTab::OpenGames),
+                true,
+                state,
+            );
         }
         LobbyTab::Comms => {
-            threads::render_comms_scene(buffer, layout.body, app);
+            threads::render_comms_scene(
+                buffer,
+                home_tab_content_area(layout.body, LobbyTab::Comms),
+                app,
+            );
         }
     }
-    FooterMenuWidget.render(layout.footer, buffer);
 }
 
-struct HeaderHudWidget<'a> {
-    state: &'a LobbyState,
+fn render_shell(buffer: &mut Buffer, state: &LobbyState, layout: HomeLayout) {
+    let styles = theme::tui_theme();
+    let block = shell_block(styles.border);
+    block.render(layout.shell, buffer);
+    render_header(buffer, state, layout.header);
+    render_footer_tokens(buffer, layout.footer);
 }
 
-impl Widget for HeaderHudWidget<'_> {
-    fn render(self, area: Rect, buffer: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
+fn render_header(buffer: &mut Buffer, state: &LobbyState, area: Rect) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let styles = theme::tui_theme();
+    let network_line = format!("NETWORK: {}", state.network_status.label());
+    buffer.set_stringn(
+        area.x,
+        area.y,
+        "NOSTRIAN CONQUEST LOBBY",
+        area.width as usize,
+        with_panel_bg(styles.title),
+    );
+    right_align(
+        buffer,
+        area,
+        area.y,
+        &network_line,
+        with_panel_bg(network_style(state.network_status)),
+    );
+
+    if area.height > 1 {
+        render_tabs(buffer, state, Rect::new(area.x, area.y + 1, area.width, 1));
+    }
+}
+
+fn render_tabs(buffer: &mut Buffer, state: &LobbyState, area: Rect) {
+    for span in tab_spans(state, area) {
         let styles = theme::tui_theme();
-        let network_line = format!("NETWORK: {}", self.state.network_status.label());
-        let block = chrome_block(styles.border);
-        let inner = block.inner(area);
-        block.render(area, buffer);
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-        buffer.set_stringn(
-            inner.x,
-            inner.y,
-            "NOSTRIAN CONQUEST LOBBY",
-            inner.width as usize,
-            with_panel_bg(styles.title),
-        );
-        right_align(
-            buffer,
-            inner,
-            inner.y,
-            &network_line,
-            with_panel_bg(network_style(self.state.network_status)),
-        );
+        let is_active = state.active_tab == span.tab;
+        let has_unread = span.tab == LobbyTab::Comms && state.thread_unread_total() > 0;
 
-        if inner.height > 1 {
-            self.render_tabs(Rect::new(inner.x, inner.y + 1, inner.width, 1), buffer);
-        }
-    }
-}
-
-impl HeaderHudWidget<'_> {
-    fn render_tabs(&self, area: Rect, buffer: &mut Buffer) {
-        let specs = get_tab_specs(self.state);
-        let gap = 2u16;
-        let total_width: u16 =
-            specs.iter().map(|s| s.width).sum::<u16>() + gap * (specs.len() as u16 - 1);
-        let mut col = area.x + area.width.saturating_sub(total_width) / 2;
-
-        for spec in specs {
-            self.render_tab(buffer, col, area.y, &spec.label, spec.tab);
-            col += spec.width + gap;
-        }
-    }
-
-    fn render_tab(&self, buffer: &mut Buffer, x: u16, y: u16, label: &str, tab: LobbyTab) -> u16 {
-        let styles = theme::tui_theme();
-        let is_active = self.state.active_tab == tab;
-        let has_unread = tab == LobbyTab::Comms && self.state.thread_unread_total() > 0;
-        
         let style = if is_active {
             styles.selected
         } else if has_unread {
@@ -144,30 +172,19 @@ impl HeaderHudWidget<'_> {
             styles.label
         };
 
-        let text = format!("[{}]", label);
-        buffer.set_stringn(x, y, &text, area_width_limit(x, text.len(), buffer), with_panel_bg(style));
-        x + text.chars().count() as u16
+        buffer.set_stringn(
+            span.x,
+            area.y,
+            &span.text,
+            area_width_limit(span.x, span.text.len(), buffer),
+            with_panel_bg(style),
+        );
     }
 }
 
 fn area_width_limit(x: u16, len: usize, buffer: &Buffer) -> usize {
     let remaining = buffer.area.width.saturating_sub(x) as usize;
     len.min(remaining)
-}
-
-struct FooterMenuWidget;
-
-impl Widget for FooterMenuWidget {
-    fn render(self, area: Rect, buffer: &mut Buffer) {
-        let styles = theme::tui_theme();
-        let block = chrome_block(styles.border);
-        let inner = block.inner(area);
-        block.render(area, buffer);
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-        render_footer_tokens(buffer, inner);
-    }
 }
 
 fn render_joined_games_panel(

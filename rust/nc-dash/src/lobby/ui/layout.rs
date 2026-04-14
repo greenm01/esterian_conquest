@@ -6,11 +6,13 @@ use crate::overlays::frame::RelativePopupOrigin;
 const HOME_MIN_WIDTH: u16 = 72;
 const HOME_MIN_HEIGHT: u16 = 20;
 const MAX_HOME_WIDTH: u16 = 140;
-const HEADER_HEIGHT: u16 = 4;
-const FOOTER_HEIGHT: u16 = 3;
+const TABLE_TAB_MAX_WIDTH: u16 = 120;
+const HEADER_HEIGHT: u16 = 2;
+const FOOTER_HEIGHT: u16 = 1;
 
 #[derive(Debug, Clone, Copy)]
 pub struct HomeLayout {
+    pub shell: Rect,
     pub header: Rect,
     pub body: Rect,
     pub footer: Rect,
@@ -26,20 +28,22 @@ pub fn home_layout(area: Rect) -> Option<HomeLayout> {
     if area.width < HOME_MIN_WIDTH || area.height < HOME_MIN_HEIGHT {
         return None;
     }
-    let [_, centered_area, _] = Layout::horizontal([
+    let [_, shell, _] = Layout::horizontal([
         Constraint::Fill(1),
         Constraint::Max(MAX_HOME_WIDTH),
         Constraint::Fill(1),
     ])
     .areas(area);
+    let inner = super::chrome::shell_inner(shell);
 
     let [header, body, footer] = Layout::vertical([
         Constraint::Length(HEADER_HEIGHT),
         Constraint::Min(0),
         Constraint::Length(FOOTER_HEIGHT),
     ])
-    .areas(centered_area);
+    .areas(inner);
     Some(HomeLayout {
+        shell,
         header,
         body,
         footer,
@@ -61,7 +65,7 @@ pub fn hit_test_home(
     if !contains(layout.body, column, row) {
         return None;
     }
-    let content = padded_inner(layout.body);
+    let content = padded_inner(home_tab_content_area(layout.body, state.active_tab));
     let selected_row = if contains(content, column, row) {
         clicked_row(
             tab_row_count(state),
@@ -77,6 +81,13 @@ pub fn hit_test_home(
         tab: state.active_tab,
         selected_row,
     })
+}
+
+pub fn home_tab_content_area(body: Rect, tab: LobbyTab) -> Rect {
+    match tab {
+        LobbyTab::Comms => body,
+        LobbyTab::MyGames | LobbyTab::OpenGames => centered_width(body, TABLE_TAB_MAX_WIDTH),
+    }
 }
 
 pub fn popup_title_bar_contains(app: &LobbyApp, column: u16, row: u16) -> bool {
@@ -112,6 +123,12 @@ pub fn padded_inner(area: Rect) -> Rect {
         area.width.saturating_sub(4),
         area.height.saturating_sub(4),
     )
+}
+
+fn centered_width(area: Rect, width: u16) -> Rect {
+    let width = area.width.min(width);
+    let x = area.x + area.width.saturating_sub(width) / 2;
+    Rect::new(x, area.y, width, area.height)
 }
 
 pub fn scroll_offset(total_rows: usize, visible_rows: usize, selected: usize) -> usize {

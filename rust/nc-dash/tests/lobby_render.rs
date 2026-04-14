@@ -1,7 +1,7 @@
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::onboarding::matrix_glyph;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
-use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute};
+use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute, LobbyTab};
 use nc_ui::ScreenGeometry;
 
 fn render_lines(route: LobbyRoute) -> String {
@@ -28,10 +28,6 @@ fn render_app_lines(app: LobbyApp) -> String {
         .join("\n")
 }
 
-fn render_app_buffer(app: LobbyApp) -> nc_ui::PlayfieldBuffer {
-    app.render_for_test().expect("render lobby")
-}
-
 fn find_first_char(buffer: &nc_ui::PlayfieldBuffer, ch: char) -> Option<(usize, usize)> {
     (0..buffer.height()).find_map(|row| {
         buffer
@@ -51,31 +47,35 @@ fn home_route_renders_tabbed_shell_copy() {
     assert!(lines.contains("[ My Games ]"));
     assert!(lines.contains("[ Open Games ]"));
     assert!(lines.contains("[ Comms ]"));
-    assert!(lines.contains("MY ACTIVE GAMES"));
-    assert!(lines.contains("Status"));
-    assert!(lines.contains("Seat"));
-    assert!(lines.contains("Time (Y:T)"));
     assert!(lines.contains("? Help"));
     assert!(lines.contains("J>oin"));
     assert!(lines.contains("Alt-Lock"));
     assert!(lines.contains("S>ettings"));
     assert!(lines.contains("OPEN GAMES AVAILABLE TO JOIN"));
+    assert!(lines.contains("Status"));
+    assert!(lines.contains("Game"));
+    assert!(lines.contains("Host"));
+    assert!(lines.contains("Seats"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
 }
 
 #[test]
 fn home_route_keeps_empty_messages_under_table_headers() {
-    let lines = render_lines(LobbyRoute::Home);
+    let mut my_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    my_games.state.active_tab = LobbyTab::MyGames;
+    assert!(render_app_lines(my_games).contains("<no games yet - press 'j' to join an open game>"));
 
-    assert!(lines.contains("<no games yet>"));
-    assert!(lines.contains("<no hosted games>"));
+    let mut open_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    open_games.state.active_tab = LobbyTab::OpenGames;
+    assert!(render_app_lines(open_games).contains("<no open games - press 'h' to host a new game>"));
 }
 
 #[test]
 fn home_route_tables_split_year_and_turn_columns() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
-    app.state.joined_games = vec![JoinedGameRow::new(
+    let mut my_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
+    my_games.state.active_tab = LobbyTab::MyGames;
+    my_games.state.joined_games = vec![JoinedGameRow::new(
         "friday-night",
         "joined",
         "Friday Night",
@@ -85,7 +85,14 @@ fn home_route_tables_split_year_and_turn_columns() {
         Some(1),
         "Y3004 T4",
     )];
-    app.state.open_games = vec![OpenGameRow::new(
+    let my_lines = render_app_lines(my_games);
+
+    assert!(my_lines.contains("Y3004:T4"));
+    assert!(!my_lines.contains("Y3004 T4"));
+
+    let mut open_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
+    open_games.state.active_tab = LobbyTab::OpenGames;
+    open_games.state.open_games = vec![OpenGameRow::new(
         "saturday-night",
         "Open",
         "Saturday Night",
@@ -100,16 +107,13 @@ fn home_route_tables_split_year_and_turn_columns() {
         "summary",
     )];
 
-    let lines = render_app_lines(app);
+    let lines = render_app_lines(open_games);
 
-    assert!(lines.contains("3004"));
     assert!(lines.contains("3005"));
     assert!(lines.contains("27x27"));
     assert!(lines.contains("2026-04-13"));
     assert!(lines.contains("Open"));
-    assert!(!lines.contains("Y3004"));
     assert!(!lines.contains("y3005"));
-    assert!(!lines.contains("T4"));
     assert!(!lines.contains("t2"));
 }
 
@@ -121,40 +125,59 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
     app.state.status_message = Some("Join request sent.".to_string());
 
     let buffer = app.render_for_test().expect("render lobby");
-    let footer_row = buffer.height() - 3;
+    let footer_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("? Help"))
+        .expect("footer labels");
     let footer = buffer.plain_line(footer_row);
     let footer_start = footer.find("? Help").expect("footer labels");
     let toast_row = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("Join request sent."))
         .expect("toast row");
 
-    assert!(buffer.plain_line(2).contains("NETWORK: SYNCED"));
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("NETWORK: SYNCED"))
+    );
     assert!(footer.contains("J>oin"));
     assert!(footer.contains("Alt-Lock"));
-    assert!(footer.contains("T>Comms"));
+    assert!(footer.contains("Tab Next Tab"));
     assert!(footer.contains("S>ettings"));
     assert!(footer_start > 0);
     assert!(toast_row < footer_row);
 }
 
 #[test]
-fn home_route_footer_spans_width_below_columns() {
+fn home_route_footer_sits_inside_double_shell() {
     let app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     let buffer = app.render_for_test().expect("render lobby");
-    let comms = (0..buffer.height())
+    let body = (0..buffer.height())
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find(" COMMS ")
+                .find(" OPEN GAMES AVAILABLE TO JOIN ")
                 .map(|col| (row, col))
         })
-        .expect("comms title");
-    let footer_border = buffer.height() - 5;
-    let footer_line = buffer.plain_line(footer_border);
+        .expect("open games title");
+    let footer_labels = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("? Help"))
+        .expect("footer labels");
+    let table_left = buffer.row(body.0)
+        .iter()
+        .position(|cell| cell.ch == '┌')
+        .expect("table left border");
+    let shell_border = footer_labels + 1;
+    let shell_left = buffer.row(shell_border)
+        .iter()
+        .position(|cell| cell.ch == '╚')
+        .expect("shell left border");
+    let shell_right = buffer.row(shell_border)
+        .iter()
+        .rposition(|cell| cell.ch == '╝')
+        .expect("shell right border");
 
-    assert!(footer_border > comms.0);
-    assert_eq!(footer_line.chars().next(), Some('┌'));
-    assert_eq!(footer_line.chars().last(), Some('┐'));
+    assert!(shell_border > body.0);
+    assert!(table_left > shell_left);
+    assert_eq!(buffer.row(footer_labels)[shell_left].ch, '║');
+    assert_eq!(buffer.row(footer_labels)[shell_right].ch, '║');
 }
 
 #[test]
@@ -197,11 +220,8 @@ fn settings_popup_themes_base_screen_and_popup_borders() {
                 .map(|col| (row, col))
         })
         .expect("settings popup");
-    let screen_bg = buffer.row(10)[39].style.bg;
     let popup_bg = buffer.row(title_row + 1)[title_col].style.bg;
-
-    assert_eq!(buffer.row(20)[39].style.bg, screen_bg);
-    assert_eq!(
+    assert_ne!(
         buffer.row(title_row)[title_col.saturating_sub(2)].style.bg,
         popup_bg
     );
@@ -261,7 +281,8 @@ fn settings_route_renders_theme_controls() {
 
 #[test]
 fn thread_panel_renders_irc_style_transcript_and_prompt() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(140, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.active_tab = nc_dash::lobby::state::LobbyTab::Comms;
     app.state.player_handle = Some("niltempus".to_string());
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -312,7 +333,8 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
 
 #[test]
 fn comms_route_renders_full_screen_chat_scene() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(140, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.active_tab = nc_dash::lobby::state::LobbyTab::Comms;
     app.state.player_handle = Some("niltempus".to_string());
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -340,8 +362,9 @@ fn comms_route_renders_full_screen_chat_scene() {
 }
 
 #[test]
-fn blocked_contacts_are_hidden_from_threads_pane() {
+fn blocked_contacts_stay_visible_in_threads_pane_with_marker() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![
         DirectContactRow {
             npub: "npub1sysop".to_string(),
@@ -368,12 +391,14 @@ fn blocked_contacts_are_hidden_from_threads_pane() {
     let lines = render_app_lines(app);
 
     assert!(lines.contains("nc_sysop"));
-    assert!(!lines.contains("spam"));
+    assert!(lines.contains("spam"));
+    assert!(lines.contains(" !"));
 }
 
 #[test]
-fn hidden_contacts_are_hidden_from_threads_pane() {
+fn hidden_contacts_stay_visible_in_threads_pane_with_marker() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![
         DirectContactRow {
             npub: "npub1sysop".to_string(),
@@ -400,7 +425,8 @@ fn hidden_contacts_are_hidden_from_threads_pane() {
     let lines = render_app_lines(app);
 
     assert!(lines.contains("nc_sysop"));
-    assert!(!lines.contains("old-friend"));
+    assert!(lines.contains("old-friend"));
+    assert!(lines.contains(" h"));
 }
 
 #[test]

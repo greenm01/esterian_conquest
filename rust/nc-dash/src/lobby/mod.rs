@@ -218,15 +218,41 @@ impl LobbyApp {
             return;
         }
 
+        if self.state.route == LobbyRoute::Home {
+            if let Some(layout) = ui::home_layout(::ratatui::layout::Rect::new(
+                0,
+                0,
+                self.geometry.width() as u16,
+                self.geometry.height() as u16,
+            )) {
+                if let Some(tab) = ui::hit_test_tabs(
+                    &self.state,
+                    layout.header,
+                    mouse.column,
+                    mouse.row,
+                ) {
+                    let previous_context =
+                        self.state.preferred_game_context_id().map(str::to_string);
+                    self.state.active_tab = tab;
+                    self.state.sync_default_contact_selection();
+                    update::reset_context_dependent_views(self, previous_context);
+                    return;
+                }
+            }
+        }
+
         if self.state.route == LobbyRoute::Home && self.state.active_tab == LobbyTab::Comms {
+            let Some(layout) = ui::home_layout(::ratatui::layout::Rect::new(
+                0,
+                0,
+                self.geometry.width() as u16,
+                self.geometry.height() as u16,
+            )) else {
+                return;
+            };
             if let Some(hit) = threads::hit_test_workspace(
                 &self.state,
-                ::ratatui::layout::Rect::new(
-                    0,
-                    0,
-                    self.geometry.width() as u16,
-                    self.geometry.height() as u16,
-                ),
+                ui::home_tab_content_area(layout.body, LobbyTab::Comms),
                 mouse.column,
                 mouse.row,
             ) {
@@ -266,6 +292,7 @@ impl LobbyApp {
             return;
         };
         let previous_context = self.state.preferred_game_context_id().map(str::to_string);
+        self.state.active_tab = hit.tab;
         match hit.tab {
             LobbyTab::MyGames => {
                 if let Some(selected) = hit.selected_row {

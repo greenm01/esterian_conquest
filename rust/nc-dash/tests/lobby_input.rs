@@ -35,6 +35,18 @@ fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
     }
 }
 
+fn tab_token_start(app: &LobbyApp, token: &str) -> (u16, u16) {
+    let buffer = app.render_for_test().expect("render lobby");
+    (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .find(token)
+                .map(|col| (col as u16, row as u16))
+        })
+        .expect("tab token")
+}
+
 #[test]
 fn enter_advances_first_run_fields_before_submit() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
@@ -87,7 +99,7 @@ fn paste_shortcuts_fill_single_line_lobby_fields() {
     apply_key(&mut app, ctrl_key(KeyCode::Char('v')));
     assert_eq!(app.state.compose_message_input, "hellothere");
 
-    app.state.route = LobbyRoute::Comms;
+    app.state.route = LobbyRoute::Home;
     app.state.active_tab = LobbyTab::Comms;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -852,6 +864,114 @@ fn clicking_pane_border_focuses_without_changing_selection() {
 
     assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
     assert_eq!(app.state.open_selected, 1);
+}
+
+#[test]
+fn clicking_header_tabs_switches_active_tab() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    let (open_col, open_row) = tab_token_start(&app, "[ Open Games ]");
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        open_col + 3,
+        open_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
+
+    let (my_col, my_row) = tab_token_start(&app, "[ My Games ]");
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        my_col + 3,
+        my_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::MyGames);
+
+    let (comms_col, comms_row) = tab_token_start(&app, "[ Comms ]");
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        comms_col + 3,
+        comms_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::Comms);
+}
+
+#[test]
+fn clicking_tab_brackets_switches_tabs() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    let (open_col, open_row) = tab_token_start(&app, "[ Open Games ]");
+    let open_len = "[ Open Games ]".chars().count() as u16;
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        open_col,
+        open_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        open_col + open_len - 1,
+        open_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
+
+    let (comms_col, comms_row) = tab_token_start(&app, "[ Comms ]");
+    let comms_len = "[ Comms ]".chars().count() as u16;
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        comms_col,
+        comms_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::Comms);
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        comms_col + comms_len - 1,
+        comms_row,
+    ));
+    assert_eq!(app.state.active_tab, LobbyTab::Comms);
+}
+
+#[test]
+fn clicking_header_margin_does_not_switch_active_tab() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::MyGames;
+
+    let (my_col, my_row) = tab_token_start(&app, "[ My Games ]");
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        my_col.saturating_sub(2),
+        my_row,
+    ));
+
+    assert_eq!(app.state.active_tab, LobbyTab::MyGames);
+}
+
+#[test]
+fn clicking_header_tab_works_while_comms_is_active() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    app.state.active_tab = LobbyTab::Comms;
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+        blocked: false,
+        hidden: false,
+        unread_count: 0,
+        last_activity_at: None,
+    }];
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
+
+    let (open_col, open_row) = tab_token_start(&app, "[ Open Games ]");
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        open_col + 2,
+        open_row,
+    ));
+
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
 }
 
 #[test]
