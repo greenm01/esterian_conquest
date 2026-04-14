@@ -1,6 +1,6 @@
 use ratatui::layout::{Constraint, Layout, Rect};
 
-use super::super::ratatui::{contains, padded_inner, scroll_offset};
+use super::super::ui::{contains, padded_inner, scroll_offset};
 use super::super::state::{LobbyState, ThreadPaneFocus};
 
 #[derive(Debug, Clone, Copy)]

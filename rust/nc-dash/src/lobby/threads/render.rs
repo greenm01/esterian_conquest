@@ -5,7 +5,7 @@ use ratatui::widgets::{Block, Borders, Widget};
 
 use crate::lobby::LobbyApp;
 use crate::lobby::models::{CommsConversationKind, CommsConversationRow, DirectContactRow};
-use crate::lobby::ratatui::{
+use crate::lobby::ui::{
     panel_block, scroll_offset, truncate_title, with_panel_bg, write_text,
 };
 use crate::lobby::state::{LobbyFocus, LobbyState, ThreadPaneFocus};

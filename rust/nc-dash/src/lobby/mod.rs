@@ -2,11 +2,11 @@ mod clipboard;
 pub mod hosted;
 pub mod models;
 pub mod onboarding;
-mod ratatui;
 pub mod state;
 pub mod storage;
 pub mod threads;
 pub mod transport;
+mod ui;
 pub mod update;
 
 use crossterm::event::KeyEvent;
@@ -201,8 +201,8 @@ impl LobbyApp {
     }
 
     fn handle_lobby_mouse_down(&mut self, mouse: MouseEvent) {
-        if ratatui::popup_title_bar_contains(self, mouse.column, mouse.row) {
-            if let Some(popup) = ratatui::active_popup_rect(self) {
+        if ui::popup_title_bar_contains(self, mouse.column, mouse.row) {
+            if let Some(popup) = ui::active_popup_rect(self) {
                 self.mouse_gesture = LobbyMouseGesture::DraggingPopup {
                     grab_col_offset: mouse.column.saturating_sub(popup.x) as usize,
                     grab_row_offset: mouse.row.saturating_sub(popup.y) as usize,
@@ -258,7 +258,7 @@ impl LobbyApp {
             return;
         }
 
-        let Some(hit) = ratatui::hit_test_home(&self.state, self.geometry, mouse.column, mouse.row)
+        let Some(hit) = ui::hit_test_home(&self.state, self.geometry, mouse.column, mouse.row)
         else {
             return;
         };
@@ -299,7 +299,7 @@ impl LobbyApp {
         else {
             return;
         };
-        let Some(layout) = ratatui::home_layout(::ratatui::layout::Rect::new(
+        let Some(layout) = ui::home_layout(::ratatui::layout::Rect::new(
             0,
             0,
             self.geometry.width() as u16,
@@ -414,7 +414,7 @@ impl NativeApp for LobbyApp {
             }
             return Ok(buffer);
         }
-        ratatui::render_scene(&mut buffer, self);
+        ui::render_scene(&mut buffer, self);
         if self.state.show_resume_sync_overlay {
             self.render_resume_sync_overlay(&mut buffer);
         }
