@@ -34,7 +34,7 @@ on `nc-host`.
 Required local files:
 
 - `keychain.kdl`: encrypted single-identity keychain
-- `cache.kdl`: encrypted joined-games cache, approved invite cache, direct
+- `cache.kdl`: encrypted personal-games cache, direct
   contacts, direct chat history, anonymous game-mail history, and joined-game
   diplomacy rosters
 - `config.kdl`: optional relay and client preferences
@@ -83,9 +83,9 @@ payload body. It is not exposed in public relay tags.
 The lobby uses a three-pane layout inside the existing fullscreen `nc-dash`
 shell.
 
-- left pane: `Joined Games` table and `Game Inbox`
+- left pane: `My Games`
 - center pane: `Open Games` recruiting table
-- right pane: communication pane with `Notices` and `Threads`
+- right pane: community `COMMS` hotlist
 
 Use overlays for:
 
@@ -93,8 +93,7 @@ Use overlays for:
 - keychain unlock
 - keychain password change
 - handle edit
-- invite request compose
-- invite approval / claim confirmation
+- join request compose
 - relay or sync error detail
 
 The tables should follow the existing repo table standards and stay data-dense,
@@ -105,17 +104,15 @@ hosted dashboard overlay. The selected theme applies to the whole `nc-dash`
 process, including the hosted dashboard, but that theme runtime is local to
 `nc-dash` and does not replace `nc-game` or `nc-door` theme handling.
 
-## Joined Games Table
+## My Games Table
 
 This table shows only games relevant to the active local identity.
 
 Rows may represent:
 
-- claimed/joined hosted games
-- approved-but-unclaimed invites
-
-Pending invite requests do not live in the joined-games table. They appear in
-the separate notices pane.
+- pending hosted join requests
+- rejected hosted join requests
+- joined hosted games
 
 Suggested columns:
 
@@ -129,8 +126,7 @@ Suggested columns:
 Primary actions:
 
 - open joined game
-- open the selected game's `GAME INBOX` diplomacy thread
-- claim approved invite
+- review pending/rejected request status
 - refresh state
 
 ## Open Games Table
@@ -151,12 +147,12 @@ It never shows raw invite codes, private roster details, or per-player state.
 Primary actions:
 
 - select the game's published host contact as the default `THREADS` target
-- compose/send an invite request
+- compose/send a join request
 - refresh the public catalog
 
 ## Communication Model
 
-`nc-lobby` has two distinct communication surfaces.
+`nc-lobby` keeps community communication separate from anonymous in-game mail.
 
 ### Public Notices
 
@@ -168,50 +164,37 @@ The public area is one host-wide notice board.
 
 This is not a player chat room in v1.
 
-### Game Inbox
+### COMMS
 
-`GAME INBOX` is the anonymous hosted diplomacy surface for joined games only.
-
-- encrypted by default
-- scoped to joined games only
-- keyed by `(game_id, other_empire_id)`
-- labeled only by game name and empire name
-- routed by `nc-host`
-- never reveals another player's `npub`
-
-Use `GAME INBOX` for:
-
-- player-to-player diplomacy
-- quiet coordination inside one hosted game
-- empire-to-empire chat that should stay anonymous at the Nostr identity layer
-
-### Threads
-
-`THREADS` is the global direct-contact surface.
+`COMMS` is the lobby's community communication surface.
 
 - encrypted by default
-- keyed by known contact `npub`
+- contains one read-only `BROADCAST` thread for sysop/community notices
+- contains direct-contact threads keyed by known contact `npub`
 - seeded automatically with the selected game's published host contact
 - manual contacts may be added by `npub` or NIP-05
 
-The default thread target for a selected game should be that game's published
-host contact. In production this may be the relay or game server owner account
-such as `nc_sysop@nostrian-conquest.com`, but the lobby should normally display
-the compact label, not the full NIP-05, in dense widgets.
+The default direct thread target for a selected game should be that game's
+published host contact. In production this may be the relay or game server
+owner account such as `nc_sysop@nostrian-conquest.com`, but the lobby should
+normally display the compact label, not the full NIP-05, in dense widgets.
+
+Anonymous player-to-player diplomacy for joined games stays in-game rather than
+inside lobby `COMMS`.
 
 ## Hosted Event Mapping
 
 `nc-lobby` consumes and emits these hosted events:
 
 - `30500 GameDefinition`: public recruiting table
-- `30513 InviteRequest`: structured invite request
+- `30513 InviteRequest`: structured join request
 - `30514 InviteRequestReceipt`: immediate daemon intake result
-- `30515 InviteDecision`: approval or rejection, including full invite string
+- `30515 InviteDecision`: approval or rejection, including assigned seat on approval
 - `30516 LobbyNotice`: public host-wide notice post
 - `30517 SysopThreadMessage`: optional host/operator private thread surface
 - `30518 ContactMessage`: encrypted direct contact chat
-- `30510 SeatClaimRequest`: claim approved invite
-- `30511 SeatClaimResult`: claim success/failure
+- `30510 SeatClaimRequest`: reserve/manual claim path only
+- `30511 SeatClaimResult`: reserve/manual claim result
 - `30507 StateRequest`: refresh hosted state
 - `30520 GameState`: full hosted snapshot
 - `30521 StateDelta`: incremental hosted update
@@ -219,8 +202,9 @@ the compact label, not the full NIP-05, in dense widgets.
 - `30523 PlayerMessage`: encrypted anonymous player-to-player diplomacy
 - `30524 TurnReceipt`: hosted order intake result
 
-Approved invite strings should be cached locally in `cache.kdl` for the active
-identity until they are claimed or invalidated.
+The normal `nc-dash` lobby flow does not cache or expose invite strings. Invite
+codes remain a hidden operator-only reserve path for manual seat issuance or
+future paid-seat flows.
 
 Only `30500` and `30516` are public/plain. All other hosted lobby/game events
 use NIP-44, and large private payloads may be compressed inside the encrypted
@@ -233,14 +217,12 @@ The lobby keeps a small client-owned model:
 - active identity summary
 - player handle
 - relay target and connection health
-- joined-games cache
-- approved-but-unclaimed invites
+- personal-games cache
 - joined-game diplomacy rosters
-- `GAME INBOX` thread summaries and history
 - direct contact list
-- direct `THREADS` history
-- public notice feed window
-- selected direct thread transcript window
+- direct `COMMS` history
+- public/community notice feed window
+- selected direct or broadcast transcript window
 
 The daemon remains authoritative for:
 
@@ -262,8 +244,8 @@ Keep the hosted lobby split into focused modules under `rust/nc-dash/src/`.
 - `lobby/update.rs`: message/update logic
 - `lobby/transport.rs`: relay subscriptions and hosted request/response wiring
 - `lobby/onboarding.rs`: first-run handle/keychain flow
-- `lobby/threads.rs`: notices plus `THREADS`/`GAME INBOX` transcript formatting
-- `lobby/panels/`: joined-games, open-games, game-inbox, notices, and communication panes
+- `lobby/threads.rs`: `COMMS` transcript formatting and community-thread rendering
+- `lobby/panels/`: joined-games, open-games, and community communication panes
 
 Keep `main.rs`, the native shell, and the root app dispatcher thin. Do not let
 hosted lobby logic accumulate in one giant app module.
@@ -279,9 +261,8 @@ Required states:
 - no public recruiting games
 - no joined games yet
 - pending request with no decision yet
-- approved invite waiting for claim
-- daemon rejects request or claim
-- cached thread/notices unavailable until reconnect
+- daemon rejects request
+- cached community threads/notices unavailable until reconnect
 
 All of these should be explicit UI states, not silent failures.
 
@@ -295,7 +276,6 @@ The architecture is complete when:
 - keychain encryption and password handling are clearly local-only
 - encrypted cache/state files are clearly scoped to platform-specific user
   paths
-- joined-games, open-games, public notices, `GAME INBOX`, and `THREADS` are
-  separate and well-scoped
+- joined-games, open-games, and lobby `COMMS` are separate and well-scoped
 - the doc leaves no ambiguity about how `nc-lobby` maps onto hosted daemon
   events

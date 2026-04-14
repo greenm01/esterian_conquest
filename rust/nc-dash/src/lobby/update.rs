@@ -94,7 +94,7 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Up | KeyCode::Char('k') => move_selection(app, -1),
         KeyCode::Down | KeyCode::Char('j') => move_selection(app, 1),
-        KeyCode::Char('n' | 'N') => {
+        KeyCode::Char('J' | 'n' | 'N') => {
             app.state.compose_message_input.clear();
             open_popup_route(app, LobbyRoute::ComposeInvite);
         }
@@ -644,7 +644,7 @@ fn submit_active_comms_message(app: &mut LobbyApp) {
             set_status(
                 app,
                 LobbyStatusTone::Info,
-                "Announcements are read-only.".to_string(),
+                "Broadcast is read-only.".to_string(),
             );
         }
         super::models::CommsConversationKey::Direct { contact_npub } => {
@@ -662,43 +662,13 @@ fn submit_active_comms_message(app: &mut LobbyApp) {
             }
         }
         super::models::CommsConversationKey::GameMail {
-            game_id,
-            other_empire_id,
+            ..
         } => {
-            let Some(row) = app
-                .state
-                .game_inbox
-                .iter()
-                .find(|row| row.game_id == game_id && row.other_empire_id == other_empire_id)
-                .cloned()
-            else {
-                set_status(
-                    app,
-                    LobbyStatusTone::Error,
-                    "Selected game mail thread is unavailable.".to_string(),
-                );
-                return;
-            };
-            let Some(daemon_pubkey) = selected_game_mail_target(app, &row.game_id) else {
-                set_status(
-                    app,
-                    LobbyStatusTone::Error,
-                    "Selected joined game is missing its host target.".to_string(),
-                );
-                return;
-            };
-            match app
-                .transport
-                .send_game_inbox_message(&row, &daemon_pubkey, &app.state.compose_message_input)
-            {
-                Ok(loaded) => {
-                    app.state.apply_loaded(loaded);
-                    app.state.compose_message_input.clear();
-                    app.state.comms_scroll = 0;
-                    app.state.thread_scroll = 0;
-                }
-                Err(err) => set_status(app, LobbyStatusTone::Error, err),
-            }
+            set_status(
+                app,
+                LobbyStatusTone::Info,
+                "Anonymous game mail now lives in-game.".to_string(),
+            );
         }
     }
 }
@@ -916,11 +886,13 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
         );
         return;
     };
-    if row.status == "approved" {
-        match app.transport.claim_invite(&row) {
-            Ok(loaded) => app.state.apply_loaded(loaded),
-            Err(err) => set_status(app, LobbyStatusTone::Error, err),
-        }
+    if row.status != "joined" {
+        let message = match row.status.as_str() {
+            "requested" => "Join request is still waiting for nc-host approval.",
+            "rejected" => "Join request was rejected. Select the game in Games to request again.",
+            _ => "This game is not ready to open from the lobby.",
+        };
+        set_status(app, LobbyStatusTone::Info, message.to_string());
         return;
     }
     match app.transport.open_game(&row) {
@@ -1127,14 +1099,6 @@ fn toggle_picker_contact_hidden(app: &mut LobbyApp) {
     } else {
         hide_active_conversation(app);
     }
-}
-
-fn selected_game_mail_target(app: &LobbyApp, game_id: &str) -> Option<String> {
-    app.state
-        .joined_games
-        .iter()
-        .find(|row| row.game_id == game_id)
-        .map(|row| row.daemon_pubkey.clone())
 }
 
 pub(crate) fn reset_context_dependent_views(

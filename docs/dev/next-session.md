@@ -16,8 +16,8 @@ Keep this file short. Historical detail belongs in
 - `nc-gate` is no longer part of the active Rust workspace build.
 - `nc-client` now exists as the shared hosted client core.
 - `nc-dash` now has a partial hosted lobby/client path in the same binary.
-- That hosted lobby path now covers public `30500` discovery, invite
-  request/decision, invite claim, runtime-backed `30520` state refresh,
+- That hosted lobby path now covers public `30500` discovery, hosted join
+  request/decision, runtime-backed `30520` state refresh,
   turn submit/receipt, public `30516` notices, encrypted `30518` direct
   contact threads, and encrypted `30523` anonymous per-game diplomacy.
 - `nc-dash` lobby now keeps a live hosted observer session instead of doing

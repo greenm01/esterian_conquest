@@ -1,6 +1,5 @@
-use crate::config::host_config::HostConfig;
 use crate::invite::generate_invite_code;
-use nc_data::hosted::{HostedStore, list_seats};
+use nc_data::hosted::{HostedStore, get_request, list_seats};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -15,8 +14,6 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let mut request_id = None;
     let mut player = None;
     let mut message: Option<String> = None;
-    let mut config_path = None;
-
     let mut i = 0;
     while i < args.len() {
         match args[i] {
@@ -48,13 +45,6 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
                 message = Some(args[i + 1].to_string());
                 i += 2;
             }
-            "--config" => {
-                if i + 1 >= args.len() {
-                    return Err("missing value for --config".into());
-                }
-                config_path = Some(PathBuf::from(args[i + 1]));
-                i += 2;
-            }
             _ => {
                 if subcmd.is_none() {
                     subcmd = Some(args[i]);
@@ -83,17 +73,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     match subcmd {
         Some("list") => run_list(&store, &game_id).map_err(|e| e.into()),
         Some("show") => run_show(&store, request_id.as_ref()).map_err(|e| e.into()),
-        Some("approve") => {
-            let config = load_config(config_path.as_ref())?;
-            run_approve(
-                &store,
-                &game_id,
-                &config.invite_relay_host,
-                request_id.as_ref(),
-                player,
-                message.as_ref(),
-            )
-        }
+        Some("approve") => run_approve(&store, &game_id, request_id.as_ref(), player, message.as_ref()),
         Some("reject") => run_reject(&store, &game_id, request_id.as_ref(), message.as_ref()),
         Some(cmd) => Err(format!("unknown subcommand: {}", cmd).into()),
         None => Err("missing subcommand".into()),
@@ -103,7 +83,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
 fn run_list(store: &HostedStore, game_id: &str) -> Result<(), Box<dyn std::error::Error>> {
     let requests = nc_data::hosted::list_requests(store.connection(), game_id)?;
 
-    println!("Invite requests for game {}:", game_id);
+    println!("Join requests for game {}:", game_id);
     println!();
 
     if requests.is_empty() {
@@ -144,6 +124,9 @@ fn run_show(
     if let Some(msg) = req.decision_message {
         println!("Decision: {}", msg);
     }
+    if let Some(seat) = req.assigned_seat {
+        println!("Assigned seat: {}", seat);
+    }
     if let Some(code) = req.issued_invite_code {
         println!("Invite code: {}", code);
     }
@@ -154,7 +137,6 @@ fn run_show(
 fn run_approve(
     store: &HostedStore,
     game_id: &str,
-    invite_relay_host: &str,
     request_id: Option<&String>,
     player: Option<u32>,
     message: Option<&String>,
@@ -162,26 +144,26 @@ fn run_approve(
     let request_id = request_id.ok_or("missing --request argument")?;
     let player = player.ok_or("missing --player argument")?;
     let message = message.map(|s| s.as_str()).unwrap_or("Approved");
+    let request = get_request(store.connection(), request_id)?
+        .ok_or_else(|| format!("request {} not found", request_id))?;
 
     let existing: HashSet<String> = list_seats(store.connection(), game_id)?
         .iter()
         .map(|s| s.invite_code.clone())
         .collect();
-    let invite_token = generate_invite_code(&existing);
-    let issued_invite = format!("{}@{}", invite_token, invite_relay_host);
+    let reserve_invite_token = generate_invite_code(&existing);
 
     nc_data::hosted::approve_request_for_seat(
         store.connection(),
         request_id,
         game_id,
         player,
-        &invite_token,
-        &issued_invite,
+        &request.player_pubkey,
+        &reserve_invite_token,
         message,
     )?;
 
     println!("Approved request {} for player seat {}", request_id, player);
-    println!("Invite code: {}", issued_invite);
 
     Ok(())
 }
@@ -204,24 +186,12 @@ fn run_reject(
 
 fn print_usage() {
     println!("Usage:");
-    println!("  nc-host requests list --dir <path> [--config <path>]");
-    println!("  nc-host requests show --dir <path> --request <id> [--config <path>]");
+    println!("  nc-host requests list --dir <path>");
+    println!("  nc-host requests show --dir <path> --request <id>");
     println!(
-        "  nc-host requests approve --dir <path> --request <id> --player N [--message \"...\"] [--config <path>]"
+        "  nc-host requests approve --dir <path> --request <id> --player N [--message \"...\"]"
     );
     println!(
-        "  nc-host requests reject --dir <path> --request <id> [--message \"...\"] [--config <path>]"
+        "  nc-host requests reject --dir <path> --request <id> [--message \"...\"]"
     );
-}
-
-fn load_config(path: Option<&PathBuf>) -> Result<HostConfig, Box<dyn std::error::Error>> {
-    if let Some(path) = path {
-        return Ok(HostConfig::load(path)?);
-    }
-
-    if let Ok(path) = std::env::var("NC_HOST_CONFIG") {
-        return Ok(HostConfig::load(&PathBuf::from(path))?);
-    }
-
-    Ok(HostConfig::load(&HostConfig::default_config_path())?)
 }

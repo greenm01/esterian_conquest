@@ -306,41 +306,7 @@ impl LobbyTransport {
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
-            Some("Invite request sent. Waiting for nc-host receipt.".to_string()),
-            LobbyStatusTone::Success,
-            None,
-        ))
-    }
-
-    pub fn claim_invite(&mut self, row: &JoinedGameRow) -> Result<LobbyLoadedState, String> {
-        let invite = row
-            .invite_address
-            .as_deref()
-            .ok_or_else(|| "selected game has no approved invite".to_string())?;
-        let unlocked = self
-            .unlocked
-            .as_mut()
-            .ok_or_else(|| "keychain is locked".to_string())?;
-        let session = unlocked
-            .session
-            .as_ref()
-            .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
-        let handle = current_handle(&unlocked.keychain);
-        let result = session
-            .claim_invite(&row.game_id, &row.daemon_pubkey, invite, handle.as_deref())
-            .map_err(|err| err.to_string())?;
-        if result.status.as_str() == "claimed" {
-            let mut updated = cache_game_from_row(row);
-            updated.status = "joined".to_string();
-            updated.seat = result.seat;
-            updated.invite_address = row.invite_address.clone();
-            updated.updated_at = now_iso8601();
-            unlocked.cache.upsert_game(updated);
-        }
-        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        Ok(build_loaded_state(
-            unlocked,
-            Some("Seat claim processed by nc-host.".to_string()),
+            Some("Join request sent. Waiting for nc-host receipt.".to_string()),
             LobbyStatusTone::Success,
             None,
         ))
@@ -897,50 +863,52 @@ fn apply_decision(
     let catalog_match = catalog
         .iter()
         .find(|game| game.definition.game_id == decision.game_id);
-    match &decision.decision {
-        InviteDecision::Approved { invite } => {
-            unlocked.cache.upsert_game(CachedGame {
-                id: decision.game_id.clone(),
-                name: game_name,
-                host_alias: catalog_match.and_then(|game| game.definition.host_alias.clone()),
-                host_contact_npub: catalog_match
-                    .and_then(|game| game.definition.host_contact_npub.clone()),
-                host_contact_label: catalog_match
-                    .and_then(|game| game.definition.host_contact_label.clone()),
-                host_contact_nip05: catalog_match
-                    .and_then(|game| game.definition.host_contact_nip05.clone()),
-                relay_url: unlocked.relay_url.clone().unwrap_or_default(),
-                daemon_pubkey: catalog_match
-                    .map(|game| game.daemon_pubkey.clone())
-                    .or_else(|| {
-                        unlocked
-                            .cache
-                            .games
-                            .iter()
-                            .find(|game| game.id == decision.game_id)
-                            .map(|game| game.daemon_pubkey.clone())
-                    })
-                    .unwrap_or_default(),
-                seat: None,
-                status: "approved".to_string(),
-                invite_address: Some(invite.clone()),
-                last_turn: None,
-                last_hash: None,
-                updated_at,
-            });
-        }
-        InviteDecision::Rejected => {
-            if let Some(game) = unlocked
+    let daemon_pubkey = catalog_match
+        .map(|game| game.daemon_pubkey.clone())
+        .or_else(|| {
+            unlocked
                 .cache
                 .games
-                .iter_mut()
+                .iter()
                 .find(|game| game.id == decision.game_id)
-            {
-                game.status = "rejected".to_string();
-                game.updated_at = updated_at;
-            }
-        }
+                .map(|game| game.daemon_pubkey.clone())
+        })
+        .unwrap_or_default();
+    let mut cached = CachedGame {
+        id: decision.game_id.clone(),
+        name: game_name,
+        host_alias: catalog_match.and_then(|game| game.definition.host_alias.clone()),
+        host_contact_npub: catalog_match.and_then(|game| game.definition.host_contact_npub.clone()),
+        host_contact_label: catalog_match
+            .and_then(|game| game.definition.host_contact_label.clone()),
+        host_contact_nip05: catalog_match
+            .and_then(|game| game.definition.host_contact_nip05.clone()),
+        relay_url: unlocked.relay_url.clone().unwrap_or_default(),
+        daemon_pubkey,
+        seat: None,
+        status: "rejected".to_string(),
+        invite_address: None,
+        last_turn: None,
+        last_hash: None,
+        updated_at,
+    };
+    if let Some(existing) = unlocked
+        .cache
+        .games
+        .iter()
+        .find(|game| game.id == decision.game_id)
+    {
+        cached.last_turn = existing.last_turn;
+        cached.last_hash = existing.last_hash.clone();
     }
+    match &decision.decision {
+        InviteDecision::Approved { seat } => {
+            cached.status = "joined".to_string();
+            cached.seat = Some(*seat);
+        }
+        InviteDecision::Rejected => {}
+    }
+    unlocked.cache.upsert_game(cached);
 }
 
 fn build_loaded_state(
@@ -994,10 +962,13 @@ fn build_loaded_state(
         .cache
         .games
         .iter()
-        .filter(|game| matches!(game.status.as_str(), "approved" | "joined"))
+        .filter(|game| matches!(game.status.as_str(), "requested" | "rejected" | "joined" | "approved"))
         .map(|game| JoinedGameRow {
             game_id: game.id.clone(),
-            status: game.status.clone(),
+            status: match game.status.as_str() {
+                "approved" => "requested".to_string(),
+                other => other.to_string(),
+            },
             game: game.name.clone(),
             host: format_host_label(
                 game.host_alias.as_deref(),
@@ -1009,10 +980,13 @@ fn build_loaded_state(
             relay_url: game.relay_url.clone(),
             daemon_pubkey: game.daemon_pubkey.clone(),
             seat: game.seat.map(|seat| seat as u8),
-            turn_summary: game
-                .last_turn
-                .map(|turn| format!("T{turn}"))
-                .unwrap_or_else(|| "awaiting claim".to_string()),
+            turn_summary: if game.status == "joined" {
+                game.last_turn
+                    .map(|turn| format!("T{turn}"))
+                    .unwrap_or_else(|| "- -".to_string())
+            } else {
+                "- -".to_string()
+            },
             invite_address: game.invite_address.clone(),
             last_turn: game.last_turn,
             last_hash: game.last_hash.clone(),

@@ -310,7 +310,7 @@ fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
     render_popup_lines(
         buffer,
         popup_rect(parent, (64, 11), app.popup_position),
-        " REQUEST INVITE ",
+        " REQUEST TO JOIN ",
         &[
             format!(
                 "Game    : {}",
@@ -320,7 +320,7 @@ fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect
                     .unwrap_or("<none>")
             ),
             format!("Message : {}", app.state.compose_message_input),
-            "Enter sends a 30513 invite request.".to_string(),
+            "Enter sends a 30513 join request.".to_string(),
         ],
         theme::tui_theme().value,
     );
@@ -429,7 +429,7 @@ fn render_help_popup(buffer: &mut Buffer, area: Rect) {
             "Tab        : cycle focus across lobby panels",
             "J / K      : move within the focused panel",
             "Enter      : open selected game or open the selected COMMS thread",
-            "N          : compose an invite request",
+            "J          : compose a join request",
             "T          : open full-screen COMMS",
             "COMMS Tab  : cycle Chat / New / Threads",
             "COMMS Enter: send chat or open selected unread/thread row",
@@ -551,7 +551,7 @@ fn focus_rows(state: &LobbyState, focus: LobbyFocus) -> Vec<String> {
                 format!(
                     "{} | {} | {}",
                     match row.kind {
-                        super::models::CommsConversationKind::Announcement => "notice",
+                        super::models::CommsConversationKind::Announcement => "broadcast",
                         super::models::CommsConversationKind::GameMail => "game",
                         super::models::CommsConversationKind::Direct => "direct",
                     },
@@ -900,18 +900,18 @@ fn render_joined_games_panel(
     render_table_panel(
         buffer,
         area,
-        " JOINED GAMES ",
+        " MY GAMES ",
         focused,
         &COLUMNS,
         1,
         state.joined_games.len(),
         focused_selection(state, LobbyFocus::JoinedGames, state.joined_selected),
-        "<no joined hosted games>",
+        "<no games yet>",
         |index| {
             let row = &state.joined_games[index];
             let (year, turn) = split_turn_summary(&row.turn_summary);
             vec![
-                row.status.clone(),
+                joined_game_status_label(&row.status).to_string(),
                 row.game.clone(),
                 row.seat
                     .map(|seat| seat.to_string())
@@ -1033,6 +1033,15 @@ fn split_turn_summary(summary: &str) -> (String, String) {
         .map(|part| part.trim_start_matches(['T', 't']).to_string())
         .unwrap_or_default();
     (year, turn)
+}
+
+fn joined_game_status_label(status: &str) -> &str {
+    match status {
+        "requested" => "Requested",
+        "rejected" => "Rejected",
+        "joined" => "Joined",
+        other => other,
+    }
 }
 
 fn map_size_summary(total_seats: u8) -> String {
@@ -1226,7 +1235,7 @@ fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
     let styles = theme::tui_theme();
     let tokens = [
         FooterToken::leading("?", " Help"),
-        FooterToken::embedded("I<", "N", ">vite"),
+        FooterToken::leading("J", ">oin"),
         FooterToken::embedded("Alt-", "L", "ock"),
         FooterToken::leading("T", ">Comms"),
         FooterToken::leading("S", ">ettings"),

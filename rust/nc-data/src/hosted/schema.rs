@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS invite_requests (
     created_at INTEGER NOT NULL,
     processed_at INTEGER,
     decision_message TEXT,
+    assigned_seat INTEGER,
     issued_invite_code TEXT,
     decision_published_at INTEGER,
     FOREIGN KEY (game_id) REFERENCES game_metadata(id)

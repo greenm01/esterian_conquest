@@ -620,17 +620,11 @@ impl LobbyState {
             .into_iter()
             .filter(|row| row.kind == CommsConversationKind::Announcement)
             .collect::<Vec<_>>();
-        let mut game_mail = self
-            .comms_conversation_rows(true)
-            .into_iter()
-            .filter(|row| row.kind == CommsConversationKind::GameMail)
-            .collect::<Vec<_>>();
         let mut direct = self
             .comms_conversation_rows(true)
             .into_iter()
             .filter(|row| row.kind == CommsConversationKind::Direct)
             .collect::<Vec<_>>();
-        game_mail.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
         direct.sort_by(|left, right| {
             right
                 .unread_count
@@ -638,7 +632,6 @@ impl LobbyState {
                 .then_with(|| right.updated_at.cmp(&left.updated_at))
                 .then_with(|| left.title.to_lowercase().cmp(&right.title.to_lowercase()))
         });
-        announcements.append(&mut game_mail);
         announcements.append(&mut direct);
         announcements
     }
@@ -649,7 +642,7 @@ impl LobbyState {
             rows.push(CommsConversationRow {
                 key: CommsConversationKey::Announcements,
                 kind: CommsConversationKind::Announcement,
-                title: "Announcements".to_string(),
+                title: "Broadcast".to_string(),
                 preview: latest_notice.body.clone(),
                 updated_at: latest_notice.created_at.clone(),
                 unread_count: 0,
@@ -658,20 +651,6 @@ impl LobbyState {
                 read_only: true,
             });
         }
-        rows.extend(self.game_inbox.iter().map(|row| CommsConversationRow {
-            key: CommsConversationKey::GameMail {
-                game_id: row.game_id.clone(),
-                other_empire_id: row.other_empire_id,
-            },
-            kind: CommsConversationKind::GameMail,
-            title: format!("{} / {}", row.game, row.other_empire_name),
-            preview: row.preview.clone(),
-            updated_at: row.updated_at.clone(),
-            unread_count: 0,
-            blocked: false,
-            hidden: false,
-            read_only: false,
-        }));
         rows.extend(self.direct_contacts.iter().filter_map(|contact| {
             if !include_hidden_direct && (contact.hidden || contact.blocked) {
                 return None;

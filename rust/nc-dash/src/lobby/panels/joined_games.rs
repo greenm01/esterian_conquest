@@ -12,7 +12,7 @@ pub fn render(
     draw_panel_frame(
         buffer,
         rect,
-        "JOINED GAMES",
+        "MY GAMES",
         focus == LobbyFocus::JoinedGames,
     );
     let rows = state

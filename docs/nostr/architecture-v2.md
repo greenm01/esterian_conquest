@@ -157,13 +157,17 @@ All non-public hosted kinds are private-by-default:
 `nc-lobby` has two communication surfaces:
 
 - one host-wide public notice board, sysop-authored only
-- one encrypted direct-contact `THREADS` surface keyed by known `npub`
-- one encrypted anonymous per-game `GAME INBOX` diplomacy surface keyed by
-  game and empire
+- one encrypted direct-contact community `COMMS` surface keyed by known `npub`
+- anonymous per-game `GAME INBOX` diplomacy remains available, but as an
+  in-game surface rather than a lobby/community thread list
 
 ## 6. Invite and Join Flow
 
-Hosted first joins still use old-style human-readable invite codes:
+Hosted first joins in the normal `nc-dash` lobby flow are approval-based and
+code-free for the player. Invite codes remain available only as a reserve,
+operator-controlled path.
+
+Reserve/manual invite codes still use the old human-readable format:
 
 ```text
 {token}@{relay-host[:port]}
@@ -173,16 +177,15 @@ But the public lobby never exposes those codes. The server flow is:
 
 1. `nc-host` publishes a public `30500 GameDefinition` for recruiting games.
 2. `nc-dash --lobby` lists those games.
-3. A player sends an invite request over Nostr to the daemon.
+3. A player sends a join request over Nostr to the daemon.
 4. The daemon stores the request in the target game's request queue and
    notifies the sysop contact identity.
 5. The sysop approves or rejects the request through `nc-host`.
-6. If approved, the daemon privately sends the invite string to the player.
-7. The player redeems that invite with a hosted claim event.
-8. The daemon validates the invite token, binds the claimed seat to the
-   player's pubkey, and returns a private claim result.
-9. Later rejoin is by pubkey plus `game-id`, not by reusing the invite as the
-   primary identity.
+6. If approved, the daemon binds the chosen seat to the requesting pubkey as
+   part of that approval transaction.
+7. The daemon privately sends the approval result, including the assigned seat,
+   to the player.
+8. Later rejoin is by pubkey plus `game-id`, not by any invite token.
 
 Seat lifecycle is intentionally small:
 
@@ -218,9 +221,9 @@ Hosted `nc-host` owns these kinds:
 |------|------|---------|
 | `30500` | `GameDefinition` | Public recruiting-game catalog row |
 | `30507` | `StateRequest` | Client requests a refresh |
-| `30510` | `SeatClaimRequest` | Player redeems an approved invite |
-| `30511` | `SeatClaimResult` | Daemon confirms or rejects first join |
-| `30513` | `InviteRequest` | Player asks the sysop for an invite |
+| `30510` | `SeatClaimRequest` | Reserve/manual invite claim |
+| `30511` | `SeatClaimResult` | Reserve/manual claim result |
+| `30513` | `InviteRequest` | Player asks to join a recruiting game |
 | `30514` | `InviteRequestReceipt` | Daemon acknowledges receipt/rejection |
 | `30515` | `InviteDecision` | Sysop approval or rejection result |
 | `30516` | `LobbyNotice` | Public host-wide notice board post |

@@ -510,8 +510,14 @@ async fn publish_pending_decisions(games_root: &std::sync::Arc<std::path::PathBu
                             let decision = if request.status
                                 == nc_data::hosted::InviteRequestStatus::Approved
                             {
-                                let invite = request.issued_invite_code.clone().unwrap_or_default();
-                                InviteDecision::Approved { invite }
+                                let Some(seat) = request.assigned_seat else {
+                                    tracing::warn!(
+                                        "Skipping approved request {} without assigned seat",
+                                        request.id
+                                    );
+                                    continue;
+                                };
+                                InviteDecision::Approved { seat }
                             } else {
                                 InviteDecision::Rejected
                             };

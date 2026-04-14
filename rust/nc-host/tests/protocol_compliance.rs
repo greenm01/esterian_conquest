@@ -45,18 +45,16 @@ fn game_definition_tags_are_per_field_and_slots_are_multivalue() {
 }
 
 #[test]
-fn invite_decision_tags_do_not_leak_invite() {
+fn invite_decision_tags_do_not_leak_assignment_payload() {
     let payload = InviteDecisionPayload {
         request_id: "req-42".to_string(),
         game_id: "friday-night".to_string(),
-        decision: InviteDecision::Approved {
-            invite: "amber-river@relay.example.com".to_string(),
-        },
+        decision: InviteDecision::Approved { seat: 2 },
         message: "Seat 2 is yours.".to_string(),
     };
 
     let tags = build_invite_decision_tags(&payload);
-    assert!(tags.iter().all(|(key, _)| *key != "invite"));
+    assert!(tags.iter().all(|(key, _)| *key != "seat"));
 }
 
 #[test]

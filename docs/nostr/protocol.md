@@ -11,10 +11,10 @@
 This protocol covers the future relay-native hosted path:
 
 - public recruiting-game discovery
-- daemon-mediated invite requests
+- daemon-mediated join requests
 - encrypted direct contact chat
 - encrypted anonymous per-game diplomacy
-- private invite approval/rejection delivery
+- private join approval/rejection delivery
 - hosted state sync
 - hosted turn submission
 
@@ -27,7 +27,7 @@ It does not cover localhost/BBS play.
 - public events expose only recruiting metadata
 - all non-public hosted events use NIP-44 encryption
 - raw invite codes are never published in public events
-- hosted first join still uses invite codes, but only after private approval
+- the normal controlled-lobby first join is approval-based and code-free for the player
 
 Private hosted payloads use one encrypted inner envelope:
 
@@ -47,9 +47,9 @@ deduplication key unless a later implementation constraint proves otherwise.
 |------|------|-----------|------------|---------|
 | `30500` | `GameDefinition` | `nc-host` | None | Public recruiting-game catalog row |
 | `30507` | `StateRequest` | `nc-dash` | NIP-44 | Request a fresh snapshot or delta decision |
-| `30510` | `SeatClaimRequest` | `nc-dash` | NIP-44 | Redeem an approved invite |
-| `30511` | `SeatClaimResult` | `nc-host` | NIP-44 | First-join success or failure |
-| `30513` | `InviteRequest` | `nc-dash` | NIP-44 | Ask the sysop for an invite |
+| `30510` | `SeatClaimRequest` | Reserve/manual client | NIP-44 | Redeem a reserved invite code |
+| `30511` | `SeatClaimResult` | `nc-host` | NIP-44 | Reserve/manual first-join success or failure |
+| `30513` | `InviteRequest` | `nc-dash` | NIP-44 | Ask to join a recruiting game |
 | `30514` | `InviteRequestReceipt` | `nc-host` | NIP-44 | Request accepted or immediately rejected |
 | `30515` | `InviteDecision` | `nc-host` | NIP-44 | Final sysop approval or rejection |
 | `30516` | `LobbyNotice` | `nc-host` | None | Public host-wide notice board item |
@@ -133,7 +133,7 @@ Rules:
 
 ## 5. 30513 `InviteRequest`
 
-Players use this to ask for an invite from the lobby.
+Players use this to ask to join a recruiting game from the lobby.
 
 Example:
 
@@ -177,8 +177,8 @@ Rules:
 
 ## 6. 30514 `InviteRequestReceipt`
 
-The daemon sends this immediately after it accepts or immediately rejects an
-invite request for processing.
+The daemon sends this immediately after it accepts or immediately rejects a
+join request for processing.
 
 Encrypted payload example:
 
@@ -213,7 +213,7 @@ Approved example:
   "game_id": "friday-night",
   "decision": "approved",
   "message": "Seat 4 is yours.",
-  "invite": "amber-river@relay.example.com"
+  "seat": 4
 }
 ```
 
@@ -230,9 +230,10 @@ Rejected example:
 
 Rules:
 
-- `invite` is present only on approval
-- approval should mint or reissue a seat code as part of the same game-level
-  transaction that records the decision
+- `seat` is present only on approval
+- in the normal `nc-dash` lobby flow, approval immediately binds that seat to
+  the requesting player identity as part of the same game-level transaction
+  that records the decision
 - rejection never leaks seat or roster internals
 
 ## 7A. 30516 `LobbyNotice`
@@ -362,7 +363,8 @@ Rules:
 
 ## 8. 30510 `SeatClaimRequest`
 
-After approval, the player redeems the invite string with a claim request.
+`30510` remains the reserve/manual claim path for operator-issued invite codes.
+It is no longer part of the normal `nc-dash` controlled-lobby join flow.
 
 Required tags:
 
@@ -542,7 +544,7 @@ Status values:
 
 The daemon side must:
 
-- persist invite requests before notifying the sysop
+- persist join requests before notifying the sysop
 - cache latest player display handle by pubkey from player-authored hosted
   events
 - persist public notice posts and encrypted conversation events before
@@ -563,13 +565,13 @@ The daemon side must:
   platform-specific user paths
 - encrypt the local keychain and cache with the user's password
 - prompt on first launch for player handle and keychain password
-- submit `30513` for invite requests
+- submit `30513` for join requests
 - listen for `30514` and `30515`
 - subscribe to public `30516` notice posts
 - seed host contacts from `30500 host-contact-*`
 - send and receive encrypted `30518` direct contact messages
 - send and receive encrypted `30523` anonymous game mail
-- store approved invite strings in the encrypted local cache
+- mark approved requests as joined locally using the assigned seat
 - use `30507`, `30520`, `30521`, `30522`, and `30524` for live hosted play
 
 ## 15. Deferred

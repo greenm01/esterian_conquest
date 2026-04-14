@@ -76,7 +76,8 @@ fn collect_status_aggregates_games_and_queues() {
         alpha_store.connection(),
         "req-b",
         "Approved",
-        "amber-river@relay.example.com",
+        2,
+        None,
     )
     .expect("request should approve");
     enqueue_turn(

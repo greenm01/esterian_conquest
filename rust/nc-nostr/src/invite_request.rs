@@ -49,7 +49,7 @@ pub struct InviteRequestReceipt {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InviteDecision {
-    Approved { invite: String },
+    Approved { seat: u32 },
     Rejected,
 }
 

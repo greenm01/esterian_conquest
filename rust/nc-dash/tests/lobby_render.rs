@@ -48,13 +48,13 @@ fn home_route_renders_three_pane_shell_copy() {
 
     assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
     assert!(lines.contains("NETWORK: NO RELAY"));
-    assert!(lines.contains("JOINED GAMES"));
+    assert!(lines.contains("MY GAMES"));
     assert!(lines.contains("Status"));
     assert!(lines.contains("Seat"));
     assert!(lines.contains("Year"));
     assert!(lines.contains("COMMS"));
     assert!(lines.contains("? Help"));
-    assert!(lines.contains("I<N>vite"));
+    assert!(lines.contains("J>oin"));
     assert!(lines.contains("Alt-Lock"));
     assert!(lines.contains("S>ettings"));
     assert!(lines.contains("GAMES"));
@@ -90,7 +90,7 @@ fn open_games_header_stacks_open_above_seats() {
 fn home_route_keeps_empty_messages_under_table_headers() {
     let lines = render_lines(LobbyRoute::Home);
 
-    assert!(lines.contains("<no joined hosted games>"));
+    assert!(lines.contains("<no games yet>"));
     assert!(lines.contains("<no hosted games>"));
 }
 
@@ -140,18 +140,18 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.network_status = LobbyNetworkStatus::Synced;
     app.state.status_tone = nc_dash::lobby::state::LobbyStatusTone::Success;
-    app.state.status_message = Some("Invite request sent.".to_string());
+    app.state.status_message = Some("Join request sent.".to_string());
 
     let buffer = app.render_for_test().expect("render lobby");
     let footer_row = buffer.height() - 3;
     let footer = buffer.plain_line(footer_row);
     let footer_start = footer.find("? Help").expect("footer labels");
     let toast_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("Invite request sent."))
+        .find(|&row| buffer.plain_line(row).contains("Join request sent."))
         .expect("toast row");
 
     assert!(buffer.plain_line(2).contains("NETWORK: SYNCED"));
-    assert!(footer.contains("I<N>vite"));
+    assert!(footer.contains("J>oin"));
     assert!(footer.contains("Alt-Lock"));
     assert!(footer.contains("T>Comms"));
     assert!(footer.contains("S>ettings"));
@@ -190,7 +190,7 @@ fn home_route_help_popup_renders_as_overlay() {
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
     assert!(lines.contains("Enter      : open selected game"));
     assert!(lines.contains("T          : open full-screen COMMS"));
-    assert!(lines.contains("COMMS Tab  : cycle Chat / New / Threads"));
+    assert!(lines.contains("J          : compose a join request"));
     assert!(lines.contains("Alt-A      : open the address book from COMMS"));
     assert!(lines.contains("Alt-L      : lock nc-dash"));
 }
@@ -324,13 +324,13 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
     assert!(lines.contains("NEW (2)"));
     assert!(lines.contains("THREADS"));
     assert!(lines.contains("BROADCAST"));
-    assert!(lines.contains("GAMES"));
     assert!(lines.contains("DIRECT"));
     assert!(lines.contains("THREAD: nc_sysop"));
     assert!(lines.contains("[?] [ESC]"));
     assert!(lines.contains("sysop"));
     assert!(lines.contains("draft line"));
     assert!(!lines.contains("<niltempus>: draft line"));
+    assert!(!lines.contains("<no game threads>"));
 }
 
 #[test]

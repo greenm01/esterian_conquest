@@ -737,7 +737,7 @@ fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find(" JOINED GAMES ")
+                .find(" MY GAMES ")
                 .map(|col| (row, col))
         })
         .expect("joined panel");
@@ -750,6 +750,49 @@ fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
 
     assert_eq!(app.state.focus, LobbyFocus::JoinedGames);
     assert_eq!(app.state.joined_selected, 1);
+}
+
+#[test]
+fn enter_on_requested_or_rejected_row_does_not_open_hosted_game() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.focus = LobbyFocus::JoinedGames;
+    app.state.joined_games = vec![
+        JoinedGameRow::new(
+            "friday-night",
+            "requested",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            None,
+            "- -",
+        ),
+        JoinedGameRow::new(
+            "saturday-night",
+            "rejected",
+            "Saturday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            None,
+            "- -",
+        ),
+    ];
+
+    apply_key(&mut app, key(KeyCode::Enter));
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(
+        app.state.status_message.as_deref(),
+        Some("Join request is still waiting for nc-host approval.")
+    );
+
+    app.state.joined_selected = 1;
+    apply_key(&mut app, key(KeyCode::Enter));
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(
+        app.state.status_message.as_deref(),
+        Some("Join request was rejected. Select the game in Games to request again.")
+    );
 }
 
 #[test]

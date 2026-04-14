@@ -12,7 +12,7 @@ use crate::lobby::state::{LobbyFocus, LobbyState, ThreadPaneFocus};
 use crate::theme;
 
 use super::format::{
-    ThreadRenderLine, direct_thread_render_lines, game_inbox_render_lines, notice_render_lines,
+    ThreadRenderLine, direct_thread_render_lines, notice_render_lines,
 };
 use super::layout::workspace_layout;
 
@@ -453,15 +453,15 @@ fn render_comms_sidebar(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
 fn active_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine> {
     match state.active_comms_row().map(|row| row.kind) {
         Some(CommsConversationKind::Announcement) => notice_render_lines(state, width),
-        Some(CommsConversationKind::GameMail) => game_inbox_render_lines(state, width),
         Some(CommsConversationKind::Direct) => direct_thread_render_lines(state, width),
+        Some(CommsConversationKind::GameMail) => Vec::new(),
         None => Vec::new(),
     }
 }
 
 fn conversation_kind_label(kind: CommsConversationKind) -> &'static str {
     match kind {
-        CommsConversationKind::Announcement => "NOTICE",
+        CommsConversationKind::Announcement => "BCAST",
         CommsConversationKind::GameMail => "GAME",
         CommsConversationKind::Direct => "DIRECT",
     }
@@ -507,18 +507,6 @@ fn grouped_sidebar_rows(state: &LobbyState) -> Vec<SidebarLine> {
         grouped.push(SidebarLine::Empty("<no broadcast threads>"));
     } else {
         grouped.extend(announcements.into_iter().map(SidebarLine::Conversation));
-    }
-
-    let game_mail = rows
-        .iter()
-        .filter(|row| row.kind == CommsConversationKind::GameMail)
-        .cloned()
-        .collect::<Vec<_>>();
-    grouped.push(SidebarLine::Header("GAMES"));
-    if game_mail.is_empty() {
-        grouped.push(SidebarLine::Empty("<no game threads>"));
-    } else {
-        grouped.extend(game_mail.into_iter().map(SidebarLine::Conversation));
     }
 
     let direct = rows

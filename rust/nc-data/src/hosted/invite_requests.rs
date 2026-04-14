@@ -10,6 +10,7 @@ pub struct InviteRequest {
     pub created_at: i64,
     pub processed_at: Option<i64>,
     pub decision_message: Option<String>,
+    pub assigned_seat: Option<u32>,
     pub issued_invite_code: Option<String>,
     pub decision_published_at: Option<i64>,
 }
@@ -59,7 +60,7 @@ pub fn create_request(
 pub fn list_requests(conn: &Connection, game_id: &str) -> SqliteResult<Vec<InviteRequest>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, player_pubkey, message, status, created_at, processed_at,
-                decision_message, issued_invite_code, decision_published_at
+                decision_message, assigned_seat, issued_invite_code, decision_published_at
          FROM invite_requests WHERE game_id = ?1 ORDER BY created_at DESC",
     )?;
 
@@ -74,8 +75,9 @@ pub fn list_requests(conn: &Connection, game_id: &str) -> SqliteResult<Vec<Invit
             created_at: row.get(5)?,
             processed_at: row.get(6)?,
             decision_message: row.get(7)?,
-            issued_invite_code: row.get(8)?,
-            decision_published_at: row.get(9)?,
+            assigned_seat: row.get(8)?,
+            issued_invite_code: row.get(9)?,
+            decision_published_at: row.get(10)?,
         })
     })?;
 
@@ -85,7 +87,7 @@ pub fn list_requests(conn: &Connection, game_id: &str) -> SqliteResult<Vec<Invit
 pub fn get_request(conn: &Connection, id: &str) -> SqliteResult<Option<InviteRequest>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, player_pubkey, message, status, created_at, processed_at,
-                decision_message, issued_invite_code, decision_published_at
+                decision_message, assigned_seat, issued_invite_code, decision_published_at
          FROM invite_requests WHERE id = ?1",
     )?;
 
@@ -101,8 +103,9 @@ pub fn get_request(conn: &Connection, id: &str) -> SqliteResult<Option<InviteReq
             created_at: row.get(5)?,
             processed_at: row.get(6)?,
             decision_message: row.get(7)?,
-            issued_invite_code: row.get(8)?,
-            decision_published_at: row.get(9)?,
+            assigned_seat: row.get(8)?,
+            issued_invite_code: row.get(9)?,
+            decision_published_at: row.get(10)?,
         }))
     } else {
         Ok(None)
@@ -113,13 +116,14 @@ pub fn approve_request(
     conn: &Connection,
     id: &str,
     decision_message: &str,
-    invite_code: &str,
+    assigned_seat: u32,
+    invite_code: Option<&str>,
 ) -> SqliteResult<()> {
     let now = chrono::Utc::now().timestamp();
     conn.execute(
         "UPDATE invite_requests SET status = 'approved', processed_at = ?1,
-         decision_message = ?2, issued_invite_code = ?3 WHERE id = ?4",
-        params![now, decision_message, invite_code, id],
+         decision_message = ?2, assigned_seat = ?3, issued_invite_code = ?4 WHERE id = ?5",
+        params![now, decision_message, assigned_seat, invite_code, id],
     )?;
     Ok(())
 }
@@ -129,24 +133,24 @@ pub fn approve_request_for_seat(
     request_id: &str,
     game_id: &str,
     seat_number: u32,
-    invite_token: &str,
-    issued_invite: &str,
+    player_pubkey: &str,
+    reserve_invite_token: &str,
     decision_message: &str,
 ) -> SqliteResult<()> {
     conn.execute_batch("BEGIN IMMEDIATE")?;
 
-    let seat_exists: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM seats WHERE game_id = ?1 AND seat_number = ?2)",
-        params![game_id, seat_number],
-        |row| row.get(0),
-    )?;
-
-    let result = if seat_exists {
-        super::seats::reissue_seat(conn, game_id, seat_number, invite_token)
-    } else {
-        super::seats::open_seat(conn, game_id, seat_number, invite_token)
+    let result = match super::seats::get_seat_by_number(conn, game_id, seat_number)? {
+        Some(seat) if seat.status == super::seats::SeatStatus::Pending => {
+            super::seats::claim_seat(conn, game_id, seat_number, player_pubkey)
+        }
+        Some(seat) if seat.player_pubkey.as_deref() == Some(player_pubkey) => Ok(()),
+        Some(_) => Err(rusqlite::Error::InvalidParameterName(format!(
+            "seat {seat_number} is already claimed"
+        ))),
+        None => super::seats::open_seat(conn, game_id, seat_number, reserve_invite_token)
+            .and_then(|_| super::seats::claim_seat(conn, game_id, seat_number, player_pubkey)),
     }
-    .and_then(|_| approve_request(conn, request_id, decision_message, issued_invite))
+    .and_then(|_| approve_request(conn, request_id, decision_message, seat_number, None))
     .and_then(|_| super::settings::mark_catalog_dirty(conn, game_id));
 
     match result {
@@ -207,7 +211,7 @@ pub fn list_pending_decisions(
 ) -> SqliteResult<Vec<InviteRequest>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, player_pubkey, message, status, created_at, processed_at,
-                decision_message, issued_invite_code, decision_published_at
+                decision_message, assigned_seat, issued_invite_code, decision_published_at
          FROM invite_requests
          WHERE game_id = ?1 AND status IN ('approved', 'rejected') AND decision_published_at IS NULL
          ORDER BY processed_at ASC",
@@ -224,8 +228,9 @@ pub fn list_pending_decisions(
             created_at: row.get(5)?,
             processed_at: row.get(6)?,
             decision_message: row.get(7)?,
-            issued_invite_code: row.get(8)?,
-            decision_published_at: row.get(9)?,
+            assigned_seat: row.get(8)?,
+            issued_invite_code: row.get(9)?,
+            decision_published_at: row.get(10)?,
         })
     })?;
 
