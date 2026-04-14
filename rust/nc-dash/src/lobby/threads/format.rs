@@ -33,6 +33,26 @@ pub fn game_inbox_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRe
         .collect()
 }
 
+pub fn notice_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine> {
+    state
+        .notices
+        .iter()
+        .flat_map(|notice| {
+            format_chat_message(
+                &notice.created_at,
+                if notice.sender.trim().is_empty() {
+                    "sysop".to_string()
+                } else {
+                    notice.sender.clone()
+                },
+                &notice.body,
+                false,
+                width,
+            )
+        })
+        .collect()
+}
+
 pub fn thread_prompt_label(state: &LobbyState) -> String {
     state
         .player_handle

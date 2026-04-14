@@ -76,6 +76,7 @@ pub struct TuiTheme {
     pub success: Style,
     pub warning: Style,
     pub error: Style,
+    pub cursor: Style,
     pub footer: Style,
 }
 
@@ -277,6 +278,10 @@ fn project_theme(theme: &opaline::Theme) -> DashTheme {
             .add_modifier(Modifier::BOLD),
         error: Style::default()
             .fg(to_tui_color(error))
+            .bg(to_tui_color(body_bg))
+            .add_modifier(Modifier::BOLD),
+        cursor: Style::default()
+            .fg(to_tui_color(chrome_focus))
             .bg(to_tui_color(body_bg))
             .add_modifier(Modifier::BOLD),
         footer: Style::default()

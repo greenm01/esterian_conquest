@@ -52,10 +52,10 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("Status"));
     assert!(lines.contains("Seat"));
     assert!(lines.contains("Year"));
-    assert!(lines.contains("GAME INBOX"));
+    assert!(lines.contains("COMMS"));
     assert!(lines.contains("? Help"));
     assert!(lines.contains("I<N>vite"));
-    assert!(lines.contains("L<ock"));
+    assert!(lines.contains("Alt-Lock"));
     assert!(lines.contains("S>ettings"));
     assert!(lines.contains("GAMES"));
     assert!(lines.contains("Map"));
@@ -64,9 +64,8 @@ fn home_route_renders_three_pane_shell_copy() {
     assert!(lines.contains("Created"));
     assert!(lines.contains("Seats"));
     assert!(lines.contains("Turn"));
-    assert!(lines.contains("NOTICES"));
-    assert!(lines.contains("CONTACTS"));
-    assert!(lines.contains("CHAT"));
+    assert!(lines.contains("Thread"));
+    assert!(lines.contains("Preview"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
 }
@@ -153,8 +152,8 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
 
     assert!(buffer.plain_line(2).contains("NETWORK: SYNCED"));
     assert!(footer.contains("I<N>vite"));
-    assert!(footer.contains("L<ock"));
-    assert!(footer.contains("M>essage"));
+    assert!(footer.contains("Alt-Lock"));
+    assert!(footer.contains("T>Comms"));
     assert!(footer.contains("S>ettings"));
     assert!(footer_start > 0);
     assert!(toast_row < footer_row);
@@ -164,18 +163,18 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
 fn home_route_footer_spans_width_below_columns() {
     let app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     let buffer = app.render_for_test().expect("render lobby");
-    let inbox = (0..buffer.height())
+    let comms = (0..buffer.height())
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find(" GAME INBOX ")
+                .find(" COMMS ")
                 .map(|col| (row, col))
         })
-        .expect("inbox title");
+        .expect("comms title");
     let footer_border = buffer.height() - 5;
     let footer_line = buffer.plain_line(footer_border);
 
-    assert!(footer_border > inbox.0);
+    assert!(footer_border > comms.0);
     assert_eq!(footer_line.chars().next(), Some('┌'));
     assert_eq!(footer_line.chars().last(), Some('┐'));
 }
@@ -187,14 +186,13 @@ fn home_route_help_popup_renders_as_overlay() {
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("LOBBY HELP"));
+    assert!(lines.contains("HELP"));
     assert!(lines.contains("Tab        : cycle focus across lobby panels"));
     assert!(lines.contains("Enter      : open selected game"));
-    assert!(lines.contains("L          : lock nc-dash"));
-    assert!(lines.contains("M / type   : start footer compose in THREADS"));
-    assert!(lines.contains("A / C      : open ADDRESS BOOK from THREADS"));
-    assert!(lines.contains("[ / ]      : switch THREADS between transcript and contacts"));
-    assert!(lines.contains("Delete     : hide the selected THREADS conversation"));
+    assert!(lines.contains("T          : open full-screen COMMS"));
+    assert!(lines.contains("COMMS Tab  : cycle Chat / New / Threads"));
+    assert!(lines.contains("Alt-A      : open the address book from COMMS"));
+    assert!(lines.contains("Alt-L      : lock nc-dash"));
 }
 
 #[test]
@@ -241,7 +239,7 @@ fn help_popup_themes_popup_border_background() {
         .find_map(|idx| {
             buffer
                 .plain_line(idx)
-                .find(" LOBBY HELP ")
+                .find(" HELP ")
                 .map(|col| (idx, col))
         })
         .expect("help popup");
@@ -286,7 +284,7 @@ fn settings_route_renders_theme_controls() {
 
 #[test]
 fn thread_panel_renders_irc_style_transcript_and_prompt() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(140, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(140, 40));
     app.state.player_handle = Some("niltempus".to_string());
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -316,22 +314,28 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
             created_at: String::new(),
         },
     ];
-    app.state.thread_composing = true;
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
     app.state.compose_message_input = "draft line".to_string();
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("CONTACTS"));
-    assert!(lines.contains("CONTACTS (2)"));
+    assert!(lines.contains("NEW (2)"));
+    assert!(lines.contains("THREADS"));
+    assert!(lines.contains("BROADCAST"));
+    assert!(lines.contains("GAMES"));
+    assert!(lines.contains("DIRECT"));
     assert!(lines.contains("THREAD: nc_sysop"));
-    assert!(lines.contains("CHAT TO: nc_sysop"));
+    assert!(lines.contains("[?] [ESC]"));
     assert!(lines.contains("sysop"));
-    assert!(lines.contains("<niltempus>: draft line"));
+    assert!(lines.contains("draft line"));
+    assert!(!lines.contains("<niltempus>: draft line"));
 }
 
 #[test]
-fn compose_thread_route_renders_centered_chat_modal() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::ComposeThread, ScreenGeometry::new(140, 40));
+fn comms_route_renders_full_screen_chat_scene() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(140, 40));
     app.state.player_handle = Some("niltempus".to_string());
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -343,15 +347,19 @@ fn compose_thread_route_renders_centered_chat_modal() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.thread_composing = true;
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
     app.state.compose_message_input = "draft".to_string();
 
     let lines = render_app_lines(app);
 
+    assert!(lines.contains("THREAD: nc_sysop"));
+    assert!(lines.contains("NEW"));
     assert!(lines.contains("THREADS"));
-    assert!(lines.contains("CONTACTS"));
-    assert!(lines.contains("CHAT TO: nc_sysop"));
-    assert!(lines.contains("<niltempus>: draft"));
+    assert!(lines.contains("[?] [ESC]"));
+    assert!(lines.contains("draft"));
+    assert!(!lines.contains("<niltempus>: draft"));
 }
 
 #[test]

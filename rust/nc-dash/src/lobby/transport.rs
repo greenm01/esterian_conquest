@@ -486,8 +486,8 @@ impl LobbyTransport {
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
-            Some("Encrypted direct message sent.".to_string()),
-            LobbyStatusTone::Success,
+            None,
+            LobbyStatusTone::Info,
             None,
         ))
     }
@@ -593,8 +593,8 @@ impl LobbyTransport {
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
-            Some("Encrypted game message sent through nc-host.".to_string()),
-            LobbyStatusTone::Success,
+            None,
+            LobbyStatusTone::Info,
             None,
         ))
     }

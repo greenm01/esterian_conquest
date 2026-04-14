@@ -11,8 +11,8 @@ use crate::theme::ThemeCatalogEntry;
 use super::clipboard::Clipboard;
 use super::onboarding::MatrixRain;
 use super::models::{
-    DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
-    ThreadMessage,
+    CommsConversationKey, CommsConversationKind, CommsConversationRow, DirectContactRow,
+    GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage,
 };
 use super::storage::settings::LobbySettingsRecord;
 use super::transport::LobbyTransport;
@@ -23,6 +23,7 @@ pub enum LobbyRoute {
     MatrixLocked,
     Locked,
     Home,
+    Comms,
     ComposeInvite,
     GameInboxThread,
     ComposeThread,
@@ -99,25 +100,22 @@ impl FirstRunField {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LobbyFocus {
     JoinedGames,
-    Inbox,
     OpenGames,
-    Notices,
     Thread,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThreadPaneFocus {
-    Contacts,
-    Transcript,
+    Chat,
+    New,
+    Threads,
 }
 
 impl LobbyFocus {
     pub fn next(self) -> Self {
         match self {
-            Self::JoinedGames => Self::Inbox,
-            Self::Inbox => Self::OpenGames,
-            Self::OpenGames => Self::Notices,
-            Self::Notices => Self::Thread,
+            Self::JoinedGames => Self::OpenGames,
+            Self::OpenGames => Self::Thread,
             Self::Thread => Self::JoinedGames,
         }
     }
@@ -125,10 +123,8 @@ impl LobbyFocus {
     pub fn prev(self) -> Self {
         match self {
             Self::JoinedGames => Self::Thread,
-            Self::Inbox => Self::JoinedGames,
-            Self::OpenGames => Self::Inbox,
-            Self::Notices => Self::OpenGames,
-            Self::Thread => Self::Notices,
+            Self::OpenGames => Self::JoinedGames,
+            Self::Thread => Self::OpenGames,
         }
     }
 }
@@ -158,14 +154,15 @@ pub struct LobbyState {
     pub game_inbox_messages: Vec<GameInboxMessage>,
     pub joined_selected: usize,
     pub open_selected: usize,
-    pub inbox_selected: usize,
-    pub notices_selected: usize,
     pub contact_selected: usize,
     pub contact_picker_selected: usize,
     pub game_inbox_filter_selected: usize,
+    pub comms_selected: usize,
+    pub comms_new_selected: usize,
+    pub active_comms: Option<CommsConversationKey>,
     pub thread_pane_focus: ThreadPaneFocus,
+    pub comms_scroll: usize,
     pub thread_scroll: usize,
-    pub thread_composing: bool,
     pub game_inbox_scroll: usize,
     pub game_inbox_composing: bool,
     pub network_status: LobbyNetworkStatus,
@@ -219,14 +216,15 @@ impl LobbyState {
             game_inbox_messages: Vec::new(),
             joined_selected: 0,
             open_selected: 0,
-            inbox_selected: 0,
-            notices_selected: 0,
             contact_selected: 0,
             contact_picker_selected: 0,
             game_inbox_filter_selected: 0,
-            thread_pane_focus: ThreadPaneFocus::Contacts,
+            comms_selected: 0,
+            comms_new_selected: 0,
+            active_comms: None,
+            thread_pane_focus: ThreadPaneFocus::Chat,
+            comms_scroll: 0,
             thread_scroll: 0,
-            thread_composing: false,
             game_inbox_scroll: 0,
             game_inbox_composing: false,
             network_status: LobbyNetworkStatus::NoRelay,
@@ -275,12 +273,6 @@ impl LobbyState {
         self.open_selected = self
             .open_selected
             .min(self.open_games.len().saturating_sub(1));
-        self.inbox_selected = self
-            .inbox_selected
-            .min(self.filtered_game_inbox().len().saturating_sub(1));
-        self.notices_selected = self
-            .notices_selected
-            .min(self.notices.len().saturating_sub(1));
         self.contact_selected = self
             .contact_selected
             .min(self.direct_contacts.len().saturating_sub(1));
@@ -288,12 +280,20 @@ impl LobbyState {
             .contact_picker_selected
             .min(self.direct_contacts.len().saturating_sub(1));
         self.sync_visible_contact_selection();
-        self.thread_scroll = self.thread_scroll.min(self.visible_thread_messages().len());
+        self.comms_selected = self
+            .comms_selected
+            .min(self.comms_hotlist_rows().len().saturating_sub(1));
+        self.comms_new_selected = self
+            .comms_new_selected
+            .min(self.comms_unread_rows().len().saturating_sub(1));
+        self.comms_scroll = self.comms_scroll.min(self.active_comms_messages_len());
+        self.thread_scroll = self.comms_scroll;
         self.game_inbox_scroll = self
             .game_inbox_scroll
             .min(self.visible_game_inbox_messages().len());
         self.edit_handle_input = self.player_handle.clone().unwrap_or_default();
         self.sync_default_contact_selection();
+        self.sync_active_comms_selection();
     }
 
     fn ensure_host_contacts_present(&mut self) {
@@ -409,9 +409,7 @@ impl LobbyState {
     }
 
     pub fn selected_game_inbox(&self) -> Option<&GameInboxRow> {
-        self.filtered_game_inbox()
-            .get(self.inbox_selected)
-            .map(|row| *row)
+        self.filtered_game_inbox().first().copied()
     }
 
     pub fn selected_direct_contact(&self) -> Option<&DirectContactRow> {
@@ -474,11 +472,6 @@ impl LobbyState {
                 .selected_joined_game()
                 .map(|row| row.game_id.as_str())
                 .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
-            LobbyFocus::Inbox => self
-                .selected_game_inbox()
-                .map(|row| row.game_id.as_str())
-                .or_else(|| self.selected_joined_game().map(|row| row.game_id.as_str()))
-                .or_else(|| self.selected_open_game().map(|row| row.game_id.as_str())),
             LobbyFocus::OpenGames => self
                 .selected_open_game()
                 .map(|row| row.game_id.as_str())
@@ -491,20 +484,6 @@ impl LobbyState {
     }
 
     pub fn preferred_host_contact_npub(&self) -> Option<&str> {
-        if self.focus == LobbyFocus::Inbox {
-            let game_id = self.selected_game_inbox()?.game_id.as_str();
-            return self
-                .joined_games
-                .iter()
-                .find(|row| row.game_id == game_id)
-                .and_then(|row| row.host_contact_npub.as_deref())
-                .or_else(|| {
-                    self.open_games
-                        .iter()
-                        .find(|row| row.game_id == game_id)
-                        .and_then(|row| row.host_contact_npub.as_deref())
-                });
-        }
         self.selected_joined_game()
             .and_then(|row| row.host_contact_npub.as_deref())
             .or_else(|| {
@@ -514,7 +493,7 @@ impl LobbyState {
     }
 
     pub fn direct_thread_context_display(&self) -> String {
-        self.selected_direct_contact()
+        self.active_direct_contact()
             .map(|contact| {
                 contact
                     .nip05
@@ -525,13 +504,13 @@ impl LobbyState {
     }
 
     pub fn game_inbox_context_display(&self) -> String {
-        self.selected_game_inbox()
+        self.active_game_inbox()
             .map(|row| format!("{} / {}", row.game, row.other_empire_name))
             .unwrap_or_else(|| "no game inbox thread selected".to_string())
     }
 
     pub fn visible_thread_messages(&self) -> Vec<&ThreadMessage> {
-        let Some(contact_npub) = self.selected_direct_contact().map(|contact| contact.npub.as_str())
+        let Some(contact_npub) = self.active_direct_contact().map(|contact| contact.npub.as_str())
         else {
             return Vec::new();
         };
@@ -542,7 +521,7 @@ impl LobbyState {
     }
 
     pub fn visible_game_inbox_messages(&self) -> Vec<&GameInboxMessage> {
-        let Some(row) = self.selected_game_inbox() else {
+        let Some(row) = self.active_game_inbox() else {
             return Vec::new();
         };
         self.game_inbox_messages
@@ -558,9 +537,9 @@ impl LobbyState {
     }
 
     pub fn reset_thread_view(&mut self) {
-        self.thread_pane_focus = ThreadPaneFocus::Contacts;
+        self.thread_pane_focus = ThreadPaneFocus::Chat;
+        self.comms_scroll = 0;
         self.thread_scroll = 0;
-        self.thread_composing = false;
         self.compose_message_input.clear();
     }
 
@@ -606,6 +585,247 @@ impl LobbyState {
             .map(|contact| contact.unread_count)
             .sum()
     }
+
+    pub fn comms_hotlist_rows(&self) -> Vec<CommsConversationRow> {
+        let mut rows = self.comms_conversation_rows(false);
+        rows.sort_by(|left, right| {
+            right
+                .unread_count
+                .cmp(&left.unread_count)
+                .then_with(|| right.updated_at.cmp(&left.updated_at))
+                .then_with(|| left.title.to_lowercase().cmp(&right.title.to_lowercase()))
+        });
+        rows
+    }
+
+    pub fn comms_unread_rows(&self) -> Vec<CommsConversationRow> {
+        let mut rows = self
+            .comms_hotlist_rows()
+            .into_iter()
+            .filter(|row| row.unread_count > 0)
+            .collect::<Vec<_>>();
+        rows.sort_by(|left, right| {
+            right
+                .unread_count
+                .cmp(&left.unread_count)
+                .then_with(|| right.updated_at.cmp(&left.updated_at))
+                .then_with(|| left.title.to_lowercase().cmp(&right.title.to_lowercase()))
+        });
+        rows
+    }
+
+    pub fn comms_sidebar_rows(&self) -> Vec<CommsConversationRow> {
+        let mut announcements = self
+            .comms_conversation_rows(true)
+            .into_iter()
+            .filter(|row| row.kind == CommsConversationKind::Announcement)
+            .collect::<Vec<_>>();
+        let mut game_mail = self
+            .comms_conversation_rows(true)
+            .into_iter()
+            .filter(|row| row.kind == CommsConversationKind::GameMail)
+            .collect::<Vec<_>>();
+        let mut direct = self
+            .comms_conversation_rows(true)
+            .into_iter()
+            .filter(|row| row.kind == CommsConversationKind::Direct)
+            .collect::<Vec<_>>();
+        game_mail.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+        direct.sort_by(|left, right| {
+            right
+                .unread_count
+                .cmp(&left.unread_count)
+                .then_with(|| right.updated_at.cmp(&left.updated_at))
+                .then_with(|| left.title.to_lowercase().cmp(&right.title.to_lowercase()))
+        });
+        announcements.append(&mut game_mail);
+        announcements.append(&mut direct);
+        announcements
+    }
+
+    fn comms_conversation_rows(&self, include_hidden_direct: bool) -> Vec<CommsConversationRow> {
+        let mut rows = Vec::new();
+        if let Some(latest_notice) = self.notices.last() {
+            rows.push(CommsConversationRow {
+                key: CommsConversationKey::Announcements,
+                kind: CommsConversationKind::Announcement,
+                title: "Announcements".to_string(),
+                preview: latest_notice.body.clone(),
+                updated_at: latest_notice.created_at.clone(),
+                unread_count: 0,
+                blocked: false,
+                hidden: false,
+                read_only: true,
+            });
+        }
+        rows.extend(self.game_inbox.iter().map(|row| CommsConversationRow {
+            key: CommsConversationKey::GameMail {
+                game_id: row.game_id.clone(),
+                other_empire_id: row.other_empire_id,
+            },
+            kind: CommsConversationKind::GameMail,
+            title: format!("{} / {}", row.game, row.other_empire_name),
+            preview: row.preview.clone(),
+            updated_at: row.updated_at.clone(),
+            unread_count: 0,
+            blocked: false,
+            hidden: false,
+            read_only: false,
+        }));
+        rows.extend(self.direct_contacts.iter().filter_map(|contact| {
+            if !include_hidden_direct && (contact.hidden || contact.blocked) {
+                return None;
+            }
+            Some(CommsConversationRow {
+                key: CommsConversationKey::Direct {
+                    contact_npub: contact.npub.clone(),
+                },
+                kind: CommsConversationKind::Direct,
+                title: contact.label.clone(),
+                preview: self
+                    .thread_messages
+                    .iter()
+                    .rev()
+                    .find(|message| message.contact_npub == contact.npub)
+                    .map(|message| message.body.clone())
+                    .unwrap_or_else(|| "<no direct messages>".to_string()),
+                updated_at: contact.last_activity_at.clone().unwrap_or_default(),
+                unread_count: contact.unread_count,
+                blocked: contact.blocked,
+                hidden: contact.hidden,
+                read_only: false,
+            })
+        }));
+        rows
+    }
+
+    pub fn selected_comms_hotlist(&self) -> Option<CommsConversationRow> {
+        self.comms_hotlist_rows().get(self.comms_selected).cloned()
+    }
+
+    pub fn set_active_comms(&mut self, key: CommsConversationKey) {
+        self.active_comms = Some(key.clone());
+        self.sync_active_direct_contact_index();
+        self.sync_active_unread_selection();
+        self.comms_scroll = 0;
+        self.thread_scroll = 0;
+        self.compose_message_input.clear();
+    }
+
+    pub fn sync_active_comms_selection(&mut self) {
+        let hotlist = self.comms_hotlist_rows();
+        let rows = self.comms_sidebar_rows();
+        if rows.is_empty() {
+            self.active_comms = None;
+            self.comms_selected = 0;
+            return;
+        }
+        if let Some(active) = self.active_comms.as_ref() {
+            if rows.iter().any(|row| &row.key == active) {
+                self.comms_selected = hotlist
+                    .iter()
+                    .position(|row| Some(&row.key) == self.active_comms.as_ref())
+                    .unwrap_or(0);
+                self.sync_active_direct_contact_index();
+                self.sync_active_unread_selection();
+                return;
+            }
+        }
+        if let Some(host_npub) = self.preferred_host_contact_npub() {
+            let host_key = CommsConversationKey::Direct {
+                contact_npub: host_npub.to_string(),
+            };
+            if rows.iter().any(|row| row.key == host_key) {
+                self.active_comms = Some(CommsConversationKey::Direct {
+                    contact_npub: host_npub.to_string(),
+                });
+                self.comms_selected = hotlist
+                    .iter()
+                    .position(|row| row.key == host_key)
+                    .unwrap_or(0);
+                self.sync_active_direct_contact_index();
+                self.sync_active_unread_selection();
+                return;
+            }
+        }
+        self.active_comms = Some(rows[0].key.clone());
+        self.comms_selected = hotlist
+            .iter()
+            .position(|row| row.key == rows[0].key)
+            .unwrap_or(0);
+        self.sync_active_direct_contact_index();
+        self.sync_active_unread_selection();
+    }
+
+    pub fn active_direct_contact(&self) -> Option<&DirectContactRow> {
+        let Some(CommsConversationKey::Direct { contact_npub }) = self.active_comms.as_ref() else {
+            return None;
+        };
+        self.direct_contacts
+            .iter()
+            .find(|contact| &contact.npub == contact_npub)
+    }
+
+    pub fn active_game_inbox(&self) -> Option<&GameInboxRow> {
+        let Some(CommsConversationKey::GameMail {
+            game_id,
+            other_empire_id,
+        }) = self.active_comms.as_ref()
+        else {
+            return None;
+        };
+        self.game_inbox
+            .iter()
+            .find(|row| &row.game_id == game_id && row.other_empire_id == *other_empire_id)
+    }
+
+    pub fn active_notice(&self) -> Option<&LobbyNotice> {
+        matches!(self.active_comms, Some(CommsConversationKey::Announcements))
+            .then(|| self.notices.last())
+            .flatten()
+    }
+
+    pub fn active_comms_row(&self) -> Option<CommsConversationRow> {
+        let active = self.active_comms.as_ref()?;
+        self.comms_sidebar_rows()
+            .into_iter()
+            .find(|row| &row.key == active)
+    }
+
+    pub fn active_comms_messages_len(&self) -> usize {
+        match self.active_comms.as_ref() {
+            Some(CommsConversationKey::Announcements) => self.notices.len().max(1),
+            Some(CommsConversationKey::GameMail { .. }) => self.visible_game_inbox_messages().len(),
+            Some(CommsConversationKey::Direct { .. }) => self.visible_thread_messages().len(),
+            None => 0,
+        }
+    }
+
+    fn sync_active_direct_contact_index(&mut self) {
+        let Some(CommsConversationKey::Direct { contact_npub }) = self.active_comms.as_ref() else {
+            return;
+        };
+        if let Some(index) = self
+            .direct_contacts
+            .iter()
+            .position(|contact| &contact.npub == contact_npub)
+        {
+            self.contact_selected = index;
+            self.contact_picker_selected = index;
+        }
+    }
+
+    fn sync_active_unread_selection(&mut self) {
+        let rows = self.comms_unread_rows();
+        let Some(active) = self.active_comms.as_ref() else {
+            self.comms_new_selected = 0;
+            return;
+        };
+        self.comms_new_selected = rows
+            .iter()
+            .position(|row| &row.key == active)
+            .unwrap_or(0);
+    }
 }
 
 pub struct LobbyApp {
@@ -618,6 +838,8 @@ pub struct LobbyApp {
     pub popup_position: Option<RelativePopupOrigin>,
     pub mouse_gesture: LobbyMouseGesture,
     pub last_activity_at: Instant,
+    pub comms_cursor_visible: bool,
+    pub next_cursor_blink_at: Instant,
     pub matrix_rain: MatrixRain,
     pub next_matrix_frame_at: Instant,
 }

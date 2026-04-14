@@ -2,7 +2,6 @@ mod clipboard;
 pub mod hosted;
 pub mod models;
 pub mod onboarding;
-pub mod panels;
 mod ratatui;
 pub mod state;
 pub mod storage;
@@ -12,7 +11,7 @@ pub mod update;
 
 use crossterm::event::KeyEvent;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
-use nc_ui::modal::{ModalTheme, Rect, centered_rect, draw_box, render_modal_box};
+use nc_ui::modal::{ModalTheme, render_modal_box};
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use std::time::{Duration, Instant};
 
@@ -25,6 +24,7 @@ use self::state::{LobbyFocus, LobbyMouseGesture, LobbyRoute, ThreadPaneFocus};
 pub use self::state::LobbyApp;
 
 const MATRIX_FRAME_STEP: Duration = Duration::from_millis(80);
+const COMMS_CURSOR_BLINK_STEP: Duration = Duration::from_millis(500);
 
 impl LobbyApp {
     pub fn new(options: LobbyStartupOptions) -> Self {
@@ -45,6 +45,8 @@ impl LobbyApp {
             popup_position: None,
             mouse_gesture: LobbyMouseGesture::None,
             last_activity_at: now,
+            comms_cursor_visible: true,
+            next_cursor_blink_at: now + COMMS_CURSOR_BLINK_STEP,
             matrix_rain: onboarding::MatrixRain::new(120, 40),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
@@ -66,6 +68,8 @@ impl LobbyApp {
             popup_position: None,
             mouse_gesture: LobbyMouseGesture::None,
             last_activity_at: now,
+            comms_cursor_visible: true,
+            next_cursor_blink_at: now + COMMS_CURSOR_BLINK_STEP,
             matrix_rain: onboarding::MatrixRain::new(matrix_width, matrix_height),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
@@ -122,21 +126,37 @@ impl LobbyApp {
     }
 
     fn scheduled_wakeup(&self) -> Option<Instant> {
+        let cursor_wakeup = if self.state.route == LobbyRoute::Comms
+            && self.state.thread_pane_focus == ThreadPaneFocus::Chat
+            && self
+                .state
+                .active_comms_row()
+                .is_some_and(|row| !row.read_only)
+        {
+            Some(self.next_cursor_blink_at)
+        } else {
+            None
+        };
         if self.state.route == LobbyRoute::MatrixLocked {
-            return Some(self.next_matrix_frame_at);
+            return cursor_wakeup
+                .map(|cursor| cursor.min(self.next_matrix_frame_at))
+                .or(Some(self.next_matrix_frame_at));
         }
         if !self.transport.is_unlocked() {
-            return None;
+            return cursor_wakeup;
         }
         let minutes = self.state.settings.lock_timeout_minutes;
         if minutes == 0 {
-            return None;
+            return cursor_wakeup;
         }
-        Some(self.last_activity_at + Duration::from_secs(u64::from(minutes) * 60))
+        let idle = self.last_activity_at + Duration::from_secs(u64::from(minutes) * 60);
+        Some(cursor_wakeup.map(|cursor| cursor.min(idle)).unwrap_or(idle))
     }
 
     fn record_activity(&mut self, now: Instant) {
         self.last_activity_at = now;
+        self.comms_cursor_visible = true;
+        self.next_cursor_blink_at = now + COMMS_CURSOR_BLINK_STEP;
     }
 
     fn render_submit_turn(&self, buffer: &mut PlayfieldBuffer) {
@@ -196,6 +216,44 @@ impl LobbyApp {
             self.begin_unlock_prompt();
             return;
         }
+        if self.state.route == LobbyRoute::Comms {
+            if let Some(hit) = threads::hit_test_workspace(
+                &self.state,
+                ::ratatui::layout::Rect::new(
+                    0,
+                    0,
+                    self.geometry.width() as u16,
+                    self.geometry.height() as u16,
+                ),
+                mouse.column,
+                mouse.row,
+            ) {
+                self.state.thread_pane_focus = hit.pane_focus;
+                match hit.pane_focus {
+                    ThreadPaneFocus::Chat => {}
+                    ThreadPaneFocus::New => {
+                        if let Some(selected) = hit.selected_row {
+                            self.state.comms_new_selected = selected;
+                            if let Some(row) = self.state.comms_unread_rows().get(selected).cloned()
+                            {
+                                self.state.set_active_comms(row.key);
+                                self.state.thread_pane_focus = ThreadPaneFocus::Chat;
+                            }
+                        }
+                    }
+                    ThreadPaneFocus::Threads => {
+                        if let Some(selected) = hit.selected_row {
+                            if let Some(row) = self.state.comms_sidebar_rows().get(selected).cloned()
+                            {
+                                self.state.set_active_comms(row.key);
+                                self.state.thread_pane_focus = ThreadPaneFocus::Chat;
+                            }
+                        }
+                    }
+                }
+            }
+            return;
+        }
         if self.state.route != LobbyRoute::Home {
             return;
         }
@@ -212,32 +270,22 @@ impl LobbyApp {
                     self.state.joined_selected = selected;
                 }
             }
-            LobbyFocus::Inbox => {
-                if let Some(selected) = hit.selected_row {
-                    self.state.inbox_selected = selected;
-                }
-            }
             LobbyFocus::OpenGames => {
                 if let Some(selected) = hit.selected_row {
                     self.state.open_selected = selected;
                 }
             }
-            LobbyFocus::Notices => {
-                if let Some(selected) = hit.selected_row {
-                    self.state.notices_selected = selected;
-                }
-            }
             LobbyFocus::Thread => {
                 if let Some(selected) = hit.selected_row {
-                    let visible = self.state.visible_direct_contacts();
-                    if let Some((absolute_index, _)) = visible.get(selected) {
-                        self.state.contact_selected = *absolute_index;
+                    self.state.comms_selected = selected;
+                    if let Some(row) = self.state.selected_comms_hotlist() {
+                        self.state.set_active_comms(row.key);
                     }
+                    self.state.route = LobbyRoute::Comms;
                 }
-                self.state.thread_pane_focus =
-                    hit.thread_pane_focus.unwrap_or(ThreadPaneFocus::Transcript);
+                self.state.thread_pane_focus = ThreadPaneFocus::Chat;
+                self.state.comms_scroll = 0;
                 self.state.thread_scroll = 0;
-                self.state.thread_composing = false;
             }
         }
         update::reset_context_dependent_views(self, previous_context);
@@ -380,6 +428,18 @@ impl NativeApp for LobbyApp {
             self.next_matrix_frame_at = now + MATRIX_FRAME_STEP;
             return true;
         }
+        if self.state.route == LobbyRoute::Comms
+            && self.state.thread_pane_focus == ThreadPaneFocus::Chat
+            && self
+                .state
+                .active_comms_row()
+                .is_some_and(|row| !row.read_only)
+            && now >= self.next_cursor_blink_at
+        {
+            self.comms_cursor_visible = !self.comms_cursor_visible;
+            self.next_cursor_blink_at = now + COMMS_CURSOR_BLINK_STEP;
+            return true;
+        }
         if self.transport.is_unlocked() {
             let minutes = self.state.settings.lock_timeout_minutes;
             if minutes != 0
@@ -393,17 +453,17 @@ impl NativeApp for LobbyApp {
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
                 self.state.apply_loaded(loaded);
-                if self.state.focus == LobbyFocus::Thread
-                    && self.state.thread_pane_focus == ThreadPaneFocus::Transcript
-                    && self.state.thread_scroll == 0
+                if self.state.route == LobbyRoute::Comms
+                    && self.state.thread_pane_focus == ThreadPaneFocus::Chat
+                    && self.state.comms_scroll == 0
                     && self
                         .state
-                        .selected_direct_contact()
+                        .active_direct_contact()
                         .is_some_and(|contact| contact.unread_count > 0)
                 {
                     if let Some(contact_npub) = self
                         .state
-                        .selected_direct_contact()
+                        .active_direct_contact()
                         .map(|contact| contact.npub.clone())
                     {
                         if let Ok(loaded) = self.transport.mark_direct_contact_read(&contact_npub) {
@@ -466,69 +526,6 @@ fn network_dialog_label(status: state::LobbyNetworkStatus) -> &'static str {
         state::LobbyNetworkStatus::Synced => "Synced",
         state::LobbyNetworkStatus::Error => "Error",
     }
-}
-
-fn draw_panel_frame(buffer: &mut PlayfieldBuffer, rect: Rect, title: &str, focused: bool) {
-    let title_style = if focused {
-        theme::classic::selected_row_style()
-    } else {
-        theme::table_header_style()
-    };
-    draw_box(
-        buffer,
-        rect,
-        title,
-        theme::table_chrome_style(),
-        title_style,
-    );
-    buffer.fill_rect(
-        rect.y as usize + 1,
-        rect.x as usize + 1,
-        rect.width.saturating_sub(2) as usize,
-        rect.height.saturating_sub(2) as usize,
-        theme::table_body_style(),
-    );
-}
-
-pub(crate) fn panel_content_rect(rect: Rect) -> Rect {
-    centered_rect(
-        rect.width.saturating_sub(2),
-        rect.height.saturating_sub(2),
-        Rect::new(
-            rect.x.saturating_add(1),
-            rect.y.saturating_add(1),
-            rect.width.saturating_sub(2),
-            rect.height.saturating_sub(2),
-        ),
-    )
-}
-
-pub(crate) fn write_panel_rows(
-    buffer: &mut PlayfieldBuffer,
-    rect: Rect,
-    rows: &[String],
-    selected: Option<usize>,
-) {
-    let content = panel_content_rect(rect);
-    for (idx, row) in rows.iter().enumerate() {
-        if idx >= content.height as usize {
-            break;
-        }
-        let style = if selected == Some(idx) {
-            theme::classic::selected_row_style()
-        } else {
-            theme::table_body_style()
-        };
-        buffer.write_text_clipped(content.y as usize + idx, content.x as usize, row, style);
-    }
-}
-
-pub(crate) fn focus_selected(
-    focus: LobbyFocus,
-    target: LobbyFocus,
-    selected: usize,
-) -> Option<usize> {
-    (focus == target).then_some(selected)
 }
 
 #[cfg(test)]

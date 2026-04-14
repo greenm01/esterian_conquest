@@ -181,3 +181,35 @@ pub struct GameInboxMessage {
     pub outgoing: bool,
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum CommsConversationKey {
+    Announcements,
+    GameMail {
+        game_id: String,
+        other_empire_id: u8,
+    },
+    Direct {
+        contact_npub: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommsConversationKind {
+    Announcement,
+    GameMail,
+    Direct,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommsConversationRow {
+    pub key: CommsConversationKey,
+    pub kind: CommsConversationKind,
+    pub title: String,
+    pub preview: String,
+    pub updated_at: String,
+    pub unread_count: u32,
+    pub blocked: bool,
+    pub hidden: bool,
+    pub read_only: bool,
+}

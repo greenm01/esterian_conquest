@@ -87,9 +87,21 @@ fn paste_shortcuts_fill_single_line_lobby_fields() {
     apply_key(&mut app, ctrl_key(KeyCode::Char('v')));
     assert_eq!(app.state.compose_message_input, "hellothere");
 
-    app.state.route = LobbyRoute::Home;
+    app.state.route = LobbyRoute::Comms;
     app.state.focus = LobbyFocus::Thread;
-    app.state.thread_composing = true;
+    app.state.direct_contacts = vec![DirectContactRow {
+        npub: "npub1sysop".to_string(),
+        label: "nc_sysop".to_string(),
+        nip05: None,
+        source: "host".to_string(),
+        blocked: false,
+        hidden: false,
+        unread_count: 0,
+        last_activity_at: None,
+    }];
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
     app.state.compose_message_input.clear();
     app.set_clipboard_text("thread\r\nnote");
 
@@ -350,8 +362,8 @@ fn apply_loaded_updates_stale_host_contact_label() {
 }
 
 #[test]
-fn m_starts_inline_thread_compose_without_popup() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+fn typing_in_chat_focus_appends_to_comms_draft() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -363,17 +375,20 @@ fn m_starts_inline_thread_compose_without_popup() {
         last_activity_at: None,
     }];
     app.state.focus = LobbyFocus::Thread;
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
 
-    apply_key(&mut app, shift_key(KeyCode::Char('m')));
+    apply_key(&mut app, key(KeyCode::Char('m')));
 
-    assert_eq!(app.state.route, LobbyRoute::Home);
-    assert!(app.state.thread_composing);
+    assert_eq!(app.state.route, LobbyRoute::Comms);
     assert_eq!(app.state.focus, LobbyFocus::Thread);
+    assert_eq!(app.state.compose_message_input, "m");
 }
 
 #[test]
-fn typing_in_thread_focus_starts_footer_compose_and_seeds_draft() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+fn hjkl_do_not_navigate_when_chat_is_focused() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -385,11 +400,14 @@ fn typing_in_thread_focus_starts_footer_compose_and_seeds_draft() {
         last_activity_at: None,
     }];
     app.state.focus = LobbyFocus::Thread;
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Chat;
 
     apply_key(&mut app, key(KeyCode::Char('h')));
 
-    assert_eq!(app.state.route, LobbyRoute::Home);
-    assert!(app.state.thread_composing);
+    assert_eq!(app.state.route, LobbyRoute::Comms);
     assert_eq!(app.state.compose_message_input, "h");
 }
 
@@ -410,17 +428,17 @@ fn enter_on_thread_focus_activates_selected_buffer_before_popup() {
 
     apply_key(&mut app, key(KeyCode::Enter));
 
-    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(app.state.route, LobbyRoute::Comms);
     assert_eq!(
         app.state.thread_pane_focus,
-        nc_dash::lobby::state::ThreadPaneFocus::Contacts
+        nc_dash::lobby::state::ThreadPaneFocus::Chat
     );
     assert_eq!(app.state.direct_contacts[0].unread_count, 0);
 }
 
 #[test]
-fn second_enter_on_thread_transcript_focus_opens_centered_modal() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+fn enter_in_chat_focus_keeps_comms_open_when_no_draft() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -432,16 +450,19 @@ fn second_enter_on_thread_transcript_focus_opens_centered_modal() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Transcript;
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Chat;
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
 
     apply_key(&mut app, key(KeyCode::Enter));
 
-    assert_eq!(app.state.route, LobbyRoute::ComposeThread);
+    assert_eq!(app.state.route, LobbyRoute::Comms);
 }
 
 #[test]
 fn thread_contact_list_moves_selection_before_transcript_scroll() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
     app.state.direct_contacts = vec![
         DirectContactRow {
@@ -467,8 +488,12 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
     ];
     app.state.contact_selected = 0;
     app.state.contact_picker_selected = 0;
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1host".to_string(),
+    });
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
 
-    apply_key(&mut app, key(KeyCode::Down));
+    apply_key(&mut app, key(KeyCode::Up));
 
     assert_eq!(
         app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
@@ -477,8 +502,8 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
 }
 
 #[test]
-fn bracket_keys_switch_thread_subfocus() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+fn tab_cycles_comms_focus() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
@@ -490,25 +515,28 @@ fn bracket_keys_switch_thread_subfocus() {
         unread_count: 0,
         last_activity_at: None,
     }];
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
 
-    apply_key(&mut app, key(KeyCode::Char(']')));
+    apply_key(&mut app, key(KeyCode::Tab));
     assert_eq!(
         app.state.thread_pane_focus,
-        nc_dash::lobby::state::ThreadPaneFocus::Transcript
+        nc_dash::lobby::state::ThreadPaneFocus::New
     );
 
-    apply_key(&mut app, key(KeyCode::Char('[')));
+    apply_key(&mut app, key(KeyCode::Tab));
     assert_eq!(
         app.state.thread_pane_focus,
-        nc_dash::lobby::state::ThreadPaneFocus::Contacts
+        nc_dash::lobby::state::ThreadPaneFocus::Threads
     );
 }
 
 #[test]
-fn thread_transcript_scrolls_when_transcript_subfocus_is_active() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+fn thread_transcript_scrolls_when_chat_focus_is_active() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
-    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Transcript;
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Chat;
     app.state.direct_contacts = vec![DirectContactRow {
         npub: "npub1sysop".to_string(),
         label: "nc_sysop".to_string(),
@@ -533,15 +561,18 @@ fn thread_transcript_scrolls_when_transcript_subfocus_is_active() {
         Some(1),
         "y3004 t4",
     )];
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
 
-    apply_key(&mut app, key(KeyCode::Up));
+    apply_key(&mut app, key(KeyCode::Down));
 
     assert_eq!(app.state.thread_scroll, 1);
 }
 
 #[test]
-fn contact_picker_blocks_selected_contact_locally() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::ContactPicker, ScreenGeometry::new(120, 40));
+fn address_book_blocks_selected_contact_locally() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.direct_contacts = vec![
         DirectContactRow {
             npub: "npub1sysop".to_string(),
@@ -564,6 +595,11 @@ fn contact_picker_blocks_selected_contact_locally() {
             last_activity_at: None,
         },
     ];
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
+    app.state.route = LobbyRoute::ContactPicker;
+    app.state.contact_picker_selected = 0;
 
     apply_key(&mut app, shift_key(KeyCode::Char('b')));
 
@@ -573,7 +609,7 @@ fn contact_picker_blocks_selected_contact_locally() {
 
 #[test]
 fn delete_hides_selected_thread_conversation_locally() {
-    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Comms, ScreenGeometry::new(120, 40));
     app.state.focus = LobbyFocus::Thread;
     app.state.direct_contacts = vec![
         DirectContactRow {
@@ -597,13 +633,17 @@ fn delete_hides_selected_thread_conversation_locally() {
             last_activity_at: None,
         },
     ];
+    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+        contact_npub: "npub1sysop".to_string(),
+    });
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
 
     apply_key(&mut app, key(KeyCode::Delete));
 
     assert!(app.state.direct_contacts.iter().any(|contact| contact.hidden));
     assert_eq!(
         app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
-        Some("npub1ally")
+        Some("npub1sysop")
     );
 }
 
