@@ -141,17 +141,22 @@ First launch flow:
 4. write encrypted keychain/cache plus local config/settings files
 5. enter the lobby
 
-The handle is client-owned display metadata. It may be changed later. The
-daemon may cache the latest handle seen for a pubkey for lobby and thread
-display, but the pubkey remains authoritative.
+Hosted handle ownership is host-local and tied to the player's `npub`.
+Comparison is case-insensitive after trimming whitespace. The same `npub` may
+keep or change its own handle, but a second player may not claim it on that
+same `nc-host`. `nc-dash` may save a handle locally while offline, but that
+choice remains unverified until `nc-host` accepts it through an explicit handle
+check or a later hosted action.
 
 All non-public hosted kinds are private-by-default:
 
 - only `30500 GameDefinition` and `30516 LobbyNotice` remain public/plain
 - `30507`, `30510`, `30513`, `30517`, `30518`, `30522`, and `30523` are
   player-authored private events
+- `30525` is the player-authored private handle-check request
 - `30511`, `30514`, `30515`, `30517`, `30520`, `30521`, `30523`, and `30524`
   are host-authored private events
+- `30526` is the host-authored private handle-check result
 - private event content uses NIP-44 plus an inner versioned envelope that may
   apply zstd compression for larger payloads
 
@@ -259,6 +264,8 @@ Hosted `nc-host` owns these kinds:
 | `30522` | `TurnCommands` | Submitted player orders |
 | `30523` | `PlayerMessage` | Encrypted anonymous player-to-player diplomacy |
 | `30524` | `TurnReceipt` | Turn accepted/rejected with details |
+| `30525` | `HandleCheck` | Immediate host-local handle availability check |
+| `30526` | `HandleCheckResult` | Immediate host-local handle ownership result |
 
 Retired SSH bridge kinds `30501`/`30502`/`30503` remain legacy reference only
 for the old `nc-connect` / `nc-gate` path.
@@ -272,6 +279,11 @@ For private request kinds, public tags stay routing-only:
 
 Player handle, invite strings, state request bodies, and raw turn text live
 inside the encrypted payload, not in public tags.
+
+Normal hosted enforcement still happens even without `30525`: invite requests,
+state refreshes, and turn submissions validate the supplied handle against the
+host-local roster so an offline-saved conflicting handle is rejected the first
+time it is actually used.
 
 ## 9. `GameDefinition` Requirements
 
@@ -355,6 +367,7 @@ The hosted implementation should be split like this.
 - `src/hosted/`
   - `store.rs`
   - `schema.rs`
+  - `player_roster.rs`
   - `settings.rs`
   - `seats.rs`
   - `invite_requests.rs`
@@ -366,6 +379,7 @@ The hosted implementation should be split like this.
 
 - `game_definition.rs`
 - `seat_claim.rs`
+- `handle_check.rs`
 - `invite_request.rs`
 - `state_sync.rs`
 - `turn_commands.rs`

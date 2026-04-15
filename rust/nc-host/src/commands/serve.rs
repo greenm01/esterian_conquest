@@ -2,6 +2,10 @@ use crate::config::{host_config, host_identity, relay};
 use crate::lobby::publish::EventPublisher;
 use crate::supervisor::routing;
 use crate::support::pubkeys::short_pubkey;
+use nc_data::hosted::{HandleOwnership, RosterStore, resolve_handle_ownership};
+use nc_nostr::handle_check::{
+    HandleCheckRequest, HandleCheckResult, HandleCheckStatus, parse_handle_check_request,
+};
 use nostr_sdk::{
     Alphabet, Client, Filter, Keys, Kind, RelayPoolNotification, SingleLetterTag, ToBech32,
 };
@@ -133,6 +137,7 @@ async fn run_async_server(
     ));
 
     let filter = Filter::new()
+        .kind(Kind::Custom(30525))
         .kind(Kind::Custom(30507))
         .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
@@ -143,7 +148,7 @@ async fn run_async_server(
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523");
+    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523, 30525");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
@@ -201,6 +206,15 @@ async fn run_async_server(
                     Ok(RelayPoolNotification::Event { event, .. }) => {
                         let event = *event;
                         tracing::debug!("Received event: kind={}", u16::from(event.kind));
+
+                        if event.kind.as_u16() == 30525 {
+                            if let Some(request) = parse_handle_check_request(keys.secret_key(), &event) {
+                                publish_handle_check_result_direct(&publisher, &games_root, &request).await;
+                            } else {
+                                tracing::warn!("Failed to parse HandleCheckRequest");
+                            }
+                            continue;
+                        }
 
                         match routing::route_event(event.clone(), &games_root, &public_key) {
                             Ok(routed) => {
@@ -457,6 +471,81 @@ async fn publish_state_error_direct(
             "Failed to publish state error to {}: {}",
             short_pubkey(player_pubkey),
             e
+        );
+    }
+}
+
+async fn publish_handle_check_result_direct(
+    publisher: &EventPublisher,
+    games_root: &std::sync::Arc<std::path::PathBuf>,
+    request: &HandleCheckRequest,
+) {
+    let roster_path = games_root.join("roster.db");
+    let roster = match RosterStore::open(&roster_path) {
+        Ok(roster) => roster,
+        Err(err) => {
+            tracing::error!(
+                "Failed to open roster store for handle check {}: {}",
+                request.request_id,
+                err
+            );
+            return;
+        }
+    };
+    let (status, message) = match resolve_handle_ownership(
+        roster.connection(),
+        &request.player_pubkey,
+        &request.handle,
+    ) {
+        Ok(HandleOwnership::Available) => (
+            HandleCheckStatus::Available,
+            "Handle is available on this nc-host.".to_string(),
+        ),
+        Ok(HandleOwnership::OwnedBySelf) => (
+            HandleCheckStatus::OwnedBySelf,
+            "This handle is already tied to your npub on this nc-host.".to_string(),
+        ),
+        Ok(HandleOwnership::Taken) => (
+            HandleCheckStatus::Taken,
+            format!(
+                "Handle '{}' is already used on this nc-host. Choose another handle.",
+                request.handle
+            ),
+        ),
+        Err(err) => {
+            tracing::error!(
+                "Failed to validate handle for {}: {}",
+                short_pubkey(&request.player_pubkey),
+                err
+            );
+            return;
+        }
+    };
+    let result = HandleCheckResult {
+        request_id: request.request_id.clone(),
+        handle: request.handle.clone(),
+        status,
+        message,
+    };
+    let content = match serde_json::to_string(&result) {
+        Ok(content) => content,
+        Err(err) => {
+            tracing::error!("Failed to serialize handle check result: {}", err);
+            return;
+        }
+    };
+    let tags = nc_nostr::handle_check::build_handle_check_result_tags(&result)
+        .into_iter()
+        .map(|(key, value)| vec![key.to_string(), value])
+        .collect();
+    if let Err(err) = publisher
+        .publish_encrypted_multi(&request.player_pubkey, 30526, &content, tags)
+        .await
+    {
+        tracing::error!(
+            "Failed to publish handle check result to {}: {}",
+            short_pubkey(&request.player_pubkey),
+            err
         );
     }
 }

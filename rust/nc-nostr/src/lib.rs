@@ -2,6 +2,7 @@ pub mod claim;
 pub mod contact_message;
 pub mod discovery;
 pub mod game_definition;
+pub mod handle_check;
 pub mod hash;
 pub mod hosted;
 pub mod invite_request;

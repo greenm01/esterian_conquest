@@ -1,3 +1,6 @@
+use nc_nostr::handle_check::{
+    HandleCheckRequestPayload, HandleCheckResult, HandleCheckStatus, parse_handle_check_request,
+};
 use nc_nostr::invite_request::{
     InviteRequestPayload, InviteRequestReceipt, InviteRequestReceiptStatus, parse_invite_request,
 };
@@ -65,6 +68,33 @@ fn state_request_uses_hex_player_pubkey() {
 }
 
 #[test]
+fn handle_check_request_uses_hex_player_pubkey() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &player,
+        &host.public_key(),
+        &HandleCheckRequestPayload {
+            handle: "StarRider".to_string(),
+        },
+    )
+    .expect("encrypt handle check");
+
+    let event = EventBuilder::new(Kind::Custom(30525), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "handle-001"]).unwrap(),
+            Tag::parse(["p", &host.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&player)
+        .unwrap();
+
+    let parsed =
+        parse_handle_check_request(host.secret_key(), &event).expect("parse handle check");
+    assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
+    assert_eq!(parsed.handle, "StarRider");
+}
+
+#[test]
 fn turn_commands_use_hex_player_pubkey() {
     let player = Keys::generate();
     let host = Keys::generate();
@@ -109,6 +139,23 @@ fn invite_request_receipt_supports_game_full_status() {
 }
 
 #[test]
+fn invite_request_receipt_supports_handle_taken_status() {
+    let receipt = InviteRequestReceipt {
+        request_id: "req-002".to_string(),
+        game_id: "sandbox-smoke".to_string(),
+        status: InviteRequestReceiptStatus::HandleTaken,
+        message: "Handle 'StarRider' is already used on this nc-host. Choose another handle."
+            .to_string(),
+    };
+
+    let json = serde_json::to_string(&receipt).expect("serialize receipt");
+    let parsed: InviteRequestReceipt = serde_json::from_str(&json).expect("parse receipt");
+
+    assert_eq!(parsed.status, InviteRequestReceiptStatus::HandleTaken);
+    assert_eq!(parsed.status.as_str(), "handle_taken");
+}
+
+#[test]
 fn state_error_payload_round_trips_as_private_30520() {
     let player = Keys::generate();
     let host = Keys::generate();
@@ -139,4 +186,37 @@ fn state_error_payload_round_trips_as_private_30520() {
         parsed.message,
         "You no longer have a claimed seat in this game."
     );
+}
+
+#[test]
+fn handle_check_result_round_trips_as_private_30526() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &host,
+        &player.public_key(),
+        &HandleCheckResult {
+            request_id: "handle-001".to_string(),
+            handle: "StarRider".to_string(),
+            status: HandleCheckStatus::Taken,
+            message: "Handle 'StarRider' is already used on this nc-host. Choose another handle."
+                .to_string(),
+        },
+    )
+    .expect("encrypt handle check result");
+
+    let event = EventBuilder::new(Kind::Custom(30526), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "handle-001"]).unwrap(),
+            Tag::parse(["status", "taken"]).unwrap(),
+            Tag::parse(["p", &player.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&host)
+        .unwrap();
+
+    let parsed: HandleCheckResult =
+        nc_nostr::private_payload::decrypt_private_json_from_event(player.secret_key(), &event)
+            .expect("parse handle result");
+    assert_eq!(parsed.status, HandleCheckStatus::Taken);
+    assert_eq!(parsed.handle, "StarRider");
 }

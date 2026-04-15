@@ -59,6 +59,51 @@ pub struct RosterEvent {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandleOwnership {
+    Available,
+    OwnedBySelf,
+    Taken,
+}
+
+pub fn normalize_handle(handle: &str) -> Option<String> {
+    let trimmed = handle.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_ascii_lowercase())
+    }
+}
+
+pub fn resolve_handle_ownership(
+    conn: &Connection,
+    npub: &str,
+    handle: &str,
+) -> SqliteResult<HandleOwnership> {
+    let Some(normalized) = normalize_handle(handle) else {
+        return Ok(HandleOwnership::Available);
+    };
+
+    let mut stmt = conn.prepare(
+        "SELECT npub
+         FROM player_roster
+         WHERE handle IS NOT NULL
+           AND lower(trim(handle)) = ?1
+         LIMIT 1",
+    )?;
+    let mut rows = stmt.query(params![normalized])?;
+    if let Some(row) = rows.next()? {
+        let owner_npub: String = row.get(0)?;
+        if owner_npub == npub {
+            Ok(HandleOwnership::OwnedBySelf)
+        } else {
+            Ok(HandleOwnership::Taken)
+        }
+    } else {
+        Ok(HandleOwnership::Available)
+    }
+}
+
 /// Record that a player was seen (sent an invite request). Updates first/last seen timestamps
 /// and handle; does not add an event row.
 pub fn upsert_player_seen(

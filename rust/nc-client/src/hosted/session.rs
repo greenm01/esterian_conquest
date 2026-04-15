@@ -3,6 +3,9 @@ use std::time::{Duration, Instant};
 use nc_nostr::claim::{SeatClaimRequestPayload, SeatClaimResultPayload};
 use nc_nostr::contact_message::{ContactMessage, decrypt_contact_message};
 use nc_nostr::game_definition::{GameDefinition, parse_game_definition};
+use nc_nostr::handle_check::{
+    HandleCheckRequestPayload, HandleCheckResult,
+};
 use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestPayload, InviteRequestReceipt};
 use nc_nostr::lobby_notice::LobbyNotice;
 use nc_nostr::player_message::{
@@ -284,6 +287,9 @@ impl HostedClientSession {
                     nc_nostr::invite_request::InviteRequestReceiptStatus::GameFull => {
                         return Ok(SandboxJoinOutcome::Full(receipt.message.clone()));
                     }
+                    nc_nostr::invite_request::InviteRequestReceiptStatus::HandleTaken => {
+                        return Err(receipt.message.clone().into());
+                    }
                     _ => return Err(receipt.message.clone().into()),
                 }
             }
@@ -414,6 +420,68 @@ impl HostedClientSession {
         )?;
         self.send_signed_event(event)?;
         Ok(payload)
+    }
+
+    pub fn check_handle(
+        &self,
+        daemon_pubkey: &str,
+        handle: &str,
+    ) -> Result<HandleCheckResult, Box<dyn std::error::Error>> {
+        let request_id = random_nonce_hex();
+        let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let player_pubkey_hex = self.keys.public_key().to_hex();
+        self.with_client(async move |client| {
+            let mut notifications = client.notifications();
+            let subscription = client
+                .subscribe(
+                    Filter::new()
+                        .kinds([Kind::Custom(30526)])
+                        .author(daemon_pubkey.clone())
+                        .custom_tag(
+                            SingleLetterTag::lowercase(Alphabet::P),
+                            player_pubkey_hex.as_str(),
+                        )
+                        .since(Timestamp::now() - Duration::from_secs(15)),
+                    None,
+                )
+                .await?
+                .val;
+
+            let event = build_private_json_event(
+                &self.keys,
+                &daemon_pubkey,
+                30525,
+                &HandleCheckRequestPayload {
+                    handle: handle.trim().to_string(),
+                },
+                &request_id,
+                None,
+            )?;
+            client.send_event(&event).await?;
+
+            let timeout = tokio::time::Instant::now() + Duration::from_secs(15);
+            loop {
+                tokio::select! {
+                    _ = tokio::time::sleep_until(timeout) => return Err("handle check timed out".into()),
+                    notification = notifications.recv() => {
+                        match notification {
+                            Ok(nostr_sdk::RelayPoolNotification::Event { subscription_id, event, .. }) if subscription_id == subscription => {
+                                let event = *event;
+                                if tag_content(&event.tags, "d") != Some(request_id.as_str()) {
+                                    continue;
+                                }
+                                if let Some(payload) = decrypt_json::<HandleCheckResult>(self.keys.secret_key(), &event) {
+                                    client.unsubscribe(&subscription).await;
+                                    return Ok(payload);
+                                }
+                            }
+                            Ok(_) => {}
+                            Err(_) => return Err("handle check stream closed".into()),
+                        }
+                    }
+                }
+            }
+        })
     }
 
     pub fn claim_invite(

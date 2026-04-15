@@ -35,9 +35,9 @@ pub use settings::{
     get_catalog_dirty_since, get_game_metadata, get_settings, mark_catalog_dirty, update_settings,
 };
 pub use player_roster::{
-    RosterEntry, RosterEvent, RosterStore, get_roster_entry, list_roster,
+    HandleOwnership, RosterEntry, RosterEvent, RosterStore, get_roster_entry, list_roster,
     list_roster_events_for_npub, record_player_abandoned, record_player_joined,
-    upsert_player_seen,
+    resolve_handle_ownership, upsert_player_seen,
 };
 pub use store::HostedStore;
 pub use sysop_notifications::{

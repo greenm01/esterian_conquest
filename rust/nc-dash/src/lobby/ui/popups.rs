@@ -807,7 +807,7 @@ fn edit_handle_popup_lines(app: &LobbyApp) -> Vec<String> {
             app.state.player_handle.as_deref().unwrap_or("<unset>")
         ),
         format!("New handle   : {}", app.state.edit_handle_input),
-        "Enter saves the local keychain handle.".to_string(),
+        "Enter saves your handle.".to_string(),
     ]
 }
 

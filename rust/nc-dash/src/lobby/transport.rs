@@ -16,6 +16,7 @@ use nc_client::keychain::{
 use nc_client::password::validate_new_password;
 use nc_client::relay::validate_relay_url;
 use nc_nostr::game_definition::{GameStatus, RecruitingMode};
+use nc_nostr::handle_check::HandleCheckStatus;
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
 use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::pubkeys::hex_to_npub;
@@ -31,6 +32,12 @@ use super::state::{LobbyNetworkStatus, LobbyStatusTone};
 const CACHE_RESET_MESSAGE: &str = "Local cache was reset. Relay data will repopulate after refresh.";
 const CACHE_RESET_SAVE_FAILED_MESSAGE: &str =
     "Local cache was reset for this session, but it could not be saved. Relay data will repopulate after refresh.";
+const HANDLE_SAVED_LOCAL_MESSAGE: &str =
+    "Handle saved locally. It will be verified when you next contact nc-host.";
+const HANDLE_UPDATED_LOCAL_MESSAGE: &str =
+    "Handle updated locally. It will be verified when you next contact nc-host.";
+const HANDLE_VERIFIED_MESSAGE: &str = "Handle verified with nc-host.";
+const HANDLE_UPDATED_VERIFIED_MESSAGE: &str = "Handle updated and verified with nc-host.";
 
 fn format_catalog_created_date(created_at: Option<i64>) -> String {
     created_at
@@ -149,6 +156,11 @@ struct CacheLoadResult {
     status_tone: LobbyStatusTone,
 }
 
+enum HandleSaveMode {
+    Verified,
+    LocalOnly,
+}
+
 impl LobbyTransport {
     pub fn new(relay_override: Option<String>) -> Self {
         Self {
@@ -186,19 +198,22 @@ impl LobbyTransport {
             Some(handle.trim().to_string()),
         )
         .map_err(|err| err.to_string())?;
-        save_keychain(&keychain, password).map_err(|err| err.to_string())?;
         let cache = ClientCache::empty();
-        save_cache(&cache, password).map_err(|err| err.to_string())?;
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
         let (session, live_session) =
             build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
+        let mut catalog = Vec::new();
+        let handle_mode =
+            validate_local_handle_before_save(session.as_ref(), &mut catalog, &cache, &keychain)?;
+        save_keychain(&keychain, password).map_err(|err| err.to_string())?;
+        save_cache(&cache, password).map_err(|err| err.to_string())?;
         let has_session = session.is_some();
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
             keychain,
             cache,
-            catalog: Vec::new(),
+            catalog,
             session,
             live_session,
             relay_url,
@@ -207,8 +222,11 @@ impl LobbyTransport {
         if let Some(unlocked) = self.unlocked.as_mut() {
             Ok(build_loaded_state(
                 unlocked,
-                None,
-                LobbyStatusTone::Info,
+                Some(match handle_mode {
+                    HandleSaveMode::Verified => HANDLE_VERIFIED_MESSAGE.to_string(),
+                    HandleSaveMode::LocalOnly => HANDLE_SAVED_LOCAL_MESSAGE.to_string(),
+                }),
+                LobbyStatusTone::Success,
                 Some(unlocked.network_status),
             ))
         } else {
@@ -302,11 +320,15 @@ impl LobbyTransport {
             .unlocked
             .as_mut()
             .ok_or_else(|| "keychain is locked".to_string())?;
+        let handle_mode = validate_unlocked_handle_before_save(unlocked, handle)?;
         set_active_handle(&mut unlocked.keychain, Some(handle.trim().to_string()))?;
         save_keychain(&unlocked.keychain, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
-            Some("Handle updated locally. It will be sent on your next hosted action.".to_string()),
+            Some(match handle_mode {
+                HandleSaveMode::Verified => HANDLE_UPDATED_VERIFIED_MESSAGE.to_string(),
+                HandleSaveMode::LocalOnly => HANDLE_UPDATED_LOCAL_MESSAGE.to_string(),
+            }),
             LobbyStatusTone::Success,
             None,
         ))
@@ -325,6 +347,11 @@ impl LobbyTransport {
             .session
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+        preflight_handle_check(
+            session,
+            &row.daemon_pubkey,
+            current_handle(&unlocked.keychain).as_deref(),
+        )?;
         let handle = current_handle(&unlocked.keychain);
         session
             .send_invite_request(&row.game_id, &row.daemon_pubkey, message, handle.as_deref())
@@ -714,6 +741,100 @@ fn load_cache_with_recovery(password: &str, path: &std::path::Path) -> CacheLoad
                 status_tone: LobbyStatusTone::Error,
             }
         }
+    }
+}
+
+fn validate_local_handle_before_save(
+    session: Option<&HostedClientSession>,
+    catalog: &mut Vec<CatalogGame>,
+    cache: &ClientCache,
+    keychain: &Keychain,
+) -> Result<HandleSaveMode, String> {
+    let Some(handle) = current_handle(keychain) else {
+        return Ok(HandleSaveMode::LocalOnly);
+    };
+    let Some(session) = session else {
+        return Ok(HandleSaveMode::LocalOnly);
+    };
+    if catalog.is_empty() {
+        if let Ok(fetched) = session.fetch_catalog() {
+            *catalog = fetched;
+        }
+    }
+    let Some(daemon_pubkey) = resolve_single_host_daemon_pubkey(catalog, cache) else {
+        return Ok(HandleSaveMode::LocalOnly);
+    };
+    validate_handle_with_host(session, &daemon_pubkey, &handle)
+}
+
+fn validate_unlocked_handle_before_save(
+    unlocked: &mut UnlockedClient,
+    handle: &str,
+) -> Result<HandleSaveMode, String> {
+    let Some(session) = unlocked.session.as_ref() else {
+        return Ok(HandleSaveMode::LocalOnly);
+    };
+    if unlocked.catalog.is_empty() {
+        if let Ok(fetched) = session.fetch_catalog() {
+            unlocked.catalog = fetched;
+        }
+    }
+    let Some(daemon_pubkey) = resolve_single_host_daemon_pubkey(&unlocked.catalog, &unlocked.cache)
+    else {
+        return Ok(HandleSaveMode::LocalOnly);
+    };
+    validate_handle_with_host(session, &daemon_pubkey, handle)
+}
+
+fn validate_handle_with_host(
+    session: &HostedClientSession,
+    daemon_pubkey: &str,
+    handle: &str,
+) -> Result<HandleSaveMode, String> {
+    match session.check_handle(daemon_pubkey, handle) {
+        Ok(result) => match result.status {
+            HandleCheckStatus::Available | HandleCheckStatus::OwnedBySelf => {
+                Ok(HandleSaveMode::Verified)
+            }
+            HandleCheckStatus::Taken => Err(result.message),
+        },
+        Err(_) => Ok(HandleSaveMode::LocalOnly),
+    }
+}
+
+fn preflight_handle_check(
+    session: &HostedClientSession,
+    daemon_pubkey: &str,
+    handle: Option<&str>,
+) -> Result<(), String> {
+    let Some(handle) = handle.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(());
+    };
+    match session.check_handle(daemon_pubkey, handle) {
+        Ok(result) if result.status == HandleCheckStatus::Taken => Err(result.message),
+        Ok(_) | Err(_) => Ok(()),
+    }
+}
+
+fn resolve_single_host_daemon_pubkey(
+    catalog: &[CatalogGame],
+    cache: &ClientCache,
+) -> Option<String> {
+    let mut daemons = std::collections::BTreeSet::new();
+    for game in catalog {
+        if !game.daemon_pubkey.trim().is_empty() {
+            daemons.insert(game.daemon_pubkey.clone());
+        }
+    }
+    for game in &cache.games {
+        if !game.daemon_pubkey.trim().is_empty() {
+            daemons.insert(game.daemon_pubkey.clone());
+        }
+    }
+    if daemons.len() == 1 {
+        daemons.into_iter().next()
+    } else {
+        None
     }
 }
 

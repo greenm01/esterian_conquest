@@ -3,7 +3,7 @@ use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
 use crate::support::runtime::current_runtime_year;
 use crate::support::pubkeys::short_pubkey;
-use nc_data::hosted::{self, GameTier, HostedStore};
+use nc_data::hosted::{self, GameTier, HandleOwnership, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
 use nc_nostr::invite_request::{
     InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
@@ -95,6 +95,19 @@ impl GameWorker {
                 return;
             }
         };
+
+        if let Err(message) =
+            self.validate_player_handle(&request.player_pubkey, request.handle.as_deref())
+        {
+            let _ = self.enqueue_state_error(
+                store.connection(),
+                &request.player_pubkey,
+                StateErrorCode::HandleTaken,
+                &message,
+            );
+            return;
+        }
+        self.refresh_player_seen(&request.player_pubkey, request.handle.as_deref());
 
         let Some(game_dir) = self.db_path.parent() else {
             tracing::error!(
@@ -234,6 +247,21 @@ impl GameWorker {
                     message: "You already have a pending invite request for this game.".to_string(),
                 },
                 Ok(_) => {
+                    if let Err(message) =
+                        self.validate_player_handle(&request.player_pubkey, request.handle.as_deref())
+                    {
+                        return self.publish_invite_receipt(
+                            store.connection(),
+                            &request.player_pubkey,
+                            &InviteRequestReceipt {
+                                request_id: request.request_id.clone(),
+                                game_id: self.game_id.clone(),
+                                status: InviteRequestReceiptStatus::HandleTaken,
+                                message,
+                            },
+                        );
+                    }
+
                     if let Err(e) = hosted::create_request(
                         store.connection(),
                         &request.request_id,
@@ -245,16 +273,7 @@ impl GameWorker {
                         return;
                     }
 
-                    if let Some(roster_db) = self.roster_db_path() {
-                        if let Ok(rs) = hosted::RosterStore::open(&roster_db) {
-                            let _ = hosted::upsert_player_seen(
-                                rs.connection(),
-                                &request.player_pubkey,
-                                request.handle.as_deref(),
-                                &self.game_id,
-                            );
-                        }
-                    }
+                    self.refresh_player_seen(&request.player_pubkey, request.handle.as_deref());
 
                     if settings.game_tier == GameTier::Sandbox {
                         self.sandbox_auto_approve(&request)
@@ -289,34 +308,7 @@ impl GameWorker {
             }
         };
 
-        let content = match serde_json::to_string(&receipt) {
-            Ok(content) => content,
-            Err(e) => {
-                tracing::error!("Failed to serialize invite receipt: {}", e);
-                return;
-            }
-        };
-
-        let tags = nc_nostr::invite_request::build_invite_request_receipt_tags(&receipt)
-            .into_iter()
-            .map(|(key, value)| vec![key.to_string(), value])
-            .collect();
-
-        if let Err(e) = enqueue_encrypted_event(
-            store.connection(),
-            &self.game_id,
-            &request.player_pubkey,
-            30514,
-            &content,
-            tags,
-        ) {
-            tracing::error!("Failed to enqueue invite receipt: {}", e);
-        } else {
-            tracing::info!(
-                "Queued encrypted invite request receipt for {}",
-                short_pubkey(&request.player_pubkey)
-            );
-        }
+        self.publish_invite_receipt(store.connection(), &request.player_pubkey, &receipt);
     }
 
     fn sandbox_auto_approve(&self, request: &InviteRequest) -> InviteRequestReceipt {
@@ -594,6 +586,26 @@ impl GameWorker {
             }
         };
 
+        if let Err(message) =
+            self.validate_player_handle(&commands.player_pubkey, commands.handle.as_deref())
+        {
+            let receipt = TurnReceipt {
+                submit_id: commands.submit_id.clone(),
+                game_id: self.game_id.clone(),
+                turn: commands.turn,
+                status: TurnReceiptStatus::Rejected,
+                message: Some(message),
+                errors: vec![TurnReceiptError {
+                    path: "handle".to_string(),
+                    message: "handle_taken".to_string(),
+                }],
+            };
+            self.publish_turn_receipt(&commands.player_pubkey, &receipt)
+                .await;
+            return;
+        }
+        self.refresh_player_seen(&commands.player_pubkey, commands.handle.as_deref());
+
         if let Err(e) = hosted::enqueue_turn(
             store.connection(),
             &commands.submit_id,
@@ -856,6 +868,74 @@ impl GameWorker {
             tracing::info!(
                 "Queued encrypted turn receipt for {}",
                 short_pubkey(player_pubkey)
+            );
+        }
+    }
+
+    fn publish_invite_receipt(
+        &self,
+        conn: &rusqlite::Connection,
+        player_pubkey: &str,
+        receipt: &InviteRequestReceipt,
+    ) {
+        let content = match serde_json::to_string(receipt) {
+            Ok(content) => content,
+            Err(e) => {
+                tracing::error!("Failed to serialize invite receipt: {}", e);
+                return;
+            }
+        };
+
+        let tags = nc_nostr::invite_request::build_invite_request_receipt_tags(receipt)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+
+        if let Err(e) =
+            enqueue_encrypted_event(conn, &self.game_id, player_pubkey, 30514, &content, tags)
+        {
+            tracing::error!("Failed to enqueue invite receipt: {}", e);
+        } else {
+            tracing::info!(
+                "Queued encrypted invite request receipt for {}",
+                short_pubkey(player_pubkey)
+            );
+        }
+    }
+
+    fn validate_player_handle(
+        &self,
+        player_pubkey: &str,
+        handle: Option<&str>,
+    ) -> Result<(), String> {
+        let Some(handle) = handle.map(str::trim).filter(|value| !value.is_empty()) else {
+            return Ok(());
+        };
+        let Some(roster_db) = self.roster_db_path() else {
+            return Ok(());
+        };
+        let roster = hosted::RosterStore::open(&roster_db).map_err(|err| err.to_string())?;
+        match hosted::resolve_handle_ownership(roster.connection(), player_pubkey, handle)
+            .map_err(|err| err.to_string())?
+        {
+            HandleOwnership::Available | HandleOwnership::OwnedBySelf => Ok(()),
+            HandleOwnership::Taken => Err(format!(
+                "Handle '{}' is already used on this nc-host. Choose another handle.",
+                handle
+            )),
+        }
+    }
+
+    fn refresh_player_seen(&self, player_pubkey: &str, handle: Option<&str>) {
+        let Some(roster_db) = self.roster_db_path() else {
+            return;
+        };
+        if let Ok(roster) = hosted::RosterStore::open(&roster_db) {
+            let _ = hosted::upsert_player_seen(
+                roster.connection(),
+                player_pubkey,
+                handle,
+                &self.game_id,
             );
         }
     }

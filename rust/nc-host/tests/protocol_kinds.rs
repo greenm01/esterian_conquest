@@ -1,6 +1,7 @@
 mod common;
 
 use nc_nostr::claim::{SeatClaimRequestPayload, parse_seat_claim_request};
+use nc_nostr::handle_check::{HandleCheckRequestPayload, parse_handle_check_request};
 use nc_nostr::invite_request::{InviteRequestPayload, parse_invite_request};
 use nc_nostr::private_payload::encrypt_private_json;
 use nc_nostr::state_sync::{StateRequestPayload, parse_state_request};
@@ -163,6 +164,34 @@ fn test_parse_seat_claim_30510() {
     assert_eq!(parsed.invite_code, "invite-code-abc123");
     assert_eq!(parsed.game_id, Some("test-game".to_string()));
     assert_eq!(parsed.handle.as_deref(), Some("claimer"));
+}
+
+#[test]
+fn test_parse_handle_check_30525() {
+    let player_keys = make_test_keys();
+    let host_keys = make_test_keys();
+
+    let tags = vec![
+        Tag::parse(["d", "handle-check-001"]).unwrap(),
+        Tag::parse(["p", &host_keys.public_key().to_hex()]).unwrap(),
+    ];
+
+    let event = build_private_event(
+        &player_keys,
+        &host_keys,
+        30525,
+        &HandleCheckRequestPayload {
+            handle: "StarRider".to_string(),
+        },
+        tags,
+    );
+
+    let parsed =
+        parse_handle_check_request(host_keys.secret_key(), &event).expect("should parse");
+
+    assert_eq!(parsed.request_id, "handle-check-001");
+    assert_eq!(parsed.handle, "StarRider");
+    assert_eq!(parsed.player_pubkey, player_keys.public_key().to_hex());
 }
 
 #[test]

@@ -22,6 +22,7 @@ pub struct InviteRequestPayload {
 pub enum InviteRequestReceiptStatus {
     Received,
     GameFull,
+    HandleTaken,
     NotRecruiting,
     GameClosed,
     RateLimited,
@@ -33,6 +34,7 @@ impl InviteRequestReceiptStatus {
         match self {
             InviteRequestReceiptStatus::Received => "received",
             InviteRequestReceiptStatus::GameFull => "game_full",
+            InviteRequestReceiptStatus::HandleTaken => "handle_taken",
             InviteRequestReceiptStatus::NotRecruiting => "not_recruiting",
             InviteRequestReceiptStatus::GameClosed => "game_closed",
             InviteRequestReceiptStatus::RateLimited => "rate_limited",

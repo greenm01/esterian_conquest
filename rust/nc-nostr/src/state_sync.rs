@@ -37,6 +37,7 @@ pub struct GameState {
 #[serde(rename_all = "snake_case")]
 pub enum StateErrorCode {
     NotAPlayer,
+    HandleTaken,
     GameNotFound,
     InvalidRequest,
     StateUnavailable,
@@ -46,6 +47,7 @@ impl StateErrorCode {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::NotAPlayer => "not_a_player",
+            Self::HandleTaken => "handle_taken",
             Self::GameNotFound => "game_not_found",
             Self::InvalidRequest => "invalid_request",
             Self::StateUnavailable => "state_unavailable",

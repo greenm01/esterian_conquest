@@ -60,6 +60,8 @@ deduplication key unless a later implementation constraint proves otherwise.
 | `30522` | `TurnCommands` | `nc-dash` | NIP-44 | Submitted player turn orders |
 | `30523` | `PlayerMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted anonymous player-to-player game mail |
 | `30524` | `TurnReceipt` | `nc-host` | NIP-44 | Turn submission accepted or rejected |
+| `30525` | `HandleCheck` | `nc-dash` | NIP-44 | Check whether a handle is available on one `nc-host` |
+| `30526` | `HandleCheckResult` | `nc-host` | NIP-44 | Immediate handle-ownership result |
 
 Legacy SSH-oriented kinds `30501`/`30502`/`30503` and related map/session
 flows are intentionally outside this hosted v2 spec.
@@ -176,6 +178,8 @@ Rules:
 - the event is signed by the player identity
 - the request message and optional handle live only inside the encrypted
   payload, not in public tags
+- the handle is validated host-locally and case-insensitively against the
+  daemon roster
 - the daemon persists the request in the target game store before any outbound
   notification side effects
 
@@ -200,6 +204,8 @@ Possible `status` values:
 - `received`
 - `not_recruiting`
 - `game_closed`
+- `game_full`
+- `handle_taken`
 - `rate_limited`
 - `unknown_game`
 
@@ -455,6 +461,26 @@ Rules:
 - one player's visible world only
 - authoritative snapshot comes from the owning game worker
 - payload includes a deterministic `state_hash` for cache validation
+- invalid or unauthorized refreshes should return a typed `30520` state error
+  instead of silently timing out
+
+State-error payload shape:
+
+```json
+{
+  "game_id": "friday-night",
+  "code": "handle_taken",
+  "message": "Handle 'StarRider' is already used on this nc-host. Choose another handle."
+}
+```
+
+Possible error `code` values:
+
+- `not_a_player`
+- `handle_taken`
+- `game_not_found`
+- `invalid_request`
+- `state_unavailable`
 
 ## 12. 30521 `StateDelta`
 
@@ -500,6 +526,8 @@ Rules:
 
 - authorization is by claimed seat pubkey plus `game-id`
 - public tags must not expose handle or raw turn text
+- the handle is validated host-locally and case-insensitively against the
+  daemon roster before the turn is accepted
 - the daemon queues the submission in the per-game store before acknowledging it
 - one game's turn queue must not block any other game
 
@@ -544,13 +572,62 @@ Status values:
 - `not_claimed`
 - `wrong_turn`
 
-## 13. Server Behavior Requirements
+## 13. 30525 `HandleCheck`
+
+`HandleCheck` lets `nc-dash` validate a handle immediately against one daemon
+before saving it as the active hosted handle.
+
+Required tags:
+
+- `d`: request id
+- `p`: daemon pubkey
+
+Encrypted payload shape:
+
+```json
+{
+  "handle": "StarRider"
+}
+```
+
+Rules:
+
+- matching is case-insensitive after trimming surrounding whitespace
+- handle ownership is host-local, not relay-global
+- the same `npub` may reuse its own current handle
+- clients may still save a local handle offline, but they should treat it as
+  unverified until a handle check or later hosted action succeeds
+
+## 14. 30526 `HandleCheckResult`
+
+The daemon returns an encrypted result for `30525`.
+
+Example payload:
+
+```json
+{
+  "request_id": "<request-id>",
+  "handle": "StarRider",
+  "status": "owned_by_self",
+  "message": "This handle is already tied to your npub on this nc-host."
+}
+```
+
+Possible `status` values:
+
+- `available`
+- `owned_by_self`
+- `taken`
+
+## 15. Server Behavior Requirements
 
 The daemon side must:
 
 - persist join requests before notifying the sysop
 - cache latest player display handle by pubkey from player-authored hosted
   events
+- enforce host-local handle ownership by `npub` on invite intake, state
+  refresh, and turn submission paths
 - persist public notice posts and encrypted conversation events before
   publishing
 - persist turn submissions before publishing receipts
@@ -559,7 +636,7 @@ The daemon side must:
 - republish `30500` when recruiting state or open-seat state changes
 - refuse to start hosted service without a configured dedicated relay/node
 
-## 14. Client Expectations
+## 16. Client Expectations
 
 `nc-dash --lobby` should:
 
@@ -569,6 +646,8 @@ The daemon side must:
   platform-specific user paths
 - encrypt the local keychain and cache with the user's password
 - prompt on first launch for player handle and keychain password
+- use `30525` and `30526` for immediate handle checks when a specific daemon is
+  known
 - submit `30513` for join requests
 - listen for `30514` and `30515`
 - subscribe to public `30516` notice posts
@@ -578,7 +657,7 @@ The daemon side must:
 - mark approved requests as joined locally using the assigned seat
 - use `30507`, `30520`, `30521`, `30522`, and `30524` for live hosted play
 
-## 15. Deferred
+## 17. Deferred
 
 This draft intentionally defers:
 
