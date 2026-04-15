@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 
 use crate::modal::{ModalTheme, render_modal_box};
 use crate::native::NativeApp;
+use crate::rendered::RenderedUi;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
@@ -89,7 +90,7 @@ impl LobbyApp {
     }
 
     pub fn render_for_test(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        <Self as NativeApp>::render_playfield(self)
+        Ok(<Self as NativeApp>::render_ui(self)?.to_playfield(theme::body_style()))
     }
 
     pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) {
@@ -191,6 +192,52 @@ impl LobbyApp {
             network_dialog_label(self.state.network_status)
         )];
         let _ = render_modal_box(buffer, "NETWORK", &lines, modal_theme());
+    }
+
+    fn render_lobby_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        if self.state.route == LobbyRoute::HostedGame {
+            if let Some(hosted) = self.state.hosted_game.as_ref() {
+                let mut buffer = hosted
+                    .dashboard
+                    .render_ui()?
+                    .to_playfield(theme::body_style());
+                if self.state.show_resume_sync_overlay {
+                    self.render_resume_sync_overlay(&mut buffer);
+                }
+                return Ok(buffer);
+            }
+        }
+        let mut buffer = PlayfieldBuffer::new(
+            self.geometry.width(),
+            self.geometry.height(),
+            theme::body_style(),
+        );
+        if matches!(
+            self.state.route,
+            LobbyRoute::FirstRun | LobbyRoute::MatrixLocked | LobbyRoute::Locked
+        ) {
+            match self.state.route {
+                LobbyRoute::FirstRun => onboarding::render_first_run(&mut buffer, &self.state),
+                LobbyRoute::MatrixLocked => {
+                    onboarding::render_matrix_locked(&mut buffer, &self.matrix_rain)
+                }
+                LobbyRoute::Locked => onboarding::render_locked(&mut buffer, &self.state),
+                _ => {}
+            }
+            return Ok(buffer);
+        }
+        if self.state.route == LobbyRoute::SubmitTurn {
+            self.render_submit_turn(&mut buffer);
+            if self.state.show_resume_sync_overlay {
+                self.render_resume_sync_overlay(&mut buffer);
+            }
+            return Ok(buffer);
+        }
+        ui::render_scene(&mut buffer, self);
+        if self.state.show_resume_sync_overlay {
+            self.render_resume_sync_overlay(&mut buffer);
+        }
+        Ok(buffer)
     }
 
     fn scheduled_wakeup(&self) -> Option<Instant> {
@@ -600,47 +647,11 @@ impl NativeApp for LobbyApp {
         }
     }
 
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        if self.state.route == LobbyRoute::HostedGame {
-            if let Some(hosted) = self.state.hosted_game.as_ref() {
-                let mut buffer = hosted.dashboard.render_playfield()?;
-                if self.state.show_resume_sync_overlay {
-                    self.render_resume_sync_overlay(&mut buffer);
-                }
-                return Ok(buffer);
-            }
-        }
-        let mut buffer = PlayfieldBuffer::new(
-            self.geometry.width(),
-            self.geometry.height(),
-            theme::body_style(),
-        );
-        if matches!(
-            self.state.route,
-            LobbyRoute::FirstRun | LobbyRoute::MatrixLocked | LobbyRoute::Locked
-        ) {
-            match self.state.route {
-                LobbyRoute::FirstRun => onboarding::render_first_run(&mut buffer, &self.state),
-                LobbyRoute::MatrixLocked => {
-                    onboarding::render_matrix_locked(&mut buffer, &self.matrix_rain)
-                }
-                LobbyRoute::Locked => onboarding::render_locked(&mut buffer, &self.state),
-                _ => {}
-            }
-            return Ok(buffer);
-        }
-        if self.state.route == LobbyRoute::SubmitTurn {
-            self.render_submit_turn(&mut buffer);
-            if self.state.show_resume_sync_overlay {
-                self.render_resume_sync_overlay(&mut buffer);
-            }
-            return Ok(buffer);
-        }
-        ui::render_scene(&mut buffer, self);
-        if self.state.show_resume_sync_overlay {
-            self.render_resume_sync_overlay(&mut buffer);
-        }
-        Ok(buffer)
+    fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
+        Ok(RenderedUi::from_playfield(
+            &self.render_lobby_playfield()?,
+            theme::tui_theme().cursor,
+        ))
     }
 
     fn on_idle(&mut self) -> bool {

@@ -4,10 +4,14 @@ use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::style::Modifier;
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-use crate::buffer::{Cell, PlayfieldBuffer};
+use crate::buffer::Cell;
+#[cfg(test)]
+use crate::buffer::PlayfieldBuffer;
+use crate::rendered::RenderedUi;
 use crate::theme::classic;
 
 use self::font::{FontRenderer, color_to_rgb, pack_rgb};
@@ -44,7 +48,8 @@ struct RenderSnapshot {
 }
 
 impl RenderSnapshot {
-    fn capture_from_buffer(&mut self, buffer: &PlayfieldBuffer) {
+    #[cfg(test)]
+    fn capture_from_playfield(&mut self, buffer: &PlayfieldBuffer) {
         self.width = buffer.width();
         self.height = buffer.height();
         self.cursor = buffer
@@ -58,6 +63,38 @@ impl RenderSnapshot {
             let row = buffer.row(row_idx);
             self.row_fingerprints.push(fingerprint_row(row));
             self.cells.extend_from_slice(row);
+        }
+    }
+
+    fn capture_from_rendered(&mut self, rendered: &RenderedUi) {
+        self.width = rendered.buffer.area.width as usize;
+        self.height = rendered.buffer.area.height as usize;
+        self.cursor = rendered
+            .cursor
+            .map(|(col, row)| (usize::from(col), usize::from(row)));
+        self.cells.clear();
+        self.row_fingerprints.clear();
+        self.cells.reserve(self.width * self.height);
+        self.row_fingerprints.reserve(self.height);
+        let fallback = crate::theme::body_style();
+        for row_idx in 0..self.height {
+            let mut row_cells = Vec::with_capacity(self.width);
+            for col_idx in 0..self.width {
+                let cell = rendered
+                    .buffer
+                    .cell((col_idx as u16, row_idx as u16))
+                    .expect("rendered ui cell should be in bounds");
+                row_cells.push(Cell::new(
+                    cell.symbol().chars().next().unwrap_or(' '),
+                    crate::buffer::CellStyle::new(
+                        crate::theme::from_tui_color(cell.fg, fallback.fg),
+                        crate::theme::from_tui_color(cell.bg, fallback.bg),
+                        cell.modifier.contains(Modifier::BOLD),
+                    ),
+                ));
+            }
+            self.row_fingerprints.push(fingerprint_row(&row_cells));
+            self.cells.extend_from_slice(&row_cells);
         }
     }
 
@@ -87,7 +124,7 @@ impl CellGridWindowRenderer {
 
     pub fn render(
         &mut self,
-        buffer: &PlayfieldBuffer,
+        rendered: &RenderedUi,
         window_pixel_width: u32,
         window_pixel_height: u32,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -95,15 +132,15 @@ impl CellGridWindowRenderer {
             return Ok(());
         }
 
-        let grid_pixel_width = buffer.width() * DEFAULT_CELL_WIDTH;
-        let grid_pixel_height = buffer.height() * DEFAULT_CELL_HEIGHT;
+        let grid_pixel_width = rendered.buffer.area.width as usize * DEFAULT_CELL_WIDTH;
+        let grid_pixel_height = rendered.buffer.area.height as usize * DEFAULT_CELL_HEIGHT;
         self.surface.resize(
             NonZeroU32::new(window_pixel_width).ok_or("pixel width must be non-zero")?,
             NonZeroU32::new(window_pixel_height).ok_or("pixel height must be non-zero")?,
         )?;
         let mut current_frame = RenderSnapshot::default();
-        current_frame.capture_from_buffer(buffer);
-        let background = pack_rgb(frame_background(buffer));
+        current_frame.capture_from_rendered(rendered);
+        let background = pack_rgb(frame_background_snapshot(&current_frame));
         let frame_width = window_pixel_width as usize;
         let frame_height = window_pixel_height as usize;
         let full_repaint = !self.has_previous_frame
@@ -377,21 +414,26 @@ fn redraw_span(
     }
 }
 
+#[cfg(test)]
 fn frame_background(buffer: &PlayfieldBuffer) -> (u8, u8, u8) {
+    let mut snapshot = RenderSnapshot::default();
+    snapshot.capture_from_playfield(buffer);
+    frame_background_snapshot(&snapshot)
+}
+
+fn frame_background_snapshot(snapshot: &RenderSnapshot) -> (u8, u8, u8) {
     let fallback = color_to_rgb(classic::body_style().bg);
-    if buffer.width() == 0 || buffer.height() == 0 {
+    if snapshot.width == 0 || snapshot.height == 0 {
         return fallback;
     }
     let mut counts: HashMap<u32, (usize, (u8, u8, u8))> = HashMap::new();
-    for row in 0..buffer.height() {
-        for cell in buffer.row(row) {
-            let code = color_code(cell.style.bg);
-            let rgb = color_to_rgb(cell.style.bg);
-            counts
-                .entry(code)
-                .and_modify(|entry| entry.0 += 1)
-                .or_insert((1, rgb));
-        }
+    for cell in &snapshot.cells {
+        let code = color_code(cell.style.bg);
+        let rgb = color_to_rgb(cell.style.bg);
+        counts
+            .entry(code)
+            .and_modify(|entry| entry.0 += 1)
+            .or_insert((1, rgb));
     }
     counts
         .into_values()
@@ -501,7 +543,7 @@ mod tests {
 
     fn snapshot_for(buffer: &PlayfieldBuffer) -> RenderSnapshot {
         let mut snapshot = RenderSnapshot::default();
-        snapshot.capture_from_buffer(buffer);
+        snapshot.capture_from_playfield(buffer);
         snapshot
     }
 

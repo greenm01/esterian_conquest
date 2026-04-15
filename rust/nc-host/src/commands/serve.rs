@@ -234,17 +234,33 @@ async fn run_async_server(
                             }
                             Err(routing::RoutingError::UnknownGame(game_id)) => {
                                 tracing::warn!("Routing error: unknown game {}", game_id);
-                                if let Some(request) = nc_nostr::invite_request::parse_invite_request(keys.secret_key(), &event) {
-                                    publish_invite_request_receipt_direct(
-                                        &publisher,
-                                        &request.player_pubkey,
-                                        &nc_nostr::invite_request::InviteRequestReceipt {
-                                            request_id: request.request_id,
-                                            game_id: game_id.clone(),
-                                            status: nc_nostr::invite_request::InviteRequestReceiptStatus::UnknownGame,
-                                            message: format!("Unknown game: {}", game_id),
-                                        },
-                                    ).await;
+                                match event.kind.as_u16() {
+                                    30507 => {
+                                        publish_state_error_direct(
+                                            &publisher,
+                                            &event.pubkey.to_hex(),
+                                            &nc_nostr::state_sync::StateErrorPayload {
+                                                game_id: game_id.clone(),
+                                                code: nc_nostr::state_sync::StateErrorCode::GameNotFound,
+                                                message: format!("Unknown game: {}", game_id),
+                                            },
+                                        ).await;
+                                    }
+                                    30513 => {
+                                        if let Some(request) = nc_nostr::invite_request::parse_invite_request(keys.secret_key(), &event) {
+                                            publish_invite_request_receipt_direct(
+                                                &publisher,
+                                                &request.player_pubkey,
+                                                &nc_nostr::invite_request::InviteRequestReceipt {
+                                                    request_id: request.request_id,
+                                                    game_id: game_id.clone(),
+                                                    status: nc_nostr::invite_request::InviteRequestReceiptStatus::UnknownGame,
+                                                    message: format!("Unknown game: {}", game_id),
+                                                },
+                                            ).await;
+                                        }
+                                    }
+                                    _ => {}
                                 }
                             }
                             Err(routing::RoutingError::NotAddressedToHost) => {
@@ -252,6 +268,19 @@ async fn run_async_server(
                             }
                             Err(e) => {
                                 tracing::warn!("Routing error: {:?}", e);
+                                if event.kind.as_u16() == 30507 {
+                                    if let Some(game_id) = extract_game_id_tag(&event) {
+                                        publish_state_error_direct(
+                                            &publisher,
+                                            &event.pubkey.to_hex(),
+                                            &nc_nostr::state_sync::StateErrorPayload {
+                                                game_id,
+                                                code: nc_nostr::state_sync::StateErrorCode::InvalidRequest,
+                                                message: "Invalid hosted state request.".to_string(),
+                                            },
+                                        ).await;
+                                    }
+                                }
                             }
                         }
                     }
@@ -385,6 +414,47 @@ async fn publish_invite_request_receipt_direct(
     {
         tracing::error!(
             "Failed to publish invite receipt to {}: {}",
+            short_pubkey(player_pubkey),
+            e
+        );
+    }
+}
+
+fn extract_game_id_tag(event: &nostr_sdk::Event) -> Option<String> {
+    event
+        .tags
+        .iter()
+        .find_map(|tag| {
+            let values = tag.clone().to_vec();
+            (values.first().map(String::as_str) == Some("game-id") && values.len() >= 2)
+                .then(|| values[1].clone())
+        })
+}
+
+async fn publish_state_error_direct(
+    publisher: &EventPublisher,
+    player_pubkey: &str,
+    error: &nc_nostr::state_sync::StateErrorPayload,
+) {
+    let content = match serde_json::to_string(error) {
+        Ok(content) => content,
+        Err(e) => {
+            tracing::error!("Failed to serialize state error: {}", e);
+            return;
+        }
+    };
+
+    let tags = nc_nostr::state_sync::build_state_error_tags(error)
+        .into_iter()
+        .map(|(key, value)| vec![key.to_string(), value])
+        .collect();
+
+    if let Err(e) = publisher
+        .publish_encrypted_multi(player_pubkey, 30520, &content, tags)
+        .await
+    {
+        tracing::error!(
+            "Failed to publish state error to {}: {}",
             short_pubkey(player_pubkey),
             e
         );

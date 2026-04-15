@@ -71,6 +71,28 @@ fn sandbox_open_game() -> OpenGameRow {
     row
 }
 
+fn hosted_game_view() -> HostedGameView {
+    let snapshot = sample_hosted_snapshot();
+    let dashboard =
+        build_hosted_dash_app(&snapshot, ScreenGeometry::new(120, 40)).expect("hosted dash app");
+    HostedGameView {
+        row: JoinedGameRow::new(
+            "friday-night",
+            "joined",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "y3004 t4",
+        ),
+        snapshot,
+        dashboard,
+        submit_input: String::new(),
+        submit_status: None,
+    }
+}
+
 fn league_open_game() -> OpenGameRow {
     let mut row = OpenGameRow::new(
         "league-night",
@@ -210,25 +232,7 @@ fn paste_shortcuts_fill_single_line_lobby_fields() {
 #[test]
 fn submit_turn_paste_preserves_newlines() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::SubmitTurn, ScreenGeometry::new(120, 40));
-    let snapshot = sample_hosted_snapshot();
-    let dashboard =
-        build_hosted_dash_app(&snapshot, ScreenGeometry::new(120, 40)).expect("hosted dash app");
-    app.state.hosted_game = Some(HostedGameView {
-        row: JoinedGameRow::new(
-            "friday-night",
-            "joined",
-            "Friday Night",
-            "nc-host",
-            "ws://127.0.0.1:8080",
-            "daemon",
-            Some(1),
-            "y3004 t4",
-        ),
-        snapshot,
-        dashboard,
-        submit_input: String::new(),
-        submit_status: None,
-    });
+    app.state.hosted_game = Some(hosted_game_view());
     app.set_clipboard_text("fleet-order alpha\nplanet-build beta\r\n");
 
     apply_key(&mut app, ctrl_key(KeyCode::Char('v')));
@@ -241,6 +245,109 @@ fn submit_turn_paste_preserves_newlines() {
             .submit_input,
         "fleet-order alpha\nplanet-build beta\r\n"
     );
+}
+
+#[test]
+fn alt_q_in_hosted_game_opens_in_game_quit_confirm() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    app.state.hosted_game = Some(hosted_game_view());
+
+    apply_key(&mut app, alt_key(KeyCode::Char('q')));
+
+    assert_eq!(app.state.route, LobbyRoute::HostedGame);
+    let lines = {
+        let buffer = app.render_for_test().expect("render hosted lobby");
+        (0..buffer.height())
+            .map(|row| {
+                buffer
+                    .row(row)
+                    .iter()
+                    .map(|cell| cell.ch)
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert!(lines.contains("QUIT"));
+    assert!(!lines.contains("Quit NC? Y/[N]"));
+}
+
+#[test]
+fn escape_in_hosted_quit_confirm_dismisses_popup_without_leaving_game() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    app.state.hosted_game = Some(hosted_game_view());
+
+    apply_key(&mut app, alt_key(KeyCode::Char('q')));
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::HostedGame);
+    let lines = {
+        let buffer = app.render_for_test().expect("render hosted lobby");
+        (0..buffer.height())
+            .map(|row| {
+                buffer
+                    .row(row)
+                    .iter()
+                    .map(|cell| cell.ch)
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert!(!lines.contains("Quit Game? Y/[N]"));
+    assert!(!app.should_quit);
+}
+
+#[test]
+fn escape_in_hosted_overlay_closes_overlay_without_leaving_game() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    app.state.hosted_game = Some(hosted_game_view());
+
+    apply_key(&mut app, key(KeyCode::Char('p')));
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::HostedGame);
+    let lines = {
+        let buffer = app.render_for_test().expect("render hosted lobby");
+        (0..buffer.height())
+            .map(|row| {
+                buffer
+                    .row(row)
+                    .iter()
+                    .map(|cell| cell.ch)
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert!(!lines.contains("PLANET LIST:"));
+}
+
+#[test]
+fn escape_from_hosted_root_returns_to_lobby_home() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    app.state.hosted_game = Some(hosted_game_view());
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(!app.should_quit);
+}
+
+#[test]
+fn hosted_quit_confirm_only_quits_on_y() {
+    let mut cancel = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    cancel.state.hosted_game = Some(hosted_game_view());
+    apply_key(&mut cancel, alt_key(KeyCode::Char('q')));
+    apply_key(&mut cancel, key(KeyCode::Enter));
+    assert_eq!(cancel.state.route, LobbyRoute::HostedGame);
+    assert!(!cancel.should_quit);
+
+    let mut accept = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    accept.state.hosted_game = Some(hosted_game_view());
+    apply_key(&mut accept, alt_key(KeyCode::Char('q')));
+    apply_key(&mut accept, key(KeyCode::Char('y')));
+    assert!(accept.should_quit);
 }
 
 #[test]
@@ -467,6 +574,9 @@ fn escape_does_not_quit_from_home_comms_tab() {
 #[test]
 fn alt_q_opens_quit_confirm_from_home() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_manual = false;
+    app.state.manual_seen_this_session = true;
+    app.state.status_message = None;
 
     apply_key(&mut app, alt_key(KeyCode::Char('q')));
 
@@ -477,6 +587,8 @@ fn alt_q_opens_quit_confirm_from_home() {
 #[test]
 fn lobby_quit_confirm_only_quits_on_y() {
     let mut cancel = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    cancel.state.show_manual = false;
+    cancel.state.manual_seen_this_session = true;
     apply_key(&mut cancel, alt_key(KeyCode::Char('q')));
     apply_key(&mut cancel, key(KeyCode::Esc));
     assert_eq!(cancel.state.route, LobbyRoute::Home);
@@ -486,6 +598,34 @@ fn lobby_quit_confirm_only_quits_on_y() {
     apply_key(&mut accept, alt_key(KeyCode::Char('q')));
     apply_key(&mut accept, key(KeyCode::Char('y')));
     assert!(accept.should_quit);
+}
+
+#[test]
+fn alt_q_does_nothing_on_gated_routes() {
+    for route in [
+        LobbyRoute::FirstRun,
+        LobbyRoute::MatrixLocked,
+        LobbyRoute::Locked,
+    ] {
+        let mut app = LobbyApp::new_for_tests(route, ScreenGeometry::new(120, 40));
+
+        apply_key(&mut app, alt_key(KeyCode::Char('q')));
+
+        assert_eq!(app.state.route, route);
+        assert!(!app.should_quit);
+    }
+}
+
+#[test]
+fn quit_confirm_dismiss_does_not_enter_home_while_locked() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+    app.state.quit_confirm_return_route = LobbyRoute::Locked;
+    app.state.route = LobbyRoute::QuitConfirm;
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Locked);
+    assert!(!app.should_quit);
 }
 
 #[test]
@@ -1208,6 +1348,32 @@ fn enter_on_sandbox_open_game_opens_join_confirm_popup() {
             .map(|row| row.game.as_str()),
         Some("Sandbox Smoke")
     );
+}
+
+#[test]
+fn expired_sandbox_my_games_row_prompts_rejoin_message() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::MyGames;
+    let mut row = JoinedGameRow::new(
+        "sandbox-smoke",
+        "expired",
+        "Sandbox Smoke",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        None,
+        "- -",
+    );
+    row.game_tier = "Sandbox".to_string();
+    app.state.joined_games = vec![row];
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(
+        app.state.status_message.as_deref(),
+        Some("Your sandbox seat is no longer active. Rejoin from Open Games.")
+    );
+    assert_eq!(app.state.route, LobbyRoute::Home);
 }
 
 #[test]

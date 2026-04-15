@@ -42,6 +42,28 @@ impl SysopClient {
             self.client.add_relay(relay).await?;
         }
         self.client.connect().await;
+
+        // Subscribe to relevant sysop events:
+        let sysop_pubkey = self.keys.public_key();
+        
+        let dm_filter = Filter::new()
+            .kind(Kind::Custom(30518))
+            .pubkey(sysop_pubkey)
+            .limit(50); // Get last 50 DMs
+
+        let game_def_filter = Filter::new()
+            .kind(Kind::Custom(30500))
+            .limit(20);
+
+        let global_chat_filter = Filter::new()
+            .kind(Kind::TextNote)
+            .limit(50); // Get last 50 global messages
+
+        // In nostr-sdk 0.44, we can pass multiple filters to subscribe
+        self.client.subscribe(dm_filter, None).await;
+        self.client.subscribe(game_def_filter, None).await;
+        self.client.subscribe(global_chat_filter, None).await;
+        
         Ok(())
     }
 

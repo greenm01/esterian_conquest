@@ -32,6 +32,7 @@ use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
+use crate::rendered::RenderedUi;
 
 const fn planet_sort_code(sort: PlanetOverlaySort) -> &'static str {
     match sort {
@@ -136,6 +137,10 @@ fn intel_sort_from_code(code: &str) -> Option<IntelOverlaySort> {
 }
 
 impl DashApp {
+    pub(crate) fn is_at_root_surface(&self) -> bool {
+        self.overlay == ActiveOverlay::None && self.popup == ActivePopup::None
+    }
+
     pub(crate) fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {
         if !self.is_terminal_too_small {
             self.handle_key(key);
@@ -1726,8 +1731,11 @@ impl NativeApp for DashApp {
         Self::resize_canvas(self, cols, rows);
     }
 
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        Self::render_playfield(self)
+    fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
+        Ok(RenderedUi::from_playfield(
+            &Self::render_playfield(self)?,
+            crate::theme::tui_theme().cursor,
+        ))
     }
 
     fn is_dragging_surface(&self) -> bool {

@@ -2,7 +2,10 @@ use nc_nostr::invite_request::{
     InviteRequestPayload, InviteRequestReceipt, InviteRequestReceiptStatus, parse_invite_request,
 };
 use nc_nostr::private_payload::encrypt_private_json;
-use nc_nostr::state_sync::{StateRequestPayload, parse_state_request};
+use nc_nostr::state_sync::{
+    StateErrorCode, StateErrorPayload, StateRequestPayload, parse_state_error,
+    parse_state_request,
+};
 use nc_nostr::turn_commands::{TurnCommandsPayload, parse_turn_commands};
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
 
@@ -103,4 +106,37 @@ fn invite_request_receipt_supports_game_full_status() {
 
     assert_eq!(parsed.status, InviteRequestReceiptStatus::GameFull);
     assert_eq!(parsed.status.as_str(), "game_full");
+}
+
+#[test]
+fn state_error_payload_round_trips_as_private_30520() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &host,
+        &player.public_key(),
+        &StateErrorPayload {
+            game_id: "sandbox-smoke".to_string(),
+            code: StateErrorCode::NotAPlayer,
+            message: "You no longer have a claimed seat in this game.".to_string(),
+        },
+    )
+    .expect("encrypt state error");
+
+    let event = EventBuilder::new(Kind::Custom(30520), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "state-error"]).unwrap(),
+            Tag::parse(["game-id", "sandbox-smoke"]).unwrap(),
+            Tag::parse(["error", "not_a_player"]).unwrap(),
+            Tag::parse(["p", &player.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&host)
+        .unwrap();
+
+    let parsed = parse_state_error(player.secret_key(), &event).expect("parse state error");
+    assert_eq!(parsed.code, StateErrorCode::NotAPlayer);
+    assert_eq!(
+        parsed.message,
+        "You no longer have a claimed seat in this game."
+    );
 }

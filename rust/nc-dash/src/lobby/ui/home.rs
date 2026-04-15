@@ -345,6 +345,7 @@ fn joined_game_status_label(status: &str) -> &str {
         "requested" => "Requested",
         "rejected" => "Rejected",
         "joined" => "Joined",
+        "expired" => "Expired",
         "final" => "Final",
         other => other,
     }

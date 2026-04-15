@@ -147,6 +147,7 @@ pub struct HostedGameView {
 
 pub struct LobbyState {
     pub route: LobbyRoute,
+    pub quit_confirm_return_route: LobbyRoute,
     pub gate_mode: KeychainGateMode,
     pub unlock_return_route: LobbyRoute,
     pub active_tab: LobbyTab,
@@ -208,6 +209,7 @@ impl LobbyState {
     ) -> Self {
         Self {
             route,
+            quit_confirm_return_route: route,
             gate_mode: KeychainGateMode::Startup,
             unlock_return_route: LobbyRoute::Home,
             active_tab: LobbyTab::OpenGames,

@@ -1,7 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
-use ratatui::widgets::{Clear, Widget};
+use ratatui::widgets::{Block, Borders, Clear, Padding, Widget};
 
 use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
 use crate::modal::{
@@ -265,13 +265,31 @@ pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, par
 }
 
 pub(super) fn render_quit_confirm_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
-    let lines = quit_confirm_popup_lines(app);
-    render_popup_lines(
-        buffer,
-        popup_rect(parent, quit_confirm_popup_size(app, parent), app.popup_position),
-        " QUIT ",
-        &measure_popup_text(parent, &lines).lines,
-        theme::tui_theme().value,
+    let styles = theme::tui_theme();
+    let area = popup_rect(parent, quit_confirm_popup_size(app, parent), app.popup_position);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .padding(Padding::horizontal(1))
+        .title(" QUIT ")
+        .style(styles.menu)
+        .border_style(with_panel_bg(styles.menu_hotkey))
+        .title_style(with_panel_bg(styles.menu_hotkey));
+    let inner = block.inner(area);
+    let message = quit_confirm_popup_lines(app)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    let message_width = message.chars().count().min(inner.width as usize) as u16;
+    let start_col = inner.x + inner.width.saturating_sub(message_width) / 2;
+    let row = inner.y + inner.height.saturating_sub(1) / 2;
+    Clear.render(area, buffer);
+    block.render(area, buffer);
+    buffer.set_stringn(
+        start_col,
+        row,
+        &message,
+        inner.width as usize,
+        with_panel_bg(styles.menu),
     );
 }
 
@@ -590,7 +608,9 @@ pub(super) fn compose_invite_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u
 }
 
 pub(super) fn quit_confirm_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
-    popup_text_size(parent, &quit_confirm_popup_lines(app))
+    let wrapped = measure_popup_text(parent, &quit_confirm_popup_lines(app));
+    let (width, _) = popup_size_from_wrapped(&wrapped);
+    (width, 5)
 }
 
 pub(super) fn sandbox_join_confirm_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {

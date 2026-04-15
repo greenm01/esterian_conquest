@@ -166,6 +166,29 @@ fn my_games_history_keeps_active_rows_above_old_rows() {
 }
 
 #[test]
+fn my_games_renders_expired_status_for_stale_sandbox_rows() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
+    app.state.active_tab = LobbyTab::MyGames;
+    let mut expired = JoinedGameRow::new(
+        "sandbox-smoke",
+        "expired",
+        "Sandbox Smoke",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        None,
+        "- -",
+    );
+    expired.game_tier = "Sandbox".to_string();
+    app.state.joined_games = vec![expired];
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("Expired"));
+    assert!(lines.contains("Sandbox Smoke"));
+}
+
+#[test]
 fn home_route_centers_footer_and_uses_toast_overlay() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.network_status = LobbyNetworkStatus::Synced;

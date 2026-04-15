@@ -9,7 +9,10 @@ use nc_nostr::player_message::{
     PlayerMessage, PlayerMessageRequest, decrypt_player_message,
 };
 use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
-use nc_nostr::state_sync::{GameState, StateDelta, StateRequestPayload};
+use nc_nostr::state_sync::{
+    GameState, StateDelta, StateErrorCode, StateErrorPayload, StateRequestPayload,
+    parse_state_error,
+};
 use nc_nostr::tags::tag_content;
 use nc_nostr::thread_message::{SenderRole, SysopThreadMessage, decrypt_thread_message};
 use nc_nostr::turn_commands::{TurnCommandsPayload, TurnReceipt};
@@ -47,6 +50,36 @@ pub enum SandboxJoinOutcome {
     Joined(GameState),
     Full(String),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostedStateRequestError {
+    pub code: Option<StateErrorCode>,
+    pub message: String,
+}
+
+impl HostedStateRequestError {
+    fn new(message: impl Into<String>) -> Self {
+        Self {
+            code: None,
+            message: message.into(),
+        }
+    }
+
+    fn from_payload(payload: StateErrorPayload) -> Self {
+        Self {
+            code: Some(payload.code),
+            message: payload.message,
+        }
+    }
+}
+
+impl std::fmt::Display for HostedStateRequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for HostedStateRequestError {}
 
 impl HostedClientSession {
     pub fn new(keys: Keys, relay_url: impl Into<String>) -> Self {
@@ -262,8 +295,9 @@ impl HostedClientSession {
             {
                 match decision.decision {
                     nc_nostr::invite_request::InviteDecision::Approved { .. } => {
-                        let state =
-                            self.request_state(game_id, daemon_pubkey, None, None, handle)?;
+                        let state = self
+                            .request_state(game_id, daemon_pubkey, None, None, handle)
+                            .map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
                         return Ok(SandboxJoinOutcome::Joined(state));
                     }
                     nc_nostr::invite_request::InviteDecision::Rejected => {
@@ -406,7 +440,8 @@ impl HostedClientSession {
                         .since(Timestamp::now() - Duration::from_secs(15)),
                     None,
                 )
-                .await?
+                .await
+                .map_err(|err| HostedStateRequestError::new(err.to_string()))?
                 .val;
             let event = build_private_json_event(
                 &self.keys,
@@ -456,11 +491,20 @@ impl HostedClientSession {
         last_turn: Option<u32>,
         last_hash: Option<&str>,
         handle: Option<&str>,
-    ) -> Result<GameState, Box<dyn std::error::Error>> {
+    ) -> Result<GameState, HostedStateRequestError> {
         let request_id = random_nonce_hex();
-        let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let daemon_pubkey =
+            PublicKey::parse(daemon_pubkey).map_err(|err| HostedStateRequestError::new(err.to_string()))?;
         let player_pubkey_hex = self.keys.public_key().to_hex();
-        self.with_client(async move |client| {
+        let runtime =
+            tokio::runtime::Runtime::new().map_err(|err| HostedStateRequestError::new(err.to_string()))?;
+        runtime.block_on(async {
+            let client = Client::new(self.keys.clone());
+            client
+                .add_relay(&self.relay_url)
+                .await
+                .map_err(|err| HostedStateRequestError::new(err.to_string()))?;
+            client.connect().await;
             let mut notifications = client.notifications();
             let subscription = client
                 .subscribe(
@@ -474,7 +518,8 @@ impl HostedClientSession {
                         .since(Timestamp::now() - Duration::from_secs(15)),
                     None,
                 )
-                .await?
+                .await
+                .map_err(|err| HostedStateRequestError::new(err.to_string()))?
                 .val;
             let event = build_private_json_event(
                 &self.keys,
@@ -487,13 +532,17 @@ impl HostedClientSession {
                 },
                 &request_id,
                 Some(game_id),
-            )?;
-            client.send_event(&event).await?;
+            )
+            .map_err(|err| HostedStateRequestError::new(err.to_string()))?;
+            client
+                .send_event(&event)
+                .await
+                .map_err(|err| HostedStateRequestError::new(err.to_string()))?;
 
             let timeout = tokio::time::Instant::now() + Duration::from_secs(15);
-            loop {
+            let result = loop {
                 tokio::select! {
-                    _ = tokio::time::sleep_until(timeout) => return Err("state request timed out".into()),
+                    _ = tokio::time::sleep_until(timeout) => break Err(HostedStateRequestError::new("state request timed out")),
                     notification = notifications.recv() => {
                         match notification {
                             Ok(nostr_sdk::RelayPoolNotification::Event { subscription_id, event, .. }) if subscription_id == subscription => {
@@ -502,18 +551,24 @@ impl HostedClientSession {
                                     continue;
                                 }
                                 if event.kind.as_u16() == 30520 {
+                                    if let Some(err) = parse_state_error(self.keys.secret_key(), &event) {
+                                        client.unsubscribe(&subscription).await;
+                                        break Err(HostedStateRequestError::from_payload(err));
+                                    }
                                     if let Some(state) = decrypt_json::<GameState>(self.keys.secret_key(), &event) {
                                         client.unsubscribe(&subscription).await;
-                                        return Ok(state);
+                                        break Ok(state);
                                     }
                                 }
                             }
                             Ok(_) => {}
-                            Err(_) => return Err("state request stream closed".into()),
+                            Err(_) => break Err(HostedStateRequestError::new("state request stream closed")),
                         }
                     }
                 }
-            }
+            };
+            client.disconnect().await;
+            result
         })
     }
 

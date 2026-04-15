@@ -8,7 +8,7 @@ use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus}
 use nc_nostr::invite_request::{
     InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
 };
-use nc_nostr::state_sync::StateRequest;
+use nc_nostr::state_sync::{StateErrorCode, StateErrorPayload, StateRequest};
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
 use std::fmt;
 use std::path::PathBuf;
@@ -72,14 +72,26 @@ impl GameWorker {
             Ok(Some(seat)) => seat,
             Ok(None) => {
                 tracing::warn!(
-                    "Ignoring state request for unclaimed player {} in {}",
+                    "Rejecting state request for unclaimed player {} in {}",
                     short_pubkey(&request.player_pubkey),
                     self.game_id
+                );
+                let _ = self.enqueue_state_error(
+                    store.connection(),
+                    &request.player_pubkey,
+                    StateErrorCode::NotAPlayer,
+                    "You no longer have a claimed seat in this game.",
                 );
                 return;
             }
             Err(e) => {
                 tracing::error!("Failed to lookup player seat: {}", e);
+                let _ = self.enqueue_state_error(
+                    store.connection(),
+                    &request.player_pubkey,
+                    StateErrorCode::StateUnavailable,
+                    "Failed to lookup your hosted seat.",
+                );
                 return;
             }
         };
@@ -88,6 +100,12 @@ impl GameWorker {
             tracing::error!(
                 "Hosted db path has no parent for {}",
                 self.db_path.display()
+            );
+            let _ = self.enqueue_state_error(
+                store.connection(),
+                &request.player_pubkey,
+                StateErrorCode::StateUnavailable,
+                "Hosted state is unavailable right now.",
             );
             return;
         };
@@ -103,6 +121,12 @@ impl GameWorker {
                     "Failed to build game state payload for {}: {}",
                     self.game_id,
                     e
+                );
+                let _ = self.enqueue_state_error(
+                    store.connection(),
+                    &request.player_pubkey,
+                    StateErrorCode::StateUnavailable,
+                    "Failed to build hosted game state.",
                 );
                 return;
             }
@@ -136,6 +160,27 @@ impl GameWorker {
                 short_pubkey(&request.player_pubkey)
             );
         }
+    }
+
+    fn enqueue_state_error(
+        &self,
+        conn: &rusqlite::Connection,
+        recipient_pubkey: &str,
+        code: StateErrorCode,
+        message: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let payload = StateErrorPayload {
+            game_id: self.game_id.clone(),
+            code,
+            message: message.to_string(),
+        };
+        let content = serde_json::to_string(&payload)?;
+        let tags = nc_nostr::state_sync::build_state_error_tags(&payload)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+        enqueue_encrypted_event(conn, &self.game_id, recipient_pubkey, 30520, &content, tags)?;
+        Ok(())
     }
 
     async fn handle_invite_request(&self, request: InviteRequest) {

@@ -33,6 +33,33 @@ pub struct GameState {
     pub report_blocks: Vec<HostedReportBlock>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StateErrorCode {
+    NotAPlayer,
+    GameNotFound,
+    InvalidRequest,
+    StateUnavailable,
+}
+
+impl StateErrorCode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotAPlayer => "not_a_player",
+            Self::GameNotFound => "game_not_found",
+            Self::InvalidRequest => "invalid_request",
+            Self::StateUnavailable => "state_unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StateErrorPayload {
+    pub game_id: String,
+    pub code: StateErrorCode,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StateDelta {
     pub game_id: String,
@@ -207,6 +234,10 @@ pub fn parse_state_request(secret_key: &SecretKey, event: &Event) -> Option<Stat
     })
 }
 
+pub fn parse_state_error(secret_key: &SecretKey, event: &Event) -> Option<StateErrorPayload> {
+    decrypt_private_json_from_event(secret_key, event).ok()
+}
+
 pub fn build_state_response_tags(state: &GameState) -> Vec<(&'static str, String)> {
     vec![
         ("d", format!("state-{}", state.turn)),
@@ -214,6 +245,14 @@ pub fn build_state_response_tags(state: &GameState) -> Vec<(&'static str, String
         ("turn", state.turn.to_string()),
         ("year", state.year.to_string()),
         ("hash", state.state_hash.clone()),
+    ]
+}
+
+pub fn build_state_error_tags(error: &StateErrorPayload) -> Vec<(&'static str, String)> {
+    vec![
+        ("d", "state-error".to_string()),
+        ("game-id", error.game_id.clone()),
+        ("error", error.code.as_str().to_string()),
     ]
 }
 

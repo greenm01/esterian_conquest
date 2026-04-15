@@ -3,6 +3,9 @@ mod common;
 use common::create_test_game;
 use common::seed_runtime_snapshot;
 use nc_data::{QueuedPlayerMail, ReportBlockRow};
+use nc_host::game::effects::GameEffects;
+use nc_host::game::worker::GameWorker;
+use nc_nostr::state_sync::{StateErrorCode, StateErrorPayload, StateRequest};
 
 #[test]
 fn test_state_sync_structs() {
@@ -146,4 +149,82 @@ fn test_build_game_state_payload_uses_runtime_snapshot() {
     assert_eq!(payload.state.player.seat, 1);
     assert_eq!(payload.queued_mail[0].subject, "Scout Note");
     assert_eq!(payload.report_blocks[0].decoded_text, "First report block");
+}
+
+#[tokio::test]
+async fn unclaimed_state_request_enqueues_not_a_player_error() {
+    let (_temp, game_dir, store) = create_test_game("state-sync-unclaimed", 4);
+    let worker = GameWorker::new(
+        "state-sync-unclaimed".to_string(),
+        game_dir.join("hosted.db"),
+    );
+
+    worker
+        .handle_effect(GameEffects::HandleStateRequest {
+            request: StateRequest {
+                request_id: "state-001".to_string(),
+                game_id: "state-sync-unclaimed".to_string(),
+                player_pubkey: "player-pubkey-001".to_string(),
+                last_turn: Some(0),
+                last_hash: None,
+                handle: Some("pilot".to_string()),
+            },
+        })
+        .await;
+
+    let pending =
+        nc_data::hosted::get_pending(store.connection(), "state-sync-unclaimed", 10).expect("pending");
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].kind, 30520);
+    assert_eq!(pending[0].pubkey, "player-pubkey-001");
+
+    let payload: StateErrorPayload =
+        serde_json::from_str(&pending[0].content).expect("state error payload");
+    assert_eq!(payload.code, StateErrorCode::NotAPlayer);
+    assert_eq!(payload.game_id, "state-sync-unclaimed");
+}
+
+#[tokio::test]
+async fn claimed_state_request_enqueues_game_state_payload() {
+    let (_temp, game_dir, store) = create_test_game("state-sync-worker", 4);
+    nc_data::hosted::claim_seat(
+        store.connection(),
+        "state-sync-worker",
+        1,
+        "player-pubkey-claimed",
+        3000,
+    )
+    .expect("claim seat");
+    seed_runtime_snapshot(
+        &game_dir,
+        "state-sync-worker",
+        "State Sync Worker",
+        4,
+        &[],
+        &[],
+    );
+
+    let worker = GameWorker::new("state-sync-worker".to_string(), game_dir.join("hosted.db"));
+    worker
+        .handle_effect(GameEffects::HandleStateRequest {
+            request: StateRequest {
+                request_id: "state-002".to_string(),
+                game_id: "state-sync-worker".to_string(),
+                player_pubkey: "player-pubkey-claimed".to_string(),
+                last_turn: Some(0),
+                last_hash: None,
+                handle: Some("pilot".to_string()),
+            },
+        })
+        .await;
+
+    let pending =
+        nc_data::hosted::get_pending(store.connection(), "state-sync-worker", 10).expect("pending");
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].kind, 30520);
+
+    let payload: nc_nostr::state_sync::GameState =
+        serde_json::from_str(&pending[0].content).expect("game state payload");
+    assert_eq!(payload.game_id, "state-sync-worker");
+    assert_eq!(payload.player_seat, 1);
 }

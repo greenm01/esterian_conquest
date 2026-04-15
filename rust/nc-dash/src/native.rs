@@ -1,9 +1,9 @@
-use crate::buffer::PlayfieldBuffer;
 use crate::geometry::ScreenGeometry;
 use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     terminal_grid_for_pixels,
 };
+use crate::rendered::RenderedUi;
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
 use winit::dpi::{LogicalSize, PhysicalPosition};
@@ -18,7 +18,7 @@ pub(crate) trait NativeApp {
     fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent);
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent);
     fn resize_canvas(&mut self, cols: u16, rows: u16);
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>>;
+    fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>>;
     fn on_idle(&mut self) -> bool {
         false
     }
@@ -381,9 +381,9 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                         return;
                     }
                     let size = window.inner_size();
-                    match shell.app.render_playfield() {
-                        Ok(buffer) => {
-                            if let Err(err) = renderer.render(&buffer, size.width, size.height) {
+                    match shell.app.render_ui() {
+                        Ok(rendered) => {
+                            if let Err(err) = renderer.render(&rendered, size.width, size.height) {
                                 crate::show_fatal_error(&format!(
                                     "unable to render nc-dash window: {err}"
                                 ));
@@ -564,8 +564,8 @@ mod tests {
         RedrawSchedule, coalesce_pointer_move, next_pointer_dispatch, pointer_coords,
         pointer_event_kind,
     };
-    use crate::buffer::PlayfieldBuffer;
     use crate::geometry::ScreenGeometry;
+    use crate::RenderedUi;
     use crossterm::event::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
@@ -789,11 +789,14 @@ mod tests {
             self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
         }
 
-        fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-            Ok(PlayfieldBuffer::new(
-                self.geometry.width(),
-                self.geometry.height(),
-                theme::body_style(),
+        fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
+            Ok(RenderedUi::from_playfield(
+                &crate::buffer::PlayfieldBuffer::new(
+                    self.geometry.width(),
+                    self.geometry.height(),
+                    theme::body_style(),
+                ),
+                theme::tui_theme().cursor,
             ))
         }
 

@@ -154,20 +154,25 @@ fn render_quit_confirm(
         parent,
         placement,
         ModalTheme {
-            body_style: theme::body_style(),
-            pad_style: theme::dim_style(),
-            chrome_style: theme::border_style(),
+            body_style: theme::prompt_style(),
+            pad_style: theme::prompt_style(),
+            chrome_style: theme::title_style(),
             title_style: theme::title_style(),
         },
     );
     let content = crate::modal::modal_content_rect(popup);
+    let message = "Quit Game? Y/[N]";
+    let message_width = message.chars().count();
+    let content_width = content.width as usize;
+    let start_col = content.x as usize + content_width.saturating_sub(message_width) / 2;
+    let row = content.y as usize + content.height.saturating_sub(1) as usize / 2;
     layout::write_clipped(
         buf,
-        content.y as usize,
-        content.x as usize,
-        content.width as usize,
-        "Quit Game? Y/[N]",
-        theme::body_style(),
+        row,
+        start_col,
+        content_width.saturating_sub(start_col.saturating_sub(content.x as usize)),
+        message,
+        theme::prompt_style(),
     );
 }
 

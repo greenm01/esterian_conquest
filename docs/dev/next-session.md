@@ -76,3 +76,5 @@ Keep this file short. Historical detail belongs in
    scope them out of the hosted flow.
 8. If modal drag pacing still feels rough in `nc-dash`, evaluate a future
    GPU/vsynced native renderer path as follow-up work.
+9. After `nc-dash` is stable on the shared ratatui render contract, replace
+   the temporary `crossterm` event types with a small local input model.

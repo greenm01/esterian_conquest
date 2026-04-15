@@ -1,12 +1,13 @@
 use nc_client::cache::{
     CachedGame, ClientCache, ContactEntry, ContactMessageEntry, GameInboxMessageEntry,
-    GameRosterEntry, NoticeEntry, load_cache, save_cache,
+    GameRosterEntry, NoticeEntry, cache_path, load_cache_from, save_cache, save_cache_to,
 };
 use nc_client::config::{ClientConfig, load_config};
 use nc_client::contacts::{resolve_contact_input, short_contact_label};
 use nc_client::hosted::live::{HostedLiveSession, HostedSessionStatus, HostedSessionUpdate};
 use nc_client::hosted::session::{
-    CatalogGame, HostedClientSession, PlayerEventBatch, SandboxJoinOutcome,
+    CatalogGame, HostedClientSession, HostedStateRequestError, PlayerEventBatch,
+    SandboxJoinOutcome,
 };
 use nc_client::keychain::{
     Keychain, active_keys, load_keychain, now_iso8601, push_new_identity, save_keychain,
@@ -18,7 +19,7 @@ use nc_nostr::game_definition::{GameStatus, RecruitingMode};
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
 use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::pubkeys::hex_to_npub;
-use nc_nostr::state_sync::GameState;
+use nc_nostr::state_sync::{GameState, StateErrorCode};
 use nc_nostr::turn_commands::TurnReceiptStatus;
 
 use super::models::{
@@ -26,6 +27,10 @@ use super::models::{
     ThreadMessage,
 };
 use super::state::{LobbyNetworkStatus, LobbyStatusTone};
+
+const CACHE_RESET_MESSAGE: &str = "Local cache was reset. Relay data will repopulate after refresh.";
+const CACHE_RESET_SAVE_FAILED_MESSAGE: &str =
+    "Local cache was reset for this session, but it could not be saved. Relay data will repopulate after refresh.";
 
 fn format_catalog_created_date(created_at: Option<i64>) -> String {
     created_at
@@ -115,6 +120,13 @@ pub enum LobbySandboxJoinResult {
     Full(String),
 }
 
+#[derive(Debug)]
+pub struct LobbyOpenGameError {
+    pub code: Option<StateErrorCode>,
+    pub message: String,
+    pub loaded: Option<LobbyLoadedState>,
+}
+
 struct UnlockedClient {
     password: String,
     keychain: Keychain,
@@ -129,6 +141,12 @@ struct UnlockedClient {
 pub struct LobbyTransport {
     relay_override: Option<String>,
     unlocked: Option<UnlockedClient>,
+}
+
+struct CacheLoadResult {
+    cache: ClientCache,
+    status_message: Option<String>,
+    status_tone: LobbyStatusTone,
 }
 
 impl LobbyTransport {
@@ -202,9 +220,7 @@ impl LobbyTransport {
         let keychain = load_keychain(password)
             .map_err(|err| err.to_string())?
             .ok_or_else(|| "no keychain found".to_string())?;
-        let cache = load_cache(password)
-            .map_err(|err| err.to_string())?
-            .unwrap_or_else(ClientCache::empty);
+        let cache_result = load_cache_with_recovery(password, &cache_path());
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
         let (session, live_session) =
@@ -213,7 +229,7 @@ impl LobbyTransport {
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
             keychain,
-            cache,
+            cache: cache_result.cache,
             catalog: Vec::new(),
             session,
             live_session,
@@ -223,8 +239,8 @@ impl LobbyTransport {
         if let Some(unlocked) = self.unlocked.as_mut() {
             Ok(build_loaded_state(
                 unlocked,
-                None,
-                LobbyStatusTone::Info,
+                cache_result.status_message,
+                cache_result.status_tone,
                 Some(unlocked.network_status),
             ))
         } else {
@@ -405,15 +421,24 @@ impl LobbyTransport {
         }
     }
 
-    pub fn open_game(&mut self, row: &JoinedGameRow) -> Result<GameState, String> {
+    pub fn open_game(&mut self, row: &JoinedGameRow) -> Result<GameState, LobbyOpenGameError> {
         let unlocked = self
             .unlocked
             .as_mut()
-            .ok_or_else(|| "keychain is locked".to_string())?;
+            .ok_or_else(|| LobbyOpenGameError {
+                code: None,
+                message: "keychain is locked".to_string(),
+                loaded: None,
+            })?;
         let session = unlocked
             .session
             .as_ref()
-            .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+            .cloned()
+            .ok_or_else(|| LobbyOpenGameError {
+                code: None,
+                message: "no relay configured for the hosted lobby".to_string(),
+                loaded: None,
+            })?;
         let handle = current_handle(&unlocked.keychain);
         let state = session
             .request_state(
@@ -423,7 +448,7 @@ impl LobbyTransport {
                 row.last_hash.as_deref(),
                 handle.as_deref(),
             )
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| lobby_open_game_error(unlocked, row, err))?;
         let mut cached = cache_game_from_row(row);
         cached.status = "joined".to_string();
         cached.last_turn = Some(state.turn);
@@ -444,7 +469,11 @@ impl LobbyTransport {
                 })
                 .collect(),
         );
-        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| LobbyOpenGameError {
+            code: None,
+            message: err.to_string(),
+            loaded: None,
+        })?;
         Ok(state)
     }
 
@@ -658,6 +687,33 @@ impl LobbyTransport {
             LobbyStatusTone::Info,
             None,
         ))
+    }
+}
+
+fn load_cache_with_recovery(password: &str, path: &std::path::Path) -> CacheLoadResult {
+    match load_cache_from(password, path) {
+        Ok(Some(cache)) => CacheLoadResult {
+            cache,
+            status_message: None,
+            status_tone: LobbyStatusTone::Info,
+        },
+        Ok(None) => CacheLoadResult {
+            cache: ClientCache::empty(),
+            status_message: None,
+            status_tone: LobbyStatusTone::Info,
+        },
+        Err(_) => {
+            let cache = ClientCache::empty();
+            let status_message = match save_cache_to(&cache, password, path) {
+                Ok(()) => CACHE_RESET_MESSAGE.to_string(),
+                Err(_) => CACHE_RESET_SAVE_FAILED_MESSAGE.to_string(),
+            };
+            CacheLoadResult {
+                cache,
+                status_message: Some(status_message),
+                status_tone: LobbyStatusTone::Error,
+            }
+        }
     }
 }
 
@@ -1358,11 +1414,61 @@ fn iso8601_from_secs(secs: i64) -> String {
         .unwrap_or_else(now_iso8601)
 }
 
+fn lobby_open_game_error(
+    unlocked: &mut UnlockedClient,
+    row: &JoinedGameRow,
+    err: HostedStateRequestError,
+) -> LobbyOpenGameError {
+    let expire_sandbox = row.game_tier.eq_ignore_ascii_case("sandbox")
+        && err.code == Some(StateErrorCode::NotAPlayer);
+    if expire_sandbox {
+        if let Some(cached) = unlocked.cache.games.iter_mut().find(|game| game.id == row.game_id) {
+            cached.status = "expired".to_string();
+            cached.seat = None;
+            cached.updated_at = now_iso8601();
+        }
+        let loaded = save_cache(&unlocked.cache, &unlocked.password)
+            .ok()
+            .map(|_| {
+                build_loaded_state(
+                    unlocked,
+                    None,
+                    LobbyStatusTone::Info,
+                    Some(unlocked.network_status),
+                )
+            });
+        return LobbyOpenGameError {
+            code: err.code,
+            message: "Your sandbox seat is no longer active. Rejoin from Open Games.".to_string(),
+            loaded,
+        };
+    }
+
+    LobbyOpenGameError {
+        code: err.code,
+        message: err.message,
+        loaded: None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     use nc_client::keychain::Keychain;
     use nc_nostr::invite_request::{InviteRequestReceipt, InviteRequestReceiptStatus};
+    use nc_nostr::state_sync::StateErrorCode;
+
+    fn temp_test_path(name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        std::env::temp_dir().join(format!("nc-dash-{name}-{unique}"))
+    }
 
     fn unlocked_with_game(status: &str) -> UnlockedClient {
         UnlockedClient {
@@ -1434,5 +1540,110 @@ mod tests {
         );
 
         assert_eq!(unlocked.cache.games[0].status, "requested");
+    }
+
+    #[test]
+    fn sandbox_not_a_player_open_error_marks_game_expired() {
+        let mut unlocked = unlocked_with_game("joined");
+        let mut row = JoinedGameRow::new(
+            "sandbox-smoke",
+            "joined",
+            "Sandbox Smoke",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "T4",
+        );
+        row.game_tier = "Sandbox".to_string();
+
+        let err = lobby_open_game_error(
+            &mut unlocked,
+            &row,
+            HostedStateRequestError {
+                code: Some(StateErrorCode::NotAPlayer),
+                message: "You no longer have a claimed seat in this game.".to_string(),
+            },
+        );
+
+        assert_eq!(unlocked.cache.games[0].status, "expired");
+        assert_eq!(unlocked.cache.games[0].seat, None);
+        assert_eq!(
+            err.message,
+            "Your sandbox seat is no longer active. Rejoin from Open Games."
+        );
+        assert!(err.loaded.is_some());
+    }
+
+    #[test]
+    fn league_not_a_player_open_error_does_not_expire_game() {
+        let mut unlocked = unlocked_with_game("joined");
+        let mut row = JoinedGameRow::new(
+            "league-night",
+            "joined",
+            "League Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "T4",
+        );
+        row.game_tier = "League".to_string();
+        unlocked.cache.games[0].id = "league-night".to_string();
+        unlocked.cache.games[0].name = "League Night".to_string();
+        unlocked.cache.games[0].game_tier = Some("league".to_string());
+
+        let err = lobby_open_game_error(
+            &mut unlocked,
+            &row,
+            HostedStateRequestError {
+                code: Some(StateErrorCode::NotAPlayer),
+                message: "You no longer have a claimed seat in this game.".to_string(),
+            },
+        );
+
+        assert_eq!(unlocked.cache.games[0].status, "joined");
+        assert_eq!(err.message, "You no longer have a claimed seat in this game.");
+        assert!(err.loaded.is_none());
+    }
+
+    #[test]
+    fn cache_load_recovers_after_corruption_and_rewrites_empty_cache() {
+        let root = temp_test_path("cache-recover");
+        fs::create_dir_all(&root).expect("create temp root");
+        let path = root.join("cache.kdl");
+        fs::write(&path, b"corrupt-cache").expect("write corrupt cache");
+
+        let result = load_cache_with_recovery("secret", &path);
+
+        assert!(result.cache.games.is_empty());
+        assert_eq!(
+            result.status_message.as_deref(),
+            Some(CACHE_RESET_MESSAGE)
+        );
+        assert_eq!(result.status_tone, LobbyStatusTone::Error);
+        assert!(load_cache_from("secret", &path).expect("load rewritten cache").is_some());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn cache_load_still_unlocks_when_reset_cannot_be_saved() {
+        let root = temp_test_path("cache-save-fail");
+        fs::create_dir_all(&root).expect("create temp root");
+        let blocker = root.join("blocker");
+        fs::write(&blocker, b"not-a-directory").expect("write blocker");
+        let path = blocker.join("cache.kdl");
+
+        let result = load_cache_with_recovery("secret", &path);
+
+        assert!(result.cache.games.is_empty());
+        assert_eq!(
+            result.status_message.as_deref(),
+            Some(CACHE_RESET_SAVE_FAILED_MESSAGE)
+        );
+        assert_eq!(result.status_tone, LobbyStatusTone::Error);
+
+        let _ = fs::remove_dir_all(&root);
     }
 }

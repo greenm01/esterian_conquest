@@ -20,6 +20,7 @@ mod panels;
 mod planet_view;
 mod popups;
 mod prompt;
+mod rendered;
 pub mod startup;
 mod table;
 mod table_filter;
@@ -31,6 +32,7 @@ use startup::{LaunchCommand, LaunchTarget};
 
 pub use buffer::PlayfieldBuffer;
 pub use geometry::ScreenGeometry;
+pub use rendered::RenderedUi;
 pub use startup::{LobbyStartupOptions, parse_launch_command};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {

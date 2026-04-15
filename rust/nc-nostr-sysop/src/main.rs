@@ -14,6 +14,7 @@ use nc_client::keychain::{
     load_keychain, save_keychain, Keychain, push_new_identity, active_keys, Identity, IdentityType,
     now_iso8601,
 };
+use nostr_sdk::ToBech32;
 
 mod app;
 mod ui;
@@ -138,6 +139,10 @@ async fn run_tui(args: Args) -> Result<()> {
 
     // App state
     let mut app = App::new();
+    app.sysop_npub = keys.public_key().to_bech32().map_err(|e| anyhow::anyhow!("{e}"))?;
+    app.relay_count = 1; // Basic for now
+    app.connection_status = "Connected".to_string();
+
     let (net_tx, mut net_rx) = mpsc::unbounded_channel();
 
     // Network client
@@ -166,13 +171,21 @@ async fn run_tui(args: Args) -> Result<()> {
                     None
                 }
             }) => {
-                if let Ok(Some(CrosstermEvent::Key(key))) = res {
-                    match update::handle_input(&mut app, key) {
-                        UpdateResult::Quit => break,
-                        UpdateResult::MessageSent(content) => {
-                            if let Err(err) = client.send_text(&content).await {
-                                app.status_line = format!("Send Error: {}", err);
+                if let Ok(Some(event)) = res {
+                    match event {
+                        CrosstermEvent::Key(key) => {
+                            match update::handle_input(&mut app, key) {
+                                UpdateResult::Quit => break,
+                                UpdateResult::MessageSent(content) => {
+                                    if let Err(err) = client.send_text(&content).await {
+                                        app.status_line = format!("Send Error: {}", err);
+                                    }
+                                }
+                                _ => {}
                             }
+                        }
+                        CrosstermEvent::Mouse(mouse) => {
+                            update::handle_mouse(&mut app, mouse);
                         }
                         _ => {}
                     }

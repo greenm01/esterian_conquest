@@ -21,7 +21,14 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
     if key.modifiers.contains(KeyModifiers::ALT) {
         match key.code {
             KeyCode::Char('q' | 'Q') => {
-                open_popup_route(app, LobbyRoute::QuitConfirm);
+                if app.state.route == LobbyRoute::HostedGame {
+                    dispatch_hosted_dashboard_key(app, key);
+                    return;
+                }
+                if app.state.route == LobbyRoute::Home {
+                    app.state.quit_confirm_return_route = app.state.route;
+                    open_popup_route(app, LobbyRoute::QuitConfirm);
+                }
                 return;
             }
             KeyCode::Char('l' | 'L') => {
@@ -130,7 +137,8 @@ fn handle_quit_confirm_key(app: &mut LobbyApp, key: KeyEvent) {
     match key.code {
         KeyCode::Char('y' | 'Y') => app.should_quit = true,
         KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n' | 'N') => {
-            close_popup_route(app, LobbyRoute::Home);
+            let route = app.state.quit_confirm_return_route;
+            close_popup_route(app, route);
         }
         _ => {}
     }
@@ -465,16 +473,29 @@ fn handle_edit_handle_key(app: &mut LobbyApp, key: KeyEvent) {
 
 fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
     match key.code {
-        KeyCode::Esc => enter_home(app),
+        KeyCode::Esc => {
+            if app
+                .state
+                .hosted_game
+                .as_ref()
+                .is_some_and(|hosted| hosted.dashboard.is_at_root_surface())
+            {
+                enter_home(app);
+            } else {
+                dispatch_hosted_dashboard_key(app, key);
+            }
+        }
         KeyCode::Char('r' | 'R') => refresh_hosted_game(app),
         KeyCode::Char('t' | 'T') => open_submit_turn(app),
-        _ => {
-            if let Some(hosted) = app.state.hosted_game.as_mut() {
-                hosted.dashboard.dispatch_key_event(key);
-                if hosted.dashboard.should_quit {
-                    app.should_quit = true;
-                }
-            }
+        _ => dispatch_hosted_dashboard_key(app, key),
+    }
+}
+
+fn dispatch_hosted_dashboard_key(app: &mut LobbyApp, key: KeyEvent) {
+    if let Some(hosted) = app.state.hosted_game.as_mut() {
+        hosted.dashboard.dispatch_key_event(key);
+        if hosted.dashboard.should_quit {
+            app.should_quit = true;
         }
     }
 }
@@ -913,8 +934,11 @@ fn refresh_hosted_game(app: &mut LobbyApp) {
             }
         }
         Err(err) => {
+            if let Some(loaded) = err.loaded {
+                app.state.apply_loaded(loaded);
+            }
             if let Some(hosted) = app.state.hosted_game.as_mut() {
-                hosted.submit_status = Some(err);
+                hosted.submit_status = Some(err.message);
             }
         }
     }
@@ -1010,6 +1034,7 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
         let message = match row.status.as_str() {
             "requested" => "Join request is still waiting for nc-host approval.",
             "rejected" => "Join request was rejected. Select the game in Games to request again.",
+            "expired" => "Your sandbox seat is no longer active. Rejoin from Open Games.",
             _ => "This game is not ready to open from the lobby.",
         };
         set_status(app, LobbyStatusTone::Info, message.to_string());
@@ -1021,7 +1046,17 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
 fn open_joined_game(app: &mut LobbyApp, row: super::models::JoinedGameRow) {
     match app.transport.open_game(&row) {
         Ok(snapshot) => open_hosted_dashboard(app, row, snapshot),
-        Err(err) => set_status(app, LobbyStatusTone::Error, err),
+        Err(err) => {
+            if let Some(loaded) = err.loaded {
+                app.state.apply_loaded(loaded);
+            }
+            let tone = if err.code == Some(nc_nostr::state_sync::StateErrorCode::NotAPlayer) {
+                LobbyStatusTone::Info
+            } else {
+                LobbyStatusTone::Error
+            };
+            set_status(app, tone, err.message);
+        }
     }
 }
 
