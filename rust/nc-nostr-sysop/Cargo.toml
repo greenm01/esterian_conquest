@@ -1,0 +1,32 @@
+[package]
+name = "nc-nostr-sysop"
+version = "0.1.0"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[dependencies]
+# Workspace crates
+nc-client = { path = "../nc-client" }
+nc-data = { path = "../nc-data" }
+nc-nostr = { path = "../nc-nostr" }
+nc-log = { path = "../nc-log" }
+
+# TUI and Terminal
+ratatui = "0.30"
+crossterm = "0.29"
+
+# Nostr Protocol
+nostr-sdk = { version = "0.44", features = ["nip44"] }
+
+# Async Runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "signal", "sync"] }
+
+# Utilities
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+url = "2"
+rpassword = "7"
