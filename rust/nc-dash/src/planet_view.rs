@@ -564,8 +564,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            nc_ui::ScreenGeometry::new(160, 40),
-            nc_ui::ScreenGeometry::new(108, 26),
+            crate::geometry::ScreenGeometry::new(160, 40),
+            crate::geometry::ScreenGeometry::new(108, 26),
             1,
         );
         app.crosshair_x = app.game_data.planets.records[0].coords_raw()[0];

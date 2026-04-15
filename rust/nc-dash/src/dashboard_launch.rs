@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
+use crate::geometry::ScreenGeometry;
 use nc_data::{
     BaseRecord, CampaignStore, CoreGameData, FleetRecord, GameStateBuilder, IntelTier, Order,
     PlanetIntelSnapshot, PlanetRecord, PlayerActivityState, PlayerLifecycleState,
@@ -8,7 +9,6 @@ use nc_data::{
     default_player_lifecycle_states,
 };
 use nc_nostr::state_sync::{GameState, HostedFleetShips, HostedOwnedFleet, HostedWorldState};
-use nc_ui::ScreenGeometry;
 
 use crate::app::state::DashApp;
 use crate::client_settings;

@@ -52,7 +52,7 @@ pub fn home_layout(area: Rect) -> Option<HomeLayout> {
 
 pub fn hit_test_home(
     state: &LobbyState,
-    geometry: nc_ui::ScreenGeometry,
+    geometry: crate::geometry::ScreenGeometry,
     column: u16,
     row: u16,
 ) -> Option<PaneHit> {

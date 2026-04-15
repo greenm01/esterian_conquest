@@ -1,10 +1,10 @@
+use nc_dash::ScreenGeometry;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
     HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
 };
-use nc_ui::ScreenGeometry;
 
 #[test]
 fn hosted_snapshot_builds_real_dash_app() {

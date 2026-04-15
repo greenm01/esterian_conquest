@@ -2,7 +2,7 @@ use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::onboarding::matrix_glyph;
 use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute, LobbyTab};
-use nc_ui::ScreenGeometry;
+use nc_dash::{PlayfieldBuffer, ScreenGeometry};
 
 fn render_lines(route: LobbyRoute) -> String {
     let app = LobbyApp::new_for_tests(route, ScreenGeometry::new(120, 40));
@@ -28,7 +28,7 @@ fn render_app_lines(app: LobbyApp) -> String {
         .join("\n")
 }
 
-fn find_first_char(buffer: &nc_ui::PlayfieldBuffer, ch: char) -> Option<(usize, usize)> {
+fn find_first_char(buffer: &PlayfieldBuffer, ch: char) -> Option<(usize, usize)> {
     (0..buffer.height()).find_map(|row| {
         buffer
             .row(row)

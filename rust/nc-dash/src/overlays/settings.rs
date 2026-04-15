@@ -1,7 +1,7 @@
 //! S overlay: settings — local map behavior toggles.
 
-use nc_ui::PlayfieldBuffer;
-use nc_ui::table::TableFooter;
+use crate::buffer::PlayfieldBuffer;
+use crate::table::TableFooter;
 
 use crate::app::state::{ActiveOverlay, DashApp};
 use crate::layout;
@@ -111,8 +111,8 @@ fn on_off(enabled: bool) -> &'static str {
 mod tests {
     use super::settings_lines;
     use crate::app::state::DashApp;
+    use crate::geometry::ScreenGeometry;
     use nc_data::GameStateBuilder;
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

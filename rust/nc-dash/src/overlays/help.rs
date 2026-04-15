@@ -1,7 +1,7 @@
 //! ? overlay: keyboard reference, centered on screen.
 
-use nc_ui::PlayfieldBuffer;
-use nc_ui::table::TableFooter;
+use crate::buffer::PlayfieldBuffer;
+use crate::table::TableFooter;
 
 use crate::app::state::{ActiveOverlay, DashApp, HelpContext};
 use crate::layout::MapWidgetFrame;

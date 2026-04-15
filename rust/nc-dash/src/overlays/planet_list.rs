@@ -2,17 +2,17 @@
 
 use std::cmp::Ordering;
 
-use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
-use nc_engine::{BUILD_UNITS, build_kind_count_label, planet_build_view};
-use nc_ui::PlayfieldBuffer;
-use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
-use nc_ui::table::{
+use crate::buffer::PlayfieldBuffer;
+use crate::coords::{format_sector_coords_default, format_sector_coords_table};
+use crate::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
     write_stacked_table_window_with_theme_at, write_table_window_with_theme_at,
 };
-use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
-use nc_ui::table_selection;
+use crate::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
+use crate::table_selection;
+use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
+use nc_engine::{BUILD_UNITS, build_kind_count_label, planet_build_view};
 
 use crate::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
@@ -1203,8 +1203,8 @@ fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Orderin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::ScreenGeometry;
     use nc_data::{GameStateBuilder, ProductionItemKind};
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

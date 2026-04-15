@@ -1,6 +1,6 @@
 //! Right panel: condensed detail for the currently selected map sector.
 
-use nc_ui::PlayfieldBuffer;
+use crate::buffer::PlayfieldBuffer;
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
@@ -181,11 +181,12 @@ mod tests {
         wrap_field_value_lines,
     };
     use crate::app::state::DashApp;
+    use crate::buffer::PlayfieldBuffer;
+    use crate::geometry::ScreenGeometry;
     use crate::layout::dashboard_layout;
     use crate::planet_view::DetailLine;
     use crate::theme;
     use nc_data::GameStateBuilder;
-    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

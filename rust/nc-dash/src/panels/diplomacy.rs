@@ -1,11 +1,11 @@
 //! Right panel: compact 2-line diplomacy blocks.
 
 use crate::app::state::DashApp;
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::diplomacy_view::{display_name, relation_label_and_style, state_label_and_style};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 use nc_data::EmpireProductionRankingSort;
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "DIPLOMACY";
 pub(crate) const MIN_BODY_ROWS: usize = 4;
@@ -257,10 +257,11 @@ mod tests {
         minimum_body_width, preferred_body_width, visible_block_start,
     };
     use crate::app::state::DashApp;
+    use crate::buffer::PlayfieldBuffer;
+    use crate::geometry::ScreenGeometry;
     use crate::layout::PanelWidgetFrame;
     use crate::theme;
     use nc_data::GameStateBuilder;
-    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

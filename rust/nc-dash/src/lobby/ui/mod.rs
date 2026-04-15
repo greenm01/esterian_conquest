@@ -11,7 +11,7 @@ pub use self::layout::{
     popup_title_bar_contains, scroll_offset,
 };
 
-use nc_ui::PlayfieldBuffer;
+use crate::buffer::PlayfieldBuffer;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
@@ -87,7 +87,7 @@ fn paint_buffer(playfield: &mut PlayfieldBuffer, buffer: &Buffer) {
                 (buffer.area.y + y) as usize,
                 (buffer.area.x + x) as usize,
                 symbol,
-                nc_ui::CellStyle::new(fg, bg, bold),
+                crate::buffer::CellStyle::new(fg, bg, bold),
             );
         }
     }

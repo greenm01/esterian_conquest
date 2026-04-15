@@ -1,9 +1,9 @@
 //! Shared modal shell for dashboard overlays.
 
-use nc_ui::table::{
+use crate::buffer::{CellStyle, PlayfieldBuffer};
+use crate::table::{
     TableFooter, draw_table_footer_in_span, table_footer_row_count, table_footer_scaffold_width,
 };
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::layout::{MapWidgetFrame, widgets::DashboardWidgetFrames};
 use crate::modal::{

@@ -1,6 +1,6 @@
 //! Panel dimensions from terminal size, map-aware sizing.
 
-use nc_ui::ScreenGeometry;
+use crate::geometry::ScreenGeometry;
 
 /// Interior left map padding before the rendered map block.
 pub const MAP_LEFT_PADDING: usize = 0;

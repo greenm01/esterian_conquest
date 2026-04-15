@@ -1,8 +1,8 @@
+use crate::buffer::{CellStyle, GameColor};
 use nc_data::{
     DiplomaticRelation, PlayerActivityState, PlayerLifecycleState, PlayerRecord,
     PublicEmpireStatus, player_public_status,
 };
-use nc_ui::{CellStyle, GameColor};
 
 use crate::theme;
 
@@ -68,7 +68,7 @@ pub(crate) fn empire_name_style(empire_slot: u8, bg: GameColor, bold: bool) -> C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nc_ui::GameColor;
+    use crate::buffer::GameColor;
 
     #[test]
     fn blank_display_name_falls_back_to_empire_slot() {

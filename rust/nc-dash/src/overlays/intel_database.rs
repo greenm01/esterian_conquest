@@ -3,15 +3,15 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
-use nc_ui::PlayfieldBuffer;
-use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
-use nc_ui::table::{
+use crate::buffer::PlayfieldBuffer;
+use crate::coords::{format_sector_coords_default, format_sector_coords_table};
+use crate::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
 };
-use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
-use nc_ui::table_selection;
+use crate::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
+use crate::table_selection;
+use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
 
 use crate::app::state::{
     ActiveOverlay, DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
@@ -704,8 +704,8 @@ fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Orderin
 mod tests {
     use super::{HOTKEYS, overlay_title, parse_coords_input, sort_footer_label};
     use crate::app::state::{DashApp, SortDirection};
+    use crate::geometry::ScreenGeometry;
     use nc_data::GameStateBuilder;
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

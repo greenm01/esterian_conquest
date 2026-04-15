@@ -1,13 +1,13 @@
 //! Dashboard application state.
 
+use crate::geometry::ScreenGeometry;
+use crate::table_filter::{TableFilterClause, TableFilterColumn};
 use nc_data::FleetDetachSelection;
 use nc_data::{
     CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
     ProductionItemKind, QueuedPlayerMail, ReportBlockRow, TurnSubmission, WinnerState,
 };
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
-use nc_ui::ScreenGeometry;
-use nc_ui::table_filter::{TableFilterClause, TableFilterColumn};
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::client_settings::DashClientSettings;
@@ -960,8 +960,8 @@ pub(crate) fn initial_crosshair_coords(
 #[cfg(test)]
 mod tests {
     use super::{DashApp, PanelFocus};
+    use crate::geometry::ScreenGeometry;
     use nc_data::GameStateBuilder;
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

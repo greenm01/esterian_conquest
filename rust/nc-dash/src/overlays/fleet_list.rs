@@ -2,15 +2,15 @@
 
 use std::cmp::Ordering;
 
-use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
-use nc_ui::PlayfieldBuffer;
-use nc_ui::coords::format_sector_coords_table;
-use nc_ui::table::{
+use crate::buffer::PlayfieldBuffer;
+use crate::coords::format_sector_coords_table;
+use crate::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_table_window_with_theme_at,
 };
-use nc_ui::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
-use nc_ui::table_selection;
+use crate::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
+use crate::table_selection;
+use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
 
 use crate::app::state::{
     ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey,
@@ -1457,14 +1457,14 @@ fn wrap_group_prompt_line(line: &str, width: usize) -> Vec<String> {
     vec![line.chars().take(width).collect()]
 }
 
-fn row_states_from_enabled_flags(flags: &[bool]) -> Vec<nc_ui::table::TableRowState> {
+fn row_states_from_enabled_flags(flags: &[bool]) -> Vec<crate::table::TableRowState> {
     flags
         .iter()
         .map(|enabled| {
             if *enabled {
-                nc_ui::table::TableRowState::Normal
+                crate::table::TableRowState::Normal
             } else {
-                nc_ui::table::TableRowState::Disabled
+                crate::table::TableRowState::Disabled
             }
         })
         .collect()
@@ -1833,9 +1833,10 @@ mod tests {
         ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, FleetOverlayRowKey,
         SortDirection,
     };
+    use crate::buffer::PlayfieldBuffer;
+    use crate::geometry::ScreenGeometry;
     use crate::layout::dashboard_layout;
     use nc_data::{GameStateBuilder, Order};
-    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

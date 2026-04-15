@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use nc_dash::ScreenGeometry;
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
@@ -12,7 +13,6 @@ use nc_nostr::state_sync::{
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
     HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
 };
-use nc_ui::ScreenGeometry;
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)

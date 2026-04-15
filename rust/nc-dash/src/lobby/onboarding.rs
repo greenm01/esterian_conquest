@@ -1,5 +1,5 @@
-use nc_ui::branding::NOSTRIAN_CONQUEST_LOGO;
-use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
+use crate::branding::NOSTRIAN_CONQUEST_LOGO;
+use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 
 use crate::modal::{Rect, centered_rect, draw_box, wrap_modal_text_lines};
 use crate::theme;
@@ -494,7 +494,7 @@ fn write_wrapped_rows(
     content_width: usize,
     max_rows: usize,
     lines: &[String],
-    style: nc_ui::buffer::CellStyle,
+    style: crate::buffer::CellStyle,
 ) -> usize {
     if content_width == 0 || max_rows == 0 {
         return 0;

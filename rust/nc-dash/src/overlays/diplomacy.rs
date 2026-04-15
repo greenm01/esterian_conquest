@@ -1,7 +1,7 @@
 //! D overlay: centered diplomacy and leaderboard table.
 
-use nc_ui::PlayfieldBuffer;
-use nc_ui::table::{TableFooter, draw_scrollbar_at};
+use crate::buffer::PlayfieldBuffer;
+use crate::table::{TableFooter, draw_scrollbar_at};
 
 use crate::app::state::{ActiveOverlay, DashApp};
 use crate::diplomacy_view::{
@@ -171,9 +171,9 @@ struct DiplomacyRow {
     planets: u8,
     production: u16,
     state: String,
-    state_style: nc_ui::CellStyle,
+    state_style: crate::buffer::CellStyle,
     relation: String,
-    relation_style: nc_ui::CellStyle,
+    relation_style: crate::buffer::CellStyle,
 }
 
 fn write_diplomacy_row(
@@ -183,7 +183,7 @@ fn write_diplomacy_row(
     width: usize,
     rank: usize,
     row_data: &DiplomacyRow,
-    row_style: nc_ui::CellStyle,
+    row_style: crate::buffer::CellStyle,
 ) {
     write_clipped(buf, row, col, width, &format!("{rank:<3}"), row_style);
     write_clipped(
@@ -216,7 +216,7 @@ fn write_diplomacy_row(
         col + 35,
         10,
         &format!("{:<10}", row_data.state),
-        nc_ui::CellStyle::new(row_data.state_style.fg, row_style.bg, row_style.bold),
+        crate::buffer::CellStyle::new(row_data.state_style.fg, row_style.bg, row_style.bold),
     );
     write_clipped(
         buf,
@@ -224,7 +224,7 @@ fn write_diplomacy_row(
         col + 46,
         width.saturating_sub(46),
         &row_data.relation,
-        nc_ui::CellStyle::new(row_data.relation_style.fg, row_style.bg, row_style.bold),
+        crate::buffer::CellStyle::new(row_data.relation_style.fg, row_style.bg, row_style.bold),
     );
 }
 

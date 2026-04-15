@@ -1,7 +1,7 @@
 //! R overlay: centered split-pane inbox for reports and messages.
 
-use nc_ui::PlayfieldBuffer;
-use nc_ui::table::{TableFooter, draw_scrollbar_at};
+use crate::buffer::PlayfieldBuffer;
+use crate::table::{TableFooter, draw_scrollbar_at};
 
 use crate::app::state::{ActiveOverlay, DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, matches_filter, project_inbox_items};
@@ -355,7 +355,7 @@ fn highlight_selected_id_cell(
     row: usize,
     col: usize,
     visible_id: usize,
-    style: nc_ui::CellStyle,
+    style: crate::buffer::CellStyle,
 ) {
     buf.write_text(row, col, &format!("{visible_id:>2}"), style);
 }
@@ -365,8 +365,8 @@ mod tests {
     use super::{HOTKEYS, inbox_pane_layout, target_inbox_body_width};
     use crate::app::render;
     use crate::app::state::{ActiveOverlay, DashApp};
+    use crate::geometry::ScreenGeometry;
     use nc_data::{GameStateBuilder, QueuedPlayerMail, ReportBlockRow};
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 
@@ -510,7 +510,7 @@ mod tests {
         )
     }
 
-    fn find_line(buffer: &nc_ui::PlayfieldBuffer, needle: &str) -> usize {
+    fn find_line(buffer: &crate::buffer::PlayfieldBuffer, needle: &str) -> usize {
         (0..buffer.height())
             .find(|row| buffer.plain_line(*row).contains(needle))
             .expect("line containing needle")

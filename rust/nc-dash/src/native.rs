@@ -1,9 +1,10 @@
-use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-use nc_ui::native::{
+use crate::buffer::PlayfieldBuffer;
+use crate::geometry::ScreenGeometry;
+use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     terminal_grid_for_pixels,
 };
-use nc_ui::{PlayfieldBuffer, ScreenGeometry};
+use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
 use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{Event, MouseButton as WinitMouseButton, WindowEvent};
@@ -276,8 +277,8 @@ impl<T: NativeApp> NativeShell<T> {
 pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
     let geometry = app.geometry();
-    let logical_width = (geometry.width() * nc_ui::native::DEFAULT_CELL_WIDTH) as f64;
-    let logical_height = (geometry.height() * nc_ui::native::DEFAULT_CELL_HEIGHT) as f64;
+    let logical_width = (geometry.width() * crate::native_grid::DEFAULT_CELL_WIDTH) as f64;
+    let logical_height = (geometry.height() * crate::native_grid::DEFAULT_CELL_HEIGHT) as f64;
     let window = Box::new(
         WindowBuilder::new()
             .with_title(app.window_title())
@@ -563,9 +564,10 @@ mod tests {
         RedrawSchedule, coalesce_pointer_move, next_pointer_dispatch, pointer_coords,
         pointer_event_kind,
     };
+    use crate::buffer::PlayfieldBuffer;
+    use crate::geometry::ScreenGeometry;
     use crossterm::event::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
-    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
     use std::time::{Duration, Instant};

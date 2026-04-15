@@ -9,13 +9,14 @@ pub mod render;
 mod settings;
 pub mod state;
 
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-use input::{Action, key_to_action};
-use nc_ui::table_filter::{
+use crate::buffer::PlayfieldBuffer;
+use crate::geometry::ScreenGeometry;
+use crate::table_filter::{
     format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
-use nc_ui::table_selection;
-use nc_ui::{PlayfieldBuffer, ScreenGeometry};
+use crate::table_selection;
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use input::{Action, key_to_action};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
     FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
@@ -1356,11 +1357,11 @@ impl DashApp {
                         self.intel_overlay.prompt_input.clear();
                         self.intel_overlay.prompt_default = match self.intel_overlay.sort {
                             IntelOverlaySort::Range(anchor) => {
-                                nc_ui::coords::format_sector_coords_default(anchor)
+                                crate::coords::format_sector_coords_default(anchor)
                             }
                             _ => intel_database::table_rows(self)
                                 .get(self.intel_overlay.selected)
-                                .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
+                                .map(|row| crate::coords::format_sector_coords_default(row.coords))
                                 .unwrap_or_else(|| "00,00".to_string()),
                         };
                         self.intel_overlay.prompt_status = None;
@@ -1965,7 +1966,7 @@ impl DashApp {
 
     fn apply_planet_overlay_filter_clause(
         &mut self,
-        clause: Option<nc_ui::table_filter::TableFilterClause>,
+        clause: Option<crate::table_filter::TableFilterClause>,
     ) {
         let selected_record = planet_list::table_rows(self)
             .get(self.planet_overlay.selected)
@@ -1993,7 +1994,7 @@ impl DashApp {
 
     fn apply_fleet_overlay_filter_clause(
         &mut self,
-        clause: Option<nc_ui::table_filter::TableFilterClause>,
+        clause: Option<crate::table_filter::TableFilterClause>,
     ) {
         let selected_key = fleet_list::table_rows(self)
             .get(self.fleet_overlay.selected)
@@ -2019,7 +2020,7 @@ impl DashApp {
 
     fn apply_intel_overlay_filter_clause(
         &mut self,
-        clause: Option<nc_ui::table_filter::TableFilterClause>,
+        clause: Option<crate::table_filter::TableFilterClause>,
     ) {
         let selected_record = intel_database::table_rows(self)
             .get(self.intel_overlay.selected)
@@ -2186,6 +2187,8 @@ mod tests {
         IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, PlanetOverlayFilter,
         PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
     };
+    use crate::buffer::PlayfieldBuffer;
+    use crate::geometry::ScreenGeometry;
     use crate::layout::dashboard::dashboard_layout;
     use crate::native::NativeApp;
     use crate::overlays::{fleet_list, intel_database, planet_list};
@@ -2198,7 +2201,6 @@ mod tests {
         fleet_target_input_kind, recommended_coordinate_target,
         recommended_coordinate_target_y_for_entered_x,
     };
-    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -4553,8 +4555,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            nc_ui::ScreenGeometry::new(160, 40),
-            nc_ui::ScreenGeometry::new(108, 26),
+            crate::geometry::ScreenGeometry::new(160, 40),
+            crate::geometry::ScreenGeometry::new(108, 26),
             1,
         )
     }
@@ -4573,8 +4575,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            nc_ui::ScreenGeometry::new(160, 40),
-            nc_ui::ScreenGeometry::new(108, 26),
+            crate::geometry::ScreenGeometry::new(160, 40),
+            crate::geometry::ScreenGeometry::new(108, 26),
             1,
         );
         seed_unowned_target_world(&mut app.game_data, [8, 8]);
@@ -4596,8 +4598,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            nc_ui::ScreenGeometry::new(160, 40),
-            nc_ui::ScreenGeometry::new(108, 26),
+            crate::geometry::ScreenGeometry::new(160, 40),
+            crate::geometry::ScreenGeometry::new(108, 26),
             1,
         )
     }
@@ -4651,8 +4653,8 @@ mod tests {
             player_activity_states,
             player_lifecycle_states,
             nc_data::WinnerState::default(),
-            nc_ui::ScreenGeometry::new(160, 40),
-            nc_ui::ScreenGeometry::new(108, 26),
+            crate::geometry::ScreenGeometry::new(160, 40),
+            crate::geometry::ScreenGeometry::new(108, 26),
             1,
         )
     }
@@ -4704,8 +4706,8 @@ mod tests {
             player_activity_states,
             player_lifecycle_states,
             nc_data::WinnerState::default(),
-            nc_ui::ScreenGeometry::new(160, 40),
-            nc_ui::ScreenGeometry::new(108, 26),
+            crate::geometry::ScreenGeometry::new(160, 40),
+            crate::geometry::ScreenGeometry::new(108, 26),
             1,
         )
     }

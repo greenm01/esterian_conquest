@@ -1,10 +1,10 @@
 //! Right panel: unread reports and messages.
 
 use crate::app::state::DashApp;
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::inbox::{DashInboxItemType, ReportSummaryBucket, project_inbox_items};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "INBOX";
 pub(crate) const MIN_BODY_ROWS: usize = 3;

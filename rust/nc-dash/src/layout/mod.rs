@@ -4,7 +4,9 @@ pub mod dashboard;
 pub mod geometry;
 pub mod widgets;
 
-use nc_ui::{PlayfieldBuffer, ScreenGeometry, prompt};
+use crate::buffer::PlayfieldBuffer;
+use crate::geometry::ScreenGeometry;
+use crate::prompt;
 
 use crate::app::state::DashApp;
 use crate::theme;
@@ -234,7 +236,7 @@ fn draw_panel_separator(
     row: usize,
     left_connector: char,
     right_connector: char,
-    style: nc_ui::CellStyle,
+    style: crate::buffer::CellStyle,
 ) {
     if left > right {
         return;
@@ -262,7 +264,7 @@ fn plain_separator(
     left: usize,
     right: usize,
     row: usize,
-    style: nc_ui::CellStyle,
+    style: crate::buffer::CellStyle,
 ) {
     for col in left..=right {
         buf.set_cell(row, col, '─', style);

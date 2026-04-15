@@ -1206,9 +1206,9 @@ fn sanitize_multiline_paste(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{apply_key, ctrl_key_for_tests};
+    use crate::geometry::ScreenGeometry;
     use crate::lobby::LobbyApp;
     use crate::lobby::state::{LobbyRoute, LobbyStatusTone};
-    use nc_ui::ScreenGeometry;
 
     #[test]
     fn unavailable_clipboard_sets_nonfatal_status_message() {

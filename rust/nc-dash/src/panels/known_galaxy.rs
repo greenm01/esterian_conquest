@@ -3,11 +3,11 @@
 use std::collections::BTreeMap;
 
 use crate::app::state::DashApp;
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::panels::starmap::{StarmapMarkerKind, marker_kind_for_world};
 use crate::theme;
 use nc_data::build_player_starmap_projection_from_snapshots;
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "KNOWN GALAXY";
 pub(crate) const MIN_BODY_ROWS: usize = 5;

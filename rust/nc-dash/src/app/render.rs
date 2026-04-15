@@ -1,6 +1,6 @@
 //! Top-level render dispatch: assembles the three-column dashboard frame.
 
-use nc_ui::PlayfieldBuffer;
+use crate::buffer::PlayfieldBuffer;
 
 use crate::app::state::{ActiveOverlay, ActivePopup, DashApp};
 use crate::layout::{
@@ -26,7 +26,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let dashboard = dashboard_layout(app);
     if !dashboard_fits_canvas(app.geometry, &dashboard) {
         let layout_required = layout_canvas_requirement(&dashboard);
-        let blocker_required = nc_ui::ScreenGeometry::new(
+        let blocker_required = crate::geometry::ScreenGeometry::new(
             required.width().max(layout_required.width()),
             required.height().max(layout_required.height()),
         );
@@ -84,8 +84,8 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
 
 fn render_too_small_blocker(
     buf: &mut PlayfieldBuffer,
-    canvas: nc_ui::ScreenGeometry,
-    required: nc_ui::ScreenGeometry,
+    canvas: crate::geometry::ScreenGeometry,
+    required: crate::geometry::ScreenGeometry,
 ) {
     let msg1 = "TERMINAL WINDOW TOO SMALL";
     let msg2 = format!(

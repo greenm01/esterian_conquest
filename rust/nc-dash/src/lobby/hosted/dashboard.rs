@@ -1,5 +1,5 @@
+use crate::geometry::ScreenGeometry;
 use nc_nostr::state_sync::GameState;
-use nc_ui::ScreenGeometry;
 
 use crate::app::state::DashApp;
 use crate::dashboard_launch::DashLaunchState;

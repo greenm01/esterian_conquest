@@ -1,7 +1,7 @@
 //! Planet info popup rendered over the center map pane.
 
-use nc_ui::PlayfieldBuffer;
-use nc_ui::table::TableFooter;
+use crate::buffer::PlayfieldBuffer;
+use crate::table::TableFooter;
 
 use crate::app::state::DashApp;
 use crate::layout::{self, MapWidgetFrame, dashboard};
@@ -193,12 +193,12 @@ fn chunk_word(word: &str, width: usize) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::popup_lines;
+    use crate::buffer::PlayfieldBuffer;
     use crate::layout::widgets::WidgetRect;
     use crate::overlays::frame::draw_overlay_frame_for_body_in_map;
     use crate::planet_view::DetailLine;
+    use crate::table::TableFooter;
     use crate::theme;
-    use nc_ui::PlayfieldBuffer;
-    use nc_ui::table::TableFooter;
 
     #[test]
     fn popup_lines_wrap_long_values_with_aligned_colon_continuations() {

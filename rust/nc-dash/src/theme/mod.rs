@@ -2,8 +2,8 @@
 
 use std::cell::RefCell;
 
-use nc_ui::table::TableRenderTheme;
-use nc_ui::{CellStyle, GameColor};
+use crate::buffer::{CellStyle, GameColor};
+use crate::table::TableRenderTheme;
 use opaline::{OpalineColor, OpalineStyle};
 use ratatui::style::{Color, Modifier, Style};
 
@@ -515,7 +515,7 @@ pub fn table_theme() -> TableRenderTheme {
 
 #[allow(dead_code)]
 pub mod classic {
-    use nc_ui::{CellStyle, GameColor};
+    use crate::buffer::{CellStyle, GameColor};
 
     use super::active_cell_theme;
 
@@ -715,7 +715,7 @@ pub mod classic {
 #[cfg(test)]
 mod tests {
     use super::{apply_default_theme, apply_theme_key, catalog, current_theme_key};
-    use nc_ui::GameColor;
+    use crate::buffer::GameColor;
 
     #[test]
     fn default_theme_key_is_tokyo_night() {

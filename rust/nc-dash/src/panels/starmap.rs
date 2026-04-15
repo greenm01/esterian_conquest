@@ -2,13 +2,13 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 #[cfg(test)]
 use nc_data::CoreGameData;
 use nc_data::{
     DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
     build_player_starmap_projection_from_snapshots, owned_orbit_presence,
 };
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
 use crate::layout::{self, MapWidgetFrame};
@@ -571,11 +571,12 @@ fn marker_for_world(
 mod tests {
     use super::*;
     use crate::app::state::DashApp;
+    use crate::buffer::PlayfieldBuffer;
+    use crate::geometry::ScreenGeometry;
     use crate::layout::dashboard_layout;
     use crate::theme;
     use nc_data::{GameStateBuilder, IntelTier};
     use nc_engine::build_seeded_initialized_game;
-    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

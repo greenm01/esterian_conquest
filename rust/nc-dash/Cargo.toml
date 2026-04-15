@@ -12,16 +12,17 @@ path = "src/main.rs"
 crossterm = "0.29"
 dirs = "5"
 kdl = "6"
+fontdue = "0.9"
 nc-client = { path = "../nc-client" }
 nc-data = { path = "../nc-data" }
 nc-engine = { path = "../nc-engine" }
 nc-nostr = { path = "../nc-nostr" }
 nc-session = { path = "../nc-session" }
-nc-ui = { path = "../nc-ui" }
 nc-log = { path = "../nc-log" }
 opaline = { path = "../opaline", default-features = false, features = ["builtin-themes", "gradients"] }
 ratatui = "0.30"
 serde_json = "1"
+softbuffer = "0.4"
 tracing = "0.1"
 winit = "0.29"
 arboard = { version = "3", features = ["wayland-data-control"] }

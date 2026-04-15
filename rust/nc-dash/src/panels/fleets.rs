@@ -1,10 +1,10 @@
 //! Left panel: active fleet summary stats.
 
 use crate::app::state::DashApp;
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme::classic::status_value_style;
 use nc_data::{Order, STARDOCK_SLOT_COUNT};
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "MY FLEETS";
 pub(crate) const MIN_BODY_ROWS: usize = 7;

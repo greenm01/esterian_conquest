@@ -1249,7 +1249,7 @@ impl DashApp {
             .iter()
             .map(|option| vec![format!("{:02}", option.code)])
             .collect::<Vec<_>>();
-        let Some(index) = nc_ui::table_selection::find_typed_jump_index(
+        let Some(index) = crate::table_selection::find_typed_jump_index(
             &rows,
             0,
             &self.fleet_overlay.mission_picker_input,

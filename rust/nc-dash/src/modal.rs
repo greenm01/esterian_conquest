@@ -1,4 +1,4 @@
-use nc_ui::{CellStyle, PlayfieldBuffer};
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rect {

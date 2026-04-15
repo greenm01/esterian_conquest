@@ -1,7 +1,7 @@
 //! Left panel: Treasury, production, revenue, and generated PP growth.
 
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use nc_data::yearly_growth_delta;
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
@@ -137,8 +137,8 @@ fn format_cmd_limit(current: usize, max: usize) -> String {
 mod tests {
     use super::{body_rows, format_cmd_limit};
     use crate::app::state::DashApp;
+    use crate::geometry::ScreenGeometry;
     use nc_data::GameStateBuilder;
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

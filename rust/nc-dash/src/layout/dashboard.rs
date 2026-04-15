@@ -1,6 +1,6 @@
 //! Measured dashboard layout sized from actual widget content.
 
-use nc_ui::ScreenGeometry;
+use crate::geometry::ScreenGeometry;
 
 use crate::app::state::{DashApp, MapViewMode};
 use crate::layout::geometry::{
@@ -266,7 +266,7 @@ fn stack_height_4(body_rows: [usize; 4]) -> usize {
     body_rows.into_iter().map(panel_outer_height).sum::<usize>() + 3
 }
 
-fn styled_row_width(rows: &[(String, nc_ui::CellStyle)]) -> usize {
+fn styled_row_width(rows: &[(String, crate::buffer::CellStyle)]) -> usize {
     rows.iter()
         .map(|(row, _)| row.chars().count())
         .max()
@@ -444,10 +444,10 @@ mod tests {
         required_dashboard_frame,
     };
     use crate::app::state::{DashApp, MapViewMode};
+    use crate::geometry::ScreenGeometry;
     use crate::panels::{diplomacy, war_record};
     use nc_data::GameStateBuilder;
     use nc_engine::build_seeded_initialized_game;
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 

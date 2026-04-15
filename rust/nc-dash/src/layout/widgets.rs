@@ -1,6 +1,7 @@
 //! Explicit widget frames for the dashboard side panels and center map.
 
-use nc_ui::{CellStyle, PlayfieldBuffer, ScreenGeometry};
+use crate::buffer::{CellStyle, PlayfieldBuffer};
+use crate::geometry::ScreenGeometry;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
@@ -356,7 +357,11 @@ mod tests {
         let mut buffer = PlayfieldBuffer::new(
             40,
             10,
-            CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false),
+            CellStyle::new(
+                crate::buffer::GameColor::White,
+                crate::buffer::GameColor::Black,
+                false,
+            ),
         );
         let frame = PanelWidgetFrame {
             outer: WidgetRect {
@@ -378,7 +383,11 @@ mod tests {
             &mut buffer,
             frame,
             "TOO LONG PANEL TITLE",
-            CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false),
+            CellStyle::new(
+                crate::buffer::GameColor::White,
+                crate::buffer::GameColor::Black,
+                false,
+            ),
         );
     }
 

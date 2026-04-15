@@ -9,9 +9,10 @@ pub mod transport;
 mod ui;
 pub mod update;
 
+use crate::buffer::PlayfieldBuffer;
+use crate::geometry::ScreenGeometry;
 use crossterm::event::KeyEvent;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
-use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use std::time::{Duration, Instant};
 
 use crate::modal::{ModalTheme, render_modal_box};

@@ -1,9 +1,9 @@
 //! Left panel: campaign-lifetime war and expansion summary.
 
 use crate::app::state::DashApp;
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
-use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "WAR RECORD";
 pub(crate) const MIN_BODY_ROWS: usize = 5;
@@ -94,8 +94,8 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
 mod tests {
     use super::body_rows;
     use crate::app::state::DashApp;
+    use crate::geometry::ScreenGeometry;
     use nc_data::GameStateBuilder;
-    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 
