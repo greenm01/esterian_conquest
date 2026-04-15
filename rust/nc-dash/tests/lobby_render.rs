@@ -47,7 +47,8 @@ fn home_route_renders_tabbed_shell_copy() {
     assert!(lines.contains("[ My Games ]"));
     assert!(lines.contains("[ Open Games ]"));
     assert!(lines.contains("[ Comms ]"));
-    assert!(lines.contains("? Help"));
+    assert!(lines.contains("? Keys"));
+    assert!(lines.contains("H>elp"));
     assert!(lines.contains("J>oin"));
     assert!(lines.contains("Alt-Lock"));
     assert!(lines.contains("S>ettings"));
@@ -69,7 +70,8 @@ fn home_route_keeps_empty_messages_under_table_headers() {
     let mut open_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     open_games.state.active_tab = LobbyTab::OpenGames;
     assert!(
-        render_app_lines(open_games).contains("<no open games - press 'h' to host a new game>")
+        render_app_lines(open_games)
+            .contains("<no open games - check back later or ask the sysop in COMMS>")
     );
 }
 
@@ -128,10 +130,10 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
 
     let buffer = app.render_for_test().expect("render lobby");
     let footer_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("? Help"))
+        .find(|&row| buffer.plain_line(row).contains("? Keys"))
         .expect("footer labels");
     let footer = buffer.plain_line(footer_row);
-    let footer_start = footer.find("? Help").expect("footer labels");
+    let footer_start = footer.find("? Keys").expect("footer labels");
     let toast_row = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("Join request sent."))
         .expect("toast row");
@@ -140,6 +142,7 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
     assert!(footer.contains("J>oin"));
     assert!(footer.contains("Alt-Lock"));
     assert!(footer.contains("Tab Next Tab"));
+    assert!(footer.contains("H>elp"));
     assert!(footer.contains("S>ettings"));
     assert!(footer_start > 0);
     assert!(toast_row < footer_row);
@@ -158,7 +161,7 @@ fn home_route_footer_sits_inside_double_shell() {
         })
         .expect("open games title");
     let footer_labels = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("? Help"))
+        .find(|&row| buffer.plain_line(row).contains("? Keys"))
         .expect("footer labels");
     let table_left = buffer
         .row(body.0)
@@ -190,11 +193,25 @@ fn home_route_help_popup_renders_as_overlay() {
 
     let lines = render_app_lines(app);
 
-    assert!(lines.contains("HELP"));
+    assert!(lines.contains("KEYS"));
     assert!(lines.contains("cycle dashboard tabs"));
     assert!(lines.contains("request to join the selected game"));
     assert!(lines.contains("compose a join request"));
     assert!(lines.contains("lock nc-dash"));
+}
+
+#[test]
+fn home_route_manual_popup_renders_as_overlay() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_manual = true;
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("HELP"));
+    assert!(lines.contains("Welcome to Nostrian Conquest."));
+    assert!(lines.contains("start in Open Games"));
+    assert!(lines.contains("message the sysop"));
+    assert!(lines.contains("Press H or h anytime in the lobby"));
 }
 
 #[test]
@@ -218,7 +235,7 @@ fn help_popup_wraps_to_dynamic_content_size() {
     app.state.show_help = true;
     let buffer = app.render_for_test().expect("render help");
     let title_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains(" HELP "))
+        .find(|&row| buffer.plain_line(row).contains(" KEYS "))
         .expect("help title row");
     let left = buffer
         .row(title_row)
@@ -236,6 +253,32 @@ fn help_popup_wraps_to_dynamic_content_size() {
 
     assert!(right - left + 1 < 72);
     assert!(bottom_row - title_row + 1 < 17);
+}
+
+#[test]
+fn manual_popup_wraps_to_dynamic_content_size() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_manual = true;
+    let buffer = app.render_for_test().expect("render help");
+    let title_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains(" HELP "))
+        .expect("manual title row");
+    let left = buffer
+        .row(title_row)
+        .iter()
+        .position(|cell| cell.ch == '┌')
+        .expect("manual popup left border");
+    let right = buffer
+        .row(title_row)
+        .iter()
+        .rposition(|cell| cell.ch == '┐')
+        .expect("manual popup right border");
+    let bottom_row = (title_row + 1..buffer.height())
+        .find(|&row| buffer.row(row)[left].ch == '└')
+        .expect("manual popup bottom border");
+
+    assert!(right - left + 1 < 114);
+    assert!(bottom_row - title_row + 1 < 18);
 }
 
 #[test]
@@ -276,7 +319,7 @@ fn help_popup_themes_popup_border_background() {
     app.state.show_help = true;
     let buffer = app.render_for_test().expect("render help");
     let (row, col) = (0..buffer.height())
-        .find_map(|idx| buffer.plain_line(idx).find(" HELP ").map(|col| (idx, col)))
+        .find_map(|idx| buffer.plain_line(idx).find(" KEYS ").map(|col| (idx, col)))
         .expect("help popup");
     let popup_bg = buffer.row(row + 1)[col].style.bg;
 
@@ -306,7 +349,7 @@ fn settings_route_renders_theme_controls() {
     let lines = render_lines(LobbyRoute::Settings);
 
     assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
-    assert!(lines.contains("? Help"));
+    assert!(lines.contains("? Keys"));
     assert!(lines.contains("LOBBY SETTINGS"));
     assert!(lines.contains("Handle"));
     assert!(lines.contains("Idle Lock"));
@@ -484,7 +527,7 @@ fn theme_picker_route_renders_theme_list() {
     let lines = render_lines(LobbyRoute::ThemePicker);
 
     assert!(lines.contains("NOSTRIAN CONQUEST LOBBY"));
-    assert!(lines.contains("? Help"));
+    assert!(lines.contains("? Keys"));
     assert!(lines.contains("THEME PICKER"));
     assert!(lines.contains("Themes"));
     assert!(lines.contains("Preview"));

@@ -59,7 +59,7 @@ impl LobbyApp {
         let now = Instant::now();
         let matrix_width = geometry.width();
         let matrix_height = geometry.height();
-        Self {
+        let mut app = Self {
             geometry,
             should_quit: false,
             state: state::LobbyState::new(LobbyStartupOptions::default(), route, settings),
@@ -73,7 +73,10 @@ impl LobbyApp {
             next_cursor_blink_at: now + COMMS_CURSOR_BLINK_STEP,
             matrix_rain: onboarding::MatrixRain::new(matrix_width, matrix_height),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
-        }
+        };
+        app.state.show_manual = false;
+        app.state.manual_seen_this_session = route == LobbyRoute::Home;
+        app
     }
 
     pub fn set_clipboard_text(&mut self, text: impl Into<String>) {
@@ -116,6 +119,7 @@ impl LobbyApp {
 
     fn dismiss_resume_sync_overlay(&mut self) {
         self.state.show_resume_sync_overlay = false;
+        update::maybe_open_home_manual(self);
     }
 
     fn render_resume_sync_overlay(&self, buffer: &mut PlayfieldBuffer) {
@@ -203,6 +207,12 @@ impl LobbyApp {
     }
 
     fn handle_lobby_mouse_down(&mut self, mouse: MouseEvent) {
+        if self.state.show_manual {
+            self.state.show_manual = false;
+            self.popup_position = None;
+            self.mouse_gesture = LobbyMouseGesture::None;
+            return;
+        }
         if ui::popup_title_bar_contains(self, mouse.column, mouse.row) {
             if let Some(popup) = ui::active_popup_rect(self) {
                 self.mouse_gesture = LobbyMouseGesture::DraggingPopup {

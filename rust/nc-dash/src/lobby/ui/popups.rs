@@ -32,47 +32,61 @@ const THEME_PICKER_POPUP_CHROME: u16 = 2;
 
 const MY_GAMES_HELP_ROWS: &[HelpRow] = &[
     ("Tab", "cycle dashboard tabs"),
-    ("J / K", "move within MY GAMES"),
+    ("Up / Down", "move within MY GAMES"),
     ("Enter", "open the selected joined game"),
     ("Alt-L", "lock nc-dash"),
     ("S", "open lobby settings, including handle and idle lock"),
     ("R", "refresh the hosted lobby"),
-    ("? / Esc", "close this help popup"),
+    ("? / Esc", "close this popup"),
     ("Q / Esc", "quit nc-dash from the lobby"),
 ];
 
 const OPEN_GAMES_HELP_ROWS: &[HelpRow] = &[
     ("Tab", "cycle dashboard tabs"),
-    ("J / K", "move within OPEN GAMES"),
+    ("Up / Down", "move within OPEN GAMES"),
     ("Enter", "request to join the selected game"),
     ("J", "compose a join request"),
     ("Alt-L", "lock nc-dash"),
     ("S", "open lobby settings, including handle and idle lock"),
     ("R", "refresh the hosted lobby"),
-    ("? / Esc", "close this help popup"),
+    ("? / Esc", "close this popup"),
     ("Q / Esc", "quit nc-dash from the lobby"),
 ];
 
 const COMMS_HELP_ROWS: &[HelpRow] = &[
     ("Tab", "cycle dashboard tabs"),
     ("Left/Right", "cycle Chat / New / Threads"),
-    ("J / K", "move within the focused COMMS pane"),
+    ("Up / Down", "move within the focused COMMS pane"),
     ("Enter", "send chat or open the selected unread/thread row"),
     ("Alt-A", "open the address book"),
     ("Delete", "hide the selected direct contact"),
     ("Alt-L", "lock nc-dash"),
-    ("? / Esc", "close this help popup"),
+    ("? / Esc", "close this popup"),
     ("Q / Esc", "quit nc-dash from the lobby"),
 ];
 
 const ADDRESS_BOOK_HELP_ROWS: &[HelpRow] = &[
-    ("J / K", "move within the address book"),
+    ("Up / Down", "move within the address book"),
     ("Enter", "open the selected direct contact"),
     ("A", "add a contact by npub or NIP-05"),
     ("B", "block the selected direct contact"),
     ("Delete", "hide the selected direct contact"),
-    ("? / Esc", "close this help popup"),
+    ("? / Esc", "close this popup"),
     ("Esc", "close the address book"),
+];
+
+const LOBBY_MANUAL_LINES: &[&str] = &[
+    "Welcome to Nostrian Conquest.",
+    "",
+    "If you're just kicking the tires, start in Open Games and join a sandbox game already recruiting players.",
+    "",
+    "If you're returning for a serious campaign, open COMMS and message the sysop to ask about league games.",
+    "",
+    "League games usually expect one turn per day and can run for weeks or months, but the daily time commitment is intentionally small.",
+    "",
+    "Use COMMS for general game chat or to contact the sysop directly.",
+    "",
+    "Press H or h anytime in the lobby to reopen this screen.",
 ];
 
 pub(super) fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
@@ -371,7 +385,7 @@ pub(super) fn render_help_popup(
 ) {
     let area = popup_rect(parent, help_popup_size(app, parent), origin);
     let styles = theme::tui_theme();
-    let block = popup_block(" HELP ", styles.accent);
+    let block = popup_block(" KEYS ", styles.accent);
     let inner = block.inner(area);
     Clear.render(area, buffer);
     block.render(area, buffer);
@@ -387,9 +401,29 @@ pub(super) fn render_help_popup(
     }
 }
 
+pub(super) fn render_manual_popup(
+    buffer: &mut Buffer,
+    app: &LobbyApp,
+    parent: Rect,
+    origin: Option<RelativePopupOrigin>,
+) {
+    let wrapped = measure_manual_popup_text(parent);
+    render_popup_lines(
+        buffer,
+        popup_rect(parent, manual_popup_size(app, parent), origin),
+        " HELP ",
+        &wrapped.lines,
+        theme::tui_theme().value,
+    );
+}
+
 pub(super) fn help_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
     let wrapped = wrapped_help_popup_lines(app, parent);
     popup_size(wrapped.content_width, wrapped.lines.len())
+}
+
+pub(super) fn manual_popup_size(_app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_size_from_wrapped(&measure_manual_popup_text(parent))
 }
 
 pub(super) fn render_too_small(buffer: &mut Buffer, area: Rect) {
@@ -637,6 +671,18 @@ fn compose_invite_popup_lines(app: &LobbyApp) -> Vec<String> {
         format!("Message : {}", app.state.compose_message_input),
         "Enter sends a 30513 join request.".to_string(),
     ]
+}
+
+fn manual_popup_lines() -> Vec<String> {
+    LOBBY_MANUAL_LINES
+        .iter()
+        .map(|line| (*line).to_string())
+        .collect()
+}
+
+fn measure_manual_popup_text(parent: Rect) -> WrappedTextLines {
+    let parent = crate::modal::Rect::new(parent.x, parent.y, parent.width, parent.height);
+    measure_modal_text_lines(&manual_popup_lines(), max_content_width(parent).min(76))
 }
 
 fn edit_handle_popup_lines(app: &LobbyApp) -> Vec<String> {

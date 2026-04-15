@@ -9,6 +9,11 @@ use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use crate::theme;
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
+    if app.state.show_manual {
+        app.state.show_manual = false;
+        app.popup_position = None;
+        return;
+    }
     if key.modifiers.contains(KeyModifiers::ALT) {
         match key.code {
             KeyCode::Char('l' | 'L') => {
@@ -105,16 +110,20 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             LobbyTab::MyGames => open_or_claim_selected_game(app),
             _ => {}
         },
-        KeyCode::Up | KeyCode::Char('k') => move_selection(app, -1),
-        KeyCode::Down | KeyCode::Char('j') => move_selection(app, 1),
+        KeyCode::Up => move_selection(app, -1),
+        KeyCode::Down => move_selection(app, 1),
         KeyCode::Char('J' | 'n' | 'N') => {
             app.state.compose_message_input.clear();
             open_popup_route(app, LobbyRoute::ComposeInvite);
+        }
+        KeyCode::Char('H' | 'h') => {
+            open_manual_popup(app);
         }
         KeyCode::Char('s' | 'S') => open_settings(app),
         KeyCode::Char('r' | 'R') => refresh_lobby(app),
         KeyCode::Char('?') => {
             app.state.show_help = true;
+            app.state.show_manual = false;
             app.popup_position = None;
         }
         _ => {}
@@ -141,14 +150,20 @@ fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
             if app.state.route == LobbyRoute::Home {
                 app.should_quit = true;
             } else {
-                app.state.route = LobbyRoute::Home;
+                enter_home(app);
                 app.state.thread_pane_focus = ThreadPaneFocus::Chat;
-                app.popup_position = None;
             }
         }
         KeyCode::Char('?') => {
             app.state.show_help = true;
+            app.state.show_manual = false;
             app.popup_position = None;
+        }
+        KeyCode::Char('H' | 'h')
+            if app.state.route == LobbyRoute::Home
+                && app.state.thread_pane_focus != ThreadPaneFocus::Chat =>
+        {
+            open_manual_popup(app);
         }
         KeyCode::Tab => cycle_comms_focus(app, 1),
         KeyCode::BackTab => cycle_comms_focus(app, -1),
@@ -165,18 +180,6 @@ fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
                 && active_comms_writable(app) =>
         {
             app.state.compose_message_input.pop();
-        }
-        KeyCode::Char('h') if app.state.thread_pane_focus != ThreadPaneFocus::Chat => {
-            cycle_comms_focus(app, -1);
-        }
-        KeyCode::Char('l') if app.state.thread_pane_focus != ThreadPaneFocus::Chat => {
-            cycle_comms_focus(app, 1);
-        }
-        KeyCode::Char('k') if app.state.thread_pane_focus != ThreadPaneFocus::Chat => {
-            move_comms_selection(app, -1);
-        }
-        KeyCode::Char('j') if app.state.thread_pane_focus != ThreadPaneFocus::Chat => {
-            move_comms_selection(app, 1);
         }
         KeyCode::Char(ch)
             if app.state.thread_pane_focus == ThreadPaneFocus::Chat
@@ -213,6 +216,7 @@ fn handle_contact_picker_key(app: &mut LobbyApp, key: KeyEvent) {
         KeyCode::Esc => close_popup_route(app, LobbyRoute::Home),
         KeyCode::Char('?') => {
             app.state.show_help = true;
+            app.state.show_manual = false;
             app.popup_position = None;
         }
         KeyCode::Char('a' | 'A') => {
@@ -221,8 +225,8 @@ fn handle_contact_picker_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Char('b' | 'B') => toggle_picker_contact_block(app),
         KeyCode::Char('d' | 'D') | KeyCode::Delete => toggle_picker_contact_hidden(app),
-        KeyCode::Up | KeyCode::Char('k') => move_contact_picker_selection(app, -1),
-        KeyCode::Down | KeyCode::Char('j') => move_contact_picker_selection(app, 1),
+        KeyCode::Up => move_contact_picker_selection(app, -1),
+        KeyCode::Down => move_contact_picker_selection(app, 1),
         KeyCode::Enter => select_picker_contact(app),
         _ => {}
     }
@@ -288,7 +292,7 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
                         app.state.unlock_password_input.clear();
                         app.state.first_run_password_input.clear();
                         app.state.first_run_confirm_input.clear();
-                        app.state.route = LobbyRoute::Home;
+                        enter_home(app);
                     }
                     Err(err) => set_status(app, LobbyStatusTone::Error, err),
                 }
@@ -345,7 +349,11 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
                 };
                 app.state.gate_mode = KeychainGateMode::Startup;
                 app.state.unlock_return_route = LobbyRoute::Home;
-                app.state.route = route;
+                if route == LobbyRoute::Home {
+                    enter_home(app);
+                } else {
+                    app.state.route = route;
+                }
             }
             Err(err) => set_status(app, LobbyStatusTone::Error, err),
         },
@@ -425,7 +433,7 @@ fn handle_edit_handle_key(app: &mut LobbyApp, key: KeyEvent) {
 
 fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
     match key.code {
-        KeyCode::Esc => app.state.route = LobbyRoute::Home,
+        KeyCode::Esc => enter_home(app),
         KeyCode::Char('r' | 'R') => refresh_hosted_game(app),
         KeyCode::Char('t' | 'T') => open_submit_turn(app),
         _ => {
@@ -442,10 +450,10 @@ fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
 fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
     match key.code {
         KeyCode::Esc => cancel_settings(app),
-        KeyCode::Up | KeyCode::Char('k') => {
+        KeyCode::Up => {
             app.state.settings_selected = app.state.settings_selected.saturating_sub(1);
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down => {
             app.state.settings_selected = (app.state.settings_selected + 1).min(6);
         }
         KeyCode::Char('s' | 'S') => save_settings(app),
@@ -486,13 +494,13 @@ fn handle_theme_picker_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.settings_draft.theme_key = app.state.theme_original_key.clone();
             close_popup_route(app, LobbyRoute::Settings);
         }
-        KeyCode::Up | KeyCode::Char('k') => {
+        KeyCode::Up => {
             if app.state.theme_selected > 0 {
                 app.state.theme_selected -= 1;
                 preview_selected_theme(app, &themes);
             }
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down => {
             if app.state.theme_selected + 1 < themes.len() {
                 app.state.theme_selected += 1;
                 preview_selected_theme(app, &themes);
@@ -511,7 +519,7 @@ fn handle_theme_picker_key(app: &mut LobbyApp, key: KeyEvent) {
 
 fn open_submit_turn(app: &mut LobbyApp) {
     let Some(hosted) = app.state.hosted_game.as_mut() else {
-        app.state.route = LobbyRoute::Home;
+        enter_home(app);
         return;
     };
     hosted.submit_input = hosted.dashboard.hosted_turn_text().unwrap_or_default();
@@ -541,7 +549,7 @@ fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         KeyCode::Enter => {
             let Some(hosted) = app.state.hosted_game.as_ref() else {
-                app.state.route = LobbyRoute::Home;
+                enter_home(app);
                 return;
             };
             let row = hosted.row.clone();
@@ -625,8 +633,7 @@ fn submit_added_contact(app: &mut LobbyApp) {
             app.state.active_tab = LobbyTab::Comms;
             app.state.thread_pane_focus = ThreadPaneFocus::Chat;
             activate_current_comms(app);
-            app.state.route = LobbyRoute::Home;
-            app.popup_position = None;
+            enter_home(app);
         }
         Err(err) => set_status(app, LobbyStatusTone::Error, err),
     }
@@ -851,7 +858,7 @@ fn refresh_hosted_game(app: &mut LobbyApp) {
         .as_ref()
         .map(|hosted| hosted.row.clone())
     else {
-        app.state.route = LobbyRoute::Home;
+        enter_home(app);
         return;
     };
     match app.transport.open_game(&row) {
@@ -1066,10 +1073,9 @@ fn select_picker_contact(app: &mut LobbyApp) {
     app.state
         .set_active_comms(super::models::CommsConversationKey::Direct { contact_npub: npub });
     app.state.active_tab = LobbyTab::Comms;
-    app.state.route = LobbyRoute::Home;
+    enter_home(app);
     app.state.thread_pane_focus = ThreadPaneFocus::Chat;
     activate_current_comms(app);
-    app.popup_position = None;
 }
 
 fn toggle_picker_contact_block(app: &mut LobbyApp) {
@@ -1166,8 +1172,35 @@ fn open_popup_route(app: &mut LobbyApp, route: LobbyRoute) {
 }
 
 fn close_popup_route(app: &mut LobbyApp, route: LobbyRoute) {
-    app.state.route = route;
+    if route == LobbyRoute::Home {
+        enter_home(app);
+    } else {
+        app.state.route = route;
+        app.popup_position = None;
+    }
+}
+
+fn open_manual_popup(app: &mut LobbyApp) {
+    app.state.show_help = false;
+    app.state.show_manual = true;
+    app.state.manual_seen_this_session = true;
     app.popup_position = None;
+}
+
+pub(crate) fn maybe_open_home_manual(app: &mut LobbyApp) {
+    if app.state.route != LobbyRoute::Home
+        || app.state.manual_seen_this_session
+        || app.state.show_resume_sync_overlay
+    {
+        return;
+    }
+    open_manual_popup(app);
+}
+
+fn enter_home(app: &mut LobbyApp) {
+    app.state.route = LobbyRoute::Home;
+    app.popup_position = None;
+    maybe_open_home_manual(app);
 }
 
 pub(crate) fn set_network_error(app: &mut LobbyApp, err: String) {

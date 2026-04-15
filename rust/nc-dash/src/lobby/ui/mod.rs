@@ -45,8 +45,15 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
     if app.state.route == LobbyRoute::Home
         && app.state.status_message.is_some()
         && !app.state.show_help
+        && !app.state.show_manual
     {
         popups::render_toast(&mut buffer, layout.body, app.state_ref());
+    }
+
+    if app.state.show_manual {
+        popups::render_manual_popup(&mut buffer, app, layout.body, app.popup_position);
+        paint_buffer(playfield, &buffer);
+        return;
     }
 
     if app.state.show_help {

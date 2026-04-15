@@ -295,7 +295,7 @@ fn render_open_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state
         1,
         state.open_games.len(),
         Some(state.open_selected),
-        "<no open games - press 'h' to host a new game>",
+        "<no open games - check back later or ask the sysop in COMMS>",
         |index| {
             let row = &state.open_games[index];
             let (year, turn) = split_turn_summary(&row.turn_summary);
@@ -361,7 +361,8 @@ fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
     let styles = theme::tui_theme();
     let tokens = [
         FooterToken::leading("Tab", " Next Tab"),
-        FooterToken::leading("?", " Help"),
+        FooterToken::leading("?", " Keys"),
+        FooterToken::leading("H", ">elp"),
         FooterToken::leading("J", ">oin"),
         FooterToken::embedded("Alt-", "L", "ock"),
         FooterToken::leading("S", ">ettings"),

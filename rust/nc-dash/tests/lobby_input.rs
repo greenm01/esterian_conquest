@@ -218,6 +218,7 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 
     apply_key(&mut app, key(KeyCode::Char('?')));
     assert!(app.state.show_help);
+    assert!(!app.state.show_manual);
 
     apply_key(&mut app, key(KeyCode::Down));
     assert_eq!(app.state.active_tab, original_tab);
@@ -230,6 +231,140 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 
     apply_key(&mut app, key(KeyCode::Esc));
     assert!(!app.state.show_help);
+}
+
+#[test]
+fn lowercase_h_opens_manual_popup_from_home() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, key(KeyCode::Char('h')));
+
+    assert!(app.state.show_manual);
+    assert!(!app.state.show_help);
+    assert!(app.state.manual_seen_this_session);
+}
+
+#[test]
+fn uppercase_h_still_opens_manual_popup_from_home() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, shift_key(KeyCode::Char('h')));
+
+    assert!(app.state.show_manual);
+    assert!(!app.state.show_help);
+}
+
+#[test]
+fn lowercase_h_opens_manual_from_comms_when_not_typing() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
+
+    apply_key(&mut app, key(KeyCode::Char('h')));
+
+    assert!(app.state.show_manual);
+    assert!(!app.state.show_help);
+}
+
+#[test]
+fn hjkl_navigation_is_removed_outside_chat() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.open_games = vec![
+        OpenGameRow::new(
+            "friday-night",
+            "Open",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            "new_players",
+            3,
+            4,
+            "2026-04-13",
+            "y3004 t4",
+            "summary",
+        ),
+        OpenGameRow::new(
+            "saturday-night",
+            "Open",
+            "Saturday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            "new_players",
+            2,
+            9,
+            "2026-04-14",
+            "y3005 t2",
+            "summary",
+        ),
+    ];
+    app.state.active_tab = LobbyTab::OpenGames;
+    app.state.open_selected = 0;
+
+    apply_key(&mut app, key(KeyCode::Char('j')));
+    assert_eq!(app.state.open_selected, 0);
+
+    apply_key(&mut app, key(KeyCode::Char('k')));
+    assert_eq!(app.state.open_selected, 0);
+
+    app.state.active_tab = LobbyTab::Comms;
+    app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
+
+    apply_key(&mut app, key(KeyCode::Char('l')));
+    assert_eq!(
+        app.state.thread_pane_focus,
+        nc_dash::lobby::state::ThreadPaneFocus::Threads
+    );
+}
+
+#[test]
+fn manual_popup_consumes_dismiss_key_without_running_home_command() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::OpenGames;
+    app.state.show_manual = true;
+
+    apply_key(&mut app, key(KeyCode::Tab));
+
+    assert!(!app.state.show_manual);
+    assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
+    assert!(!app.state.show_help);
+}
+
+#[test]
+fn returning_to_home_opens_manual_once_per_session() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+    app.state.manual_seen_this_session = false;
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(app.state.show_manual);
+    assert!(app.state.manual_seen_this_session);
+
+    apply_key(&mut app, key(KeyCode::Enter));
+    assert!(!app.state.show_manual);
+
+    apply_key(&mut app, shift_key(KeyCode::Char('s')));
+    assert_eq!(app.state.route, LobbyRoute::Settings);
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(!app.state.show_manual);
+}
+
+#[test]
+fn resume_sync_dismiss_deferred_opens_manual_when_home_becomes_eligible() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.manual_seen_this_session = false;
+    app.state.show_resume_sync_overlay = true;
+
+    app.dispatch_key_event_for_test(key(KeyCode::Enter));
+
+    assert!(!app.state.show_resume_sync_overlay);
+    assert!(app.state.show_manual);
+    assert!(app.state.manual_seen_this_session);
 }
 
 #[test]
@@ -739,9 +874,6 @@ fn handle_moves_to_settings_and_returns_there_after_cancel() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.player_handle = Some("Current".to_string());
 
-    apply_key(&mut app, shift_key(KeyCode::Char('h')));
-    assert_eq!(app.state.route, LobbyRoute::Home);
-
     apply_key(&mut app, shift_key(KeyCode::Char('s')));
     assert_eq!(app.state.route, LobbyRoute::Settings);
 
@@ -898,6 +1030,18 @@ fn clicking_pane_border_focuses_without_changing_selection() {
 
     assert_eq!(app.state.active_tab, LobbyTab::OpenGames);
     assert_eq!(app.state.open_selected, 1);
+}
+
+#[test]
+fn manual_popup_dismisses_on_left_click_without_switching_tabs() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::MyGames;
+    app.state.show_manual = true;
+
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), 0, 0));
+
+    assert!(!app.state.show_manual);
+    assert_eq!(app.state.active_tab, LobbyTab::MyGames);
 }
 
 #[test]

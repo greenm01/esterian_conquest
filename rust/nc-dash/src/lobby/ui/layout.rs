@@ -123,6 +123,7 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
             Some(super::popups::contact_picker_popup_size(app, layout.body))
         }
         LobbyRoute::AddContact => Some(super::popups::add_contact_popup_size(app, layout.body)),
+        _ if app.state.show_manual => Some(super::popups::manual_popup_size(app, layout.body)),
         _ if app.state.show_help => Some(super::popups::help_popup_size(app, layout.body)),
         _ => None,
     }?;
