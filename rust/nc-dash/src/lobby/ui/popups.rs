@@ -1,14 +1,18 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
-use ratatui::widgets::{Clear, Paragraph, Widget, Wrap};
+use ratatui::widgets::{Clear, Widget};
 
-use crate::lobby::state::{LobbyApp, LobbyState};
+use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
+use crate::modal::{
+    WrappedHelpLines, WrappedTextLines, format_help_rows, max_content_width,
+    measure_modal_text_lines, wrap_formatted_help_lines,
+};
 use crate::overlays::frame::RelativePopupOrigin;
 use crate::theme;
 
 use super::chrome::{chrome_block, popup_block, status_style, toast_text_style, with_panel_bg};
-use super::layout::{help_popup_size, popup_rect, scroll_offset};
+use super::layout::{popup_rect, scroll_offset};
 
 const FOOTER_HEIGHT: u16 = 5;
 const SETTINGS_ROWS: [&str; 7] = [
@@ -21,8 +25,58 @@ const SETTINGS_ROWS: [&str; 7] = [
     "Cancel",
 ];
 
+type HelpRow = (&'static str, &'static str);
+const THEME_PICKER_PANEL_GAP: u16 = 1;
+const THEME_PICKER_PANEL_CHROME: u16 = 2;
+const THEME_PICKER_POPUP_CHROME: u16 = 2;
+
+const MY_GAMES_HELP_ROWS: &[HelpRow] = &[
+    ("Tab", "cycle dashboard tabs"),
+    ("J / K", "move within MY GAMES"),
+    ("Enter", "open the selected joined game"),
+    ("Alt-L", "lock nc-dash"),
+    ("S", "open lobby settings, including handle and idle lock"),
+    ("R", "refresh the hosted lobby"),
+    ("? / Esc", "close this help popup"),
+    ("Q / Esc", "quit nc-dash from the lobby"),
+];
+
+const OPEN_GAMES_HELP_ROWS: &[HelpRow] = &[
+    ("Tab", "cycle dashboard tabs"),
+    ("J / K", "move within OPEN GAMES"),
+    ("Enter", "request to join the selected game"),
+    ("J", "compose a join request"),
+    ("Alt-L", "lock nc-dash"),
+    ("S", "open lobby settings, including handle and idle lock"),
+    ("R", "refresh the hosted lobby"),
+    ("? / Esc", "close this help popup"),
+    ("Q / Esc", "quit nc-dash from the lobby"),
+];
+
+const COMMS_HELP_ROWS: &[HelpRow] = &[
+    ("Tab", "cycle dashboard tabs"),
+    ("Left/Right", "cycle Chat / New / Threads"),
+    ("J / K", "move within the focused COMMS pane"),
+    ("Enter", "send chat or open the selected unread/thread row"),
+    ("Alt-A", "open the address book"),
+    ("Delete", "hide the selected direct contact"),
+    ("Alt-L", "lock nc-dash"),
+    ("? / Esc", "close this help popup"),
+    ("Q / Esc", "quit nc-dash from the lobby"),
+];
+
+const ADDRESS_BOOK_HELP_ROWS: &[HelpRow] = &[
+    ("J / K", "move within the address book"),
+    ("Enter", "open the selected direct contact"),
+    ("A", "add a contact by npub or NIP-05"),
+    ("B", "block the selected direct contact"),
+    ("Delete", "hide the selected direct contact"),
+    ("? / Esc", "close this help popup"),
+    ("Esc", "close the address book"),
+];
+
 pub(super) fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
-    let popup = popup_rect(parent, (60, 17), app.popup_position);
+    let popup = popup_rect(parent, settings_popup_size(app, parent), app.popup_position);
     let styles = theme::tui_theme();
     let block = popup_block(" LOBBY SETTINGS ", styles.border);
     let inner = block.inner(popup);
@@ -36,17 +90,19 @@ pub(super) fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent:
         }
         let value = match *label {
             "Handle" => self_or_unset(app.state.player_handle.as_deref()),
-            "Idle Lock" => {
-                super::super::storage::settings::lock_timeout_label(
-                    app.state.settings_draft.lock_timeout_minutes,
-                )
-            }
+            "Idle Lock" => super::super::storage::settings::lock_timeout_label(
+                app.state.settings_draft.lock_timeout_minutes,
+            ),
             "Mouse Follow" => on_off(app.state.settings_draft.follow_mouse_on_map).to_string(),
             "Grid Dots" => on_off(app.state.settings_draft.dense_empty_sector_dots).to_string(),
             "Theme" => theme::display_name_for_key(&app.state.settings_draft.theme_key),
             _ => String::new(),
         };
-        let prefix = if app.state.settings_selected == idx { ">" } else { " " };
+        let prefix = if app.state.settings_selected == idx {
+            ">"
+        } else {
+            " "
+        };
         let line = if value.is_empty() {
             format!("{prefix} {label}")
         } else {
@@ -62,32 +118,53 @@ pub(super) fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent:
         buffer.set_stringn(inner.x, row, line, inner.width as usize, style);
     }
 
-    let info_row = inner.y + SETTINGS_ROWS.len() as u16 + 1;
-    if info_row < inner.bottom() {
+    let info_lines = measure_modal_text_lines(
+        &[String::from(
+            "Theme selection previews immediately and applies to the hosted dashboard too.",
+        )],
+        inner.width as usize,
+    );
+    let mut row = inner.y + SETTINGS_ROWS.len() as u16 + 1;
+    for line in info_lines.lines.iter() {
+        if row >= inner.bottom() {
+            break;
+        }
         buffer.set_stringn(
             inner.x,
-            info_row,
-            "Theme selection previews immediately and applies to the hosted dashboard too.",
+            row,
+            line,
             inner.width as usize,
             with_panel_bg(styles.dim),
         );
+        row += 1;
     }
     if let Some(status) = app.state.status_message.as_deref() {
-        let row = info_row.saturating_add(2);
-        if row < inner.bottom() {
+        row = row.saturating_add(1);
+        for line in measure_popup_text(parent, &[status.to_string()])
+            .lines
+            .iter()
+        {
+            if row >= inner.bottom() {
+                break;
+            }
             buffer.set_stringn(
                 inner.x,
                 row,
-                status,
+                line,
                 inner.width as usize,
                 with_panel_bg(toast_text_style(app.state.status_tone)),
             );
+            row += 1;
         }
     }
 }
 
 pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
-    let popup = popup_rect(parent, (82, 20), app.popup_position);
+    let popup = popup_rect(
+        parent,
+        theme_picker_popup_size(app, parent),
+        app.popup_position,
+    );
     let styles = theme::tui_theme();
     let block = popup_block(" THEME PICKER ", styles.border);
     let inner = block.inner(popup);
@@ -97,10 +174,18 @@ pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, par
         return;
     }
 
-    let [list_area, preview_area] =
-        Layout::horizontal([Constraint::Percentage(52), Constraint::Percentage(48)])
-            .spacing(1)
-            .areas(inner);
+    let (list_inner_width, preview_inner_width, _, _) = theme_picker_dimensions(app);
+    let (list_panel_width, preview_panel_width) = theme_picker_panel_widths(
+        inner.width,
+        list_inner_width as u16 + THEME_PICKER_PANEL_CHROME,
+        preview_inner_width as u16 + THEME_PICKER_PANEL_CHROME,
+    );
+    let [list_area, preview_area] = Layout::horizontal([
+        Constraint::Length(list_panel_width),
+        Constraint::Length(preview_panel_width),
+    ])
+    .spacing(THEME_PICKER_PANEL_GAP)
+    .areas(inner);
 
     let list_block = super::chrome::panel_block(" Themes ", false);
     let preview_block = super::chrome::panel_block(" Preview ", false);
@@ -155,49 +240,44 @@ pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, par
             5 => styles.selected,
             _ => with_panel_bg(styles.value),
         };
-        buffer.set_stringn(preview_inner.x, row, line, preview_inner.width as usize, style);
+        buffer.set_stringn(
+            preview_inner.x,
+            row,
+            line,
+            preview_inner.width as usize,
+            style,
+        );
     }
 }
 
 pub(super) fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let lines = compose_invite_popup_lines(app);
     render_popup_lines(
         buffer,
-        popup_rect(parent, (64, 11), app.popup_position),
+        popup_rect(parent, popup_text_size(parent, &lines), app.popup_position),
         " REQUEST TO JOIN ",
-        &[
-            format!(
-                "Game    : {}",
-                app.state
-                    .selected_open_game()
-                    .map(|row| row.game.as_str())
-                    .unwrap_or("<none>")
-            ),
-            format!("Message : {}", app.state.compose_message_input),
-            "Enter sends a 30513 join request.".to_string(),
-        ],
+        &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
     );
 }
 
 pub(super) fn render_edit_handle_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let lines = edit_handle_popup_lines(app);
     render_popup_lines(
         buffer,
-        popup_rect(parent, (58, 11), app.popup_position),
+        popup_rect(parent, popup_text_size(parent, &lines), app.popup_position),
         " EDIT HANDLE ",
-        &[
-            format!(
-                "Current handle: {}",
-                app.state.player_handle.as_deref().unwrap_or("<unset>")
-            ),
-            format!("New handle   : {}", app.state.edit_handle_input),
-            "Enter saves the local keychain handle.".to_string(),
-        ],
+        &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
     );
 }
 
 pub(super) fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
-    let popup = popup_rect(parent, (64, 16), app.popup_position);
+    let popup = popup_rect(
+        parent,
+        contact_picker_popup_size(app, parent),
+        app.popup_position,
+    );
     let styles = theme::tui_theme();
     let block = popup_block(" ADDRESS BOOK ", styles.border);
     let inner = block.inner(popup);
@@ -262,62 +342,67 @@ pub(super) fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, p
 }
 
 pub(super) fn render_add_contact_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let lines = add_contact_popup_lines(app);
     render_popup_lines(
         buffer,
-        popup_rect(parent, (60, 10), app.popup_position),
+        popup_rect(parent, popup_text_size(parent, &lines), app.popup_position),
         " ADD CONTACT ",
-        &[
-            "Enter a valid npub or NIP-05.".to_string(),
-            app.state.add_contact_input.clone(),
-        ],
+        &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
     );
 }
 
+fn help_popup_rows(app: &LobbyApp) -> &'static [HelpRow] {
+    match app.state.route {
+        LobbyRoute::ContactPicker | LobbyRoute::AddContact => ADDRESS_BOOK_HELP_ROWS,
+        _ => match app.state.active_tab {
+            LobbyTab::MyGames => MY_GAMES_HELP_ROWS,
+            LobbyTab::OpenGames => OPEN_GAMES_HELP_ROWS,
+            LobbyTab::Comms => COMMS_HELP_ROWS,
+        },
+    }
+}
+
 pub(super) fn render_help_popup(
     buffer: &mut Buffer,
+    app: &LobbyApp,
     parent: Rect,
     origin: Option<RelativePopupOrigin>,
 ) {
-    let area = popup_rect(parent, help_popup_size(parent), origin);
+    let area = popup_rect(parent, help_popup_size(app, parent), origin);
     let styles = theme::tui_theme();
     let block = popup_block(" HELP ", styles.accent);
     let inner = block.inner(area);
     Clear.render(area, buffer);
     block.render(area, buffer);
-    Paragraph::new(
-        [
-            "Tab        : cycle dashboard tabs",
-            "J / K      : move within the active tab",
-            "Enter      : open selected game or open the selected COMMS thread",
-            "J          : compose a join request",
-            "COMMS L/R  : cycle Chat / New / Threads",
-            "COMMS Enter: send chat or open selected unread/thread row",
-            "Alt-A      : open the address book from COMMS",
-            "B / Delete : block or hide the active direct contact",
-            "Alt-L      : lock nc-dash",
-            "S          : open lobby settings, including handle and idle lock",
-            "R          : refresh the hosted lobby",
-            "? / Esc    : close this help popup",
-            "Q          : quit nc-dash from the lobby",
-        ]
-        .join("\n"),
-    )
-    .style(with_panel_bg(styles.value))
-    .wrap(Wrap { trim: false })
-    .render(inner, buffer);
+    let wrapped = wrapped_help_popup_lines(app, parent);
+    for (idx, line) in wrapped.lines.iter().take(inner.height as usize).enumerate() {
+        buffer.set_stringn(
+            inner.x,
+            inner.y + idx as u16,
+            line,
+            inner.width as usize,
+            with_panel_bg(styles.value),
+        );
+    }
+}
+
+pub(super) fn help_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    let wrapped = wrapped_help_popup_lines(app, parent);
+    popup_size(wrapped.content_width, wrapped.lines.len())
 }
 
 pub(super) fn render_too_small(buffer: &mut Buffer, area: Rect) {
-    let popup = popup_rect(area, (42, 9), None);
+    let lines = vec![
+        "nc-lobby needs a larger window.".to_string(),
+        "Resize and reopen the lobby.".to_string(),
+    ];
+    let popup = popup_rect(area, popup_text_size(area, &lines), None);
     render_popup_lines(
         buffer,
         popup,
         " WINDOW TOO SMALL ",
-        &[
-            "nc-lobby needs a larger window.".to_string(),
-            "Resize and reopen the lobby.".to_string(),
-        ],
+        &measure_popup_text(area, &lines).lines,
         theme::tui_theme().value,
     );
 }
@@ -326,26 +411,20 @@ pub(super) fn render_toast(buffer: &mut Buffer, area: Rect, state: &LobbyState) 
     let Some(message) = state.status_message.as_deref() else {
         return;
     };
-    let max_width = area.width.saturating_sub(8) as usize;
-    let lines = wrap_lines(message, max_width);
-    let content_width = lines
-        .iter()
-        .map(|line| line.chars().count() as u16)
-        .max()
-        .unwrap_or(0)
-        .clamp(1, max_width as u16);
+    let wrapped = measure_popup_text(area, &[message.to_string()]);
+    let content_width = wrapped.content_width as u16;
     let popup = Rect::new(
         area.x + area.width.saturating_sub(content_width.saturating_add(4)) / 2,
         area.bottom()
-            .saturating_sub(lines.len() as u16 + FOOTER_HEIGHT + 4),
+            .saturating_sub(wrapped.lines.len() as u16 + FOOTER_HEIGHT + 4),
         content_width.saturating_add(4).max(18),
-        (lines.len() as u16).saturating_add(4).clamp(5, 8),
+        (wrapped.lines.len() as u16).saturating_add(4).clamp(5, 8),
     );
     let block = chrome_block(status_style(state.status_tone));
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
-    for (idx, line) in lines.iter().take(inner.height as usize).enumerate() {
+    for (idx, line) in wrapped.lines.iter().take(inner.height as usize).enumerate() {
         buffer.set_stringn(
             inner.x,
             inner.y + idx as u16,
@@ -373,38 +452,261 @@ fn render_popup_lines(
         if row >= inner.bottom() {
             break;
         }
-        buffer.set_stringn(inner.x, row, line, inner.width as usize, with_panel_bg(style));
+        buffer.set_stringn(
+            inner.x,
+            row,
+            line,
+            inner.width as usize,
+            with_panel_bg(style),
+        );
     }
 }
 
-fn wrap_lines(text: &str, max_width: usize) -> Vec<String> {
-    let width = max_width.max(8);
-    let mut out = Vec::new();
-    for raw in text.lines() {
-        let mut current = String::new();
-        for word in raw.split_whitespace() {
-            let extra = if current.is_empty() { 0 } else { 1 };
-            if current.chars().count() + extra + word.chars().count() > width && !current.is_empty()
-            {
-                out.push(current);
-                current = word.to_string();
+pub(super) fn settings_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    let natural_row_width = settings_rows(app)
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
+    let info_lines = measure_popup_text(
+        parent,
+        &[String::from(
+            "Theme selection previews immediately and applies to the hosted dashboard too.",
+        )],
+    );
+    let status_lines = app
+        .state
+        .status_message
+        .as_deref()
+        .map(|status| measure_popup_text(parent, &[status.to_string()]))
+        .unwrap_or_else(empty_wrapped_text);
+    let content_width = natural_row_width
+        .max(info_lines.content_width)
+        .max(status_lines.content_width);
+    let content_height = SETTINGS_ROWS.len()
+        + 1
+        + info_lines.lines.len()
+        + usize::from(!status_lines.lines.is_empty())
+        + status_lines.lines.len();
+    popup_size(content_width, content_height)
+}
+
+pub(super) fn theme_picker_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    let (list_width, preview_width, list_rows, preview_rows) = theme_picker_dimensions(app);
+    let natural_width = list_width as u16
+        + preview_width as u16
+        + THEME_PICKER_PANEL_CHROME * 2
+        + THEME_PICKER_PANEL_GAP
+        + THEME_PICKER_POPUP_CHROME;
+    let natural_height =
+        list_rows.max(preview_rows) as u16 + THEME_PICKER_PANEL_CHROME + THEME_PICKER_POPUP_CHROME;
+    (
+        natural_width.min(parent.width.saturating_sub(2).max(10)),
+        natural_height.min(parent.height.saturating_sub(2).max(6)),
+    )
+}
+
+pub(super) fn compose_invite_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &compose_invite_popup_lines(app))
+}
+
+pub(super) fn edit_handle_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &edit_handle_popup_lines(app))
+}
+
+pub(super) fn contact_picker_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    let contacts = app.state.selectable_direct_contacts();
+    let row_width = contacts
+        .iter()
+        .map(|(_, contact)| contact_picker_line(contact).chars().count())
+        .max()
+        .unwrap_or("<no contacts>".chars().count());
+    let content_width = row_width.max(
+        "Enter select  A add  B block  Delete hide  Esc close"
+            .chars()
+            .count(),
+    );
+    let natural_height = contacts.len().max(1) + 1;
+    let max_height = parent.height.saturating_sub(4).max(5) as usize;
+    popup_size(content_width, natural_height.min(max_height))
+}
+
+pub(super) fn add_contact_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &add_contact_popup_lines(app))
+}
+
+fn settings_rows(app: &LobbyApp) -> Vec<String> {
+    SETTINGS_ROWS
+        .iter()
+        .enumerate()
+        .map(|(idx, label)| {
+            let value = match *label {
+                "Handle" => self_or_unset(app.state.player_handle.as_deref()),
+                "Idle Lock" => super::super::storage::settings::lock_timeout_label(
+                    app.state.settings_draft.lock_timeout_minutes,
+                ),
+                "Mouse Follow" => on_off(app.state.settings_draft.follow_mouse_on_map).to_string(),
+                "Grid Dots" => on_off(app.state.settings_draft.dense_empty_sector_dots).to_string(),
+                "Theme" => theme::display_name_for_key(&app.state.settings_draft.theme_key),
+                _ => String::new(),
+            };
+            let prefix = if app.state.settings_selected == idx {
+                ">"
             } else {
-                if !current.is_empty() {
-                    current.push(' ');
-                }
-                current.push_str(word);
+                " "
+            };
+            if value.is_empty() {
+                format!("{prefix} {label}")
+            } else {
+                format!("{prefix} {label:<12} : {value}")
             }
-        }
-        if current.is_empty() {
-            out.push(String::new());
-        } else {
-            out.push(current);
-        }
+        })
+        .collect()
+}
+
+fn theme_preview_lines(app: &LobbyApp) -> Vec<String> {
+    vec![
+        format!(
+            "Current : {}",
+            theme::display_name_for_key(&app.state.settings_draft.theme_key)
+        ),
+        format!("Key     : {}", app.state.settings_draft.theme_key),
+        String::new(),
+        "Accent preview".to_string(),
+        "Status label / value".to_string(),
+        "Selected row preview".to_string(),
+    ]
+}
+
+fn theme_picker_dimensions(app: &LobbyApp) -> (usize, usize, usize, usize) {
+    let themes = app.state.available_themes();
+    let list_width = themes
+        .iter()
+        .map(|entry| entry.display_name.chars().count() + 2)
+        .max()
+        .unwrap_or(8)
+        .max(" Themes ".chars().count());
+    let preview_lines = theme_preview_lines(app);
+    let preview_width = preview_lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(8)
+        .saturating_add(2)
+        .max(" Preview ".chars().count());
+    (
+        list_width,
+        preview_width,
+        themes.len().max(1),
+        preview_lines.len().max(1),
+    )
+}
+
+fn theme_picker_panel_widths(
+    available_width: u16,
+    desired_list_width: u16,
+    desired_preview_width: u16,
+) -> (u16, u16) {
+    let available_panels = available_width.saturating_sub(THEME_PICKER_PANEL_GAP);
+    let min_panel_width = THEME_PICKER_PANEL_CHROME + 1;
+    if desired_list_width + desired_preview_width <= available_panels {
+        return (desired_list_width, desired_preview_width);
     }
-    if out.is_empty() {
-        out.push(String::new());
+    let preview_width = desired_preview_width.clamp(
+        min_panel_width,
+        available_panels.saturating_sub(min_panel_width),
+    );
+    let list_width = available_panels.saturating_sub(preview_width);
+    if list_width >= min_panel_width {
+        return (list_width, preview_width);
     }
-    out
+    let list_width = min_panel_width.min(available_panels);
+    let preview_width = available_panels.saturating_sub(list_width);
+    (list_width, preview_width)
+}
+
+fn compose_invite_popup_lines(app: &LobbyApp) -> Vec<String> {
+    vec![
+        format!(
+            "Game    : {}",
+            app.state
+                .selected_open_game()
+                .map(|row| row.game.as_str())
+                .unwrap_or("<none>")
+        ),
+        format!("Message : {}", app.state.compose_message_input),
+        "Enter sends a 30513 join request.".to_string(),
+    ]
+}
+
+fn edit_handle_popup_lines(app: &LobbyApp) -> Vec<String> {
+    vec![
+        format!(
+            "Current handle: {}",
+            app.state.player_handle.as_deref().unwrap_or("<unset>")
+        ),
+        format!("New handle   : {}", app.state.edit_handle_input),
+        "Enter saves the local keychain handle.".to_string(),
+    ]
+}
+
+fn add_contact_popup_lines(app: &LobbyApp) -> Vec<String> {
+    vec![
+        "Enter a valid npub or NIP-05.".to_string(),
+        app.state.add_contact_input.clone(),
+    ]
+}
+
+fn contact_picker_line(contact: &crate::lobby::models::DirectContactRow) -> String {
+    let marker = if contact.blocked {
+        " !"
+    } else if contact.hidden {
+        " h"
+    } else {
+        ""
+    };
+    format!(
+        "{}{}{}",
+        contact.label,
+        if contact.nip05.is_some() { " @" } else { "" },
+        marker
+    )
+}
+
+fn wrapped_help_popup_lines(app: &LobbyApp, parent: Rect) -> WrappedHelpLines {
+    let lines = format_help_rows(help_popup_rows(app).iter().copied());
+    wrap_formatted_help_lines(&lines, max_popup_content_width(parent))
+}
+
+fn popup_text_size(parent: Rect, lines: &[String]) -> (u16, u16) {
+    popup_size_from_wrapped(&measure_popup_text(parent, lines))
+}
+
+fn measure_popup_text(parent: Rect, lines: &[String]) -> WrappedTextLines {
+    let parent = crate::modal::Rect::new(parent.x, parent.y, parent.width, parent.height);
+    measure_modal_text_lines(lines, max_content_width(parent))
+}
+
+fn popup_size_from_wrapped(wrapped: &WrappedTextLines) -> (u16, u16) {
+    popup_size(wrapped.content_width, wrapped.lines.len())
+}
+
+fn popup_size(content_width: usize, content_height: usize) -> (u16, u16) {
+    (
+        content_width.max(1) as u16 + 4,
+        content_height.max(1) as u16 + 2,
+    )
+}
+
+fn max_popup_content_width(parent: Rect) -> usize {
+    parent.width.saturating_sub(6).max(1) as usize
+}
+
+fn empty_wrapped_text() -> WrappedTextLines {
+    WrappedTextLines {
+        lines: Vec::new(),
+        content_width: 0,
+    }
 }
 
 fn self_or_unset(value: Option<&str>) -> String {

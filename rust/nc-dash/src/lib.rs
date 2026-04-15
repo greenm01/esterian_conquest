@@ -7,6 +7,8 @@ mod diplomacy_view;
 mod inbox;
 mod layout;
 pub mod lobby;
+mod modal;
+mod modal_ratatui;
 mod native;
 mod overlays;
 mod panels;

@@ -11,7 +11,6 @@ pub mod state;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
-use nc_ui::modal::Rect;
 use nc_ui::table_filter::{
     format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
@@ -27,6 +26,7 @@ use state::{
 
 use crate::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::layout::dashboard;
+use crate::modal::Rect;
 use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;

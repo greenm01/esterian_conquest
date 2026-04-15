@@ -1,11 +1,11 @@
 //! Planet info popup rendered over the center map pane.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::Rect;
 use nc_ui::table::TableFooter;
 
 use crate::app::state::DashApp;
 use crate::layout::{self, MapWidgetFrame, dashboard};
+use crate::modal::Rect;
 use crate::overlays::frame::{
     OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,

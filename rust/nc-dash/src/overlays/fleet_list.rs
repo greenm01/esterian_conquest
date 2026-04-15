@@ -5,7 +5,6 @@ use std::cmp::Ordering;
 use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::format_sector_coords_table;
-use nc_ui::modal::Rect;
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_table_window_with_theme_at,
@@ -19,6 +18,7 @@ use crate::app::state::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::{Rect, WrappedTextLines, max_content_width, measure_modal_text_lines};
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
@@ -54,6 +54,42 @@ const GROUP_ORDER_BODY_WIDTH: usize = 54;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
     dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets)
+}
+
+struct WrappedPromptBlocks {
+    body: WrappedTextLines,
+    status: WrappedTextLines,
+}
+
+impl WrappedPromptBlocks {
+    fn width(&self) -> usize {
+        self.body
+            .content_width
+            .max(self.status.content_width)
+            .max(1)
+    }
+
+    fn height(&self) -> usize {
+        self.body.lines.len() + self.status.lines.len()
+    }
+}
+
+fn wrapped_prompt_blocks(
+    parent: Rect,
+    lines: &[String],
+    status: Option<&str>,
+) -> WrappedPromptBlocks {
+    WrappedPromptBlocks {
+        body: measure_modal_text_lines(lines, max_content_width(parent)),
+        status: status
+            .map(|status| {
+                measure_modal_text_lines(&[status.to_string()], max_content_width(parent))
+            })
+            .unwrap_or_else(|| WrappedTextLines {
+                lines: Vec::new(),
+                content_width: 0,
+            }),
+    }
 }
 
 const COLUMNS: [TableColumn<'static>; 10] = [
@@ -556,24 +592,14 @@ fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
             )
         },
     ];
-    let body_width = lines
-        .iter()
-        .map(|line: &String| line.chars().count())
-        .chain(
-            app.fleet_overlay
-                .aux_status
-                .iter()
-                .map(|line: &String| line.chars().count()),
-        )
-        .max()
-        .unwrap_or(1);
-    let body_height = lines.len() + usize::from(app.fleet_overlay.aux_status.is_some());
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, app.fleet_overlay.aux_status.as_deref());
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        overlay_parent_rect(app),
+        parent,
         "CHANGE FLEET",
-        body_width,
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         TableFooter::CommandInput {
             label: "COMMAND",
@@ -583,7 +609,7 @@ fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
         },
         app.overlay_position_for(ActiveOverlay::FleetList),
     );
-    for (idx, line) in lines.iter().enumerate() {
+    for (idx, line) in wrapped.body.lines.iter().enumerate() {
         write_clipped(
             buf,
             frame.body_row + idx,
@@ -593,13 +619,13 @@ fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
             theme::label_style(),
         );
     }
-    if let Some(status) = app.fleet_overlay.aux_status.as_deref() {
+    for (idx, line) in wrapped.status.lines.iter().enumerate() {
         write_clipped(
             buf,
-            frame.body_row + lines.len(),
+            frame.body_row + wrapped.body.lines.len() + idx,
             frame.body_col,
             frame.body_width,
-            status,
+            line,
             theme::error_style(),
         );
     }
@@ -636,29 +662,19 @@ fn draw_fleet_merge_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
             ),
             _ => unreachable!("merge prompt expected"),
         };
-    let body_width = lines
-        .iter()
-        .map(|line: &String| line.chars().count())
-        .chain(
-            app.fleet_overlay
-                .aux_status
-                .iter()
-                .map(|line: &String| line.chars().count()),
-        )
-        .max()
-        .unwrap_or(1);
-    let body_height = lines.len() + usize::from(app.fleet_overlay.aux_status.is_some());
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, app.fleet_overlay.aux_status.as_deref());
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        overlay_parent_rect(app),
+        parent,
         title,
-        body_width,
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
     );
-    for (idx, line) in lines.iter().enumerate() {
+    for (idx, line) in wrapped.body.lines.iter().enumerate() {
         write_clipped(
             buf,
             frame.body_row + idx,
@@ -668,13 +684,13 @@ fn draw_fleet_merge_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
             theme::label_style(),
         );
     }
-    if let Some(status) = app.fleet_overlay.aux_status.as_deref() {
+    for (idx, line) in wrapped.status.lines.iter().enumerate() {
         write_clipped(
             buf,
-            frame.body_row + lines.len(),
+            frame.body_row + wrapped.body.lines.len() + idx,
             frame.body_col,
             frame.body_width,
-            status,
+            line,
             theme::error_style(),
         );
     }
@@ -706,29 +722,19 @@ fn draw_fleet_transfer_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
     if app.fleet_overlay.prompt_mode == FleetOverlayPromptMode::TransferStage {
         lines.push(format!("Staged: {}", app.fleet_transfer_staged_summary()));
     }
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(
-            app.fleet_overlay
-                .aux_status
-                .iter()
-                .map(|line| line.chars().count()),
-        )
-        .max()
-        .unwrap_or(1);
-    let body_height = lines.len() + usize::from(app.fleet_overlay.aux_status.is_some());
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, app.fleet_overlay.aux_status.as_deref());
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        overlay_parent_rect(app),
+        parent,
         "TRANSFER SHIPS",
-        body_width,
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
     );
-    for (idx, line) in lines.iter().enumerate() {
+    for (idx, line) in wrapped.body.lines.iter().enumerate() {
         write_clipped(
             buf,
             frame.body_row + idx,
@@ -738,13 +744,13 @@ fn draw_fleet_transfer_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
             theme::label_style(),
         );
     }
-    if let Some(status) = app.fleet_overlay.aux_status.as_deref() {
+    for (idx, line) in wrapped.status.lines.iter().enumerate() {
         write_clipped(
             buf,
-            frame.body_row + lines.len(),
+            frame.body_row + wrapped.body.lines.len() + idx,
             frame.body_col,
             frame.body_width,
-            status,
+            line,
             theme::error_style(),
         );
     }
@@ -807,24 +813,19 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame:
     } else {
         vec!["Selected fleet is no longer available.".to_string()]
     };
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(status.iter().map(|line| line.chars().count()))
-        .max()
-        .unwrap_or(1);
-    let body_height = lines.len() + usize::from(status.is_some());
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, status);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        overlay_parent_rect(app),
+        parent,
         "ORDER FLEET",
-        body_width,
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
     );
-    assert_overlay_body_write_fits(frame, "ORDER FLEET", body_width, body_height);
+    assert_overlay_body_write_fits(frame, "ORDER FLEET", wrapped.width(), wrapped.height());
     if app.selected_fleet_order_row().is_none() {
         write_clipped(
             buf,
@@ -836,27 +837,33 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame:
         );
         return;
     }
-    for (idx, line) in lines.iter().take(frame.body_height).enumerate().take(5) {
+    for (idx, line) in wrapped
+        .body
+        .lines
+        .iter()
+        .take(frame.body_height)
+        .enumerate()
+    {
         write_clipped(
             buf,
             frame.body_row + idx,
             frame.body_col,
             frame.body_width,
             line,
-            if idx == 4 {
+            if idx + 1 == wrapped.body.lines.len() {
                 theme::dim_style()
             } else {
                 theme::label_style()
             },
         );
     }
-    if let Some(status) = status {
+    for (idx, line) in wrapped.status.lines.iter().enumerate() {
         write_clipped(
             buf,
-            frame.body_row + lines.len(),
+            frame.body_row + wrapped.body.lines.len() + idx,
             frame.body_col,
             frame.body_width,
-            status,
+            line,
             theme::error_style(),
         );
     }
@@ -1009,35 +1016,37 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_fram
         _ => unreachable!("starbase move prompt expected"),
     };
     let lines = if let Some(row) = app.selected_starbase_move_row() {
-        let mut lines = vec![
+        vec![
             format!("Starbase #{}", row.base_id),
             format!("Location: {}", format_coords(row.coords)),
             format!("Destination: {}", format_coords(row.destination_coords)),
             "Choose move/halt for the selected starbase.".to_string(),
-        ];
-        if let Some(status) = app.fleet_overlay.starbase_move_status.as_deref() {
-            lines.push(status.to_string());
-        }
-        lines
+        ]
     } else {
         vec!["Selected starbase is no longer available.".to_string()]
     };
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(1);
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(
+        parent,
+        &lines,
+        app.fleet_overlay.starbase_move_status.as_deref(),
+    );
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        overlay_parent_rect(app),
+        parent,
         "STARBASE MOVE/HALT",
-        body_width,
-        lines.len(),
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
     );
-    assert_overlay_body_write_fits(frame, "STARBASE MOVE/HALT", body_width, lines.len());
+    assert_overlay_body_write_fits(
+        frame,
+        "STARBASE MOVE/HALT",
+        wrapped.width(),
+        wrapped.height(),
+    );
     if app.selected_starbase_move_row().is_none() {
         write_clipped(
             buf,
@@ -1049,27 +1058,33 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_fram
         );
         return;
     }
-    for (idx, line) in lines.iter().take(frame.body_height).enumerate().take(4) {
+    for (idx, line) in wrapped
+        .body
+        .lines
+        .iter()
+        .take(frame.body_height)
+        .enumerate()
+    {
         write_clipped(
             buf,
             frame.body_row + idx,
             frame.body_col,
             frame.body_width,
             line,
-            if idx == 3 {
+            if idx + 1 == wrapped.body.lines.len() {
                 theme::dim_style()
             } else {
                 theme::label_style()
             },
         );
     }
-    if let Some(status) = app.fleet_overlay.starbase_move_status.as_deref() {
+    for (idx, line) in wrapped.status.lines.iter().enumerate() {
         write_clipped(
             buf,
-            frame.body_row + 4,
+            frame.body_row + wrapped.body.lines.len() + idx,
             frame.body_col,
             frame.body_width,
-            status,
+            line,
             theme::error_style(),
         );
     }
@@ -1148,22 +1163,13 @@ fn fleet_change_popup_rect(app: &DashApp) -> Rect {
             )
         },
     ];
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(
-            app.fleet_overlay
-                .aux_status
-                .iter()
-                .map(|line| line.chars().count()),
-        )
-        .max()
-        .unwrap_or(1);
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, app.fleet_overlay.aux_status.as_deref());
     overlay_popup_rect_for_body_in_parent(
-        overlay_parent_rect(app),
+        parent,
         "CHANGE FLEET",
-        body_width,
-        lines.len() + usize::from(app.fleet_overlay.aux_status.is_some()),
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         TableFooter::CommandInput {
             label: "COMMAND",
@@ -1206,22 +1212,13 @@ fn fleet_merge_popup_rect(app: &DashApp) -> Rect {
             ),
             _ => unreachable!("merge popup expected"),
         };
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(
-            app.fleet_overlay
-                .aux_status
-                .iter()
-                .map(|line| line.chars().count()),
-        )
-        .max()
-        .unwrap_or(1);
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, app.fleet_overlay.aux_status.as_deref());
     overlay_popup_rect_for_body_in_parent(
-        overlay_parent_rect(app),
+        parent,
         title,
-        body_width,
-        lines.len() + usize::from(app.fleet_overlay.aux_status.is_some()),
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
@@ -1248,22 +1245,13 @@ fn fleet_transfer_popup_rect(app: &DashApp) -> Rect {
     if app.fleet_overlay.prompt_mode == FleetOverlayPromptMode::TransferStage {
         lines.push(format!("Staged: {}", app.fleet_transfer_staged_summary()));
     }
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(
-            app.fleet_overlay
-                .aux_status
-                .iter()
-                .map(|line| line.chars().count()),
-        )
-        .max()
-        .unwrap_or(1);
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, app.fleet_overlay.aux_status.as_deref());
     overlay_popup_rect_for_body_in_parent(
-        overlay_parent_rect(app),
+        parent,
         "TRANSFER SHIPS",
-        body_width,
-        lines.len() + usize::from(app.fleet_overlay.aux_status.is_some()),
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         TableFooter::CommandInput {
             label: "COMMAND",
@@ -1366,18 +1354,13 @@ fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     } else {
         vec!["Selected fleet is no longer available.".to_string()]
     };
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(status.iter().map(|line| line.chars().count()))
-        .max()
-        .unwrap_or(1);
-    let body_height = lines.len() + usize::from(status.is_some());
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines, status);
     overlay_popup_rect_for_body_in_parent(
-        overlay_parent_rect(app),
+        parent,
         "ORDER FLEET",
-        body_width,
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
@@ -1415,29 +1398,26 @@ fn starbase_move_popup_rect(app: &DashApp) -> Rect {
         _ => unreachable!("starbase move prompt expected"),
     };
     let lines = if let Some(row) = app.selected_starbase_move_row() {
-        let mut lines = vec![
+        vec![
             format!("Starbase #{}", row.base_id),
             format!("Location: {}", format_coords(row.coords)),
             format!("Destination: {}", format_coords(row.destination_coords)),
             "Choose move/halt for the selected starbase.".to_string(),
-        ];
-        if let Some(status) = app.fleet_overlay.starbase_move_status.as_deref() {
-            lines.push(status.to_string());
-        }
-        lines
+        ]
     } else {
         vec!["Selected starbase is no longer available.".to_string()]
     };
-    let body_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(1);
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(
+        parent,
+        &lines,
+        app.fleet_overlay.starbase_move_status.as_deref(),
+    );
     overlay_popup_rect_for_body_in_parent(
-        overlay_parent_rect(app),
+        parent,
         "STARBASE MOVE/HALT",
-        body_width,
-        lines.len(),
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),

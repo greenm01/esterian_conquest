@@ -111,9 +111,10 @@ fn paste_shortcuts_fill_single_line_lobby_fields() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.compose_message_input.clear();
     app.set_clipboard_text("thread\r\nnote");
 
@@ -232,6 +233,18 @@ fn question_mark_toggles_help_and_suppresses_home_navigation() {
 }
 
 #[test]
+fn escape_quits_from_home_comms_tab() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert!(app.should_quit);
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(app.state.active_tab, LobbyTab::Comms);
+}
+
+#[test]
 fn apply_loaded_uses_host_contact_as_games_host_and_default_contact() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     let mut open = OpenGameRow::new(
@@ -279,7 +292,9 @@ fn apply_loaded_uses_host_contact_as_games_host_and_default_contact() {
     assert_eq!(app.state.direct_contacts[0].label, "nc_sysop");
     assert_eq!(app.state.direct_contacts[0].source, "host");
     assert_eq!(
-        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        app.state
+            .selected_direct_contact()
+            .map(|contact| contact.npub.as_str()),
         Some("npub1sysop")
     );
 }
@@ -321,7 +336,9 @@ fn apply_loaded_adds_host_contact_when_threads_list_starts_empty() {
     assert_eq!(app.state.direct_contacts.len(), 1);
     assert_eq!(app.state.direct_contacts[0].label, "nc_sysop");
     assert_eq!(
-        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        app.state
+            .selected_direct_contact()
+            .map(|contact| contact.npub.as_str()),
         Some("npub1sysop")
     );
 }
@@ -387,9 +404,10 @@ fn typing_in_chat_focus_appends_to_comms_draft() {
         last_activity_at: None,
     }];
     app.state.active_tab = LobbyTab::Comms;
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
 
     apply_key(&mut app, key(KeyCode::Char('m')));
 
@@ -412,9 +430,10 @@ fn hjkl_do_not_navigate_when_chat_is_focused() {
         last_activity_at: None,
     }];
     app.state.active_tab = LobbyTab::Comms;
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Chat;
 
     apply_key(&mut app, key(KeyCode::Char('h')));
@@ -464,9 +483,10 @@ fn enter_in_chat_focus_keeps_comms_open_when_no_draft() {
         last_activity_at: None,
     }];
     app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Chat;
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
 
     apply_key(&mut app, key(KeyCode::Enter));
 
@@ -501,15 +521,18 @@ fn thread_contact_list_moves_selection_before_transcript_scroll() {
     ];
     app.state.contact_selected = 0;
     app.state.contact_picker_selected = 0;
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1host".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1host".to_string(),
+        });
     app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
 
     apply_key(&mut app, key(KeyCode::Up));
 
     assert_eq!(
-        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        app.state
+            .selected_direct_contact()
+            .map(|contact| contact.npub.as_str()),
         Some("npub1ally")
     );
 }
@@ -528,9 +551,10 @@ fn tab_cycles_comms_focus() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
 
     apply_key(&mut app, key(KeyCode::Right));
     assert_eq!(
@@ -574,9 +598,10 @@ fn thread_transcript_scrolls_when_chat_focus_is_active() {
         Some(1),
         "y3004 t4",
     )];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
 
     apply_key(&mut app, key(KeyCode::Down));
 
@@ -608,9 +633,10 @@ fn address_book_blocks_selected_contact_locally() {
             last_activity_at: None,
         },
     ];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.route = LobbyRoute::ContactPicker;
     app.state.contact_picker_selected = 0;
 
@@ -646,16 +672,24 @@ fn delete_hides_selected_thread_conversation_locally() {
             last_activity_at: None,
         },
     ];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
 
     apply_key(&mut app, key(KeyCode::Delete));
 
-    assert!(app.state.direct_contacts.iter().any(|contact| contact.hidden));
+    assert!(
+        app.state
+            .direct_contacts
+            .iter()
+            .any(|contact| contact.hidden)
+    );
     assert_eq!(
-        app.state.selected_direct_contact().map(|contact| contact.npub.as_str()),
+        app.state
+            .selected_direct_contact()
+            .map(|contact| contact.npub.as_str()),
         Some("npub1sysop")
     );
 }
@@ -959,9 +993,10 @@ fn clicking_header_tab_works_while_comms_is_active() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.thread_pane_focus = nc_dash::lobby::state::ThreadPaneFocus::Threads;
 
     let (open_col, open_row) = tab_token_start(&app, "[ Open Games ]");
@@ -987,7 +1022,11 @@ fn settings_popup_drags_from_title_row() {
         .find("LOBBY SETTINGS")
         .expect("settings title") as u16;
 
-    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), column, row as u16));
+    app.dispatch_mouse_event_for_test(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        column,
+        row as u16,
+    ));
     app.dispatch_mouse_event_for_test(mouse(
         MouseEventKind::Drag(MouseButton::Left),
         column.saturating_add(8),
@@ -1010,10 +1049,7 @@ fn settings_popup_does_not_drag_from_side_border() {
     let title_row = (0..buffer.height())
         .find(|&idx| buffer.plain_line(idx).contains(" LOBBY SETTINGS "))
         .expect("settings title row");
-    let left_border = buffer
-        .plain_line(title_row)
-        .find('┌')
-        .expect("left border") as u16;
+    let left_border = buffer.plain_line(title_row).find('┌').expect("left border") as u16;
 
     app.dispatch_mouse_event_for_test(mouse(
         MouseEventKind::Down(MouseButton::Left),

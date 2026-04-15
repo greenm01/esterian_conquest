@@ -7,8 +7,16 @@ use crate::theme;
 
 pub fn panel_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
     let styles = theme::tui_theme();
-    let border = if focused { styles.accent } else { styles.border };
-    let title_style = if focused { styles.selected } else { styles.title };
+    let border = if focused {
+        styles.accent
+    } else {
+        styles.border
+    };
+    let title_style = if focused {
+        styles.selected
+    } else {
+        styles.title
+    };
     Block::default()
         .borders(Borders::ALL)
         .padding(Padding::horizontal(1))

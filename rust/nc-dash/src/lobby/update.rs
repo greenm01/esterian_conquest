@@ -1,11 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::hosted::dashboard::build_hosted_dash_app;
-use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use super::state::{
-    FirstRunField, HostedGameView, KeychainGateMode, LobbyApp, LobbyNetworkStatus,
-    LobbyRoute, LobbyStatusTone, LobbyTab, ThreadPaneFocus,
+    FirstRunField, HostedGameView, KeychainGateMode, LobbyApp, LobbyNetworkStatus, LobbyRoute,
+    LobbyStatusTone, LobbyTab, ThreadPaneFocus,
 };
+use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use crate::theme;
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -16,7 +16,10 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
                 return;
             }
             KeyCode::Char('a' | 'A')
-                if matches!(app.state.route, LobbyRoute::Home | LobbyRoute::ContactPicker) =>
+                if matches!(
+                    app.state.route,
+                    LobbyRoute::Home | LobbyRoute::ContactPicker
+                ) =>
             {
                 open_popup_route(app, LobbyRoute::ContactPicker);
                 return;
@@ -35,9 +38,7 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::HostedGame => handle_hosted_game_key(app, key),
         LobbyRoute::SubmitTurn => handle_submit_turn_key(app, key),
         LobbyRoute::Home => handle_home_key(app, key),
-        LobbyRoute::GameInboxThread | LobbyRoute::ComposeThread => {
-            handle_comms_key(app, key)
-        }
+        LobbyRoute::GameInboxThread | LobbyRoute::ComposeThread => handle_comms_key(app, key),
         LobbyRoute::ContactPicker => handle_contact_picker_key(app, key),
         LobbyRoute::AddContact => handle_add_contact_key(app, key),
     }
@@ -137,9 +138,13 @@ fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
 
     match key.code {
         KeyCode::Esc => {
-            app.state.route = LobbyRoute::Home;
-            app.state.thread_pane_focus = ThreadPaneFocus::Chat;
-            app.popup_position = None;
+            if app.state.route == LobbyRoute::Home {
+                app.should_quit = true;
+            } else {
+                app.state.route = LobbyRoute::Home;
+                app.state.thread_pane_focus = ThreadPaneFocus::Chat;
+                app.popup_position = None;
+            }
         }
         KeyCode::Char('?') => {
             app.state.show_help = true;
@@ -156,7 +161,8 @@ fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
             hide_active_conversation(app);
         }
         KeyCode::Backspace
-            if app.state.thread_pane_focus == ThreadPaneFocus::Chat && active_comms_writable(app) =>
+            if app.state.thread_pane_focus == ThreadPaneFocus::Chat
+                && active_comms_writable(app) =>
         {
             app.state.compose_message_input.pop();
         }
@@ -182,7 +188,8 @@ fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
             }
         }
         KeyCode::Insert | KeyCode::Char('v' | 'V')
-            if app.state.thread_pane_focus == ThreadPaneFocus::Chat && active_comms_writable(app) =>
+            if app.state.thread_pane_focus == ThreadPaneFocus::Chat
+                && active_comms_writable(app) =>
         {
             let _ = handle_single_line_paste(app, key, |state| &mut state.compose_message_input);
         }
@@ -604,13 +611,17 @@ fn activate_current_comms(app: &mut LobbyApp) {
 }
 
 fn submit_added_contact(app: &mut LobbyApp) {
-    match app.transport.add_direct_contact(&app.state.add_contact_input) {
+    match app
+        .transport
+        .add_direct_contact(&app.state.add_contact_input)
+    {
         Ok((loaded, npub)) => {
             app.state.apply_loaded(loaded);
             app.state.add_contact_input.clear();
-            app.state.set_active_comms(super::models::CommsConversationKey::Direct {
-                contact_npub: npub,
-            });
+            app.state
+                .set_active_comms(super::models::CommsConversationKey::Direct {
+                    contact_npub: npub,
+                });
             app.state.active_tab = LobbyTab::Comms;
             app.state.thread_pane_focus = ThreadPaneFocus::Chat;
             activate_current_comms(app);
@@ -652,9 +663,7 @@ fn submit_active_comms_message(app: &mut LobbyApp) {
                 Err(err) => set_status(app, LobbyStatusTone::Error, err),
             }
         }
-        super::models::CommsConversationKey::GameMail {
-            ..
-        } => {
+        super::models::CommsConversationKey::GameMail { .. } => {
             set_status(
                 app,
                 LobbyStatusTone::Info,
@@ -755,7 +764,10 @@ fn restore_active_conversation(app: &mut LobbyApp) {
     if !contact.hidden {
         return;
     }
-    match app.transport.set_direct_contact_hidden(&contact.npub, false) {
+    match app
+        .transport
+        .set_direct_contact_hidden(&contact.npub, false)
+    {
         Ok(loaded) => app.state.apply_loaded(loaded),
         Err(err) if err == "keychain is locked" => {
             if let Some(entry) = app
@@ -793,7 +805,8 @@ fn cancel_settings(app: &mut LobbyApp) {
 }
 
 fn save_settings(app: &mut LobbyApp) {
-    match super::storage::settings::save_settings_to(&app.state.settings_draft, &app.settings_path) {
+    match super::storage::settings::save_settings_to(&app.state.settings_draft, &app.settings_path)
+    {
         Ok(()) => {
             app.state.settings = app.state.settings_draft.clone();
             let _ = theme::apply_theme_key(&app.state.settings.theme_key);
@@ -956,7 +969,9 @@ fn move_comms_selection(app: &mut LobbyApp, delta: isize) {
         return;
     }
     let selected = if app.state.thread_pane_focus == ThreadPaneFocus::New {
-        app.state.comms_new_selected.min(rows.len().saturating_sub(1))
+        app.state
+            .comms_new_selected
+            .min(rows.len().saturating_sub(1))
     } else {
         app.state
             .active_comms_row()
@@ -1049,9 +1064,7 @@ fn select_picker_contact(app: &mut LobbyApp) {
         }
     }
     app.state
-        .set_active_comms(super::models::CommsConversationKey::Direct {
-            contact_npub: npub,
-        });
+        .set_active_comms(super::models::CommsConversationKey::Direct { contact_npub: npub });
     app.state.active_tab = LobbyTab::Comms;
     app.state.route = LobbyRoute::Home;
     app.state.thread_pane_focus = ThreadPaneFocus::Chat;
@@ -1094,10 +1107,7 @@ fn toggle_picker_contact_hidden(app: &mut LobbyApp) {
     }
 }
 
-pub(crate) fn reset_context_dependent_views(
-    app: &mut LobbyApp,
-    previous_context: Option<String>,
-) {
+pub(crate) fn reset_context_dependent_views(app: &mut LobbyApp, previous_context: Option<String>) {
     let current = app.state.preferred_game_context_id().map(str::to_string);
     if current != previous_context {
         app.state.reset_thread_view();
@@ -1127,7 +1137,9 @@ fn handle_submit_turn_paste(app: &mut LobbyApp, key: KeyEvent) -> bool {
     let Some(hosted) = app.state.hosted_game.as_mut() else {
         return false;
     };
-    hosted.submit_input.push_str(&sanitize_multiline_paste(&text));
+    hosted
+        .submit_input
+        .push_str(&sanitize_multiline_paste(&text));
     true
 }
 
@@ -1194,8 +1206,8 @@ fn sanitize_multiline_paste(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{apply_key, ctrl_key_for_tests};
-    use crate::lobby::state::{LobbyRoute, LobbyStatusTone};
     use crate::lobby::LobbyApp;
+    use crate::lobby::state::{LobbyRoute, LobbyStatusTone};
     use nc_ui::ScreenGeometry;
 
     #[test]

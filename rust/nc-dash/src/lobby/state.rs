@@ -9,11 +9,11 @@ use crate::startup::LobbyStartupOptions;
 use crate::theme::ThemeCatalogEntry;
 
 use super::clipboard::Clipboard;
-use super::onboarding::MatrixRain;
 use super::models::{
     CommsConversationKey, CommsConversationKind, CommsConversationRow, DirectContactRow,
     GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow, ThreadMessage,
 };
+use super::onboarding::MatrixRain;
 use super::storage::settings::LobbySettingsRecord;
 use super::transport::LobbyTransport;
 
@@ -509,7 +509,9 @@ impl LobbyState {
     }
 
     pub fn visible_thread_messages(&self) -> Vec<&ThreadMessage> {
-        let Some(contact_npub) = self.active_direct_contact().map(|contact| contact.npub.as_str())
+        let Some(contact_npub) = self
+            .active_direct_contact()
+            .map(|contact| contact.npub.as_str())
         else {
             return Vec::new();
         };
@@ -799,10 +801,7 @@ impl LobbyState {
             self.comms_new_selected = 0;
             return;
         };
-        self.comms_new_selected = rows
-            .iter()
-            .position(|row| &row.key == active)
-            .unwrap_or(0);
+        self.comms_new_selected = rows.iter().position(|row| &row.key == active).unwrap_or(0);
     }
 }
 

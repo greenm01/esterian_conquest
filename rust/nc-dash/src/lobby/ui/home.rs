@@ -7,8 +7,8 @@ use crate::lobby::threads;
 use crate::theme;
 
 use super::chrome::{network_style, shell_block, with_panel_bg};
-use super::layout::{home_tab_content_area, HomeLayout};
-use super::tables::{render_table_panel, TableCellAlign, TableColumnSpec};
+use super::layout::{HomeLayout, home_tab_content_area};
+use super::tables::{TableCellAlign, TableColumnSpec, render_table_panel};
 
 pub(crate) fn hit_test_tabs(
     state: &LobbyState,
@@ -187,12 +187,7 @@ fn area_width_limit(x: u16, len: usize, buffer: &Buffer) -> usize {
     len.min(remaining)
 }
 
-fn render_joined_games_panel(
-    buffer: &mut Buffer,
-    area: Rect,
-    focused: bool,
-    state: &LobbyState,
-) {
+fn render_joined_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state: &LobbyState) {
     const COLUMNS: [TableColumnSpec; 4] = [
         TableColumnSpec {
             title_top: None,
@@ -245,12 +240,7 @@ fn render_joined_games_panel(
     );
 }
 
-fn render_open_games_panel(
-    buffer: &mut Buffer,
-    area: Rect,
-    focused: bool,
-    state: &LobbyState,
-) {
+fn render_open_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state: &LobbyState) {
     const COLUMNS: [TableColumnSpec; 7] = [
         TableColumnSpec {
             title_top: None,
@@ -355,7 +345,13 @@ fn map_size_summary(total_seats: u8) -> String {
     format!("{edge}x{edge}")
 }
 
-fn right_align(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: ratatui::style::Style) {
+fn right_align(
+    buffer: &mut Buffer,
+    area: Rect,
+    row: u16,
+    text: &str,
+    style: ratatui::style::Style,
+) {
     let width = text.chars().count().min(area.width as usize) as u16;
     let start = area.right().saturating_sub(width);
     buffer.set_stringn(start, row, text, area.width as usize, style);
@@ -373,8 +369,8 @@ fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
         FooterToken::leading("Q", ">uit"),
     ];
     let gap = 2usize;
-    let total_width = tokens.iter().map(FooterToken::width).sum::<usize>()
-        + gap * tokens.len().saturating_sub(1);
+    let total_width =
+        tokens.iter().map(FooterToken::width).sum::<usize>() + gap * tokens.len().saturating_sub(1);
     let start = area.x + area.width.saturating_sub(total_width as u16) / 2;
     let row = area.y;
     let mut col = start;

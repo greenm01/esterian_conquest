@@ -6,7 +6,6 @@ use std::collections::BTreeMap;
 use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
-use nc_ui::modal::Rect;
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
@@ -20,6 +19,7 @@ use crate::app::state::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::Rect;
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,

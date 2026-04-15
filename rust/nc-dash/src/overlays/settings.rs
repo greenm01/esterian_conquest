@@ -1,13 +1,13 @@
 //! S overlay: settings — local map behavior toggles.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::Rect;
 use nc_ui::table::TableFooter;
 
 use crate::app::state::{ActiveOverlay, DashApp};
 use crate::layout;
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::{Rect, WrappedTextLines, max_content_width, measure_modal_text_lines};
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -21,62 +21,59 @@ pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp, map_frame: MapWidgetFrame
 
 fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let _ = map_frame;
-    let lines = settings_lines(app);
-    let label_width = layout::label_value_width(lines.iter().map(|(key, _)| key.as_str()));
-    let body_width = lines
-        .iter()
-        .map(|(key, desc)| {
-            layout::format_label_value(key, label_width, desc)
-                .chars()
-                .count()
-        })
-        .max()
-        .unwrap_or(0);
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let wrapped = wrapped_settings_lines(app, parent);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         "SETTINGS",
-        body_width,
-        lines.len(),
+        wrapped.content_width,
+        wrapped.lines.len(),
         OverlaySizePolicy::default(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Settings),
     );
-    assert_overlay_body_write_fits(frame, "SETTINGS", body_width, lines.len());
-    for (idx, (key, desc)) in lines.iter().enumerate() {
+    assert_overlay_body_write_fits(
+        frame,
+        "SETTINGS",
+        wrapped.content_width,
+        wrapped.lines.len(),
+    );
+    for (idx, line) in wrapped.lines.iter().enumerate() {
         write_clipped(
             buf,
             frame.body_row + idx,
             frame.body_col,
             frame.body_width,
-            &layout::format_label_value(key, label_width, desc),
+            line,
             theme::label_style(),
         );
     }
 }
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
-    let lines = settings_lines(app);
-    let label_width = layout::label_value_width(lines.iter().map(|(key, _)| key.as_str()));
-    let body_width = lines
-        .iter()
-        .map(|(key, desc)| {
-            layout::format_label_value(key, label_width, desc)
-                .chars()
-                .count()
-        })
-        .max()
-        .unwrap_or(0);
     let _ = map_frame;
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let wrapped = wrapped_settings_lines(app, parent);
     overlay_popup_rect_for_body_in_parent(
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         "SETTINGS",
-        body_width,
-        lines.len(),
+        wrapped.content_width,
+        wrapped.lines.len(),
         OverlaySizePolicy::default(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Settings),
     )
+}
+
+fn wrapped_settings_lines(app: &DashApp, parent: Rect) -> WrappedTextLines {
+    let lines = settings_lines(app);
+    let label_width = layout::label_value_width(lines.iter().map(|(key, _)| key.as_str()));
+    let formatted = lines
+        .iter()
+        .map(|(key, desc)| layout::format_label_value(key, label_width, desc))
+        .collect::<Vec<_>>();
+    measure_modal_text_lines(&formatted, max_content_width(parent))
 }
 
 fn settings_lines(app: &DashApp) -> Vec<(String, String)> {

@@ -1,13 +1,13 @@
 //! R overlay: centered split-pane inbox for reports and messages.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::Rect;
 use nc_ui::table::{TableFooter, draw_scrollbar_at};
 
 use crate::app::state::{ActiveOverlay, DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, matches_filter, project_inbox_items};
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::Rect;
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect, draw_hline,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, draw_vline,

@@ -93,10 +93,19 @@ fn render_table_header(buffer: &mut Buffer, area: Rect, columns: &[TableColumnSp
         .iter()
         .map(|column| column.title_top.unwrap_or(""))
         .collect::<Vec<_>>();
-    let bottom_cells = columns.iter().map(|column| column.title).collect::<Vec<_>>();
+    let bottom_cells = columns
+        .iter()
+        .map(|column| column.title)
+        .collect::<Vec<_>>();
     if area.height > 1 {
         let top_area = Rect::new(area.x, area.y, area.width, 1);
-        render_table_cells(buffer, top_area, columns, &top_cells, with_panel_bg(styles.label));
+        render_table_cells(
+            buffer,
+            top_area,
+            columns,
+            &top_cells,
+            with_panel_bg(styles.label),
+        );
         let bottom_area = Rect::new(area.x, area.y + area.height - 1, area.width, 1);
         render_table_cells(
             buffer,

@@ -1,7 +1,6 @@
 //! D overlay: centered diplomacy and leaderboard table.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::Rect;
 use nc_ui::table::{TableFooter, draw_scrollbar_at};
 
 use crate::app::state::{ActiveOverlay, DashApp};
@@ -10,6 +9,7 @@ use crate::diplomacy_view::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::Rect;
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect, draw_hline,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,

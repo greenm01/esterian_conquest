@@ -539,23 +539,25 @@ impl LobbyTransport {
         let payload = session
             .send_player_message(&row.game_id, daemon_pubkey, row.other_empire_id, body)
             .map_err(|err| err.to_string())?;
-        unlocked.cache.upsert_game_inbox_message(GameInboxMessageEntry {
-            message_id: payload.message_id,
-            game_id: row.game_id.clone(),
-            other_empire_id: row.other_empire_id,
-            other_empire_name: row.other_empire_name.clone(),
-            sender_empire_id: 0,
-            sender_empire_name: unlocked
-                .cache
-                .rosters
-                .iter()
-                .find(|entry| entry.game_id == row.game_id && entry.is_self)
-                .map(|entry| entry.empire_name.clone())
-                .unwrap_or_else(|| "You".to_string()),
-            body: body.trim().to_string(),
-            outgoing: true,
-            created_at: iso8601_from_secs(payload.created_at),
-        });
+        unlocked
+            .cache
+            .upsert_game_inbox_message(GameInboxMessageEntry {
+                message_id: payload.message_id,
+                game_id: row.game_id.clone(),
+                other_empire_id: row.other_empire_id,
+                other_empire_name: row.other_empire_name.clone(),
+                sender_empire_id: 0,
+                sender_empire_name: unlocked
+                    .cache
+                    .rosters
+                    .iter()
+                    .find(|entry| entry.game_id == row.game_id && entry.is_self)
+                    .map(|entry| entry.empire_name.clone())
+                    .unwrap_or_else(|| "You".to_string()),
+                body: body.trim().to_string(),
+                outgoing: true,
+                created_at: iso8601_from_secs(payload.created_at),
+            });
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
         Ok(build_loaded_state(
             unlocked,
@@ -732,7 +734,10 @@ fn apply_player_events(
         apply_game_inbox_message(unlocked, message, catalog);
     }
     for receipt in batch.turn_receipts {
-        if matches!(receipt.status, TurnReceiptStatus::Accepted | TurnReceiptStatus::Superseded) {
+        if matches!(
+            receipt.status,
+            TurnReceiptStatus::Accepted | TurnReceiptStatus::Superseded
+        ) {
             if let Some(game) = unlocked
                 .cache
                 .games
@@ -834,21 +839,26 @@ fn apply_game_inbox_message(
         .unwrap_or(0);
     let outgoing = self_empire_id != 0 && message.sender_empire_id == self_empire_id;
     let (other_empire_id, other_empire_name) = if outgoing {
-        (message.recipient_empire_id, message.recipient_empire_name.clone())
+        (
+            message.recipient_empire_id,
+            message.recipient_empire_name.clone(),
+        )
     } else {
         (message.sender_empire_id, message.sender_empire_name.clone())
     };
-    unlocked.cache.upsert_game_inbox_message(GameInboxMessageEntry {
-        message_id: message.message_id,
-        game_id: message.game_id,
-        other_empire_id,
-        other_empire_name,
-        sender_empire_id: message.sender_empire_id,
-        sender_empire_name: message.sender_empire_name,
-        body: message.body,
-        outgoing,
-        created_at: iso8601_from_secs(message.created_at),
-    });
+    unlocked
+        .cache
+        .upsert_game_inbox_message(GameInboxMessageEntry {
+            message_id: message.message_id,
+            game_id: message.game_id,
+            other_empire_id,
+            other_empire_name,
+            sender_empire_id: message.sender_empire_id,
+            sender_empire_name: message.sender_empire_name,
+            body: message.body,
+            outgoing,
+            created_at: iso8601_from_secs(message.created_at),
+        });
     let _ = game_name;
 }
 
@@ -962,7 +972,12 @@ fn build_loaded_state(
         .cache
         .games
         .iter()
-        .filter(|game| matches!(game.status.as_str(), "requested" | "rejected" | "joined" | "approved"))
+        .filter(|game| {
+            matches!(
+                game.status.as_str(),
+                "requested" | "rejected" | "joined" | "approved"
+            )
+        })
         .map(|game| JoinedGameRow {
             game_id: game.id.clone(),
             status: match game.status.as_str() {
@@ -1090,9 +1105,7 @@ fn build_loaded_state(
         direct_contacts,
         thread_messages,
         game_inbox_messages,
-        network_status: network_status.unwrap_or_else(|| {
-            unlocked.network_status
-        }),
+        network_status: network_status.unwrap_or_else(|| unlocked.network_status),
         status_message,
         status_tone,
     }
@@ -1109,13 +1122,9 @@ fn build_game_inbox_rows(joined_games: &[JoinedGameRow], cache: &ClientCache) ->
         roster_entries.sort_by(|left, right| left.empire_id.cmp(&right.empire_id));
 
         for roster in roster_entries {
-            let latest = cache
-                .game_inbox_messages
-                .iter()
-                .rev()
-                .find(|entry| {
-                    entry.game_id == game.game_id && entry.other_empire_id == roster.empire_id
-                });
+            let latest = cache.game_inbox_messages.iter().rev().find(|entry| {
+                entry.game_id == game.game_id && entry.other_empire_id == roster.empire_id
+            });
             rows.push(GameInboxRow {
                 game_id: game.game_id.clone(),
                 game: game.game.clone(),

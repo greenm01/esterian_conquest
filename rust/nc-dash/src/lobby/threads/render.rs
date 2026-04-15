@@ -5,15 +5,11 @@ use ratatui::widgets::{Block, Borders, Widget};
 
 use crate::lobby::LobbyApp;
 use crate::lobby::models::{CommsConversationKind, CommsConversationRow, DirectContactRow};
-use crate::lobby::ui::{
-    panel_block, scroll_offset, truncate_title, with_panel_bg, write_text,
-};
 use crate::lobby::state::{LobbyState, LobbyTab, ThreadPaneFocus};
+use crate::lobby::ui::{panel_block, scroll_offset, truncate_title, with_panel_bg, write_text};
 use crate::theme;
 
-use super::format::{
-    ThreadRenderLine, direct_thread_render_lines, notice_render_lines,
-};
+use super::format::{ThreadRenderLine, direct_thread_render_lines, notice_render_lines};
 use super::layout::workspace_layout;
 
 pub fn render_comms_scene(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
@@ -47,13 +43,7 @@ pub fn render_thread_line(
     }
     if col < end {
         let remaining = end.saturating_sub(col) as usize;
-        buffer.set_stringn(
-            col,
-            row,
-            &line.body,
-            remaining,
-            with_panel_bg(styles.value),
-        );
+        buffer.set_stringn(col, row, &line.body, remaining, with_panel_bg(styles.value));
     }
 }
 
@@ -117,13 +107,15 @@ fn render_comms_transcript(buffer: &mut Buffer, area: Rect, state: &LobbyState) 
 fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
     let styles = theme::tui_theme();
     let state = &app.state;
-    let border = if state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::Chat
+    let border = if state.active_tab == LobbyTab::Comms
+        && state.thread_pane_focus == ThreadPaneFocus::Chat
     {
         styles.accent
     } else {
         styles.border
     };
-    let title = if state.active_tab == LobbyTab::Comms && state.thread_pane_focus == ThreadPaneFocus::Chat
+    let title = if state.active_tab == LobbyTab::Comms
+        && state.thread_pane_focus == ThreadPaneFocus::Chat
     {
         styles.selected
     } else {
@@ -181,16 +173,10 @@ fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
         && state.thread_pane_focus == ThreadPaneFocus::Chat
         && app.comms_cursor_visible
     {
-        let cursor_col = draft_x
-            .saturating_add(draft.chars().count().min(draft_width.saturating_sub(1)) as u16);
+        let cursor_col =
+            draft_x.saturating_add(draft.chars().count().min(draft_width.saturating_sub(1)) as u16);
         if cursor_col < inner.right() {
-            buffer.set_stringn(
-                cursor_col,
-                inner.y,
-                "█",
-                1,
-                with_panel_bg(styles.cursor),
-            );
+            buffer.set_stringn(cursor_col, inner.y, "█", 1, with_panel_bg(styles.cursor));
         }
     }
 }
@@ -227,7 +213,12 @@ fn render_comms_unread(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
 
     let selected = state.comms_new_selected.min(rows.len().saturating_sub(1));
     let scroll = scroll_offset(rows.len(), inner.height as usize, selected);
-    for (offset, row) in rows.iter().skip(scroll).take(inner.height as usize).enumerate() {
+    for (offset, row) in rows
+        .iter()
+        .skip(scroll)
+        .take(inner.height as usize)
+        .enumerate()
+    {
         let line_row = inner.y + offset as u16;
         let is_selected = selected == scroll + offset;
         let style = if is_selected
@@ -240,7 +231,8 @@ fn render_comms_unread(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
         };
         let prefix = conversation_kind_group(row.kind);
         let suffix = format!(" {}", row.unread_count);
-        let title_width = inner.width as usize - prefix.chars().count() - suffix.chars().count() - 2;
+        let title_width =
+            inner.width as usize - prefix.chars().count() - suffix.chars().count() - 2;
         let title = truncate_title(&row.title, title_width.max(1));
         let line = format!("{prefix} {title:<title_width$}{suffix}");
         buffer.set_stringn(inner.x, line_row, &line, inner.width as usize, style);
@@ -274,7 +266,12 @@ fn render_comms_sidebar(buffer: &mut Buffer, area: Rect, state: &LobbyState) {
 
     let selected = sidebar_selected_index(state).unwrap_or(0);
     let scroll = scroll_offset(line_count, inner.height as usize, selected);
-    for (offset, line) in grouped.iter().skip(scroll).take(inner.height as usize).enumerate() {
+    for (offset, line) in grouped
+        .iter()
+        .skip(scroll)
+        .take(inner.height as usize)
+        .enumerate()
+    {
         let row = inner.y + offset as u16;
         match line {
             SidebarLine::Header(text) => {
@@ -419,10 +416,9 @@ fn nick_style_for(line: &ThreadRenderLine) -> Style {
         theme::tui_theme().error,
         theme::tui_theme().menu_hotkey,
     ];
-    let hash = line
-        .nick_key
-        .bytes()
-        .fold(0usize, |acc, byte| acc.wrapping_mul(33).wrapping_add(byte as usize));
+    let hash = line.nick_key.bytes().fold(0usize, |acc, byte| {
+        acc.wrapping_mul(33).wrapping_add(byte as usize)
+    });
     with_panel_bg(palette[hash % palette.len()].add_modifier(Modifier::BOLD))
 }
 

@@ -1,7 +1,7 @@
-use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 use nc_ui::branding::NOSTRIAN_CONQUEST_LOGO;
-use nc_ui::modal::{Rect, centered_rect, draw_box, wrap_modal_text_lines};
+use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 
+use crate::modal::{Rect, centered_rect, draw_box, wrap_modal_text_lines};
 use crate::theme;
 
 use super::state::{FirstRunField, LobbyRoute, LobbyState};
@@ -20,8 +20,8 @@ const GATE_SIDE_PADDING: usize = 3;
 const GATE_FIELD_LABEL_WIDTH: usize = 14;
 const MATRIX_MIN_STREAM_LENGTH: usize = 3;
 const MATRIX_GLYPHS: &[char] = &[
-    'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ',
-    'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
+    'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ', 'Τ',
+    'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
 ];
 
 #[derive(Clone)]
@@ -150,7 +150,9 @@ impl MatrixRain {
                 continue;
             }
             let visible_top = column.tail_row.max(0) as usize;
-            let visible_bottom = column.head_row.min((self.height.saturating_sub(1)) as isize);
+            let visible_bottom = column
+                .head_row
+                .min((self.height.saturating_sub(1)) as isize);
             for y in visible_top..=visible_bottom as usize {
                 if y >= buffer.height() {
                     break;
@@ -168,7 +170,8 @@ impl MatrixRain {
     fn make_column(&mut self, column_index: usize) -> MatrixColumn {
         let height = self.height.max(1);
         let length_max = height.saturating_sub(3).max(MATRIX_MIN_STREAM_LENGTH);
-        let length = MATRIX_MIN_STREAM_LENGTH + self.next_random(length_max - MATRIX_MIN_STREAM_LENGTH + 1);
+        let length =
+            MATRIX_MIN_STREAM_LENGTH + self.next_random(length_max - MATRIX_MIN_STREAM_LENGTH + 1);
         MatrixColumn {
             gap_remaining: 1 + self.next_random(height),
             length,
@@ -455,7 +458,6 @@ fn render_tiny(buffer: &mut PlayfieldBuffer, title: &str) {
         buffer.write_text_clipped(row, col, line, style);
     }
 }
-
 
 fn field_row_width(field: &GateField<'_>) -> usize {
     2 + GATE_FIELD_LABEL_WIDTH + 2 + field.value.chars().count()

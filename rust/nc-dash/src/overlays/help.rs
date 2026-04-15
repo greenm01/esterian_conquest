@@ -1,12 +1,12 @@
 //! ? overlay: keyboard reference, centered on screen.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
 use nc_ui::table::TableFooter;
 
 use crate::app::state::{ActiveOverlay, DashApp, HelpContext};
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,

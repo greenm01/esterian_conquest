@@ -1,7 +1,7 @@
 use ratatui::layout::{Constraint, Layout, Rect};
 
-use super::super::ui::{contains, padded_inner, scroll_offset};
 use super::super::state::{LobbyState, ThreadPaneFocus};
+use super::super::ui::{contains, padded_inner, scroll_offset};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ThreadWorkspaceLayout {
@@ -18,11 +18,11 @@ pub struct ThreadWorkspaceHit {
 }
 
 pub fn workspace_layout(area: Rect) -> ThreadWorkspaceLayout {
-    let [left, right] =
-        Layout::horizontal([Constraint::Fill(4), Constraint::Length(30)])
-            .spacing(1)
-            .areas(area);
-    let [transcript, chat] = Layout::vertical([Constraint::Min(0), Constraint::Length(3)]).areas(left);
+    let [left, right] = Layout::horizontal([Constraint::Fill(4), Constraint::Length(30)])
+        .spacing(1)
+        .areas(area);
+    let [transcript, chat] =
+        Layout::vertical([Constraint::Min(0), Constraint::Length(3)]).areas(left);
     let [unread, contacts] = Layout::vertical([Constraint::Length(9), Constraint::Min(0)])
         .spacing(1)
         .areas(right);
@@ -76,7 +76,9 @@ fn clicked_unread_row(state: &LobbyState, content: Rect, row: u16) -> Option<usi
     if visible_rows == 0 {
         return None;
     }
-    let selected = state.comms_new_selected.min(list_rows.len().saturating_sub(1));
+    let selected = state
+        .comms_new_selected
+        .min(list_rows.len().saturating_sub(1));
     let scroll = scroll_offset(list_rows.len(), visible_rows, selected);
     let clicked = scroll + usize::from(row.saturating_sub(content.y));
     (clicked < list_rows.len()).then_some(clicked)

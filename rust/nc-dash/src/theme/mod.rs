@@ -146,7 +146,8 @@ fn active_cell_theme() -> CellTheme {
 }
 
 fn load_theme(key: &str) -> DashTheme {
-    load_theme_by_key(key).unwrap_or_else(|_| load_theme_by_key(DEFAULT_THEME_KEY).expect("default theme"))
+    load_theme_by_key(key)
+        .unwrap_or_else(|_| load_theme_by_key(DEFAULT_THEME_KEY).expect("default theme"))
 }
 
 fn load_theme_by_key(key: &str) -> Result<DashTheme, String> {
@@ -212,14 +213,7 @@ fn project_theme(theme: &opaline::Theme) -> DashTheme {
         report_header: CellStyle::new(accent, body_bg, true),
         indicator_on: CellStyle::new(accent_alt, body_bg, true),
         indicator_off: CellStyle::new(dim, body_bg, false),
-        star_colors: [
-            accent,
-            accent_alt,
-            accent_tertiary,
-            warning,
-            info,
-            label,
-        ],
+        star_colors: [accent, accent_alt, accent_tertiary, warning, info, label],
         empire_colors: [
             accent,
             accent_alt,

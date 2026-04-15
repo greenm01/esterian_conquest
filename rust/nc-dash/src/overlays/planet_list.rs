@@ -6,7 +6,6 @@ use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK
 use nc_engine::{BUILD_UNITS, build_kind_count_label, planet_build_view};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
-use nc_ui::modal::Rect;
 use nc_ui::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
@@ -21,6 +20,7 @@ use crate::app::state::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::modal::Rect;
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,

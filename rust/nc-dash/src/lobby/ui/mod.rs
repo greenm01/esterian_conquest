@@ -5,11 +5,11 @@ mod popups;
 mod tables;
 
 pub use self::chrome::{panel_block, truncate_title, with_panel_bg, write_text};
+pub(crate) use self::home::hit_test_tabs;
 pub use self::layout::{
     active_popup_rect, contains, hit_test_home, home_layout, home_tab_content_area, padded_inner,
     popup_title_bar_contains, scroll_offset,
 };
-pub(crate) use self::home::hit_test_tabs;
 
 use nc_ui::PlayfieldBuffer;
 use ratatui::buffer::Buffer;
@@ -46,15 +46,11 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
         && app.state.status_message.is_some()
         && !app.state.show_help
     {
-        popups::render_toast(
-            &mut buffer,
-            layout.body,
-            app.state_ref(),
-        );
+        popups::render_toast(&mut buffer, layout.body, app.state_ref());
     }
 
     if app.state.show_help {
-        popups::render_help_popup(&mut buffer, layout.body, app.popup_position);
+        popups::render_help_popup(&mut buffer, app, layout.body, app.popup_position);
         paint_buffer(playfield, &buffer);
         return;
     }

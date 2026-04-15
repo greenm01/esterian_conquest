@@ -11,10 +11,10 @@ pub mod update;
 
 use crossterm::event::KeyEvent;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
-use nc_ui::modal::{ModalTheme, render_modal_box};
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use std::time::{Duration, Instant};
 
+use crate::modal::{ModalTheme, render_modal_box};
 use crate::native::NativeApp;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
@@ -225,12 +225,9 @@ impl LobbyApp {
                 self.geometry.width() as u16,
                 self.geometry.height() as u16,
             )) {
-                if let Some(tab) = ui::hit_test_tabs(
-                    &self.state,
-                    layout.header,
-                    mouse.column,
-                    mouse.row,
-                ) {
+                if let Some(tab) =
+                    ui::hit_test_tabs(&self.state, layout.header, mouse.column, mouse.row)
+                {
                     let previous_context =
                         self.state.preferred_game_context_id().map(str::to_string);
                     self.state.active_tab = tab;
@@ -271,7 +268,8 @@ impl LobbyApp {
                     }
                     ThreadPaneFocus::Threads => {
                         if let Some(selected) = hit.selected_row {
-                            if let Some(row) = self.state.comms_sidebar_rows().get(selected).cloned()
+                            if let Some(row) =
+                                self.state.comms_sidebar_rows().get(selected).cloned()
                             {
                                 self.state.set_active_comms(row.key);
                                 self.state.thread_pane_focus = ThreadPaneFocus::Chat;
@@ -429,7 +427,9 @@ impl NativeApp for LobbyApp {
         ) {
             match self.state.route {
                 LobbyRoute::FirstRun => onboarding::render_first_run(&mut buffer, &self.state),
-                LobbyRoute::MatrixLocked => onboarding::render_matrix_locked(&mut buffer, &self.matrix_rain),
+                LobbyRoute::MatrixLocked => {
+                    onboarding::render_matrix_locked(&mut buffer, &self.matrix_rain)
+                }
                 LobbyRoute::Locked => onboarding::render_locked(&mut buffer, &self.state),
                 _ => {}
             }
@@ -561,8 +561,8 @@ fn network_dialog_label(status: state::LobbyNetworkStatus) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::KeyModifiers;
     use crate::native::NativeApp;
+    use crossterm::event::KeyModifiers;
 
     #[test]
     fn popup_drag_reports_dragging_surface_state() {

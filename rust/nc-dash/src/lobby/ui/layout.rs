@@ -56,10 +56,18 @@ pub fn hit_test_home(
     column: u16,
     row: u16,
 ) -> Option<PaneHit> {
-    let layout = home_layout(Rect::new(0, 0, geometry.width() as u16, geometry.height() as u16))?;
+    let layout = home_layout(Rect::new(
+        0,
+        0,
+        geometry.width() as u16,
+        geometry.height() as u16,
+    ))?;
     if contains(layout.header, column, row) {
         if let Some(tab) = super::home::hit_test_tabs(state, layout.header, column, row) {
-            return Some(PaneHit { tab, selected_row: None });
+            return Some(PaneHit {
+                tab,
+                selected_row: None,
+            });
         }
     }
     if !contains(layout.body, column, row) {
@@ -97,16 +105,25 @@ pub fn popup_title_bar_contains(app: &LobbyApp, column: u16, row: u16) -> bool {
 }
 
 pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
-    let area = Rect::new(0, 0, app.geometry.width() as u16, app.geometry.height() as u16);
+    let area = Rect::new(
+        0,
+        0,
+        app.geometry.width() as u16,
+        app.geometry.height() as u16,
+    );
     let layout = home_layout(area)?;
     let size = match app.state.route {
-        LobbyRoute::Settings => Some((60, 17)),
-        LobbyRoute::ThemePicker => Some((82, 20)),
-        LobbyRoute::ComposeInvite => Some((64, 11)),
-        LobbyRoute::EditHandle => Some((58, 11)),
-        LobbyRoute::ContactPicker => Some((64, 16)),
-        LobbyRoute::AddContact => Some((60, 10)),
-        _ if app.state.show_help => Some(help_popup_size(layout.body)),
+        LobbyRoute::Settings => Some(super::popups::settings_popup_size(app, layout.body)),
+        LobbyRoute::ThemePicker => Some(super::popups::theme_picker_popup_size(app, layout.body)),
+        LobbyRoute::ComposeInvite => {
+            Some(super::popups::compose_invite_popup_size(app, layout.body))
+        }
+        LobbyRoute::EditHandle => Some(super::popups::edit_handle_popup_size(app, layout.body)),
+        LobbyRoute::ContactPicker => {
+            Some(super::popups::contact_picker_popup_size(app, layout.body))
+        }
+        LobbyRoute::AddContact => Some(super::popups::add_contact_popup_size(app, layout.body)),
+        _ if app.state.show_help => Some(super::popups::help_popup_size(app, layout.body)),
         _ => None,
     }?;
     Some(popup_rect(layout.body, size, app.popup_position))
@@ -145,23 +162,7 @@ pub fn popup_rect(
     preferred: (u16, u16),
     origin: Option<RelativePopupOrigin>,
 ) -> Rect {
-    let (preferred_width, preferred_height) = preferred;
-    let width = preferred_width.min(parent.width.saturating_sub(2)).max(10);
-    let height = preferred_height.min(parent.height.saturating_sub(2)).max(5);
-    if let Some(origin) = origin {
-        let max_x = parent.right().saturating_sub(width);
-        let max_y = parent.bottom().saturating_sub(height);
-        let x = (parent.x + origin.col_offset as u16).min(max_x);
-        let y = (parent.y + origin.row_offset as u16).min(max_y);
-        return Rect::new(x, y, width, height);
-    }
-    let x = parent.x + parent.width.saturating_sub(width) / 2;
-    let y = parent.y + parent.height.saturating_sub(height) / 2;
-    Rect::new(x, y, width, height)
-}
-
-pub(super) fn help_popup_size(parent: Rect) -> (u16, u16) {
-    (parent.width.saturating_sub(8).min(72), 17)
+    crate::modal_ratatui::placed_popup_rect(parent, preferred, origin)
 }
 
 fn tab_row_count(state: &LobbyState) -> usize {

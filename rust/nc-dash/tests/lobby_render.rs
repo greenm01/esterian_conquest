@@ -1,6 +1,6 @@
 use nc_dash::lobby::LobbyApp;
-use nc_dash::lobby::onboarding::matrix_glyph;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
+use nc_dash::lobby::onboarding::matrix_glyph;
 use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute, LobbyTab};
 use nc_ui::ScreenGeometry;
 
@@ -68,7 +68,9 @@ fn home_route_keeps_empty_messages_under_table_headers() {
 
     let mut open_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     open_games.state.active_tab = LobbyTab::OpenGames;
-    assert!(render_app_lines(open_games).contains("<no open games - press 'h' to host a new game>"));
+    assert!(
+        render_app_lines(open_games).contains("<no open games - press 'h' to host a new game>")
+    );
 }
 
 #[test]
@@ -134,9 +136,7 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
         .find(|&row| buffer.plain_line(row).contains("Join request sent."))
         .expect("toast row");
 
-    assert!(
-        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("NETWORK: SYNCED"))
-    );
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("NETWORK: SYNCED")));
     assert!(footer.contains("J>oin"));
     assert!(footer.contains("Alt-Lock"));
     assert!(footer.contains("Tab Next Tab"));
@@ -160,16 +160,19 @@ fn home_route_footer_sits_inside_double_shell() {
     let footer_labels = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("? Help"))
         .expect("footer labels");
-    let table_left = buffer.row(body.0)
+    let table_left = buffer
+        .row(body.0)
         .iter()
         .position(|cell| cell.ch == '┌')
         .expect("table left border");
     let shell_border = footer_labels + 1;
-    let shell_left = buffer.row(shell_border)
+    let shell_left = buffer
+        .row(shell_border)
         .iter()
         .position(|cell| cell.ch == '╚')
         .expect("shell left border");
-    let shell_right = buffer.row(shell_border)
+    let shell_right = buffer
+        .row(shell_border)
         .iter()
         .rposition(|cell| cell.ch == '╝')
         .expect("shell right border");
@@ -188,11 +191,51 @@ fn home_route_help_popup_renders_as_overlay() {
     let lines = render_app_lines(app);
 
     assert!(lines.contains("HELP"));
-    assert!(lines.contains("Tab        : cycle dashboard tabs"));
-    assert!(lines.contains("Enter      : open selected game"));
-    assert!(lines.contains("J          : compose a join request"));
-    assert!(lines.contains("Alt-A      : open the address book from COMMS"));
-    assert!(lines.contains("Alt-L      : lock nc-dash"));
+    assert!(lines.contains("cycle dashboard tabs"));
+    assert!(lines.contains("request to join the selected game"));
+    assert!(lines.contains("compose a join request"));
+    assert!(lines.contains("lock nc-dash"));
+}
+
+#[test]
+fn comms_tab_help_popup_uses_comms_specific_commands() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::Comms;
+    app.state.show_help = true;
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("cycle Chat / New / Threads"));
+    assert!(lines.contains("open the address book"));
+    assert!(lines.contains("hide the selected direct contact"));
+    assert!(!lines.contains("compose a join request"));
+    assert!(!lines.contains("request to join the selected game"));
+}
+
+#[test]
+fn help_popup_wraps_to_dynamic_content_size() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_help = true;
+    let buffer = app.render_for_test().expect("render help");
+    let title_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains(" HELP "))
+        .expect("help title row");
+    let left = buffer
+        .row(title_row)
+        .iter()
+        .position(|cell| cell.ch == '┌')
+        .expect("help popup left border");
+    let right = buffer
+        .row(title_row)
+        .iter()
+        .rposition(|cell| cell.ch == '┐')
+        .expect("help popup right border");
+    let bottom_row = (title_row + 1..buffer.height())
+        .find(|&row| buffer.row(row)[left].ch == '└')
+        .expect("help popup bottom border");
+
+    assert!(right - left + 1 < 72);
+    assert!(bottom_row - title_row + 1 < 17);
 }
 
 #[test]
@@ -233,12 +276,7 @@ fn help_popup_themes_popup_border_background() {
     app.state.show_help = true;
     let buffer = app.render_for_test().expect("render help");
     let (row, col) = (0..buffer.height())
-        .find_map(|idx| {
-            buffer
-                .plain_line(idx)
-                .find(" HELP ")
-                .map(|col| (idx, col))
-        })
+        .find_map(|idx| buffer.plain_line(idx).find(" HELP ").map(|col| (idx, col)))
         .expect("help popup");
     let popup_bg = buffer.row(row + 1)[col].style.bg;
 
@@ -312,9 +350,10 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
             created_at: String::new(),
         },
     ];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.compose_message_input = "draft line".to_string();
 
     let lines = render_app_lines(app);
@@ -346,9 +385,10 @@ fn comms_route_renders_full_screen_chat_scene() {
         unread_count: 0,
         last_activity_at: None,
     }];
-    app.state.set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
-        contact_npub: "npub1sysop".to_string(),
-    });
+    app.state
+        .set_active_comms(nc_dash::lobby::models::CommsConversationKey::Direct {
+            contact_npub: "npub1sysop".to_string(),
+        });
     app.state.compose_message_input = "draft".to_string();
 
     let lines = render_app_lines(app);
@@ -510,7 +550,13 @@ fn matrix_locked_route_uses_greek_glyph_stream() {
     let app = LobbyApp::new_for_tests(LobbyRoute::MatrixLocked, ScreenGeometry::new(120, 40));
     let buffer = app.render_for_test().expect("render matrix lock");
     let glyph = (0..buffer.height())
-        .flat_map(|row| buffer.row(row).iter().map(|cell| cell.ch).collect::<Vec<_>>())
+        .flat_map(|row| {
+            buffer
+                .row(row)
+                .iter()
+                .map(|cell| cell.ch)
+                .collect::<Vec<_>>()
+        })
         .find(|ch| "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*".contains(*ch))
         .expect("matrix glyph");
 
