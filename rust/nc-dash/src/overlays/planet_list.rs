@@ -29,7 +29,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S B D A <Q>";
+pub(crate) const HOTKEYS: &str = "? F S B D A <ESC>";
 const TOP_HEADERS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
@@ -558,7 +558,7 @@ fn draw_build_list(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidg
         OverlaySizePolicy::default(),
         TableFooter::CommandPrompt {
             label: "COMMAND",
-            prompt: "? <Q> -> ",
+            prompt: "? <ESC> -> ",
         },
         app.overlay_position_for(ActiveOverlay::PlanetList),
     );
@@ -627,7 +627,7 @@ fn build_list_popup_rect(app: &DashApp) -> Rect {
         OverlaySizePolicy::default(),
         TableFooter::CommandPrompt {
             label: "COMMAND",
-            prompt: "? <Q> -> ",
+            prompt: "? <ESC> -> ",
         },
         app.overlay_position_for(ActiveOverlay::PlanetList),
     )
@@ -1210,7 +1210,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_planet_list_commands() {
-        assert_eq!(HOTKEYS, "? F S B D A <Q>");
+        assert_eq!(HOTKEYS, "? F S B D A <ESC>");
     }
 
     #[test]

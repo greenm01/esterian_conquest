@@ -917,7 +917,7 @@ fn draw_single_table_footer_in_span(
             input,
         } => {
             shared_prompt::draw_command_line_default_input_with_cancel_in_span(
-                buffer, row, col, width, label, prompt, default, input, "<Q> -> ",
+                buffer, row, col, width, label, prompt, default, input, "<ESC> -> ",
             );
             col + width
         }
@@ -1494,12 +1494,12 @@ mod tests {
         assert!(
             buffer
                 .plain_line(2)
-                .contains("COMMAND <- Target XX [03] <Q> ->")
+                .contains("COMMAND <- Target XX [03] <ESC> ->")
         );
         assert!(
             buffer
                 .plain_line(3)
-                .contains("COMMAND <- Target YY [11] <Q> ->")
+                .contains("COMMAND <- Target YY [11] <ESC> ->")
         );
         assert_eq!(buffer.cursor().expect("cursor").1, 3);
     }

@@ -115,6 +115,7 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
     let size = match app.state.route {
         LobbyRoute::Settings => Some(super::popups::settings_popup_size(app, layout.body)),
         LobbyRoute::ThemePicker => Some(super::popups::theme_picker_popup_size(app, layout.body)),
+        LobbyRoute::QuitConfirm => Some(super::popups::quit_confirm_popup_size(app, layout.body)),
         LobbyRoute::ComposeInvite => {
             Some(super::popups::compose_invite_popup_size(app, layout.body))
         }

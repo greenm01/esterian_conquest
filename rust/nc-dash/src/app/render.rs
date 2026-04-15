@@ -7,6 +7,7 @@ use crate::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
+use crate::modal::{ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement};
 use crate::overlays;
 use crate::panels::{
     comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap, war_record,
@@ -66,16 +67,19 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     }
 
     if app.overlay == ActiveOverlay::None {
-        if let ActivePopup::PlanetDetail {
-            planet_record_index_1_based,
-        } = app.popup
-        {
-            popups::planet_detail::draw(
-                &mut buf,
-                app,
-                widgets.center_map,
+        match app.popup {
+            ActivePopup::QuitConfirm => render_quit_confirm(&mut buf, app, widgets.center_map),
+            ActivePopup::PlanetDetail {
                 planet_record_index_1_based,
-            );
+            } => {
+                popups::planet_detail::draw(
+                    &mut buf,
+                    app,
+                    widgets.center_map,
+                    planet_record_index_1_based,
+                );
+            }
+            ActivePopup::None => {}
         }
     }
 
@@ -95,7 +99,7 @@ fn render_too_small_blocker(
         canvas.width(),
         canvas.height()
     );
-    let msg3 = "Resize window or press Q to quit.";
+    let msg3 = "Resize window or press Alt-Q to quit.";
 
     let row_mid = canvas.height() / 2;
     let col_mid = canvas.width() / 2;
@@ -126,6 +130,44 @@ fn render_too_small_blocker(
         canvas.width().saturating_sub(start3),
         msg3,
         theme::dim_style(),
+    );
+}
+
+fn render_quit_confirm(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    map_frame: crate::layout::MapWidgetFrame,
+) {
+    let parent = crate::overlays::frame::overlay_parent_rect(map_frame);
+    let placement = app
+        .popup_position
+        .map(|origin| ModalPlacement::Origin {
+            x: parent.x.saturating_add(origin.col_offset as u16),
+            y: parent.y.saturating_add(origin.row_offset as u16),
+        })
+        .unwrap_or(ModalPlacement::Centered);
+    let popup = draw_modal_frame_in_parent_with_placement(
+        buf,
+        "QUIT",
+        18,
+        5,
+        parent,
+        placement,
+        ModalTheme {
+            body_style: theme::body_style(),
+            pad_style: theme::dim_style(),
+            chrome_style: theme::border_style(),
+            title_style: theme::title_style(),
+        },
+    );
+    let content = crate::modal::modal_content_rect(popup);
+    layout::write_clipped(
+        buf,
+        content.y as usize,
+        content.x as usize,
+        content.width as usize,
+        "Quit Game? Y/[N]",
+        theme::body_style(),
     );
 }
 

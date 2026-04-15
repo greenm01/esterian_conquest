@@ -4,7 +4,7 @@ use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{
-    FirstRunField, HostedGameView, KeychainGateMode, LobbyRoute, LobbyTab,
+    FirstRunField, GateResetAction, HostedGameView, KeychainGateMode, LobbyRoute, LobbyTab,
 };
 use nc_dash::lobby::transport::LobbyLoadedState;
 use nc_dash::lobby::update::apply_key;
@@ -13,6 +13,7 @@ use nc_nostr::state_sync::{
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
     HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
 };
+use std::time::{Duration, Instant};
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
@@ -24,6 +25,10 @@ fn ctrl_key(code: KeyCode) -> KeyEvent {
 
 fn shift_key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::SHIFT)
+}
+
+fn alt_key(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::ALT)
 }
 
 fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
@@ -113,6 +118,48 @@ fn first_run_uses_up_down_and_ignores_tab_navigation() {
 
     apply_key(&mut app, key(KeyCode::BackTab));
     assert_eq!(app.state.first_run_field, FirstRunField::Handle);
+}
+
+#[test]
+fn invalid_first_run_password_resets_after_timer() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+    app.state.first_run_handle_input = "pilot".to_string();
+    app.state.first_run_password_input = "secret".to_string();
+    app.state.first_run_confirm_input = "different".to_string();
+    app.state.first_run_field = FirstRunField::Confirm;
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(
+        app.state.status_message.as_deref(),
+        Some("invalid entry, try again.")
+    );
+    assert_eq!(app.state.first_run_password_input, "secret");
+    assert_eq!(app.state.first_run_confirm_input, "different");
+
+    let deadline = app.next_wakeup_for_test().expect("gate reset wakeup");
+    assert!(app.process_idle_for_test_at(deadline + Duration::from_millis(1)));
+
+    assert!(app.state.status_message.is_none());
+    assert_eq!(app.state.first_run_handle_input, "pilot");
+    assert!(app.state.first_run_password_input.is_empty());
+    assert!(app.state.first_run_confirm_input.is_empty());
+    assert_eq!(app.state.first_run_field, FirstRunField::Password);
+}
+
+#[test]
+fn unlock_gate_reset_clears_password_after_timer() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+    app.state.unlock_password_input = "secret".to_string();
+    app.state.status_message = Some("invalid entry, try again.".to_string());
+    app.gate_reset_action = Some(GateResetAction::UnlockRetry);
+    app.gate_reset_deadline = Some(Instant::now());
+
+    assert!(app.process_idle_for_test());
+
+    assert_eq!(app.state.route, LobbyRoute::Locked);
+    assert!(app.state.status_message.is_none());
+    assert!(app.state.unlock_password_input.is_empty());
 }
 
 #[test]
@@ -406,15 +453,49 @@ fn resume_sync_dismiss_deferred_opens_manual_when_home_becomes_eligible() {
 }
 
 #[test]
-fn escape_quits_from_home_comms_tab() {
+fn escape_does_not_quit_from_home_comms_tab() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.active_tab = LobbyTab::Comms;
 
     apply_key(&mut app, key(KeyCode::Esc));
 
-    assert!(app.should_quit);
+    assert!(!app.should_quit);
     assert_eq!(app.state.route, LobbyRoute::Home);
     assert_eq!(app.state.active_tab, LobbyTab::Comms);
+}
+
+#[test]
+fn alt_q_opens_quit_confirm_from_home() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, alt_key(KeyCode::Char('q')));
+
+    assert_eq!(app.state.route, LobbyRoute::QuitConfirm);
+    assert!(!app.should_quit);
+}
+
+#[test]
+fn lobby_quit_confirm_only_quits_on_y() {
+    let mut cancel = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    apply_key(&mut cancel, alt_key(KeyCode::Char('q')));
+    apply_key(&mut cancel, key(KeyCode::Esc));
+    assert_eq!(cancel.state.route, LobbyRoute::Home);
+    assert!(!cancel.should_quit);
+
+    let mut accept = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    apply_key(&mut accept, alt_key(KeyCode::Char('q')));
+    apply_key(&mut accept, key(KeyCode::Char('y')));
+    assert!(accept.should_quit);
+}
+
+#[test]
+fn first_run_escape_does_not_quit() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::FirstRun);
+    assert!(!app.should_quit);
 }
 
 #[test]

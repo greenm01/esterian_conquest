@@ -51,10 +51,6 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
     }
 
     match key.code {
-        // Quit
-        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-        KeyCode::Esc => Action::Quit,
-
         // Panel focus cycling
         KeyCode::Tab => Action::FocusNext,
         KeyCode::BackTab => Action::FocusPrev,

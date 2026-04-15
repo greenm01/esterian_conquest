@@ -49,7 +49,7 @@ pub fn fleet_table_order_label(order: Order) -> &'static str {
 }
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <Q>";
+pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <ESC>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -515,7 +515,7 @@ fn draw_mission_picker(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         standard_table_body_height(natural_visible_rows) + status_rows,
         OverlaySizePolicy::default(),
         TableFooter::CommandBar {
-            hotkeys_markup: "? <Q>",
+            hotkeys_markup: "? <ESC>",
             default: Some(&default),
             input: &app.fleet_overlay.mission_picker_input,
         },
@@ -656,7 +656,7 @@ fn draw_fleet_merge_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
                 )],
                 TableFooter::CommandPromptInput {
                     label: "COMMAND",
-                    prompt: "Merge checked fleets? [Y]/N <Q> -> ",
+                    prompt: "Merge checked fleets? [Y]/N <ESC> -> ",
                     input: &app.fleet_overlay.aux_input,
                 },
             ),
@@ -796,7 +796,7 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame:
         },
         FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Confirm [Y]/N <Q> -> ",
+            prompt: "Confirm [Y]/N <ESC> -> ",
             input: &app.fleet_overlay.order_confirm_input,
         },
         _ => unreachable!("fleet order prompt expected"),
@@ -913,7 +913,7 @@ fn draw_group_fleet_order_prompt(
         },
         FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Confirm [Y]/N <Q> -> ",
+            prompt: "Confirm [Y]/N <ESC> -> ",
             input: &app.fleet_overlay.order_confirm_input,
         },
         _ => unreachable!("group fleet order prompt expected"),
@@ -1010,7 +1010,7 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_fram
         },
         FleetOverlayPromptMode::StarbaseHaltConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Halt this starbase? [Y]/N <Q> -> ",
+            prompt: "Halt this starbase? [Y]/N <ESC> -> ",
             input: &app.fleet_overlay.starbase_move_input,
         },
         _ => unreachable!("starbase move prompt expected"),
@@ -1126,7 +1126,7 @@ fn mission_picker_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         standard_table_body_height(natural_visible_rows) + status_rows,
         OverlaySizePolicy::default(),
         TableFooter::CommandBar {
-            hotkeys_markup: "? <Q>",
+            hotkeys_markup: "? <ESC>",
             default: Some(&default),
             input: &app.fleet_overlay.mission_picker_input,
         },
@@ -1206,7 +1206,7 @@ fn fleet_merge_popup_rect(app: &DashApp) -> Rect {
                 )],
                 TableFooter::CommandPromptInput {
                     label: "COMMAND",
-                    prompt: "Merge checked fleets? [Y]/N <Q> -> ",
+                    prompt: "Merge checked fleets? [Y]/N <ESC> -> ",
                     input: &app.fleet_overlay.aux_input,
                 },
             ),
@@ -1303,7 +1303,7 @@ fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         },
         FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Confirm [Y]/N <Q> -> ",
+            prompt: "Confirm [Y]/N <ESC> -> ",
             input: &app.fleet_overlay.order_confirm_input,
         },
         _ => unreachable!("fleet order prompt expected"),
@@ -1392,7 +1392,7 @@ fn starbase_move_popup_rect(app: &DashApp) -> Rect {
         },
         FleetOverlayPromptMode::StarbaseHaltConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Halt this starbase? [Y]/N <Q> -> ",
+            prompt: "Halt this starbase? [Y]/N <ESC> -> ",
             input: &app.fleet_overlay.starbase_move_input,
         },
         _ => unreachable!("starbase move prompt expected"),
@@ -1878,9 +1878,9 @@ mod tests {
             .find(|line| line.contains("COMMAND <- Confirm [Y]/N "))
             .expect("fleet order confirm footer");
 
-        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
-        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
-        assert_eq!(footer_line.matches("<Q>").count(), 1);
+        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <ESC> ->"));
+        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <ESC> ->"));
+        assert_eq!(footer_line.matches("<ESC>").count(), 1);
     }
 
     #[test]
@@ -1893,7 +1893,7 @@ mod tests {
 
         let lines = render_lines_for_prompt(&app);
         let expected = format!(
-            "COMMAND <- Target XX [{}] <Q> ->",
+            "COMMAND <- Target XX [{}] <ESC> ->",
             app.fleet_order_target_x_default_value()
         );
 
@@ -1910,11 +1910,11 @@ mod tests {
 
         let lines = render_lines_for_prompt(&app);
         let expected_x = format!(
-            "COMMAND <- Target XX [{}] <Q> ->",
+            "COMMAND <- Target XX [{}] <ESC> ->",
             app.fleet_order_target_x_default_value()
         );
         let expected_y = format!(
-            "COMMAND <- Target YY [{}] <Q> ->",
+            "COMMAND <- Target YY [{}] <ESC> ->",
             app.fleet_order_target_y_default_value()
         );
 
@@ -1980,7 +1980,7 @@ mod tests {
 
     #[test]
     fn fleet_browse_hotkeys_match_supported_commands() {
-        assert_eq!(HOTKEYS, "? F S O C M T SPACE <Q>");
+        assert_eq!(HOTKEYS, "? F S O C M T SPACE <ESC>");
     }
 
     #[test]
@@ -2074,7 +2074,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("COMMAND <- ? F S O C M T SPACE <Q>"))
+                .any(|line| line.contains("COMMAND <- ? F S O C M T SPACE <ESC>"))
         );
         assert!(
             !lines
@@ -2131,8 +2131,8 @@ mod tests {
             .find(|line| line.contains("COMMAND <- Confirm [Y]/N "))
             .expect("group fleet order confirm footer");
 
-        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
-        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
+        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <ESC> ->"));
+        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <ESC> ->"));
     }
 
     #[test]
@@ -2145,11 +2145,11 @@ mod tests {
 
         let lines = render_lines_for_prompt(&app);
         let expected_x = format!(
-            "COMMAND <- Target XX [{}] <Q> ->",
+            "COMMAND <- Target XX [{}] <ESC> ->",
             app.fleet_order_target_x_default_value()
         );
         let expected_y = format!(
-            "COMMAND <- Target YY [{}] <Q> ->",
+            "COMMAND <- Target YY [{}] <ESC> ->",
             app.fleet_order_target_y_default_value()
         );
 
@@ -2232,7 +2232,7 @@ mod tests {
             .map(|row| decision_buffer.plain_line(row))
             .find(|line| line.contains("COMMAND <- Halt or move"))
             .expect("starbase decision footer");
-        assert!(decision_line.contains("COMMAND <- Halt or move <H>, <M> [M] <Q> ->"));
+        assert!(decision_line.contains("COMMAND <- Halt or move <H>, <M> [M] <ESC> ->"));
 
         app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseHaltConfirm;
         let mut confirm_buffer = PlayfieldBuffer::new(
@@ -2245,8 +2245,8 @@ mod tests {
             .map(|row| confirm_buffer.plain_line(row))
             .find(|line| line.contains("Halt this starbase?"))
             .expect("starbase halt confirm footer");
-        assert!(confirm_line.contains("COMMAND <- Halt this starbase? [Y]/N <Q> ->"));
-        assert!(!confirm_line.contains("[Y] <Q> ->"));
+        assert!(confirm_line.contains("COMMAND <- Halt this starbase? [Y]/N <ESC> ->"));
+        assert!(!confirm_line.contains("[Y] <ESC> ->"));
     }
 
     #[test]

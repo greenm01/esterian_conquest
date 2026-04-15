@@ -66,6 +66,7 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
         LobbyRoute::Home => {}
         LobbyRoute::Settings => popups::render_settings_popup(&mut buffer, app, layout.body),
         LobbyRoute::ThemePicker => popups::render_theme_picker_popup(&mut buffer, app, layout.body),
+        LobbyRoute::QuitConfirm => popups::render_quit_confirm_popup(&mut buffer, app, layout.body),
         LobbyRoute::ComposeInvite => {
             popups::render_compose_invite_popup(&mut buffer, app, layout.body)
         }

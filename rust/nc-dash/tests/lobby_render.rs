@@ -185,6 +185,7 @@ fn home_route_centers_footer_and_uses_toast_overlay() {
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("NETWORK: SYNCED")));
     assert!(footer.contains("J>oin"));
     assert!(footer.contains("Alt-Lock"));
+    assert!(footer.contains("Alt-Quit"));
     assert!(footer.contains("Tab Next Tab"));
     assert!(footer.contains("H>elp"));
     assert!(footer.contains("S>ettings"));
@@ -672,6 +673,27 @@ fn locked_route_renders_logo_and_unlock_copy() {
     assert!(lines.contains("Password"));
     assert!(!lines.contains("Keychain path"));
     assert!(!lines.contains("NOSTRIAN CONQUEST LOBBY"));
+}
+
+#[test]
+fn quit_confirm_route_renders_lobby_copy() {
+    let lines = render_lines(LobbyRoute::QuitConfirm);
+
+    assert!(lines.contains("QUIT"));
+    assert!(lines.contains("Quit NC? Y/[N]"));
+}
+
+#[test]
+fn gate_routes_render_invalid_entry_copy() {
+    let mut first_run = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+    first_run.state.status_message = Some("invalid entry, try again.".to_string());
+    let first_run_lines = render_app_lines(first_run);
+    assert!(first_run_lines.contains("invalid entry, try again."));
+
+    let mut locked = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+    locked.state.status_message = Some("invalid entry, try again.".to_string());
+    let locked_lines = render_app_lines(locked);
+    assert!(locked_lines.contains("invalid entry, try again."));
 }
 
 #[test]

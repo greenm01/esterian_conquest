@@ -499,7 +499,7 @@ mod tests {
             80,
             20,
             TableFooter::CommandBar {
-                hotkeys_markup: "? <Q>",
+                hotkeys_markup: "? <ESC>",
                 default: None,
                 input: "",
             },
@@ -510,7 +510,7 @@ mod tests {
         assert_eq!(
             buffer
                 .plain_line(frame.footer_row)
-                .contains("COMMAND <- ? <Q> ->"),
+                .contains("COMMAND <- ? <ESC> ->"),
             true
         );
     }
@@ -524,7 +524,7 @@ mod tests {
             72,
             14,
             TableFooter::CommandBar {
-                hotkeys_markup: "? O C M T I <Q>",
+                hotkeys_markup: "? O C M T I <ESC>",
                 default: None,
                 input: "",
             },
@@ -559,7 +559,7 @@ mod tests {
             18,
             8,
             TableFooter::CommandBar {
-                hotkeys_markup: "? <Q>",
+                hotkeys_markup: "? <ESC>",
                 default: Some("12,03"),
                 input: "1",
             },
@@ -605,12 +605,12 @@ mod tests {
         assert!(
             buffer
                 .plain_line(frame.footer_row.saturating_sub(1))
-                .contains("COMMAND <- Target XX [03] <Q> ->")
+                .contains("COMMAND <- Target XX [03] <ESC> ->")
         );
         assert!(
             buffer
                 .plain_line(frame.footer_row)
-                .contains("COMMAND <- Target YY [11] <Q> ->")
+                .contains("COMMAND <- Target YY [11] <ESC> ->")
         );
         assert!(
             !buffer
@@ -646,7 +646,7 @@ mod tests {
             18,
             8,
             TableFooter::CommandBar {
-                hotkeys_markup: "? <Q>",
+                hotkeys_markup: "? <ESC>",
                 default: None,
                 input: "",
             },
@@ -694,7 +694,7 @@ mod tests {
             80,
             20,
             TableFooter::CommandBar {
-                hotkeys_markup: "? <Q>",
+                hotkeys_markup: "? <ESC>",
                 default: None,
                 input: "",
             },

@@ -15,7 +15,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? M R A Y D <Q>";
+pub(crate) const HOTKEYS: &str = "? M R A Y D <ESC>";
 const LIST_WIDTH: usize = 28;
 const SPLIT_GAP_WIDTH: usize = 2;
 const TARGET_PREVIEW_WIDTH: usize = 72;
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_inbox_commands() {
-        assert_eq!(HOTKEYS, "? M R A Y D <Q>");
+        assert_eq!(HOTKEYS, "? M R A Y D <ESC>");
     }
 
     #[test]

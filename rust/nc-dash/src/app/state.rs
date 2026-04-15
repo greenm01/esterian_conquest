@@ -82,6 +82,7 @@ impl ActiveOverlay {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePopup {
     None,
+    QuitConfirm,
     PlanetDetail { planet_record_index_1_based: usize },
 }
 

@@ -380,9 +380,9 @@ fn render_footer_tokens(buffer: &mut Buffer, area: Rect) {
         FooterToken::leading("H", ">elp"),
         FooterToken::leading("J", ">oin"),
         FooterToken::embedded("Alt-", "L", "ock"),
+        FooterToken::embedded("Alt-", "Q", "uit"),
         FooterToken::leading("S", ">ettings"),
         FooterToken::leading("R", ">efresh"),
-        FooterToken::leading("Q", ">uit"),
     ];
     let gap = 2usize;
     let total_width =

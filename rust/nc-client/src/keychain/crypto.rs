@@ -21,7 +21,7 @@ impl std::fmt::Display for CryptoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::TruncatedEnvelope => write!(f, "encrypted data is too short"),
-            Self::DecryptionFailed => write!(f, "wrong password or corrupted data"),
+            Self::DecryptionFailed => write!(f, "invalid entry, try again."),
             Self::EncryptionFailed => write!(f, "encryption failed"),
         }
     }

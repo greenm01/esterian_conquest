@@ -37,7 +37,7 @@ pub fn command_line_default_input_width(
     default: &str,
     input: &str,
 ) -> usize {
-    command_line_default_input_width_with_cancel(label, prompt, default, input, "<Q> -> ")
+    command_line_default_input_width_with_cancel(label, prompt, default, input, "<ESC> -> ")
 }
 
 pub fn command_line_default_input_scaffold_width(
@@ -45,7 +45,7 @@ pub fn command_line_default_input_scaffold_width(
     prompt: &str,
     default: &str,
 ) -> usize {
-    command_line_default_input_scaffold_width_with_cancel(label, prompt, default, "<Q> -> ")
+    command_line_default_input_scaffold_width_with_cancel(label, prompt, default, "<ESC> -> ")
 }
 
 pub fn command_line_default_input_width_with_cancel(
@@ -354,7 +354,7 @@ pub fn draw_command_line_default_input_at_col(
     input: &str,
 ) {
     draw_command_line_default_input_with_cancel_at_col(
-        buffer, row, col, label, prompt, default, input, "<Q> -> ",
+        buffer, row, col, label, prompt, default, input, "<ESC> -> ",
     );
 }
 
@@ -1442,12 +1442,12 @@ mod tests {
     #[test]
     fn plain_prompt_highlights_angle_and_square_tokens() {
         let mut buffer = buffer();
-        draw_plain_prompt(&mut buffer, 24, "Delete report [Y]/N <Q> ->");
+        draw_plain_prompt(&mut buffer, 24, "Delete report [Y]/N <ESC> ->");
         let row = buffer.row(24);
         let bracket = find_in_row(&buffer, 24, "[Y]");
         assert_eq!(row[bracket].style, classic::prompt_square_delimiter_style());
         assert_eq!(row[bracket + 1].style, classic::prompt_hotkey_style());
-        let quit = find_in_row(&buffer, 24, "<Q>");
+        let quit = find_in_row(&buffer, 24, "<ESC>");
         assert_eq!(row[quit].style, classic::prompt_angle_delimiter_style());
         assert_eq!(row[quit + 1].style, classic::prompt_hotkey_style());
     }
@@ -1455,7 +1455,7 @@ mod tests {
     #[test]
     fn table_command_bar_renders_commands_label() {
         let mut buffer = buffer();
-        draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <N> <Q>", None, "");
+        draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <N> <ESC>", None, "");
         assert!(buffer.plain_line(24).starts_with("COMMAND <- "));
     }
 
@@ -1467,7 +1467,7 @@ mod tests {
             12,
             10,
             24,
-            "? J K ^U ^D <Q>",
+            "? J K ^U ^D <ESC>",
             Some("12,03"),
             "1",
         );
@@ -1490,7 +1490,7 @@ mod tests {
             "Fleet # ",
             "03",
             "123456789",
-            "<Q> -> ",
+            "<ESC> -> ",
         );
 
         let cursor = buffer.cursor().expect("cursor should be set");
@@ -1511,10 +1511,10 @@ mod tests {
     #[test]
     fn table_command_bar_width_matches_rendered_footer_width() {
         let mut buffer = buffer();
-        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <Q>", Some("02"), "");
+        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <ESC>", Some("02"), "");
         assert_eq!(
             end_col,
-            table_command_bar_width("J K ^U ^D <Q>", Some("02"), "")
+            table_command_bar_width("J K ^U ^D <ESC>", Some("02"), "")
         );
     }
 
@@ -1522,7 +1522,7 @@ mod tests {
     fn prompt_width_helpers_include_default_and_input_span() {
         let width = command_line_default_input_width("COMMAND", "Qty ", "12", "345");
         assert!(width > table_command_prompt_width("Qty -> "));
-        assert_eq!(width, "COMMAND <- Qty [12] <Q> -> 345".chars().count());
+        assert_eq!(width, "COMMAND <- Qty [12] <ESC> -> 345".chars().count());
     }
 
     #[test]
@@ -1539,8 +1539,8 @@ mod tests {
 
     #[test]
     fn prompt_input_width_matches_rendered_confirmation_footer() {
-        let width = command_line_prompt_input_width("COMMAND", "Confirm [Y]/N <Q> -> ", "Y");
-        assert_eq!(width, "COMMAND <- Confirm [Y]/N <Q> -> Y".chars().count());
+        let width = command_line_prompt_input_width("COMMAND", "Confirm [Y]/N <ESC> -> ", "Y");
+        assert_eq!(width, "COMMAND <- Confirm [Y]/N <ESC> -> Y".chars().count());
     }
 
     #[test]
@@ -1552,24 +1552,24 @@ mod tests {
             0,
             80,
             "COMMAND",
-            "Confirm [Y]/N <Q> -> ",
+            "Confirm [Y]/N <ESC> -> ",
             "",
         );
 
         let line = buffer.plain_line(10);
-        assert!(line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
-        assert!(!line.contains("[Y] <Q> ->"));
+        assert!(line.contains("COMMAND <- Confirm [Y]/N <ESC> ->"));
+        assert!(!line.contains("[Y] <ESC> ->"));
     }
 
     #[test]
     fn scaffold_width_helpers_ignore_live_input_text() {
         assert_eq!(
-            table_command_bar_scaffold_width("J K ^U ^D <Q>", Some("Matrix")),
-            table_command_bar_width("J K ^U ^D <Q>", Some("Matrix"), "")
+            table_command_bar_scaffold_width("J K ^U ^D <ESC>", Some("Matrix")),
+            table_command_bar_width("J K ^U ^D <ESC>", Some("Matrix"), "")
         );
         assert_eq!(
-            table_command_bar_scaffold_width("J K ^U ^D <Q>", Some("Matrix")),
-            table_command_bar_width("J K ^U ^D <Q>", Some("Matrix"), "tokyo")
+            table_command_bar_scaffold_width("J K ^U ^D <ESC>", Some("Matrix")),
+            table_command_bar_width("J K ^U ^D <ESC>", Some("Matrix"), "tokyo")
                 - "tokyo".chars().count()
         );
         assert_eq!(
@@ -1600,7 +1600,7 @@ mod tests {
         let end_col = draw_table_command_bar_at(
             &mut buffer,
             24,
-            "J K ^U ^D <Q>",
+            "J K ^U ^D <ESC>",
             Some("One Dark"),
             "sdfsdflsdfasdfasldfdd",
         );
@@ -1685,7 +1685,7 @@ mod tests {
         draw_plain_prompt(
             &mut buffer,
             24,
-            "This is a very long prompt with <Q> and [Y] choices that should clip safely ->",
+            "This is a very long prompt with <ESC> and [Y] choices that should clip safely ->",
         );
         let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
         assert_eq!(cursor_row, 24);
@@ -1725,7 +1725,7 @@ mod tests {
     #[test]
     fn right_aligned_footer_text_draws_with_gap_after_existing_footer() {
         let mut buffer = buffer();
-        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <Q>", None, "");
+        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <ESC>", None, "");
 
         let drawn = draw_right_aligned_footer_text(
             &mut buffer,
@@ -1742,7 +1742,7 @@ mod tests {
     #[test]
     fn right_aligned_footer_text_skips_when_it_would_touch_existing_footer() {
         let mut buffer = PlayfieldBuffer::new(24, 25, classic::body_style());
-        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <Q>", None, "");
+        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <ESC>", None, "");
 
         let drawn = draw_right_aligned_footer_text(
             &mut buffer,

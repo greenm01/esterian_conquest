@@ -27,7 +27,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S <Q>";
+pub(crate) const HOTKEYS: &str = "? F S <ESC>";
 const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
 const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
@@ -711,7 +711,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_intel_commands() {
-        assert_eq!(HOTKEYS, "? F S <Q>");
+        assert_eq!(HOTKEYS, "? F S <ESC>");
     }
 
     #[test]

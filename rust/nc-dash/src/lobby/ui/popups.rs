@@ -35,10 +35,10 @@ const MY_GAMES_HELP_ROWS: &[HelpRow] = &[
     ("Up / Down", "move within MY GAMES"),
     ("Enter", "open the selected joined game"),
     ("Alt-L", "lock nc-dash"),
+    ("Alt-Q", "quit nc-dash"),
     ("S", "open lobby settings, including handle and idle lock"),
     ("R", "refresh the hosted lobby"),
     ("? / Esc", "close this popup"),
-    ("Q / Esc", "quit nc-dash from the lobby"),
 ];
 
 const OPEN_GAMES_HELP_ROWS: &[HelpRow] = &[
@@ -47,10 +47,10 @@ const OPEN_GAMES_HELP_ROWS: &[HelpRow] = &[
     ("Enter", "join sandbox or request league access"),
     ("J", "join sandbox or open the league request box"),
     ("Alt-L", "lock nc-dash"),
+    ("Alt-Q", "quit nc-dash"),
     ("S", "open lobby settings, including handle and idle lock"),
     ("R", "refresh the hosted lobby"),
     ("? / Esc", "close this popup"),
-    ("Q / Esc", "quit nc-dash from the lobby"),
 ];
 
 const COMMS_HELP_ROWS: &[HelpRow] = &[
@@ -61,8 +61,8 @@ const COMMS_HELP_ROWS: &[HelpRow] = &[
     ("Alt-A", "open the address book"),
     ("Delete", "hide the selected direct contact"),
     ("Alt-L", "lock nc-dash"),
+    ("Alt-Q", "quit nc-dash"),
     ("? / Esc", "close this popup"),
-    ("Q / Esc", "quit nc-dash from the lobby"),
 ];
 
 const ADDRESS_BOOK_HELP_ROWS: &[HelpRow] = &[
@@ -262,6 +262,17 @@ pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, par
             style,
         );
     }
+}
+
+pub(super) fn render_quit_confirm_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let lines = quit_confirm_popup_lines(app);
+    render_popup_lines(
+        buffer,
+        popup_rect(parent, quit_confirm_popup_size(app, parent), app.popup_position),
+        " QUIT ",
+        &measure_popup_text(parent, &lines).lines,
+        theme::tui_theme().value,
+    );
 }
 
 pub(super) fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
@@ -578,6 +589,10 @@ pub(super) fn compose_invite_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u
     popup_text_size(parent, &compose_invite_popup_lines(app))
 }
 
+pub(super) fn quit_confirm_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &quit_confirm_popup_lines(app))
+}
+
 pub(super) fn sandbox_join_confirm_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
     popup_text_size(parent, &sandbox_join_confirm_popup_lines(app))
 }
@@ -713,6 +728,10 @@ fn compose_invite_popup_lines(app: &LobbyApp) -> Vec<String> {
         format!("Message : {}", app.state.compose_message_input),
         "Enter sends a 30513 join request.".to_string(),
     ]
+}
+
+fn quit_confirm_popup_lines(_app: &LobbyApp) -> Vec<String> {
+    vec!["Quit NC? Y/[N]".to_string()]
 }
 
 fn sandbox_join_confirm_popup_lines(app: &LobbyApp) -> Vec<String> {

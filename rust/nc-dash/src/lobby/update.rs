@@ -1,12 +1,16 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use nc_client::password::validate_new_password;
+use std::time::Instant;
 
 use super::hosted::dashboard::build_hosted_dash_app;
 use super::state::{
-    FirstRunField, HostedGameView, KeychainGateMode, LobbyApp, LobbyNetworkStatus, LobbyRoute,
-    LobbyStatusTone, LobbyTab, ThreadPaneFocus,
+    FirstRunField, GateResetAction, HostedGameView, KeychainGateMode, LobbyApp,
+    LobbyNetworkStatus, LobbyRoute, LobbyStatusTone, LobbyTab, ThreadPaneFocus,
 };
 use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use crate::theme;
+
+const INVALID_GATE_ENTRY_MESSAGE: &str = "invalid entry, try again.";
 
 pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
     if app.state.show_manual {
@@ -16,6 +20,10 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
     }
     if key.modifiers.contains(KeyModifiers::ALT) {
         match key.code {
+            KeyCode::Char('q' | 'Q') => {
+                open_popup_route(app, LobbyRoute::QuitConfirm);
+                return;
+            }
             KeyCode::Char('l' | 'L') => {
                 app.enter_session_lock();
                 return;
@@ -36,6 +44,7 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::FirstRun => handle_first_run_key(app, key),
         LobbyRoute::MatrixLocked => handle_matrix_locked_key(app, key),
         LobbyRoute::Locked => handle_locked_key(app, key),
+        LobbyRoute::QuitConfirm => handle_quit_confirm_key(app, key),
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
         LobbyRoute::SandboxJoinConfirm => handle_sandbox_join_confirm_key(app, key),
         LobbyRoute::SandboxJoinUnavailable => handle_sandbox_join_unavailable_key(app, key),
@@ -53,12 +62,6 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
 
 fn handle_matrix_locked_key(app: &mut LobbyApp, key: KeyEvent) {
     match key.code {
-        KeyCode::Esc | KeyCode::Char('q' | 'Q')
-            if app.state.gate_mode == KeychainGateMode::Startup
-                && matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
-        {
-            app.should_quit = true;
-        }
         _ => app.begin_unlock_prompt(),
     }
 }
@@ -99,11 +102,6 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
     }
 
     match key.code {
-        KeyCode::Esc | KeyCode::Char('q' | 'Q')
-            if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
-        {
-            app.should_quit = true;
-        }
         KeyCode::Enter => match app.state.active_tab {
             LobbyTab::OpenGames => activate_selected_open_game(app),
             LobbyTab::MyGames => open_or_claim_selected_game(app),
@@ -123,6 +121,16 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             app.state.show_help = true;
             app.state.show_manual = false;
             app.popup_position = None;
+        }
+        _ => {}
+    }
+}
+
+fn handle_quit_confirm_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Char('y' | 'Y') => app.should_quit = true,
+        KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n' | 'N') => {
+            close_popup_route(app, LobbyRoute::Home);
         }
         _ => {}
     }
@@ -162,9 +170,7 @@ fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
 
     match key.code {
         KeyCode::Esc => {
-            if app.state.route == LobbyRoute::Home {
-                app.should_quit = true;
-            } else {
+            if app.state.route != LobbyRoute::Home {
                 enter_home(app);
                 app.state.thread_pane_focus = ThreadPaneFocus::Chat;
             }
@@ -266,6 +272,9 @@ fn handle_add_contact_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
+    if app.gate_reset_deadline.is_some() {
+        return;
+    }
     if handle_single_line_paste(app, key, |state| match state.first_run_field {
         FirstRunField::Handle => &mut state.first_run_handle_input,
         FirstRunField::Password => &mut state.first_run_password_input,
@@ -275,11 +284,6 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
     }
 
     match key.code {
-        KeyCode::Esc | KeyCode::Char('q' | 'Q')
-            if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
-        {
-            app.should_quit = true;
-        }
         KeyCode::Up => app.state.first_run_field = app.state.first_run_field.prev(),
         KeyCode::Down => app.state.first_run_field = app.state.first_run_field.next(),
         KeyCode::Backspace => match app.state.first_run_field {
@@ -297,6 +301,19 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
             if app.state.first_run_field != FirstRunField::Confirm {
                 app.state.first_run_field = app.state.first_run_field.next();
             } else {
+                if validate_new_password(
+                    &app.state.first_run_password_input,
+                    &app.state.first_run_confirm_input,
+                )
+                .is_err()
+                {
+                    set_gate_error(
+                        app,
+                        GateResetAction::FirstRunRetry,
+                        INVALID_GATE_ENTRY_MESSAGE.to_string(),
+                    );
+                    return;
+                }
                 match app.transport.create_identity(
                     &app.state.first_run_handle_input,
                     &app.state.first_run_password_input,
@@ -325,6 +342,9 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
 }
 
 fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
+    if app.gate_reset_deadline.is_some() {
+        return;
+    }
     if handle_single_line_paste(app, key, |state| &mut state.unlock_password_input) {
         return;
     }
@@ -334,15 +354,9 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
             if app.state.gate_mode == KeychainGateMode::ResumeSession {
                 app.state.unlock_password_input.clear();
                 app.state.status_message = None;
+                app.clear_gate_reset();
                 app.state.route = LobbyRoute::MatrixLocked;
-            } else {
-                app.should_quit = true;
             }
-        }
-        KeyCode::Char('q' | 'Q')
-            if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
-        {
-            app.should_quit = true;
         }
         KeyCode::Backspace => {
             app.state.unlock_password_input.pop();
@@ -369,6 +383,9 @@ fn handle_locked_key(app: &mut LobbyApp, key: KeyEvent) {
                 } else {
                     app.state.route = route;
                 }
+            }
+            Err(err) if err == INVALID_GATE_ENTRY_MESSAGE => {
+                set_gate_error(app, GateResetAction::UnlockRetry, err);
             }
             Err(err) => set_status(app, LobbyStatusTone::Error, err),
         },
@@ -1271,11 +1288,13 @@ fn read_clipboard_text(app: &mut LobbyApp, key: KeyEvent) -> Option<String> {
 }
 
 fn open_popup_route(app: &mut LobbyApp, route: LobbyRoute) {
+    app.clear_gate_reset();
     app.state.route = route;
     app.popup_position = None;
 }
 
 fn close_popup_route(app: &mut LobbyApp, route: LobbyRoute) {
+    app.clear_gate_reset();
     if route == LobbyRoute::Home {
         enter_home(app);
     } else {
@@ -1302,6 +1321,7 @@ pub(crate) fn maybe_open_home_manual(app: &mut LobbyApp) {
 }
 
 fn enter_home(app: &mut LobbyApp) {
+    app.clear_gate_reset();
     app.state.route = LobbyRoute::Home;
     app.popup_position = None;
     maybe_open_home_manual(app);
@@ -1313,13 +1333,19 @@ pub(crate) fn set_network_error(app: &mut LobbyApp, err: String) {
 }
 
 pub(crate) fn set_status(app: &mut LobbyApp, tone: LobbyStatusTone, message: String) {
+    app.clear_gate_reset();
     app.state.status_tone = tone;
     app.state.status_message = Some(message);
 }
 
 pub(crate) fn clear_status(app: &mut LobbyApp) {
+    app.clear_gate_reset();
     app.state.status_message = None;
     app.state.status_tone = LobbyStatusTone::Info;
+}
+
+fn set_gate_error(app: &mut LobbyApp, action: GateResetAction, message: String) {
+    app.schedule_gate_reset(action, Instant::now(), message);
 }
 
 fn is_paste_shortcut(key: KeyEvent) -> bool {

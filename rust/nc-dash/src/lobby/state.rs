@@ -23,6 +23,7 @@ pub enum LobbyRoute {
     MatrixLocked,
     Locked,
     Home,
+    QuitConfirm,
     ComposeInvite,
     SandboxJoinConfirm,
     SandboxJoinUnavailable,
@@ -78,6 +79,12 @@ pub enum FirstRunField {
     Handle,
     Password,
     Confirm,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GateResetAction {
+    UnlockRetry,
+    FirstRunRetry,
 }
 
 impl FirstRunField {
@@ -827,6 +834,8 @@ pub struct LobbyApp {
     pub last_activity_at: Instant,
     pub comms_cursor_visible: bool,
     pub next_cursor_blink_at: Instant,
+    pub gate_reset_deadline: Option<Instant>,
+    pub gate_reset_action: Option<GateResetAction>,
     pub matrix_rain: MatrixRain,
     pub next_matrix_frame_at: Instant,
 }

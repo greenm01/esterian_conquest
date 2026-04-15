@@ -26,6 +26,7 @@ pub use self::state::LobbyApp;
 
 const MATRIX_FRAME_STEP: Duration = Duration::from_millis(80);
 const COMMS_CURSOR_BLINK_STEP: Duration = Duration::from_millis(500);
+const GATE_ERROR_RESET_STEP: Duration = Duration::from_secs(1);
 
 impl LobbyApp {
     pub fn new(options: LobbyStartupOptions) -> Self {
@@ -48,6 +49,8 @@ impl LobbyApp {
             last_activity_at: now,
             comms_cursor_visible: true,
             next_cursor_blink_at: now + COMMS_CURSOR_BLINK_STEP,
+            gate_reset_deadline: None,
+            gate_reset_action: None,
             matrix_rain: onboarding::MatrixRain::new(120, 40),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         }
@@ -71,6 +74,8 @@ impl LobbyApp {
             last_activity_at: now,
             comms_cursor_visible: true,
             next_cursor_blink_at: now + COMMS_CURSOR_BLINK_STEP,
+            gate_reset_deadline: None,
+            gate_reset_action: None,
             matrix_rain: onboarding::MatrixRain::new(matrix_width, matrix_height),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
         };
@@ -104,6 +109,8 @@ impl LobbyApp {
         self.state.unlock_return_route = self.state.route;
         self.state.unlock_password_input.clear();
         self.state.status_message = None;
+        self.gate_reset_deadline = None;
+        self.gate_reset_action = None;
         self.state.show_resume_sync_overlay = false;
         self.state.route = LobbyRoute::MatrixLocked;
         self.mouse_gesture = LobbyMouseGesture::None;
@@ -114,7 +121,63 @@ impl LobbyApp {
     pub fn begin_unlock_prompt(&mut self) {
         self.state.unlock_password_input.clear();
         self.state.status_message = None;
+        self.gate_reset_deadline = None;
+        self.gate_reset_action = None;
         self.state.route = LobbyRoute::Locked;
+    }
+
+    pub(crate) fn schedule_gate_reset(
+        &mut self,
+        action: state::GateResetAction,
+        now: Instant,
+        message: String,
+    ) {
+        self.state.status_message = Some(message);
+        self.state.status_tone = state::LobbyStatusTone::Error;
+        self.gate_reset_deadline = Some(now + GATE_ERROR_RESET_STEP);
+        self.gate_reset_action = Some(action);
+    }
+
+    pub(crate) fn clear_gate_reset(&mut self) {
+        self.gate_reset_deadline = None;
+        self.gate_reset_action = None;
+    }
+
+    fn complete_gate_reset(&mut self) {
+        let Some(action) = self.gate_reset_action.take() else {
+            self.gate_reset_deadline = None;
+            return;
+        };
+        self.gate_reset_deadline = None;
+        self.state.status_message = None;
+        self.state.status_tone = state::LobbyStatusTone::Info;
+        match action {
+            state::GateResetAction::UnlockRetry => {
+                self.state.unlock_password_input.clear();
+                self.state.route = LobbyRoute::Locked;
+            }
+            state::GateResetAction::FirstRunRetry => {
+                self.state.first_run_password_input.clear();
+                self.state.first_run_confirm_input.clear();
+                self.state.first_run_field = state::FirstRunField::Password;
+                self.state.route = LobbyRoute::FirstRun;
+            }
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn process_idle_for_test(&mut self) -> bool {
+        self.on_idle()
+    }
+
+    #[doc(hidden)]
+    pub fn process_idle_for_test_at(&mut self, now: Instant) -> bool {
+        self.on_idle_at(now)
+    }
+
+    #[doc(hidden)]
+    pub fn next_wakeup_for_test(&self) -> Option<Instant> {
+        self.scheduled_wakeup()
     }
 
     fn dismiss_resume_sync_overlay(&mut self) {
@@ -131,6 +194,7 @@ impl LobbyApp {
     }
 
     fn scheduled_wakeup(&self) -> Option<Instant> {
+        let gate_reset_wakeup = self.gate_reset_deadline;
         let cursor_wakeup = if self.state.route == LobbyRoute::Home
             && self.state.active_tab == LobbyTab::Comms
             && self.state.thread_pane_focus == ThreadPaneFocus::Chat
@@ -144,19 +208,119 @@ impl LobbyApp {
             None
         };
         if self.state.route == LobbyRoute::MatrixLocked {
-            return cursor_wakeup
+            return gate_reset_wakeup
+                .map(|gate| {
+                    cursor_wakeup
+                        .map(|cursor| gate.min(cursor.min(self.next_matrix_frame_at)))
+                        .unwrap_or_else(|| gate.min(self.next_matrix_frame_at))
+                })
+                .or_else(|| {
+                    cursor_wakeup
                 .map(|cursor| cursor.min(self.next_matrix_frame_at))
-                .or(Some(self.next_matrix_frame_at));
+                        .or(Some(self.next_matrix_frame_at))
+                });
         }
         if !self.transport.is_unlocked() {
-            return cursor_wakeup;
+            return match (gate_reset_wakeup, cursor_wakeup) {
+                (Some(gate), Some(cursor)) => Some(gate.min(cursor)),
+                (Some(gate), None) => Some(gate),
+                (None, Some(cursor)) => Some(cursor),
+                (None, None) => None,
+            };
         }
         let minutes = self.state.settings.lock_timeout_minutes;
         if minutes == 0 {
-            return cursor_wakeup;
+            return match (gate_reset_wakeup, cursor_wakeup) {
+                (Some(gate), Some(cursor)) => Some(gate.min(cursor)),
+                (Some(gate), None) => Some(gate),
+                (None, Some(cursor)) => Some(cursor),
+                (None, None) => None,
+            };
         }
         let idle = self.last_activity_at + Duration::from_secs(u64::from(minutes) * 60);
-        Some(cursor_wakeup.map(|cursor| cursor.min(idle)).unwrap_or(idle))
+        Some(
+            gate_reset_wakeup
+                .map(|gate| {
+                    cursor_wakeup
+                        .map(|cursor| gate.min(cursor.min(idle)))
+                        .unwrap_or_else(|| gate.min(idle))
+                })
+                .or_else(|| cursor_wakeup.map(|cursor| cursor.min(idle)))
+                .unwrap_or(idle),
+        )
+    }
+
+    fn on_idle_at(&mut self, now: Instant) -> bool {
+        if let Some(deadline) = self.gate_reset_deadline {
+            if now >= deadline {
+                self.complete_gate_reset();
+                return true;
+            }
+        }
+        if self.state.route == LobbyRoute::MatrixLocked && now >= self.next_matrix_frame_at {
+            self.matrix_rain.advance();
+            self.next_matrix_frame_at = now + MATRIX_FRAME_STEP;
+            return true;
+        }
+        if self.state.route == LobbyRoute::Home
+            && self.state.active_tab == LobbyTab::Comms
+            && self.state.thread_pane_focus == ThreadPaneFocus::Chat
+            && self
+                .state
+                .active_comms_row()
+                .is_some_and(|row| !row.read_only)
+            && now >= self.next_cursor_blink_at
+        {
+            self.comms_cursor_visible = !self.comms_cursor_visible;
+            self.next_cursor_blink_at = now + COMMS_CURSOR_BLINK_STEP;
+            return true;
+        }
+        if self.transport.is_unlocked() {
+            let minutes = self.state.settings.lock_timeout_minutes;
+            if minutes != 0
+                && now.duration_since(self.last_activity_at)
+                    >= Duration::from_secs(u64::from(minutes) * 60)
+            {
+                self.enter_session_lock();
+                return true;
+            }
+        }
+        match self.transport.poll_updates() {
+            Ok(Some(loaded)) => {
+                self.state.apply_loaded(loaded);
+                if self.state.route == LobbyRoute::Home
+                    && self.state.active_tab == LobbyTab::Comms
+                    && self.state.thread_pane_focus == ThreadPaneFocus::Chat
+                    && self.state.comms_scroll == 0
+                    && self
+                        .state
+                        .active_direct_contact()
+                        .is_some_and(|contact| contact.unread_count > 0)
+                {
+                    if let Some(contact_npub) = self
+                        .state
+                        .active_direct_contact()
+                        .map(|contact| contact.npub.clone())
+                    {
+                        if let Ok(loaded) = self.transport.mark_direct_contact_read(&contact_npub) {
+                            self.state.apply_loaded(loaded);
+                        }
+                    }
+                }
+                if self.state.show_resume_sync_overlay
+                    && self.state.network_status == state::LobbyNetworkStatus::Synced
+                {
+                    self.dismiss_resume_sync_overlay();
+                }
+                true
+            }
+            Ok(None) => false,
+            Err(err) => {
+                let changed = self.state.status_message.as_deref() != Some(err.as_str());
+                update::set_network_error(self, err);
+                changed
+            }
+        }
     }
 
     fn record_activity(&mut self, now: Instant) {
@@ -480,71 +644,7 @@ impl NativeApp for LobbyApp {
     }
 
     fn on_idle(&mut self) -> bool {
-        let now = Instant::now();
-        if self.state.route == LobbyRoute::MatrixLocked && now >= self.next_matrix_frame_at {
-            self.matrix_rain.advance();
-            self.next_matrix_frame_at = now + MATRIX_FRAME_STEP;
-            return true;
-        }
-        if self.state.route == LobbyRoute::Home
-            && self.state.active_tab == LobbyTab::Comms
-            && self.state.thread_pane_focus == ThreadPaneFocus::Chat
-            && self
-                .state
-                .active_comms_row()
-                .is_some_and(|row| !row.read_only)
-            && now >= self.next_cursor_blink_at
-        {
-            self.comms_cursor_visible = !self.comms_cursor_visible;
-            self.next_cursor_blink_at = now + COMMS_CURSOR_BLINK_STEP;
-            return true;
-        }
-        if self.transport.is_unlocked() {
-            let minutes = self.state.settings.lock_timeout_minutes;
-            if minutes != 0
-                && now.duration_since(self.last_activity_at)
-                    >= Duration::from_secs(u64::from(minutes) * 60)
-            {
-                self.enter_session_lock();
-                return true;
-            }
-        }
-        match self.transport.poll_updates() {
-            Ok(Some(loaded)) => {
-                self.state.apply_loaded(loaded);
-                if self.state.route == LobbyRoute::Home
-                    && self.state.active_tab == LobbyTab::Comms
-                    && self.state.thread_pane_focus == ThreadPaneFocus::Chat
-                    && self.state.comms_scroll == 0
-                    && self
-                        .state
-                        .active_direct_contact()
-                        .is_some_and(|contact| contact.unread_count > 0)
-                {
-                    if let Some(contact_npub) = self
-                        .state
-                        .active_direct_contact()
-                        .map(|contact| contact.npub.clone())
-                    {
-                        if let Ok(loaded) = self.transport.mark_direct_contact_read(&contact_npub) {
-                            self.state.apply_loaded(loaded);
-                        }
-                    }
-                }
-                if self.state.show_resume_sync_overlay
-                    && self.state.network_status == state::LobbyNetworkStatus::Synced
-                {
-                    self.dismiss_resume_sync_overlay();
-                }
-                true
-            }
-            Ok(None) => false,
-            Err(err) => {
-                let changed = self.state.status_message.as_deref() != Some(err.as_str());
-                update::set_network_error(self, err);
-                changed
-            }
-        }
+        self.on_idle_at(Instant::now())
     }
 
     fn is_dragging_surface(&self) -> bool {
