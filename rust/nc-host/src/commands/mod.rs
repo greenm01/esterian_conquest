@@ -4,6 +4,7 @@ pub mod new_game;
 pub mod nostr;
 pub mod notices;
 pub mod requests;
+pub mod roster;
 pub mod seats;
 pub mod serve;
 pub mod settings;

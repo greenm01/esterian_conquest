@@ -91,6 +91,7 @@ fn init_test_game_dir(game_dir: &std::path::Path, game_id: &str, player_count: u
             maintenance_enabled: true,
             maintenance_interval_minutes: 1440,
             maintenance_next_due_unix_seconds: None,
+            game_tier: nc_data::hosted::GameTier::League,
         },
     )
     .expect("settings should update");

@@ -448,6 +448,124 @@ impl GameStateBuilder {
     }
 }
 
+/// Reset a mid-game player slot back to its pre-join (civil disorder) baseline.
+///
+/// Used when a Sandbox game ejects an MIA player to open the seat for a new player.
+/// All of the following are reset:
+/// - Player record → civil disorder, cleared handle, autopilot on, starter fleet chain
+/// - Homeworld planet → "Not Named Yet" with starting stats (coords preserved)
+/// - All other planets owned by this empire → released to neutral (coords preserved)
+/// - Starter fleet block (4 records) → rebuilt at homeworld coords
+/// - Any extra fleets owned by this empire → zeroed (culled at next maintenance)
+pub fn reset_player_slot_to_baseline(
+    data: &mut CoreGameData,
+    player_index_1_based: usize,
+) -> Result<(), GameStateMutationError> {
+    if player_index_1_based == 0
+        || player_index_1_based > data.player.records.len()
+    {
+        return Err(GameStateMutationError::MissingPlayerRecord {
+            index_1_based: player_index_1_based,
+        });
+    }
+
+    let player_idx = player_index_1_based - 1;
+    let fleet_start = player_idx * 4 + 1;
+    let fleet_end = fleet_start + 3;
+    let homeworld_planet_index_1_based = (player_idx + 1) as u8;
+
+    // Capture homeworld coords before touching planet records.
+    let homeworld_coords = data
+        .planets
+        .records
+        .get(player_idx)
+        .map(|p| p.coords_raw())
+        .unwrap_or([0, 0]);
+
+    // Reset the player record.
+    let ipbm_count = data
+        .player
+        .records
+        .get(player_idx)
+        .map(|p| p.ipbm_count_raw())
+        .unwrap_or(0);
+    if let Some(player) = data.player.records.get_mut(player_idx) {
+        seed_unjoined_player_slot(
+            player,
+            fleet_start as u16,
+            fleet_end as u16,
+            homeworld_planet_index_1_based,
+            ipbm_count,
+        );
+    }
+
+    // Reset the homeworld planet.
+    if let Some(planet) = data.planets.records.get_mut(player_idx) {
+        seed_unjoined_homeworld_seed(planet, homeworld_coords, player_index_1_based as u8);
+    }
+
+    // Release all other planets owned by this empire to neutral.
+    for (planet_idx, planet) in data.planets.records.iter_mut().enumerate() {
+        if planet_idx == player_idx {
+            continue; // homeworld already handled
+        }
+        if planet.owner_empire_slot_raw() == player_index_1_based as u8 {
+            planet.set_owner_empire_slot_raw(0);
+            planet.set_army_count_raw(0);
+            planet.set_ground_batteries_raw(0);
+            planet.set_ownership_status_raw(0);
+        }
+    }
+
+    // Zero all fleet records beyond the starter block that belong to this empire.
+    let empire_id = player_index_1_based as u8;
+    for (fleet_idx, fleet) in data.fleets.records.iter_mut().enumerate() {
+        let fleet_id = fleet_idx + 1; // 1-based
+        let in_starter_block = fleet_id >= fleet_start && fleet_id <= fleet_end;
+        if !in_starter_block && fleet.owner_empire_raw() == empire_id {
+            *fleet = FleetRecord::new_zeroed();
+        }
+    }
+
+    // Rebuild the 4-slot starter fleet block at the homeworld coords.
+    for slot_idx in 0..4 {
+        let fleet_record_index_1_based = fleet_start + slot_idx;
+        let fleet_array_idx = fleet_record_index_1_based - 1;
+        if let Some(record) = data.fleets.records.get_mut(fleet_array_idx) {
+            let fleet_id = fleet_record_index_1_based as u16;
+            let local_slot = (slot_idx + 1) as u16;
+            let prev = if slot_idx == 0 { 0 } else { fleet_id - 1 };
+            let next = if slot_idx == 3 { 0 } else { fleet_id + 1 };
+
+            *record = FleetRecord::new_zeroed();
+            record.set_local_slot_word_raw(local_slot);
+            record.set_owner_empire_raw(empire_id);
+            record.set_next_fleet_link_word_raw(next);
+            record.set_fleet_id_word_raw(fleet_id);
+            record.set_previous_fleet_id(prev as u8);
+            record.set_max_speed(if slot_idx < 2 { 3 } else { 6 });
+            record.set_current_speed(0);
+            record.set_current_location_coords_raw(homeworld_coords);
+            record.set_tuple_a_payload_raw([0x80, 0, 0, 0, 0]);
+            record.set_tuple_b_payload_raw([0x80, 0, 0, 0, 0]);
+            record.set_tuple_c_payload_raw([0x81, 0, 0, 0, 0]);
+            record.set_standing_order_kind(crate::Order::GuardBlockadeWorld);
+            record.set_standing_order_target_coords_raw(homeworld_coords);
+            record.set_mission_aux_bytes([1, 0]);
+            record.set_scout_count(0);
+            record.set_rules_of_engagement(6);
+            record.set_battleship_count(0);
+            record.set_cruiser_count(if slot_idx < 2 { 1 } else { 0 });
+            record.set_destroyer_count(if slot_idx < 2 { 0 } else { 1 });
+            record.set_troop_transport_count(0);
+            record.set_army_count(0);
+            record.set_etac_count(if slot_idx < 2 { 1 } else { 0 });
+        }
+    }
+
+    Ok(())
+}
+
 fn fleet_order_requires_planet_target(order_code: u8) -> bool {
     matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
 }

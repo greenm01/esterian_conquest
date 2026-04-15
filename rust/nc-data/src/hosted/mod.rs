@@ -1,6 +1,7 @@
 pub mod invite_requests;
 pub mod outbox;
 pub mod player_messages;
+pub mod player_roster;
 pub mod schema;
 pub mod seats;
 pub mod settings;
@@ -28,8 +29,13 @@ pub use seats::{
     get_seat_by_number, get_seat_by_pubkey, list_seats, open_seat, reissue_seat, reset_seat,
 };
 pub use settings::{
-    GameMetadata, GameSettings, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
+    GameMetadata, GameSettings, GameTier, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
     get_catalog_dirty_since, get_game_metadata, get_settings, mark_catalog_dirty, update_settings,
+};
+pub use player_roster::{
+    RosterEntry, RosterEvent, RosterStore, get_roster_entry, list_roster,
+    list_roster_events_for_npub, record_player_abandoned, record_player_joined,
+    upsert_player_seen,
 };
 pub use store::HostedStore;
 pub use sysop_notifications::{

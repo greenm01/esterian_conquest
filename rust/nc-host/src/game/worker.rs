@@ -1,10 +1,13 @@
 use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
+use crate::invite::generate_invite_code;
 use crate::support::pubkeys::short_pubkey;
-use nc_data::hosted::{self, HostedStore};
+use nc_data::hosted::{self, GameTier, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
-use nc_nostr::invite_request::{InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus};
+use nc_nostr::invite_request::{
+    InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
+};
 use nc_nostr::state_sync::StateRequest;
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
 use std::fmt;
@@ -197,26 +200,41 @@ impl GameWorker {
                         return;
                     }
 
-                    if let Err(e) = crate::lobby::notify_sysop::enqueue_invite_request_summary(
-                        &store,
-                        &self.game_id,
-                        &request.request_id,
-                        &request.player_pubkey,
-                        request.handle.as_deref(),
-                    ) {
-                        tracing::warn!(
-                            "Failed to queue sysop invite notification {} for {}: {}",
-                            request.request_id,
-                            self.game_id,
-                            e
-                        );
+                    if let Some(roster_db) = self.roster_db_path() {
+                        if let Ok(rs) = hosted::RosterStore::open(&roster_db) {
+                            let _ = hosted::upsert_player_seen(
+                                rs.connection(),
+                                &request.player_pubkey,
+                                request.handle.as_deref(),
+                                &self.game_id,
+                            );
+                        }
                     }
 
-                    InviteRequestReceipt {
-                        request_id: request.request_id.clone(),
-                        game_id: self.game_id.clone(),
-                        status: InviteRequestReceiptStatus::Received,
-                        message: "Your request has been queued for the sysop.".to_string(),
+                    if settings.game_tier == GameTier::Sandbox {
+                        self.sandbox_auto_approve(&request)
+                    } else {
+                        if let Err(e) = crate::lobby::notify_sysop::enqueue_invite_request_summary(
+                            &store,
+                            &self.game_id,
+                            &request.request_id,
+                            &request.player_pubkey,
+                            request.handle.as_deref(),
+                        ) {
+                            tracing::warn!(
+                                "Failed to queue sysop invite notification {} for {}: {}",
+                                request.request_id,
+                                self.game_id,
+                                e
+                            );
+                        }
+
+                        InviteRequestReceipt {
+                            request_id: request.request_id.clone(),
+                            game_id: self.game_id.clone(),
+                            status: InviteRequestReceiptStatus::Received,
+                            message: "Your request has been queued for the sysop.".to_string(),
+                        }
                     }
                 }
                 Err(e) => {
@@ -256,6 +274,114 @@ impl GameWorker {
         }
     }
 
+    fn sandbox_auto_approve(&self, request: &InviteRequest) -> InviteRequestReceipt {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store for sandbox auto-approve: {}", e);
+                return self.queued_receipt(request);
+            }
+        };
+
+        let seats = match hosted::list_seats(store.connection(), &self.game_id) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to list seats for sandbox auto-approve: {}", e);
+                return self.queued_receipt(request);
+            }
+        };
+
+        let open_seat = seats
+            .iter()
+            .find(|s| s.status == hosted::SeatStatus::Pending);
+
+        let Some(seat) = open_seat else {
+            // No open seats — fall through to sysop queue
+            if let Err(e) = crate::lobby::notify_sysop::enqueue_invite_request_summary(
+                &store,
+                &self.game_id,
+                &request.request_id,
+                &request.player_pubkey,
+                request.handle.as_deref(),
+            ) {
+                tracing::warn!(
+                    "Failed to queue sysop invite notification {} for {}: {}",
+                    request.request_id,
+                    self.game_id,
+                    e
+                );
+            }
+            return self.queued_receipt(request);
+        };
+
+        let existing_codes: std::collections::HashSet<String> =
+            seats.iter().map(|s| s.invite_code.clone()).collect();
+        let reserve_token = generate_invite_code(&existing_codes);
+
+        if let Err(e) = hosted::approve_request_for_seat(
+            store.connection(),
+            &request.request_id,
+            &self.game_id,
+            seat.seat_number,
+            &request.player_pubkey,
+            &reserve_token,
+            "Auto-approved for sandbox game.",
+        ) {
+            tracing::error!(
+                "Sandbox auto-approve failed for request {} seat {}: {}",
+                request.request_id,
+                seat.seat_number,
+                e
+            );
+            return self.queued_receipt(request);
+        }
+
+        if let Err(e) = crate::lobby::invite_decisions::enqueue_invite_decision(
+            &store,
+            &self.game_id,
+            &request.player_pubkey,
+            &request.request_id,
+            InviteDecision::Approved { seat: seat.seat_number },
+            "Auto-approved. Check your invite decisions for your invite code.",
+        ) {
+            tracing::warn!(
+                "Failed to enqueue sandbox auto-approve decision for {}: {}",
+                request.request_id,
+                e
+            );
+        }
+
+        tracing::info!(
+            "Sandbox auto-approved request {} seat {} for {}",
+            request.request_id,
+            seat.seat_number,
+            short_pubkey(&request.player_pubkey)
+        );
+
+        InviteRequestReceipt {
+            request_id: request.request_id.clone(),
+            game_id: self.game_id.clone(),
+            status: InviteRequestReceiptStatus::Received,
+            message: format!(
+                "Auto-approved for sandbox seat {}. Your invite code is on the way.",
+                seat.seat_number
+            ),
+        }
+    }
+
+    fn roster_db_path(&self) -> Option<std::path::PathBuf> {
+        self.db_path.parent()?.parent().map(|p| p.join("roster.db"))
+    }
+
+    fn queued_receipt(&self, request: &InviteRequest) -> InviteRequestReceipt {
+        InviteRequestReceipt {
+            request_id: request.request_id.clone(),
+            game_id: self.game_id.clone(),
+            status: InviteRequestReceiptStatus::Received,
+            message: "Your request has been queued for the sysop.".to_string(),
+        }
+    }
+
     async fn handle_seat_claim(&self, request: SeatClaimRequest) {
         let store = match HostedStore::open(&self.db_path) {
             Ok(s) => s,
@@ -286,6 +412,16 @@ impl GameWorker {
                     ) {
                         Ok(()) => {
                             let _ = hosted::mark_catalog_dirty(store.connection(), &self.game_id);
+                            if let Some(roster_db) = self.roster_db_path() {
+                                if let Ok(rs) = hosted::RosterStore::open(&roster_db) {
+                                    let _ = hosted::record_player_joined(
+                                        rs.connection(),
+                                        &request.player_pubkey,
+                                        &self.game_id,
+                                        seat.seat_number,
+                                    );
+                                }
+                            }
                             SeatClaimResultPayload {
                                 nonce: request.nonce.clone(),
                                 game_id: Some(self.game_id.clone()),

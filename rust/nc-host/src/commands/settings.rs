@@ -1,5 +1,6 @@
 use nc_data::hosted::{
-    HostedStore, LobbyVisibility, RecruitingMode, get_settings, mark_catalog_dirty, update_settings,
+    GameTier, HostedStore, LobbyVisibility, RecruitingMode, get_settings, mark_catalog_dirty,
+    update_settings,
 };
 use std::path::PathBuf;
 
@@ -15,6 +16,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let mut lobby_visibility: Option<String> = None;
     let mut host_alias: Option<String> = None;
     let mut summary: Option<String> = None;
+    let mut tier: Option<String> = None;
 
     let mut i = 0;
     while i < args.len() {
@@ -54,6 +56,13 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
                 summary = Some(args[i + 1].to_string());
                 i += 2;
             }
+            "--tier" => {
+                if i + 1 >= args.len() {
+                    return Err("missing value for --tier".into());
+                }
+                tier = Some(args[i + 1].to_string());
+                i += 2;
+            }
             _ => {
                 if subcmd.is_none() {
                     subcmd = Some(args[i]);
@@ -83,6 +92,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
             lobby_visibility,
             host_alias,
             summary,
+            tier,
         ),
         Some(cmd) => Err(format!("unknown settings subcommand: {}", cmd).into()),
         None => {
@@ -97,6 +107,7 @@ fn run_show(store: &HostedStore, game_id: &str) -> Result<(), Box<dyn std::error
 
     println!("Settings for game '{}':", game_id);
     println!();
+    println!("  Tier:             {}", settings.game_tier.as_str());
     println!("  Lobby visibility: {}", settings.lobby_visibility.as_str());
     println!("  Recruiting:       {}", settings.recruiting.as_str());
     println!(
@@ -128,6 +139,7 @@ fn run_set(
     lobby_visibility: Option<String>,
     host_alias: Option<String>,
     summary: Option<String>,
+    tier: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut settings = get_settings(store.connection(), game_id)?;
 
@@ -154,6 +166,11 @@ fn run_set(
         dirty = true;
     }
 
+    if let Some(t) = tier {
+        settings.game_tier = GameTier::from_str(&t).ok_or("invalid tier: use 'sandbox' or 'league'")?;
+        dirty = true;
+    }
+
     update_settings(store.connection(), game_id, &settings)?;
 
     if dirty {
@@ -174,6 +191,7 @@ fn print_usage() {
     println!("Options:");
     println!("  --recruiting <mode>   none|new_players|replacement_players");
     println!("  --lobby <visibility>  public|private");
+    println!("  --tier <tier>         sandbox|league");
     println!("  --host-alias <name>   Host display name");
-    println!("  --summary <text>     Lobby description");
+    println!("  --summary <text>      Lobby description");
 }

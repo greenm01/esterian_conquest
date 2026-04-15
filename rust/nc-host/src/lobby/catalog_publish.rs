@@ -1,8 +1,10 @@
 use nc_data::hosted::{
-    HostedStore, RecruitingMode as HostedRecruiting, get_game_metadata, get_settings, list_seats,
+    GameTier as HostedTier, HostedStore, RecruitingMode as HostedRecruiting, get_game_metadata,
+    get_settings, list_seats,
 };
 use nc_nostr::game_definition::{
-    GameDefinition, GameStatus, RecruitingMode as NostrRecruiting, SeatSlot, SeatStatus,
+    GameDefinition, GameStatus, GameTier as NostrTier, RecruitingMode as NostrRecruiting, SeatSlot,
+    SeatStatus,
 };
 use std::path::PathBuf;
 
@@ -41,6 +43,11 @@ pub fn publish_game_definition(
         HostedRecruiting::NewPlayers => NostrRecruiting::NewPlayers,
         HostedRecruiting::ReplacementPlayers => NostrRecruiting::ReplacementPlayers,
     };
+
+    let game_tier = Some(match settings.game_tier {
+        HostedTier::Sandbox => NostrTier::Sandbox,
+        HostedTier::League => NostrTier::League,
+    });
 
     let status = if claimed_seats == 0 {
         GameStatus::Setup
@@ -98,6 +105,7 @@ pub fn publish_game_definition(
             .filter(|value| !value.is_empty())
             .map(str::to_string),
         slots: slot_tags,
+        game_tier,
     };
 
     Ok(Some(def))

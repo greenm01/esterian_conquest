@@ -18,6 +18,30 @@ pub struct GameDefinition {
     pub host_contact_label: Option<String>,
     pub host_contact_nip05: Option<String>,
     pub slots: Vec<SeatSlot>,
+    pub game_tier: Option<GameTier>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum GameTier {
+    Sandbox,
+    League,
+}
+
+impl GameTier {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "sandbox" => Some(GameTier::Sandbox),
+            "league" => Some(GameTier::League),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            GameTier::Sandbox => "sandbox",
+            GameTier::League => "league",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -119,6 +143,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
     let mut host_contact_label = None;
     let mut host_contact_nip05 = None;
     let mut slots = Vec::new();
+    let mut game_tier = None;
 
     for tag in event.tags.iter() {
         let values = tag.clone().to_vec();
@@ -140,6 +165,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
             "host-contact-npub" if values.len() >= 2 => host_contact_npub = Some(values[1].clone()),
             "host-contact-label" if values.len() >= 2 => host_contact_label = Some(values[1].clone()),
             "host-contact-nip05" if values.len() >= 2 => host_contact_nip05 = Some(values[1].clone()),
+            "tier" if values.len() >= 2 => game_tier = GameTier::from_str(&values[1]),
             "slot" if values.len() >= 5 => {
                 let seat = values[1].parse().ok()?;
                 let invite_code_hash = values[2].clone();
@@ -172,6 +198,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
         host_contact_label,
         host_contact_nip05,
         slots,
+        game_tier,
     })
 }
 
@@ -209,6 +236,10 @@ pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<Vec<String>> {
     }
     if let Some(ref nip05) = def.host_contact_nip05 {
         tags.push(vec!["host-contact-nip05".to_string(), nip05.clone()]);
+    }
+
+    if let Some(ref tier) = def.game_tier {
+        tags.push(vec!["tier".to_string(), tier.as_str().to_string()]);
     }
 
     for slot in &def.slots {

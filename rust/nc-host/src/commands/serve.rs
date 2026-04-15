@@ -277,7 +277,7 @@ async fn run_async_server(
 mod tests {
     use super::publish_lobby_catalog;
     use nc_data::hosted::{
-        GameSettings, HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
+        GameSettings, GameTier, HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
         create_seats, get_pending, update_settings,
     };
     use std::sync::Arc;
@@ -323,6 +323,7 @@ mod tests {
                 maintenance_enabled: true,
                 maintenance_interval_minutes: 1440,
                 maintenance_next_due_unix_seconds: None,
+                game_tier: GameTier::League,
             },
         )
         .expect("settings");

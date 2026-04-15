@@ -52,6 +52,7 @@ fn collect_status_aggregates_games_and_queues() {
             maintenance_enabled: false,
             maintenance_interval_minutes: 1440,
             maintenance_next_due_unix_seconds: None,
+            game_tier: nc_data::hosted::GameTier::League,
         },
     )
     .expect("beta settings should update");

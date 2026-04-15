@@ -1,3 +1,4 @@
+use nc_data::hosted::GameTier;
 use std::path::PathBuf;
 
 use crate::invite::generate_invite_code;
@@ -12,6 +13,7 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let mut players = 4u32;
     let mut name = None;
     let mut seed = None;
+    let mut tier = GameTier::League;
     let mut i = 0;
     while i < args.len() {
         match args[i] {
@@ -36,6 +38,13 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
                 seed = Some(args[i + 1].parse()?);
                 i += 2;
             }
+            "--tier" => {
+                if i + 1 >= args.len() {
+                    return Err("missing value for --tier".into());
+                }
+                tier = GameTier::from_str(args[i + 1]).ok_or("invalid tier: use 'sandbox' or 'league'")?;
+                i += 2;
+            }
             _ => {
                 if dir.is_some() {
                     return Err(format!("unexpected argument: {}", args[i]).into());
@@ -54,12 +63,13 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
             .to_string()
     });
 
-    create_game(&dir, &name, players, seed)?;
+    create_game(&dir, &name, players, seed, &tier)?;
 
     println!("Created hosted game:");
     println!("  directory: {}", dir.display());
     println!("  name: {}", name);
     println!("  players: {}", players);
+    println!("  tier: {}", tier.as_str());
 
     Ok(())
 }
@@ -69,6 +79,7 @@ fn create_game(
     name: &str,
     players: u32,
     seed: Option<u32>,
+    tier: &GameTier,
 ) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(dir)?;
 
@@ -87,9 +98,9 @@ fn create_game(
         .unwrap_or_else(nc_data::generate_campaign_seed);
 
     store.connection().execute(
-        "INSERT INTO game_metadata (id, name, status, created_at, updated_at, current_year, current_turn, players, recruiting, lobby_visibility, maintenance_enabled, maintenance_interval_minutes)
-         VALUES (?1, ?2, 'setup', ?3, ?3, 3000, 0, ?4, 'none', 'public', 1, 1440)",
-        rusqlite::params![game_id, name, now, players],
+        "INSERT INTO game_metadata (id, name, status, created_at, updated_at, current_year, current_turn, players, recruiting, lobby_visibility, maintenance_enabled, maintenance_interval_minutes, game_tier)
+         VALUES (?1, ?2, 'setup', ?3, ?3, 3000, 0, ?4, 'none', 'public', 1, 1440, ?5)",
+        rusqlite::params![game_id, name, now, players, tier.as_str()],
     )?;
 
     let invite_codes = generate_invite_codes(players);

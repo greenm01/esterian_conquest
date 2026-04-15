@@ -9,6 +9,30 @@ pub struct GameSettings {
     pub recruiting: RecruitingMode,
     pub host_alias: Option<String>,
     pub summary: Option<String>,
+    pub game_tier: GameTier,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GameTier {
+    Sandbox,
+    League,
+}
+
+impl GameTier {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            GameTier::Sandbox => "sandbox",
+            GameTier::League => "league",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "sandbox" => Some(GameTier::Sandbox),
+            "league" => Some(GameTier::League),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,7 +87,7 @@ impl RecruitingMode {
 pub fn get_settings(conn: &Connection, game_id: &str) -> SqliteResult<GameSettings> {
     let mut stmt = conn.prepare(
         "SELECT maintenance_enabled, maintenance_interval_minutes, maintenance_next_due_unix_seconds,
-                lobby_visibility, recruiting, host_alias, summary
+                lobby_visibility, recruiting, host_alias, summary, game_tier
          FROM game_metadata WHERE id = ?1"
     )?;
 
@@ -78,6 +102,10 @@ pub fn get_settings(conn: &Connection, game_id: &str) -> SqliteResult<GameSettin
                 .unwrap_or(RecruitingMode::None),
             host_alias: row.get(5)?,
             summary: row.get(6)?,
+            game_tier: row.get::<_, Option<String>>(7)?
+                .as_deref()
+                .and_then(GameTier::from_str)
+                .unwrap_or(GameTier::League),
         })
     })
 }
@@ -126,8 +154,9 @@ pub fn update_settings(
             recruiting = ?5,
             host_alias = ?6,
             summary = ?7,
-            updated_at = ?8
-         WHERE id = ?9",
+            updated_at = ?8,
+            game_tier = ?9
+         WHERE id = ?10",
         params![
             settings.maintenance_enabled as i32,
             settings.maintenance_interval_minutes,
@@ -137,6 +166,7 @@ pub fn update_settings(
             settings.host_alias,
             settings.summary,
             chrono::Utc::now().timestamp(),
+            settings.game_tier.as_str(),
             game_id,
         ],
     )?;

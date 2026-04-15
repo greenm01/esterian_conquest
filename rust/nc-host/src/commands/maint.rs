@@ -1,5 +1,13 @@
-use nc_data::CoreGameData;
-use nc_data::hosted::HostedStore;
+use nc_data::{
+    CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, PlanetIntelSnapshot,
+    DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, apply_inactivity_autopilot_policy,
+    default_player_activity_states, merge_player_intel_from_runtime,
+    reset_player_slot_to_baseline,
+};
+use nc_data::hosted::{
+    GameTier, HostedStore, RecruitingMode, RosterStore, get_seat_by_number, record_player_abandoned,
+};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
@@ -54,8 +62,10 @@ fn run_maintenance(
     turns: u32,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let settings = nc_data::hosted::get_settings(store.connection(), game_id)?;
+    let is_sandbox = settings.game_tier == GameTier::Sandbox;
 
     println!("Running maintenance for game {} ({} turns)", game_id, turns);
+    println!("  Tier:                {}", settings.game_tier.as_str());
     println!("  Maintenance enabled: {}", settings.maintenance_enabled);
     println!(
         "  Interval: {} minutes",
@@ -65,13 +75,24 @@ fn run_maintenance(
     let pending_turns = nc_data::hosted::list_pending_turns(store.connection(), game_id, 0)?;
     println!("  Pending turns: {}", pending_turns.len());
 
-    let mut game_data = CoreGameData::load(game_dir).map_err(|e| {
-        format!(
-            "Failed to load authoritative game data from {}: {}",
-            game_dir.display(),
-            e
-        )
-    })?;
+    // Load game data — prefer CampaignStore snapshot over flat files.
+    let campaign_db_path = game_dir.join(DEFAULT_CAMPAIGN_DB_NAME);
+    let (mut game_data, campaign_store_opt) = if campaign_db_path.exists() {
+        let cs = CampaignStore::open(&campaign_db_path)?;
+        match cs.load_latest_runtime_game_data() {
+            Ok(gd) => (gd, Some(cs)),
+            Err(_) => (CoreGameData::load(game_dir)?, None),
+        }
+    } else {
+        (CoreGameData::load(game_dir)?, None)
+    };
+
+    // Load player activity states from CampaignStore.
+    let mut player_activity_states = if let Some(ref cs) = campaign_store_opt {
+        cs.latest_player_activity_states(game_data.conquest.player_count())?
+    } else {
+        default_player_activity_states(game_data.conquest.player_count())
+    };
 
     let current_turn = (game_data.conquest.game_year() - 3000) as u32;
 
@@ -102,6 +123,15 @@ fn run_maintenance(
             }
         }
 
+        // Apply inactivity autopilot for Sandbox games before running maintenance.
+        if is_sandbox {
+            apply_inactivity_autopilot_policy(
+                &mut game_data,
+                DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS,
+                &mut player_activity_states,
+            );
+        }
+
         match nc_engine::run_maintenance_turn(&mut game_data) {
             Ok(_events) => {
                 println!("    Turn {} complete", turn);
@@ -112,8 +142,85 @@ fn run_maintenance(
         }
     }
 
+    // For Sandbox games: eject any players that went MIA (autopilot pending clear).
+    if is_sandbox {
+        let mut ejected_any = false;
+        for state in &mut player_activity_states {
+            if !state.inactivity_autopilot_pending_clear {
+                continue;
+            }
+            let seat_number = state.player_record_index_1_based as u32;
+            println!(
+                "  Ejecting MIA player from seat {} (3-turn inactivity)",
+                seat_number
+            );
+
+            // Capture the player's npub before reset_seat clears it.
+            let player_npub = get_seat_by_number(store.connection(), game_id, seat_number)
+                .ok()
+                .flatten()
+                .and_then(|s| s.player_pubkey);
+
+            if let Err(e) = reset_player_slot_to_baseline(&mut game_data, state.player_record_index_1_based) {
+                println!("    ERROR resetting player slot {}: {}", seat_number, e);
+                continue;
+            }
+
+            if let Err(e) = nc_data::hosted::reset_seat(store.connection(), game_id, seat_number) {
+                println!("    ERROR resetting hosted seat {}: {}", seat_number, e);
+                continue;
+            }
+
+            // Record in the global roster that this player abandoned the game.
+            if let Some(ref npub) = player_npub {
+                let roster_db = game_dir.parent().map(|p| p.join("roster.db"));
+                if let Some(roster_db) = roster_db {
+                    if let Ok(rs) = RosterStore::open(&roster_db) {
+                        let _ = record_player_abandoned(rs.connection(), npub, game_id, seat_number);
+                    }
+                }
+            }
+
+            // Clear the pending flag so future turns don't re-trigger.
+            state.inactivity_autopilot_pending_clear = false;
+            ejected_any = true;
+            println!("    Seat {} reset and opened for replacement.", seat_number);
+        }
+
+        if ejected_any {
+            // Open recruitment for replacement players if not already recruiting.
+            let mut settings = nc_data::hosted::get_settings(store.connection(), game_id)?;
+            if settings.recruiting == RecruitingMode::None {
+                settings.recruiting = RecruitingMode::ReplacementPlayers;
+                nc_data::hosted::update_settings(store.connection(), game_id, &settings)?;
+            }
+            nc_data::hosted::mark_catalog_dirty(store.connection(), game_id)?;
+        }
+    }
+
+    // Save flat files.
     game_data.save(game_dir)?;
     println!("Saved game state to {}", game_dir.display());
+
+    // Save CampaignStore snapshot with updated activity states and fresh intel.
+    if let Some(cs) = campaign_store_opt {
+        let player_count = game_data.conquest.player_count();
+        let year = game_data.conquest.game_year();
+        let intel_by_viewer: Vec<BTreeMap<usize, PlanetIntelSnapshot>> = (1..=player_count)
+            .map(|viewer_id| {
+                merge_player_intel_from_runtime(&game_data, viewer_id, year, None, None)
+            })
+            .collect();
+        cs.save_runtime_state_structured_with_intel_and_activity(
+            &game_data,
+            &BTreeSet::new(),
+            &[],
+            &[],
+            &intel_by_viewer,
+            &player_activity_states,
+        )?;
+        println!("Updated campaign store snapshot.");
+    }
 
     println!("Maintenance complete for {} turns", turns);
 
@@ -125,5 +232,5 @@ fn print_usage() {
     println!();
     println!("Arguments:");
     println!("  <dir>     Game directory path");
-    println!("  [turns]  Number of turns to process (default: 1)");
+    println!("  [turns]   Number of turns to process (default: 1)");
 }

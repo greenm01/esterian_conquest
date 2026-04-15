@@ -40,7 +40,10 @@ mod support;
 mod turns;
 
 pub use bbs_config::{BbsGameConfig, BbsGameConfigError, SeatReservation};
-pub use builder::{FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec};
+pub use builder::{
+    FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec,
+    reset_player_slot_to_baseline,
+};
 pub use config::{DiplomacyConfig, DiplomacyDirective, SetupConfigError};
 pub use directory::{
     AutoCommissionEntry, AutoCommissionFleetEntry, AutoCommissionReport,

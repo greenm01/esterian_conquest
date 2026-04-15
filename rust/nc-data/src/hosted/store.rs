@@ -3,6 +3,10 @@ use std::path::Path;
 
 use super::schema::INIT_SQL;
 
+const MIGRATIONS: &[&str] = &[
+    "ALTER TABLE game_metadata ADD COLUMN game_tier TEXT NOT NULL DEFAULT 'league'",
+];
+
 pub struct HostedStore {
     conn: Connection,
 }
@@ -11,6 +15,7 @@ impl HostedStore {
     pub fn open(path: &Path) -> SqliteResult<Self> {
         let conn = Connection::open(path)?;
         conn.execute_batch(INIT_SQL)?;
+        run_migrations(&conn);
         Ok(HostedStore { conn })
     }
 
@@ -25,10 +30,18 @@ impl HostedStore {
         }
         let conn = Connection::open(path)?;
         conn.execute_batch(INIT_SQL)?;
+        run_migrations(&conn);
         Ok(HostedStore { conn })
     }
 
     pub fn connection(&self) -> &Connection {
         &self.conn
+    }
+}
+
+fn run_migrations(conn: &Connection) {
+    for sql in MIGRATIONS {
+        // Ignore errors — duplicate column means the migration already ran.
+        let _ = conn.execute_batch(sql);
     }
 }
