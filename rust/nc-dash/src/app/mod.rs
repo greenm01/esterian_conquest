@@ -3081,17 +3081,12 @@ mod tests {
     }
 
     #[test]
-    fn starbase_rows_do_not_toggle_checked_selection() {
+    fn fleet_list_excludes_starbases() {
         let mut app = dash_app_with_starbase();
         app.overlay = ActiveOverlay::FleetList;
-        app.fleet_overlay.selected = fleet_list::table_rows(&app)
+        assert!(fleet_list::table_rows(&app)
             .iter()
-            .position(|row| matches!(row.key, FleetOverlayRowKey::Starbase(_)))
-            .expect("starbase row");
-
-        app.handle_key(key(KeyCode::Char(' ')));
-
-        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+            .all(|row| !matches!(row.key, FleetOverlayRowKey::Starbase(_))));
     }
 
     #[test]
@@ -3113,7 +3108,7 @@ mod tests {
     }
 
     #[test]
-    fn starbase_orders_still_open_starbase_flow_when_fleets_are_checked() {
+    fn checked_fleets_still_open_group_order_flow_when_starbases_exist_in_game() {
         let mut app = dash_app_with_starbase();
         app.overlay = ActiveOverlay::FleetList;
         app.fleet_overlay.selected = fleet_list::table_rows(&app)
@@ -3121,17 +3116,13 @@ mod tests {
             .position(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
             .expect("fleet row");
         app.handle_key(key(KeyCode::Char(' ')));
-        app.fleet_overlay.selected = fleet_list::table_rows(&app)
-            .iter()
-            .position(|row| matches!(row.key, FleetOverlayRowKey::Starbase(_)))
-            .expect("starbase row");
 
         app.handle_key(key(KeyCode::Char('o')));
 
-        assert_eq!(app.fleet_overlay.order_scope, FleetOrderScope::StarbaseMove);
+        assert_eq!(app.fleet_overlay.order_scope, FleetOrderScope::Group);
         assert_eq!(
             app.fleet_overlay.prompt_mode,
-            FleetOverlayPromptMode::StarbaseMoveDecision
+            FleetOverlayPromptMode::MissionPicker
         );
         assert_eq!(app.fleet_overlay.selected_fleet_record_indexes.len(), 1);
     }

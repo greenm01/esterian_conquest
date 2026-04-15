@@ -1,4 +1,4 @@
-//! F overlay: dashboard-sized fleet and starbase command table.
+//! F overlay: dashboard-sized fleet command table.
 
 use std::cmp::Ordering;
 
@@ -10,7 +10,7 @@ use crate::table::{
 };
 use crate::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use crate::table_selection;
-use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
+use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label};
 
 use crate::app::state::{
     ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey,
@@ -305,8 +305,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         false,
         TableWidthMode::Compact,
     );
-    let body_width = table_render_width(&columns)
-        .max("You have no active fleets or starbases.".chars().count() + 4);
+    let body_width = table_render_width(&columns).max("You have no active fleets.".chars().count() + 4);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         overlay_parent_rect(app),
@@ -349,7 +348,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             if app.fleet_overlay.filter_clause.is_some() {
                 "No fleets match current filter."
             } else {
-                "You have no active fleets or starbases."
+                "You have no active fleets."
             },
             theme::dim_style(),
         );
@@ -465,8 +464,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         false,
         TableWidthMode::Compact,
     );
-    let body_width = table_render_width(&columns)
-        .max("You have no active fleets or starbases.".chars().count() + 4);
+    let body_width = table_render_width(&columns).max("You have no active fleets.".chars().count() + 4);
     Some(overlay_popup_rect_for_body_in_parent(
         overlay_parent_rect(app),
         &title,
@@ -1474,15 +1472,11 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
     table_rows(app)
         .into_iter()
         .map(|row| {
-            let selection_key = match row.key {
-                FleetOverlayRowKey::Fleet(_) => row
-                    .id_label
-                    .parse::<u16>()
-                    .map(|fleet_number| format!("{fleet_number:02}"))
-                    .unwrap_or(row.id_label),
-                FleetOverlayRowKey::Starbase(_) => row.id_label,
-            };
-            vec![selection_key]
+            vec![row
+                .id_label
+                .parse::<u16>()
+                .map(|fleet_number| format!("{fleet_number:02}"))
+                .unwrap_or(row.id_label)]
         })
         .collect()
 }
@@ -1536,40 +1530,6 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                 truncate(&fleet.ship_composition_table_summary(), COLUMNS[9].width),
             ],
         });
-    }
-
-    if location_filter.is_none() {
-        for (idx, base) in app.game_data.bases.records.iter().enumerate() {
-            if base.owner_empire_raw() != owner_slot || base.active_flag_raw() == 0 {
-                continue;
-            }
-            rows.push(FleetOverlayRow {
-                key: FleetOverlayRowKey::Starbase(idx + 1),
-                id_number: None,
-                selected: false,
-                id_label: format!("SB{}", base.base_id_raw()),
-                coords: base.coords_raw(),
-                target_coords: [0, 0],
-                order: Order::GuardStarbase,
-                current_speed: 0,
-                eta_label: starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
-                roe: 0,
-                loaded_armies: 0,
-                strength_key: (0, 0, 0, 0, 0, 0, u16::from(base.base_id_raw())),
-                cells: vec![
-                    format!("SB{}", base.base_id_raw()),
-                    String::new(),
-                    format_coords(base.coords_raw()),
-                    fleet_table_order_label(Order::GuardStarbase).to_string(),
-                    String::from("--"),
-                    String::from("0"),
-                    starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
-                    String::from("0"),
-                    String::from("0"),
-                    String::from("Starbase"),
-                ],
-            });
-        }
     }
 
     rows.retain(|row| match app.fleet_overlay.filter {
@@ -2022,7 +1982,7 @@ mod tests {
         assert!(
             selection_rows(&app)
                 .iter()
-                .any(|row| row.first().is_some_and(|value| value == "SB1"))
+                .all(|row| row.first().is_some_and(|value| value.chars().all(|ch| ch.is_ascii_digit())))
         );
     }
 
@@ -2079,7 +2039,7 @@ mod tests {
         assert!(
             !lines
                 .iter()
-                .any(|line| line.contains("You have no active fleets or starbases."))
+                .any(|line| line.contains("You have no active fleets."))
         );
     }
 
@@ -2211,46 +2171,7 @@ mod tests {
     }
 
     #[test]
-    fn starbase_prompts_follow_standard_command_line_grammar() {
-        let mut app = dash_app_with_starbase();
-        app.overlay = ActiveOverlay::FleetList;
-        let starbase_index = table_rows(&app)
-            .iter()
-            .position(|row| matches!(row.key, crate::app::state::FleetOverlayRowKey::Starbase(_)))
-            .expect("starbase row");
-        app.fleet_overlay.selected = starbase_index;
-        app.open_selected_fleet_order_flow();
-
-        let layout = dashboard_layout(&app);
-        let mut decision_buffer = PlayfieldBuffer::new(
-            app.geometry.width(),
-            app.geometry.height(),
-            crate::theme::body_style(),
-        );
-        draw(&mut decision_buffer, &app, layout.widgets.center_map);
-        let decision_line = (0..decision_buffer.height())
-            .map(|row| decision_buffer.plain_line(row))
-            .find(|line| line.contains("COMMAND <- Halt or move"))
-            .expect("starbase decision footer");
-        assert!(decision_line.contains("COMMAND <- Halt or move <H>, <M> [M] <ESC> ->"));
-
-        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseHaltConfirm;
-        let mut confirm_buffer = PlayfieldBuffer::new(
-            app.geometry.width(),
-            app.geometry.height(),
-            crate::theme::body_style(),
-        );
-        draw(&mut confirm_buffer, &app, layout.widgets.center_map);
-        let confirm_line = (0..confirm_buffer.height())
-            .map(|row| confirm_buffer.plain_line(row))
-            .find(|line| line.contains("Halt this starbase?"))
-            .expect("starbase halt confirm footer");
-        assert!(confirm_line.contains("COMMAND <- Halt this starbase? [Y]/N <ESC> ->"));
-        assert!(!confirm_line.contains("[Y] <ESC> ->"));
-    }
-
-    #[test]
-    fn fleet_table_marks_selected_fleets_and_leaves_starbases_blank() {
+    fn fleet_table_marks_selected_fleet() {
         let mut app = dash_app_with_starbase();
         let selected_record = table_rows(&app)
             .into_iter()
@@ -2268,13 +2189,11 @@ mod tests {
             .iter()
             .find(|row| row.key == crate::app::state::FleetOverlayRowKey::Fleet(selected_record))
             .expect("selected fleet row");
-        let starbase_row = rows
-            .iter()
-            .find(|row| matches!(row.key, crate::app::state::FleetOverlayRowKey::Starbase(_)))
-            .expect("starbase row");
 
         assert_eq!(fleet_row.cells[1], "X");
-        assert!(starbase_row.cells[1].is_empty());
+        assert!(rows
+            .iter()
+            .all(|row| !matches!(row.key, crate::app::state::FleetOverlayRowKey::Starbase(_))));
     }
 
     #[test]
@@ -2285,15 +2204,19 @@ mod tests {
             .iter()
             .find(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
             .expect("fleet row");
-        let starbase_row = rows
-            .iter()
-            .find(|row| matches!(row.key, FleetOverlayRowKey::Starbase(_)))
-            .expect("starbase row");
 
         assert_eq!(fleet_row.cells[3], fleet_table_order_label(fleet_row.order));
-        assert_eq!(starbase_row.cells[3], "Guard SB");
         assert_eq!(fleet_table_order_label(Order::MoveOnly), "Move");
         assert_eq!(fleet_table_order_label(Order::ScoutSector), "Scout sect");
+    }
+
+    #[test]
+    fn fleet_table_excludes_starbases_from_rows() {
+        let app = dash_app_with_starbase();
+
+        assert!(table_rows(&app)
+            .iter()
+            .all(|row| !matches!(row.key, FleetOverlayRowKey::Starbase(_))));
     }
 
     #[test]
