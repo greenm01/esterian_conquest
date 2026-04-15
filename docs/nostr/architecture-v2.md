@@ -111,6 +111,7 @@ Recruiting values:
 Players see public recruiting metadata only:
 
 - game name
+- game tier
 - current year/turn
 - recruiting mode
 - open seat count
@@ -192,6 +193,21 @@ Seat lifecycle is intentionally small:
 - `pending`
 - `claimed`
 
+Tier policy stays outside the low-level seat shape but is still part of the
+hosted product contract:
+
+- `sandbox`
+  - low-friction try-the-game pool
+  - join requests may be auto-approved while open seats exist
+  - players who go MIA for 3 turns are ejected and the seat reopens
+  - players who stay in the same claimed seat for 10 elapsed game turns are
+    rotated out and the seat reopens
+  - the game itself stays open; only the seat occupant changes
+- `league`
+  - long-form serious campaign
+  - seats stay with the approved player unless the sysop resets them or some
+    separate replacement policy applies
+
 Admin actions:
 
 - reissue invite
@@ -212,6 +228,15 @@ Per-game settings include:
 The supervisor schedules due games and sends maintenance work to the owning
 game worker. The first spec does not auto-run turns merely because all players
 submitted.
+
+Sandbox maintenance has two extra hosted rules:
+
+- 3-turn MIA players are ejected and their seats reopen
+- claimed sandbox seats recycle after 10 elapsed turns so new players can keep
+  sampling the same long-running sandbox
+
+That recycle is seat-local, not game-local. It must not mark the game
+`finished`.
 
 ## 8. Nostr Event Surface
 
@@ -270,6 +295,7 @@ Optional tags:
 - `host-contact-npub`
 - `host-contact-label`
 - `host-contact-nip05`
+- `tier`
 - `slot`
 
 `slot` remains hashed-only:

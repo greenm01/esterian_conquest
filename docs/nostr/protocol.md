@@ -86,6 +86,7 @@ Example:
     ["name", "Friday Night NC"],
     ["status", "active"],
     ["players", "4"],
+    ["tier", "league"],
     ["recruiting", "replacement_players"],
     ["open-seats", "1"],
     ["year", "3012"],
@@ -117,6 +118,7 @@ Optional tags:
 - `host-contact-npub`: direct contact `npub` for the listed host contact
 - `host-contact-label`: compact label shown in the lobby contact list and host column
 - `host-contact-nip05`: optional full NIP-05 stored privately by the client
+- `tier`: `sandbox` or `league`
 - `slot`: hashed seat metadata for invite matching and diagnostics
 
 `slot` shape:
@@ -130,6 +132,8 @@ Rules:
 - raw invite codes are normalized, hashed, and never published directly
 - non-recruiting games should not appear in the public lobby
 - private games may omit `30500` entirely
+- sandbox games stay open-ended at the game level; hosts may recycle claimed
+  seats after 10 elapsed turns and reopen seats after 3-turn MIA ejections
 
 ## 5. 30513 `InviteRequest`
 
