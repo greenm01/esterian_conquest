@@ -37,6 +37,8 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::MatrixLocked => handle_matrix_locked_key(app, key),
         LobbyRoute::Locked => handle_locked_key(app, key),
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
+        LobbyRoute::SandboxJoinConfirm => handle_sandbox_join_confirm_key(app, key),
+        LobbyRoute::SandboxJoinUnavailable => handle_sandbox_join_unavailable_key(app, key),
         LobbyRoute::EditHandle => handle_edit_handle_key(app, key),
         LobbyRoute::Settings => handle_settings_key(app, key),
         LobbyRoute::ThemePicker => handle_theme_picker_key(app, key),
@@ -103,18 +105,14 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
             app.should_quit = true;
         }
         KeyCode::Enter => match app.state.active_tab {
-            LobbyTab::OpenGames => {
-                app.state.compose_message_input.clear();
-                open_popup_route(app, LobbyRoute::ComposeInvite);
-            }
+            LobbyTab::OpenGames => activate_selected_open_game(app),
             LobbyTab::MyGames => open_or_claim_selected_game(app),
             _ => {}
         },
         KeyCode::Up => move_selection(app, -1),
         KeyCode::Down => move_selection(app, 1),
         KeyCode::Char('J' | 'n' | 'N') => {
-            app.state.compose_message_input.clear();
-            open_popup_route(app, LobbyRoute::ComposeInvite);
+            activate_selected_open_game(app);
         }
         KeyCode::Char('H' | 'h') => {
             open_manual_popup(app);
@@ -128,6 +126,23 @@ fn handle_home_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         _ => {}
     }
+}
+
+fn handle_sandbox_join_confirm_key(app: &mut LobbyApp, key: KeyEvent) {
+    match key.code {
+        KeyCode::Char('y' | 'Y') => join_selected_sandbox_game(app),
+        _ => {
+            app.state.sandbox_join_target = None;
+            app.state.sandbox_join_notice = None;
+            close_popup_route(app, LobbyRoute::Home);
+        }
+    }
+}
+
+fn handle_sandbox_join_unavailable_key(app: &mut LobbyApp, _key: KeyEvent) {
+    app.state.sandbox_join_target = None;
+    app.state.sandbox_join_notice = None;
+    close_popup_route(app, LobbyRoute::Home);
 }
 
 fn handle_comms_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -888,6 +903,83 @@ fn refresh_hosted_game(app: &mut LobbyApp) {
     }
 }
 
+pub(crate) fn activate_selected_open_game(app: &mut LobbyApp) {
+    let Some(row) = app.state.selected_open_game().cloned() else {
+        set_status(
+            app,
+            LobbyStatusTone::Error,
+            "no hosted game selected".to_string(),
+        );
+        return;
+    };
+    if row.game_tier.eq_ignore_ascii_case("sandbox") {
+        if let Some(joined_row) = app
+            .state
+            .joined_games
+            .iter()
+            .find(|joined| joined.game_id == row.game_id && joined.status == "joined")
+            .cloned()
+        {
+            open_joined_game(app, joined_row);
+            return;
+        }
+        app.state.sandbox_join_target = Some(row);
+        app.state.sandbox_join_notice = None;
+        open_popup_route(app, LobbyRoute::SandboxJoinConfirm);
+        return;
+    }
+    app.state.compose_message_input.clear();
+    open_popup_route(app, LobbyRoute::ComposeInvite);
+}
+
+fn join_selected_sandbox_game(app: &mut LobbyApp) {
+    let Some(row) = app.state.sandbox_join_target.clone() else {
+        close_popup_route(app, LobbyRoute::Home);
+        return;
+    };
+    match app.transport.join_sandbox_game(&row) {
+        Ok(super::transport::LobbySandboxJoinResult::Joined(success)) => {
+            let row = success
+                .loaded
+                .joined_games
+                .iter()
+                .find(|joined| joined.game_id == success.snapshot.game_id)
+                .cloned()
+                .unwrap_or_else(|| {
+                    let mut joined = super::models::JoinedGameRow::new(
+                        &row.game_id,
+                        "joined",
+                        &row.game,
+                        &row.host,
+                        &row.relay_url,
+                        &row.daemon_pubkey,
+                        Some(success.snapshot.player_seat as u8),
+                        &format!("Y{} T{}", success.snapshot.year, success.snapshot.turn),
+                    );
+                    joined.game_tier = row.game_tier.clone();
+                    joined.host_contact_npub = row.host_contact_npub.clone();
+                    joined.last_turn = Some(success.snapshot.turn);
+                    joined.last_hash = Some(success.snapshot.state_hash.clone());
+                    joined
+                });
+            app.state.apply_loaded(success.loaded);
+            app.state.sandbox_join_target = None;
+            app.state.sandbox_join_notice = None;
+            open_hosted_dashboard(app, row, success.snapshot);
+        }
+        Ok(super::transport::LobbySandboxJoinResult::Full(message)) => {
+            app.state.sandbox_join_notice = Some(message);
+            open_popup_route(app, LobbyRoute::SandboxJoinUnavailable);
+        }
+        Err(err) => {
+            app.state.sandbox_join_target = None;
+            app.state.sandbox_join_notice = None;
+            close_popup_route(app, LobbyRoute::Home);
+            set_status(app, LobbyStatusTone::Error, err);
+        }
+    }
+}
+
 fn open_or_claim_selected_game(app: &mut LobbyApp) {
     let Some(row) = app.state.selected_joined_game().cloned() else {
         set_status(
@@ -906,28 +998,40 @@ fn open_or_claim_selected_game(app: &mut LobbyApp) {
         set_status(app, LobbyStatusTone::Info, message.to_string());
         return;
     }
+    open_joined_game(app, row);
+}
+
+fn open_joined_game(app: &mut LobbyApp, row: super::models::JoinedGameRow) {
     match app.transport.open_game(&row) {
-        Ok(snapshot) => match build_hosted_dash_app(&snapshot, app.geometry) {
-            Ok(dashboard) => {
-                app.state.hosted_game = Some(HostedGameView {
-                    row,
-                    snapshot,
-                    dashboard,
-                    submit_input: String::new(),
-                    submit_status: Some("Hosted dashboard loaded from nc-host.".to_string()),
-                });
-                app.state.route = LobbyRoute::HostedGame;
-                app.popup_position = None;
-            }
-            Err(err) => {
-                set_status(
-                    app,
-                    LobbyStatusTone::Error,
-                    format!("Unable to build hosted dashboard: {err}"),
-                );
-            }
-        },
+        Ok(snapshot) => open_hosted_dashboard(app, row, snapshot),
         Err(err) => set_status(app, LobbyStatusTone::Error, err),
+    }
+}
+
+fn open_hosted_dashboard(
+    app: &mut LobbyApp,
+    row: super::models::JoinedGameRow,
+    snapshot: nc_nostr::state_sync::GameState,
+) {
+    match build_hosted_dash_app(&snapshot, app.geometry) {
+        Ok(dashboard) => {
+            app.state.hosted_game = Some(HostedGameView {
+                row,
+                snapshot,
+                dashboard,
+                submit_input: String::new(),
+                submit_status: Some("Hosted dashboard loaded from nc-host.".to_string()),
+            });
+            app.state.route = LobbyRoute::HostedGame;
+            app.popup_position = None;
+        }
+        Err(err) => {
+            set_status(
+                app,
+                LobbyStatusTone::Error,
+                format!("Unable to build hosted dashboard: {err}"),
+            );
+        }
     }
 }
 

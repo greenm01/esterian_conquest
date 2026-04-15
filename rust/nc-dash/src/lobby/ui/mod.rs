@@ -69,6 +69,12 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
         LobbyRoute::ComposeInvite => {
             popups::render_compose_invite_popup(&mut buffer, app, layout.body)
         }
+        LobbyRoute::SandboxJoinConfirm => {
+            popups::render_sandbox_join_confirm_popup(&mut buffer, app, layout.body)
+        }
+        LobbyRoute::SandboxJoinUnavailable => {
+            popups::render_sandbox_join_unavailable_popup(&mut buffer, app, layout.body)
+        }
         LobbyRoute::EditHandle => popups::render_edit_handle_popup(&mut buffer, app, layout.body),
         LobbyRoute::ContactPicker => {
             popups::render_contact_picker_popup(&mut buffer, app, layout.body)

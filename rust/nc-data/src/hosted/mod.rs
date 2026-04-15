@@ -11,8 +11,9 @@ pub mod threads;
 pub mod turn_queue;
 
 pub use invite_requests::{
-    InviteRequest, InviteRequestStatus, approve_request, approve_request_for_seat,
-    count_pending_requests, count_unpublished_decisions, create_request, get_pending_request_count,
+    InviteRequest, InviteRequestStatus, SandboxApprovalOutcome, approve_request,
+    approve_request_for_seat, auto_approve_sandbox_request, count_pending_requests,
+    count_unpublished_decisions, create_request, delete_request, get_pending_request_count,
     get_request, list_pending_decisions, list_requests, mark_decision_published, reject_request,
 };
 pub use outbox::{

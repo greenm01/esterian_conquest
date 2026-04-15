@@ -1,4 +1,6 @@
-use nc_nostr::invite_request::{InviteRequestPayload, parse_invite_request};
+use nc_nostr::invite_request::{
+    InviteRequestPayload, InviteRequestReceipt, InviteRequestReceiptStatus, parse_invite_request,
+};
 use nc_nostr::private_payload::encrypt_private_json;
 use nc_nostr::state_sync::{StateRequestPayload, parse_state_request};
 use nc_nostr::turn_commands::{TurnCommandsPayload, parse_turn_commands};
@@ -85,4 +87,20 @@ fn turn_commands_use_hex_player_pubkey() {
 
     let parsed = parse_turn_commands(host.secret_key(), &event).expect("parse turn commands");
     assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
+}
+
+#[test]
+fn invite_request_receipt_supports_game_full_status() {
+    let receipt = InviteRequestReceipt {
+        request_id: "req-001".to_string(),
+        game_id: "sandbox-smoke".to_string(),
+        status: InviteRequestReceiptStatus::GameFull,
+        message: "This sandbox is full right now.".to_string(),
+    };
+
+    let json = serde_json::to_string(&receipt).expect("serialize receipt");
+    let parsed: InviteRequestReceipt = serde_json::from_str(&json).expect("parse receipt");
+
+    assert_eq!(parsed.status, InviteRequestReceiptStatus::GameFull);
+    assert_eq!(parsed.status.as_str(), "game_full");
 }

@@ -41,6 +41,12 @@ impl InviteRequestStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SandboxApprovalOutcome {
+    Claimed { seat: u32 },
+    Full,
+}
+
 pub fn create_request(
     conn: &Connection,
     id: &str,
@@ -54,6 +60,11 @@ pub fn create_request(
          VALUES (?1, ?2, ?3, ?4, 'pending', ?5)",
         params![id, game_id, player_pubkey, message, now],
     )?;
+    Ok(())
+}
+
+pub fn delete_request(conn: &Connection, id: &str) -> SqliteResult<()> {
+    conn.execute("DELETE FROM invite_requests WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -160,6 +171,65 @@ pub fn approve_request_for_seat(
         Ok(()) => {
             conn.execute_batch("COMMIT")?;
             Ok(())
+        }
+        Err(err) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            Err(err)
+        }
+    }
+}
+
+pub fn auto_approve_sandbox_request(
+    conn: &Connection,
+    request_id: &str,
+    game_id: &str,
+    player_pubkey: &str,
+    claimed_year: u16,
+    decision_message: &str,
+) -> SqliteResult<SandboxApprovalOutcome> {
+    conn.execute_batch("BEGIN IMMEDIATE")?;
+
+    let result = (|| -> SqliteResult<SandboxApprovalOutcome> {
+        if let Some(existing) = super::seats::get_seat_by_pubkey(conn, game_id, player_pubkey)? {
+            if existing.status == super::seats::SeatStatus::Claimed {
+                approve_request(conn, request_id, decision_message, existing.seat_number, None)?;
+                return Ok(SandboxApprovalOutcome::Claimed {
+                    seat: existing.seat_number,
+                });
+            }
+        }
+
+        let Some(open_seat) = super::seats::list_seats(conn, game_id)?
+            .into_iter()
+            .find(|seat| seat.status == super::seats::SeatStatus::Pending)
+        else {
+            return Ok(SandboxApprovalOutcome::Full);
+        };
+
+        super::seats::claim_seat(
+            conn,
+            game_id,
+            open_seat.seat_number,
+            player_pubkey,
+            claimed_year,
+        )?;
+        approve_request(
+            conn,
+            request_id,
+            decision_message,
+            open_seat.seat_number,
+            None,
+        )?;
+        super::settings::mark_catalog_dirty(conn, game_id)?;
+        Ok(SandboxApprovalOutcome::Claimed {
+            seat: open_seat.seat_number,
+        })
+    })();
+
+    match result {
+        Ok(outcome) => {
+            conn.execute_batch("COMMIT")?;
+            Ok(outcome)
         }
         Err(err) => {
             let _ = conn.execute_batch("ROLLBACK");

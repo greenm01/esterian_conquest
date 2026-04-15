@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use nc_nostr::claim::{SeatClaimRequestPayload, SeatClaimResultPayload};
 use nc_nostr::contact_message::{ContactMessage, decrypt_contact_message};
@@ -40,6 +40,12 @@ pub struct PlayerEventBatch {
     pub turn_receipts: Vec<TurnReceipt>,
     pub contact_messages: Vec<ContactMessage>,
     pub player_messages: Vec<PlayerMessage>,
+}
+
+#[derive(Debug, Clone)]
+pub enum SandboxJoinOutcome {
+    Joined(GameState),
+    Full(String),
 }
 
 impl HostedClientSession {
@@ -221,6 +227,56 @@ impl HostedClientSession {
         )?;
         self.send_signed_event(event)?;
         Ok(request_id)
+    }
+
+    pub fn join_sandbox_game(
+        &self,
+        game_id: &str,
+        daemon_pubkey: &str,
+        handle: Option<&str>,
+    ) -> Result<SandboxJoinOutcome, Box<dyn std::error::Error>> {
+        let request_id = self.send_invite_request(game_id, daemon_pubkey, "", handle)?;
+        let deadline = Instant::now() + Duration::from_secs(15);
+
+        loop {
+            let batch = self.refresh_player_events(15)?;
+
+            if let Some(receipt) = batch
+                .receipts
+                .iter()
+                .find(|receipt| receipt.request_id == request_id)
+            {
+                match receipt.status {
+                    nc_nostr::invite_request::InviteRequestReceiptStatus::Received => {}
+                    nc_nostr::invite_request::InviteRequestReceiptStatus::GameFull => {
+                        return Ok(SandboxJoinOutcome::Full(receipt.message.clone()));
+                    }
+                    _ => return Err(receipt.message.clone().into()),
+                }
+            }
+
+            if let Some(decision) = batch
+                .decisions
+                .iter()
+                .find(|decision| decision.request_id == request_id)
+            {
+                match decision.decision {
+                    nc_nostr::invite_request::InviteDecision::Approved { .. } => {
+                        let state =
+                            self.request_state(game_id, daemon_pubkey, None, None, handle)?;
+                        return Ok(SandboxJoinOutcome::Joined(state));
+                    }
+                    nc_nostr::invite_request::InviteDecision::Rejected => {
+                        return Err(decision.message.clone().into());
+                    }
+                }
+            }
+
+            if Instant::now() >= deadline {
+                return Err("sandbox join timed out".into());
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
     }
 
     pub fn send_thread_message(

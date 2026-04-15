@@ -223,6 +223,18 @@ impl LobbyApp {
             return;
         }
 
+        if matches!(
+            self.state.route,
+            LobbyRoute::SandboxJoinConfirm | LobbyRoute::SandboxJoinUnavailable
+        ) {
+            self.state.route = LobbyRoute::Home;
+            self.state.sandbox_join_target = None;
+            self.state.sandbox_join_notice = None;
+            self.popup_position = None;
+            self.mouse_gesture = LobbyMouseGesture::None;
+            return;
+        }
+
         self.mouse_gesture = LobbyMouseGesture::None;
         if self.state.route == LobbyRoute::MatrixLocked {
             self.begin_unlock_prompt();
@@ -301,6 +313,10 @@ impl LobbyApp {
             return;
         };
         let previous_context = self.state.preferred_game_context_id().map(str::to_string);
+        let activate_open_game = hit.tab == LobbyTab::OpenGames
+            && self.state.active_tab == LobbyTab::OpenGames
+            && hit.selected_row.is_some()
+            && hit.selected_row == Some(self.state.open_selected);
         self.state.active_tab = hit.tab;
         match hit.tab {
             LobbyTab::MyGames => {
@@ -326,6 +342,9 @@ impl LobbyApp {
             }
         }
         update::reset_context_dependent_views(self, previous_context);
+        if activate_open_game {
+            update::activate_selected_open_game(self);
+        }
     }
 
     fn handle_lobby_mouse_drag(&mut self, mouse: MouseEvent) {

@@ -47,6 +47,44 @@ fn tab_token_start(app: &LobbyApp, token: &str) -> (u16, u16) {
         .expect("tab token")
 }
 
+fn sandbox_open_game() -> OpenGameRow {
+    let mut row = OpenGameRow::new(
+        "sandbox-smoke",
+        "Open",
+        "Sandbox Smoke",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        1,
+        4,
+        "2026-04-15",
+        "Y3000 T4",
+        "summary",
+    );
+    row.game_tier = "Sandbox".to_string();
+    row
+}
+
+fn league_open_game() -> OpenGameRow {
+    let mut row = OpenGameRow::new(
+        "league-night",
+        "Open",
+        "League Night",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "replacement_players",
+        1,
+        4,
+        "2026-04-15",
+        "Y3000 T4",
+        "summary",
+    );
+    row.game_tier = "League".to_string();
+    row
+}
+
 #[test]
 fn enter_advances_first_run_fields_before_submit() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
@@ -1071,6 +1109,72 @@ fn clicking_header_tabs_switches_active_tab() {
         comms_row,
     ));
     assert_eq!(app.state.active_tab, LobbyTab::Comms);
+}
+
+#[test]
+fn enter_on_sandbox_open_game_opens_join_confirm_popup() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::OpenGames;
+    app.state.open_games = vec![sandbox_open_game()];
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::SandboxJoinConfirm);
+    assert_eq!(
+        app.state
+            .sandbox_join_target
+            .as_ref()
+            .map(|row| row.game.as_str()),
+        Some("Sandbox Smoke")
+    );
+}
+
+#[test]
+fn j_on_sandbox_open_game_opens_join_confirm_popup() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::OpenGames;
+    app.state.open_games = vec![sandbox_open_game()];
+
+    apply_key(&mut app, key(KeyCode::Char('J')));
+
+    assert_eq!(app.state.route, LobbyRoute::SandboxJoinConfirm);
+}
+
+#[test]
+fn enter_on_league_open_game_still_opens_request_popup() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.active_tab = LobbyTab::OpenGames;
+    app.state.open_games = vec![league_open_game()];
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::ComposeInvite);
+}
+
+#[test]
+fn sandbox_join_confirm_popup_cancels_on_non_yes_key() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.route = LobbyRoute::SandboxJoinConfirm;
+    app.state.sandbox_join_target = Some(sandbox_open_game());
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(app.state.sandbox_join_target.is_none());
+}
+
+#[test]
+fn sandbox_full_popup_dismisses_on_any_key() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.route = LobbyRoute::SandboxJoinUnavailable;
+    app.state.sandbox_join_target = Some(sandbox_open_game());
+    app.state.sandbox_join_notice = Some("This sandbox is full right now.".to_string());
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(app.state.sandbox_join_target.is_none());
+    assert!(app.state.sandbox_join_notice.is_none());
 }
 
 #[test]

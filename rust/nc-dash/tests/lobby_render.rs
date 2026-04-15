@@ -239,8 +239,8 @@ fn home_route_help_popup_renders_as_overlay() {
 
     assert!(lines.contains("KEYS"));
     assert!(lines.contains("cycle dashboard tabs"));
-    assert!(lines.contains("request to join the selected game"));
-    assert!(lines.contains("compose a join request"));
+    assert!(lines.contains("join sandbox or request league access"));
+    assert!(lines.contains("join sandbox or open the league request box"));
     assert!(lines.contains("lock nc-dash"));
 }
 
@@ -269,8 +269,65 @@ fn comms_tab_help_popup_uses_comms_specific_commands() {
     assert!(lines.contains("cycle Chat / New / Threads"));
     assert!(lines.contains("open the address book"));
     assert!(lines.contains("hide the selected direct contact"));
-    assert!(!lines.contains("compose a join request"));
-    assert!(!lines.contains("request to join the selected game"));
+    assert!(!lines.contains("join sandbox or open the league request box"));
+    assert!(!lines.contains("join sandbox or request league access"));
+}
+
+#[test]
+fn sandbox_join_confirm_popup_renders_dynamic_copy() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut row = OpenGameRow::new(
+        "sandbox-smoke",
+        "Open",
+        "Sandbox Smoke",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        1,
+        4,
+        "2026-04-15",
+        "Y3000 T4",
+        "summary",
+    );
+    row.game_tier = "Sandbox".to_string();
+    app.state.route = LobbyRoute::SandboxJoinConfirm;
+    app.state.sandbox_join_target = Some(row);
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("JOIN SANDBOX"));
+    assert!(lines.contains("Sandbox Smoke"));
+    assert!(lines.contains("Y joins an open seat immediately."));
+}
+
+#[test]
+fn sandbox_full_popup_renders_dismissal_copy() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    let mut row = OpenGameRow::new(
+        "sandbox-smoke",
+        "Open",
+        "Sandbox Smoke",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        "new_players",
+        0,
+        4,
+        "2026-04-15",
+        "Y3000 T4",
+        "summary",
+    );
+    row.game_tier = "Sandbox".to_string();
+    app.state.route = LobbyRoute::SandboxJoinUnavailable;
+    app.state.sandbox_join_target = Some(row);
+    app.state.sandbox_join_notice = Some("This sandbox is full right now.".to_string());
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("SANDBOX FULL"));
+    assert!(lines.contains("Sandbox Smoke is full right now."));
+    assert!(lines.contains("Press any key to dismiss."));
 }
 
 #[test]

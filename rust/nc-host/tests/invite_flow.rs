@@ -1,7 +1,7 @@
 mod common;
 
 use common::create_test_game;
-use nc_data::hosted::InviteRequestStatus;
+use nc_data::hosted::{InviteRequestStatus, SandboxApprovalOutcome};
 
 #[test]
 fn test_create_invite_request() {
@@ -190,4 +190,108 @@ fn test_mark_decision_published() {
         .expect("should get")
         .expect("should exist");
     assert!(req.decision_published_at.is_some());
+}
+
+#[test]
+fn test_auto_approve_sandbox_request_claims_first_open_seat() {
+    let (_temp, _game_dir, store) = create_test_game("sandbox-invite-1", 4);
+    let game_id = "sandbox-invite-1";
+
+    nc_data::hosted::create_request(
+        store.connection(),
+        "req-sandbox-1",
+        game_id,
+        "sandbox-player",
+        "",
+    )
+    .expect("request should be created");
+
+    let outcome = nc_data::hosted::auto_approve_sandbox_request(
+        store.connection(),
+        "req-sandbox-1",
+        game_id,
+        "sandbox-player",
+        3000,
+        "Auto-approved for sandbox game.",
+    )
+    .expect("sandbox auto approve should succeed");
+
+    assert_eq!(outcome, SandboxApprovalOutcome::Claimed { seat: 1 });
+
+    let seat = nc_data::hosted::get_seat_by_number(store.connection(), game_id, 1)
+        .expect("get seat")
+        .expect("seat should exist");
+    assert_eq!(seat.player_pubkey.as_deref(), Some("sandbox-player"));
+    assert_eq!(seat.claimed_year, Some(3000));
+}
+
+#[test]
+fn test_auto_approve_sandbox_request_returns_existing_claimed_seat() {
+    let (_temp, _game_dir, store) = create_test_game("sandbox-invite-2", 4);
+    let game_id = "sandbox-invite-2";
+
+    nc_data::hosted::claim_seat(store.connection(), game_id, 3, "sandbox-player", 3000)
+        .expect("claim seat");
+    nc_data::hosted::create_request(
+        store.connection(),
+        "req-sandbox-2",
+        game_id,
+        "sandbox-player",
+        "",
+    )
+    .expect("request should be created");
+
+    let outcome = nc_data::hosted::auto_approve_sandbox_request(
+        store.connection(),
+        "req-sandbox-2",
+        game_id,
+        "sandbox-player",
+        3001,
+        "Auto-approved for sandbox game.",
+    )
+    .expect("sandbox auto approve should succeed");
+
+    assert_eq!(outcome, SandboxApprovalOutcome::Claimed { seat: 3 });
+
+    let seat = nc_data::hosted::get_seat_by_number(store.connection(), game_id, 3)
+        .expect("get seat")
+        .expect("seat should exist");
+    assert_eq!(seat.player_pubkey.as_deref(), Some("sandbox-player"));
+    assert_eq!(seat.claimed_year, Some(3000));
+}
+
+#[test]
+fn test_auto_approve_sandbox_request_reports_full_when_no_pending_seats() {
+    let (_temp, _game_dir, store) = create_test_game("sandbox-invite-3", 2);
+    let game_id = "sandbox-invite-3";
+
+    nc_data::hosted::claim_seat(store.connection(), game_id, 1, "player-1", 3000)
+        .expect("claim seat 1");
+    nc_data::hosted::claim_seat(store.connection(), game_id, 2, "player-2", 3000)
+        .expect("claim seat 2");
+    nc_data::hosted::create_request(
+        store.connection(),
+        "req-sandbox-3",
+        game_id,
+        "sandbox-player",
+        "",
+    )
+    .expect("request should be created");
+
+    let outcome = nc_data::hosted::auto_approve_sandbox_request(
+        store.connection(),
+        "req-sandbox-3",
+        game_id,
+        "sandbox-player",
+        3001,
+        "Auto-approved for sandbox game.",
+    )
+    .expect("sandbox auto approve should return full");
+
+    assert_eq!(outcome, SandboxApprovalOutcome::Full);
+
+    let req = nc_data::hosted::get_request(store.connection(), "req-sandbox-3")
+        .expect("get request")
+        .expect("request should still exist until caller clears it");
+    assert_eq!(req.status, InviteRequestStatus::Pending);
 }

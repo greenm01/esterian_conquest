@@ -44,8 +44,8 @@ const MY_GAMES_HELP_ROWS: &[HelpRow] = &[
 const OPEN_GAMES_HELP_ROWS: &[HelpRow] = &[
     ("Tab", "cycle dashboard tabs"),
     ("Up / Down", "move within OPEN GAMES"),
-    ("Enter", "request to join the selected game"),
-    ("J", "compose a join request"),
+    ("Enter", "join sandbox or request league access"),
+    ("J", "join sandbox or open the league request box"),
     ("Alt-L", "lock nc-dash"),
     ("S", "open lobby settings, including handle and idle lock"),
     ("R", "refresh the hosted lobby"),
@@ -270,6 +270,40 @@ pub(super) fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, p
         buffer,
         popup_rect(parent, popup_text_size(parent, &lines), app.popup_position),
         " REQUEST TO JOIN ",
+        &measure_popup_text(parent, &lines).lines,
+        theme::tui_theme().value,
+    );
+}
+
+pub(super) fn render_sandbox_join_confirm_popup(
+    buffer: &mut Buffer,
+    app: &LobbyApp,
+    parent: Rect,
+) {
+    let lines = sandbox_join_confirm_popup_lines(app);
+    render_popup_lines(
+        buffer,
+        popup_rect(parent, sandbox_join_confirm_popup_size(app, parent), app.popup_position),
+        " JOIN SANDBOX ",
+        &measure_popup_text(parent, &lines).lines,
+        theme::tui_theme().value,
+    );
+}
+
+pub(super) fn render_sandbox_join_unavailable_popup(
+    buffer: &mut Buffer,
+    app: &LobbyApp,
+    parent: Rect,
+) {
+    let lines = sandbox_join_unavailable_popup_lines(app);
+    render_popup_lines(
+        buffer,
+        popup_rect(
+            parent,
+            sandbox_join_unavailable_popup_size(app, parent),
+            app.popup_position,
+        ),
+        " SANDBOX FULL ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
     );
@@ -544,6 +578,14 @@ pub(super) fn compose_invite_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u
     popup_text_size(parent, &compose_invite_popup_lines(app))
 }
 
+pub(super) fn sandbox_join_confirm_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &sandbox_join_confirm_popup_lines(app))
+}
+
+pub(super) fn sandbox_join_unavailable_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &sandbox_join_unavailable_popup_lines(app))
+}
+
 pub(super) fn edit_handle_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
     popup_text_size(parent, &edit_handle_popup_lines(app))
 }
@@ -670,6 +712,40 @@ fn compose_invite_popup_lines(app: &LobbyApp) -> Vec<String> {
         ),
         format!("Message : {}", app.state.compose_message_input),
         "Enter sends a 30513 join request.".to_string(),
+    ]
+}
+
+fn sandbox_join_confirm_popup_lines(app: &LobbyApp) -> Vec<String> {
+    let game = app
+        .state
+        .sandbox_join_target
+        .as_ref()
+        .or_else(|| app.state.selected_open_game())
+        .map(|row| row.game.as_str())
+        .unwrap_or("<none>");
+    vec![
+        format!("Game : {game}"),
+        "Join this sandbox now?".to_string(),
+        "Y joins an open seat immediately.".to_string(),
+        "Any other key cancels.".to_string(),
+    ]
+}
+
+fn sandbox_join_unavailable_popup_lines(app: &LobbyApp) -> Vec<String> {
+    let game = app
+        .state
+        .sandbox_join_target
+        .as_ref()
+        .or_else(|| app.state.selected_open_game())
+        .map(|row| row.game.as_str())
+        .unwrap_or("This sandbox");
+    vec![
+        format!("{game} is full right now."),
+        app.state
+            .sandbox_join_notice
+            .clone()
+            .unwrap_or_else(|| "Try again later after a seat rotates open.".to_string()),
+        "Press any key to dismiss.".to_string(),
     ]
 }
 

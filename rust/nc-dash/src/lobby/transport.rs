@@ -5,7 +5,9 @@ use nc_client::cache::{
 use nc_client::config::{ClientConfig, load_config};
 use nc_client::contacts::{resolve_contact_input, short_contact_label};
 use nc_client::hosted::live::{HostedLiveSession, HostedSessionStatus, HostedSessionUpdate};
-use nc_client::hosted::session::{CatalogGame, HostedClientSession, PlayerEventBatch};
+use nc_client::hosted::session::{
+    CatalogGame, HostedClientSession, PlayerEventBatch, SandboxJoinOutcome,
+};
 use nc_client::keychain::{
     Keychain, active_keys, load_keychain, now_iso8601, push_new_identity, save_keychain,
     set_active_handle,
@@ -101,6 +103,16 @@ pub struct LobbyLoadedState {
     pub network_status: LobbyNetworkStatus,
     pub status_message: Option<String>,
     pub status_tone: LobbyStatusTone,
+}
+
+pub struct SandboxJoinSuccess {
+    pub loaded: LobbyLoadedState,
+    pub snapshot: GameState,
+}
+
+pub enum LobbySandboxJoinResult {
+    Joined(SandboxJoinSuccess),
+    Full(String),
 }
 
 struct UnlockedClient {
@@ -326,6 +338,71 @@ impl LobbyTransport {
             LobbyStatusTone::Success,
             None,
         ))
+    }
+
+    pub fn join_sandbox_game(
+        &mut self,
+        row: &OpenGameRow,
+    ) -> Result<LobbySandboxJoinResult, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let session = unlocked
+            .session
+            .as_ref()
+            .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+        let handle = current_handle(&unlocked.keychain);
+        match session
+            .join_sandbox_game(&row.game_id, &row.daemon_pubkey, handle.as_deref())
+            .map_err(|err| err.to_string())?
+        {
+            SandboxJoinOutcome::Full(message) => Ok(LobbySandboxJoinResult::Full(message)),
+            SandboxJoinOutcome::Joined(snapshot) => {
+                unlocked.cache.upsert_game(CachedGame {
+                    id: row.game_id.clone(),
+                    name: row.game.clone(),
+                    game_tier: Some(row.game_tier.to_ascii_lowercase()),
+                    host_alias: Some(row.host.clone()),
+                    host_contact_npub: row.host_contact_npub.clone(),
+                    host_contact_label: Some(row.host.clone()),
+                    host_contact_nip05: None,
+                    relay_url: row.relay_url.clone(),
+                    daemon_pubkey: row.daemon_pubkey.clone(),
+                    seat: Some(u32::from(snapshot.player_seat)),
+                    status: "joined".to_string(),
+                    invite_address: None,
+                    last_turn: Some(snapshot.turn),
+                    last_hash: Some(snapshot.state_hash.clone()),
+                    updated_at: now_iso8601(),
+                });
+                unlocked.cache.replace_roster(
+                    &snapshot.game_id,
+                    snapshot
+                        .state
+                        .roster
+                        .iter()
+                        .map(|entry| GameRosterEntry {
+                            game_id: snapshot.game_id.clone(),
+                            empire_id: entry.empire_id,
+                            empire_name: entry.empire_name.clone(),
+                            is_self: entry.is_self,
+                        })
+                        .collect(),
+                );
+                save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+                let loaded = build_loaded_state(
+                    unlocked,
+                    Some("Sandbox joined. Opening hosted dashboard.".to_string()),
+                    LobbyStatusTone::Success,
+                    None,
+                );
+                Ok(LobbySandboxJoinResult::Joined(SandboxJoinSuccess {
+                    loaded,
+                    snapshot,
+                }))
+            }
+        }
     }
 
     pub fn open_game(&mut self, row: &JoinedGameRow) -> Result<GameState, String> {
@@ -704,7 +781,14 @@ fn apply_player_events(
             .iter_mut()
             .find(|game| game.id == receipt.game_id)
         {
-            game.status = receipt.status.as_str().to_string();
+            if !matches!(game.status.as_str(), "joined" | "final") {
+                game.status = match receipt.status {
+                    nc_nostr::invite_request::InviteRequestReceiptStatus::Received => {
+                        "requested".to_string()
+                    }
+                    _ => receipt.status.as_str().to_string(),
+                };
+            }
             game.updated_at = now_iso8601();
         }
     }
@@ -1272,4 +1356,83 @@ fn iso8601_from_secs(secs: i64) -> String {
     chrono::DateTime::from_timestamp(secs, 0)
         .map(|dt| dt.to_rfc3339())
         .unwrap_or_else(now_iso8601)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nc_client::keychain::Keychain;
+    use nc_nostr::invite_request::{InviteRequestReceipt, InviteRequestReceiptStatus};
+
+    fn unlocked_with_game(status: &str) -> UnlockedClient {
+        UnlockedClient {
+            password: String::new(),
+            keychain: Keychain::empty(),
+            cache: ClientCache {
+                games: vec![CachedGame {
+                    id: "sandbox-smoke".to_string(),
+                    name: "Sandbox Smoke".to_string(),
+                    game_tier: Some("sandbox".to_string()),
+                    host_alias: Some("nc-host".to_string()),
+                    host_contact_npub: None,
+                    host_contact_label: None,
+                    host_contact_nip05: None,
+                    relay_url: "ws://127.0.0.1:8080".to_string(),
+                    daemon_pubkey: "daemon".to_string(),
+                    seat: Some(1),
+                    status: status.to_string(),
+                    invite_address: None,
+                    last_turn: Some(4),
+                    last_hash: Some("hash".to_string()),
+                    updated_at: now_iso8601(),
+                }],
+                ..ClientCache::empty()
+            },
+            catalog: Vec::new(),
+            session: None,
+            live_session: None,
+            relay_url: Some("ws://127.0.0.1:8080".to_string()),
+            network_status: LobbyNetworkStatus::Connected,
+        }
+    }
+
+    #[test]
+    fn invite_receipt_does_not_downgrade_joined_game() {
+        let mut unlocked = unlocked_with_game("joined");
+        apply_player_events(
+            &mut unlocked,
+            PlayerEventBatch {
+                receipts: vec![InviteRequestReceipt {
+                    request_id: "req-001".to_string(),
+                    game_id: "sandbox-smoke".to_string(),
+                    status: InviteRequestReceiptStatus::Received,
+                    message: "Auto-approved.".to_string(),
+                }],
+                ..PlayerEventBatch::default()
+            },
+            &[],
+        );
+
+        assert_eq!(unlocked.cache.games[0].status, "joined");
+    }
+
+    #[test]
+    fn received_receipt_maps_to_requested_for_unjoined_game() {
+        let mut unlocked = unlocked_with_game("requested");
+        apply_player_events(
+            &mut unlocked,
+            PlayerEventBatch {
+                receipts: vec![InviteRequestReceipt {
+                    request_id: "req-001".to_string(),
+                    game_id: "sandbox-smoke".to_string(),
+                    status: InviteRequestReceiptStatus::Received,
+                    message: "Auto-approved.".to_string(),
+                }],
+                ..PlayerEventBatch::default()
+            },
+            &[],
+        );
+
+        assert_eq!(unlocked.cache.games[0].status, "requested");
+    }
 }

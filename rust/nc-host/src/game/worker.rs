@@ -1,7 +1,6 @@
 use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
-use crate::invite::generate_invite_code;
 use crate::support::runtime::current_runtime_year;
 use crate::support::pubkeys::short_pubkey;
 use nc_data::hosted::{self, GameTier, HostedStore};
@@ -284,40 +283,6 @@ impl GameWorker {
             }
         };
 
-        let seats = match hosted::list_seats(store.connection(), &self.game_id) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::error!("Failed to list seats for sandbox auto-approve: {}", e);
-                return self.queued_receipt(request);
-            }
-        };
-
-        let open_seat = seats
-            .iter()
-            .find(|s| s.status == hosted::SeatStatus::Pending);
-
-        let Some(seat) = open_seat else {
-            // No open seats — fall through to sysop queue
-            if let Err(e) = crate::lobby::notify_sysop::enqueue_invite_request_summary(
-                &store,
-                &self.game_id,
-                &request.request_id,
-                &request.player_pubkey,
-                request.handle.as_deref(),
-            ) {
-                tracing::warn!(
-                    "Failed to queue sysop invite notification {} for {}: {}",
-                    request.request_id,
-                    self.game_id,
-                    e
-                );
-            }
-            return self.queued_receipt(request);
-        };
-
-        let existing_codes: std::collections::HashSet<String> =
-            seats.iter().map(|s| s.invite_code.clone()).collect();
-        let reserve_token = generate_invite_code(&existing_codes);
         let Some(game_dir) = self.db_path.parent() else {
             tracing::error!(
                 "Hosted db path has no parent for {}",
@@ -333,55 +298,68 @@ impl GameWorker {
             }
         };
 
-        if let Err(e) = hosted::approve_request_for_seat(
+        match hosted::auto_approve_sandbox_request(
             store.connection(),
             &request.request_id,
             &self.game_id,
-            seat.seat_number,
             &request.player_pubkey,
             claimed_year,
-            &reserve_token,
             "Auto-approved for sandbox game.",
         ) {
-            tracing::error!(
-                "Sandbox auto-approve failed for request {} seat {}: {}",
-                request.request_id,
-                seat.seat_number,
-                e
-            );
-            return self.queued_receipt(request);
-        }
+            Ok(hosted::SandboxApprovalOutcome::Claimed { seat }) => {
+                if let Err(e) = crate::lobby::invite_decisions::enqueue_invite_decision(
+                    &store,
+                    &self.game_id,
+                    &request.player_pubkey,
+                    &request.request_id,
+                    InviteDecision::Approved { seat },
+                    "Auto-approved for sandbox game.",
+                ) {
+                    tracing::warn!(
+                        "Failed to enqueue sandbox auto-approve decision for {}: {}",
+                        request.request_id,
+                        e
+                    );
+                }
 
-        if let Err(e) = crate::lobby::invite_decisions::enqueue_invite_decision(
-            &store,
-            &self.game_id,
-            &request.player_pubkey,
-            &request.request_id,
-            InviteDecision::Approved { seat: seat.seat_number },
-            "Auto-approved. Check your invite decisions for your invite code.",
-        ) {
-            tracing::warn!(
-                "Failed to enqueue sandbox auto-approve decision for {}: {}",
-                request.request_id,
-                e
-            );
-        }
+                tracing::info!(
+                    "Sandbox auto-approved request {} seat {} for {}",
+                    request.request_id,
+                    seat,
+                    short_pubkey(&request.player_pubkey)
+                );
 
-        tracing::info!(
-            "Sandbox auto-approved request {} seat {} for {}",
-            request.request_id,
-            seat.seat_number,
-            short_pubkey(&request.player_pubkey)
-        );
-
-        InviteRequestReceipt {
-            request_id: request.request_id.clone(),
-            game_id: self.game_id.clone(),
-            status: InviteRequestReceiptStatus::Received,
-            message: format!(
-                "Auto-approved for sandbox seat {}. Your invite code is on the way.",
-                seat.seat_number
-            ),
+                InviteRequestReceipt {
+                    request_id: request.request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: InviteRequestReceiptStatus::Received,
+                    message: format!("Auto-approved for sandbox seat {}.", seat),
+                }
+            }
+            Ok(hosted::SandboxApprovalOutcome::Full) => {
+                if let Err(e) = hosted::delete_request(store.connection(), &request.request_id) {
+                    tracing::warn!(
+                        "Failed to clear full sandbox request {} for {}: {}",
+                        request.request_id,
+                        self.game_id,
+                        e
+                    );
+                }
+                InviteRequestReceipt {
+                    request_id: request.request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: InviteRequestReceiptStatus::GameFull,
+                    message: "This sandbox is full right now.".to_string(),
+                }
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Sandbox auto-approve failed for request {}: {}",
+                    request.request_id,
+                    e
+                );
+                self.queued_receipt(request)
+            }
         }
     }
 

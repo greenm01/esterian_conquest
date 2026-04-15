@@ -118,6 +118,13 @@ pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
         LobbyRoute::ComposeInvite => {
             Some(super::popups::compose_invite_popup_size(app, layout.body))
         }
+        LobbyRoute::SandboxJoinConfirm => Some(super::popups::sandbox_join_confirm_popup_size(
+            app,
+            layout.body,
+        )),
+        LobbyRoute::SandboxJoinUnavailable => Some(
+            super::popups::sandbox_join_unavailable_popup_size(app, layout.body),
+        ),
         LobbyRoute::EditHandle => Some(super::popups::edit_handle_popup_size(app, layout.body)),
         LobbyRoute::ContactPicker => {
             Some(super::popups::contact_picker_popup_size(app, layout.body))

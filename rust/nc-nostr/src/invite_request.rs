@@ -21,6 +21,7 @@ pub struct InviteRequestPayload {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InviteRequestReceiptStatus {
     Received,
+    GameFull,
     NotRecruiting,
     GameClosed,
     RateLimited,
@@ -31,6 +32,7 @@ impl InviteRequestReceiptStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
             InviteRequestReceiptStatus::Received => "received",
+            InviteRequestReceiptStatus::GameFull => "game_full",
             InviteRequestReceiptStatus::NotRecruiting => "not_recruiting",
             InviteRequestReceiptStatus::GameClosed => "game_closed",
             InviteRequestReceiptStatus::RateLimited => "rate_limited",
