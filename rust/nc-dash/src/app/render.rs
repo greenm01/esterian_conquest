@@ -79,6 +79,16 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                     planet_record_index_1_based,
                 );
             }
+            ActivePopup::OwnedPlanet {
+                planet_record_index_1_based,
+            } => {
+                popups::owned_planet::draw(
+                    &mut buf,
+                    app,
+                    widgets.center_map,
+                    planet_record_index_1_based,
+                );
+            }
             ActivePopup::None => {}
         }
     }

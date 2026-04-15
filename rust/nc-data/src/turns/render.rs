@@ -59,6 +59,8 @@ fn render_planet_block(out: &mut String, planet: &PlanetTurnBlock) {
             PlanetTurnAction::Commission { slot_0_based } => {
                 out.push_str(&format!("  commission slot={}\n", slot_0_based + 1));
             }
+            PlanetTurnAction::AutoCommission => out.push_str("  auto_commission\n"),
+            PlanetTurnAction::Scorch => out.push_str("  scorch\n"),
         }
     }
     out.push_str("}\n");

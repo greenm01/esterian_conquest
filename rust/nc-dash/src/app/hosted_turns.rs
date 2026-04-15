@@ -53,6 +53,46 @@ impl DashApp {
         actions.insert(0, PlanetTurnAction::ClearBuildQueue);
     }
 
+    pub(crate) fn stage_hosted_planet_commission(
+        &mut self,
+        planet_record_index_1_based: usize,
+        slot_0_based: usize,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = planet_actions_mut(submission, planet_record_index_1_based);
+        actions.push(PlanetTurnAction::Commission { slot_0_based });
+    }
+
+    pub(crate) fn stage_hosted_planet_auto_commission(
+        &mut self,
+        planet_record_index_1_based: usize,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = planet_actions_mut(submission, planet_record_index_1_based);
+        if !actions
+            .iter()
+            .any(|action| matches!(action, PlanetTurnAction::AutoCommission))
+        {
+            actions.push(PlanetTurnAction::AutoCommission);
+        }
+    }
+
+    pub(crate) fn stage_hosted_planet_scorch(
+        &mut self,
+        planet_record_index_1_based: usize,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = planet_actions_mut(submission, planet_record_index_1_based);
+        actions.retain(|action| !matches!(action, PlanetTurnAction::Scorch));
+        actions.push(PlanetTurnAction::Scorch);
+    }
+
     pub(crate) fn stage_hosted_fleet_roe(&mut self, fleet_record_index_1_based: usize, value: u8) {
         let Some(submission) = self.hosted_turn_draft.as_mut() else {
             return;
@@ -122,6 +162,38 @@ impl DashApp {
         actions.push(FleetTurnAction::Transfer {
             host_fleet_record_index_1_based,
             selection,
+        });
+    }
+
+    pub(crate) fn stage_hosted_fleet_load_armies(
+        &mut self,
+        fleet_record_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        qty: u16,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = fleet_actions_mut(submission, fleet_record_index_1_based);
+        actions.push(FleetTurnAction::LoadArmies {
+            planet_record_index_1_based,
+            qty,
+        });
+    }
+
+    pub(crate) fn stage_hosted_fleet_unload_armies(
+        &mut self,
+        fleet_record_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        qty: u16,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = fleet_actions_mut(submission, fleet_record_index_1_based);
+        actions.push(FleetTurnAction::UnloadArmies {
+            planet_record_index_1_based,
+            qty,
         });
     }
 }

@@ -93,7 +93,10 @@ pub fn popup_rect(
     )
 }
 
-fn popup_lines(lines: &[crate::planet_view::DetailLine], max_body_width: usize) -> Vec<String> {
+pub(crate) fn popup_lines(
+    lines: &[crate::planet_view::DetailLine],
+    max_body_width: usize,
+) -> Vec<String> {
     let label_width = layout::label_value_width(lines.iter().map(|line| line.label));
     let prefix_width = label_width + " : ".chars().count();
     let value_width = max_body_width.saturating_sub(prefix_width).max(1);

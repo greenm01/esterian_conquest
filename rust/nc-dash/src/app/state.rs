@@ -2,6 +2,7 @@
 
 use crate::geometry::ScreenGeometry;
 use crate::table_filter::{TableFilterClause, TableFilterColumn};
+use nc_engine::ArmyTransportMode;
 use nc_data::FleetDetachSelection;
 use nc_data::{
     CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
@@ -84,6 +85,60 @@ pub enum ActivePopup {
     None,
     QuitConfirm,
     PlanetDetail { planet_record_index_1_based: usize },
+    OwnedPlanet { planet_record_index_1_based: usize },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OwnedPlanetPopupMode {
+    Browse,
+    BuildList,
+    BuildAbortConfirm,
+    BuildSpecify,
+    BuildQuantity,
+    CommissionSelect,
+    CommissionResult,
+    MassCommissionConfirm,
+    MassCommissionReport,
+    TransportFleetSelect { mode: ArmyTransportMode },
+    TransportQuantity { mode: ArmyTransportMode },
+    ScorchConfirm1,
+    ScorchConfirm2,
+    ScorchConfirm3,
+}
+
+#[derive(Debug, Clone)]
+pub struct OwnedPlanetPopupState {
+    pub mode: OwnedPlanetPopupMode,
+    pub input: String,
+    pub default: String,
+    pub status: Option<String>,
+    pub build_selected_kind: Option<ProductionItemKind>,
+    pub transport_selected_fleet_record_index_1_based: Option<usize>,
+    pub transport_selected_fleet_number: Option<u16>,
+    pub transport_available_qty: u16,
+    pub report_lines: Vec<String>,
+}
+
+impl Default for OwnedPlanetPopupState {
+    fn default() -> Self {
+        Self {
+            mode: OwnedPlanetPopupMode::Browse,
+            input: String::new(),
+            default: String::new(),
+            status: None,
+            build_selected_kind: None,
+            transport_selected_fleet_record_index_1_based: None,
+            transport_selected_fleet_number: None,
+            transport_available_qty: 0,
+            report_lines: Vec::new(),
+        }
+    }
+}
+
+impl OwnedPlanetPopupState {
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -785,6 +840,7 @@ pub struct DashApp {
     pub diplomacy_overlay: ListOverlayState,
     pub inbox_overlay: InboxOverlayState,
     pub settings_overlay: SettingsOverlayState,
+    pub owned_planet_popup: OwnedPlanetPopupState,
 
     pub is_terminal_too_small: bool,
     pub should_quit: bool,
@@ -861,6 +917,7 @@ impl DashApp {
             diplomacy_overlay: ListOverlayState::default(),
             inbox_overlay: InboxOverlayState::default(),
             settings_overlay: SettingsOverlayState::default(),
+            owned_planet_popup: OwnedPlanetPopupState::default(),
             is_terminal_too_small: false,
             should_quit: false,
         }

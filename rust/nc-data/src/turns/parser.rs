@@ -90,6 +90,8 @@ fn parse_planet_block(node: &::kdl::KdlNode) -> Result<PlanetTurnBlock, TurnSubm
                     TurnSubmissionError::Parse("commission.slot must be 1-based".to_string())
                 })?,
             }),
+            "auto_commission" => actions.push(PlanetTurnAction::AutoCommission),
+            "scorch" => actions.push(PlanetTurnAction::Scorch),
             other => {
                 return Err(TurnSubmissionError::Parse(format!(
                     "unknown planet action: {other}"

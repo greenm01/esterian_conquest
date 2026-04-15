@@ -156,6 +156,22 @@ fn apply_planet_action(
                 *slot_0_based,
             )?;
         }
+        PlanetTurnAction::AutoCommission => {
+            ensure_player_owns_planet(
+                game_data,
+                player_record_index_1_based,
+                planet.planet_record_index_1_based,
+            )?;
+            game_data.auto_commission_all_stardock_units(player_record_index_1_based)?;
+        }
+        PlanetTurnAction::Scorch => {
+            ensure_player_owns_planet(
+                game_data,
+                player_record_index_1_based,
+                planet.planet_record_index_1_based,
+            )?;
+            game_data.scorch_planet_surface(planet.planet_record_index_1_based)?;
+        }
     }
 
     Ok(())

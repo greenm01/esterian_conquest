@@ -51,6 +51,8 @@ pub enum PlanetTurnAction {
     Commission {
         slot_0_based: usize,
     },
+    AutoCommission,
+    Scorch,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
