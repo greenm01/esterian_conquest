@@ -26,25 +26,25 @@ use crate::overlays::frame::{
 };
 use nc_data::Order;
 
-pub fn order_abbrev(order: Order) -> &'static str {
+pub fn fleet_table_order_label(order: Order) -> &'static str {
     match order {
-        Order::HoldPosition => "Hd",
-        Order::MoveOnly => "Mv",
-        Order::SeekHome => "Sk",
-        Order::PatrolSector => "Pa",
-        Order::GuardStarbase => "Gs",
-        Order::GuardBlockadeWorld => "Gb",
-        Order::BombardWorld => "Bo",
-        Order::InvadeWorld => "In",
-        Order::BlitzWorld => "Bz",
-        Order::ViewWorld => "Vw",
-        Order::ScoutSector => "Ss",
-        Order::ScoutSolarSystem => "Sy",
-        Order::ColonizeWorld => "Co",
-        Order::JoinAnotherFleet => "Jn",
-        Order::RendezvousSector => "Rz",
-        Order::Salvage => "Sa",
-        Order::Unknown(_) => "??",
+        Order::HoldPosition => "Hold",
+        Order::MoveOnly => "Move",
+        Order::SeekHome => "Seek home",
+        Order::PatrolSector => "Patrol",
+        Order::GuardStarbase => "Guard SB",
+        Order::GuardBlockadeWorld => "Guard/Blkd",
+        Order::BombardWorld => "Bombard",
+        Order::InvadeWorld => "Invade",
+        Order::BlitzWorld => "Blitz",
+        Order::ViewWorld => "View",
+        Order::ScoutSector => "Scout sect",
+        Order::ScoutSolarSystem => "Scout sys",
+        Order::ColonizeWorld => "Colonize",
+        Order::JoinAnotherFleet => "Join fleet",
+        Order::RendezvousSector => "Rendezvous",
+        Order::Salvage => "Salvage",
+        Order::Unknown(_) => "Unknown",
     }
 }
 use crate::theme;
@@ -96,7 +96,7 @@ const COLUMNS: [TableColumn<'static>; 10] = [
     TableColumn::right("ID", 4),
     TableColumn::left("Sel.", 4),
     TableColumn::left("Location", 8),
-    TableColumn::left("Order", 5),
+    TableColumn::left("Order", 15),
     TableColumn::left("Target", 8),
     TableColumn::right("Spd", 3),
     TableColumn::right("ETA", 4),
@@ -1527,7 +1527,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                     String::new()
                 },
                 format_coords(fleet.current_location_coords_raw()),
-                order_abbrev(fleet.standing_order_kind()).to_string(),
+                fleet_table_order_label(fleet.standing_order_kind()).to_string(),
                 format_target(fleet.standing_order_target_coords_raw()),
                 fleet.current_speed().to_string(),
                 fleet_list_eta_label(&app.game_data, idx),
@@ -1560,7 +1560,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                     format!("SB{}", base.base_id_raw()),
                     String::new(),
                     format_coords(base.coords_raw()),
-                    String::from("Gs"),
+                    fleet_table_order_label(Order::GuardStarbase).to_string(),
                     String::from("--"),
                     String::from("0"),
                     starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
@@ -1604,7 +1604,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
         .then_with(|| right.id_label.cmp(&left.id_label)),
         FleetOverlaySort::Order => apply_sort_direction(
             app.fleet_overlay.sort_direction,
-            order_abbrev(left.order).cmp(order_abbrev(right.order)),
+            fleet_table_order_label(left.order).cmp(fleet_table_order_label(right.order)),
         )
         .then_with(|| right.id_label.cmp(&left.id_label)),
         FleetOverlaySort::Target => apply_sort_direction(
@@ -1826,8 +1826,8 @@ fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Orderin
 #[cfg(test)]
 mod tests {
     use super::{
-        HOTKEYS, draw, overlay_title, selection_rows, sort_footer_label, sync_cursor_to_jump_input,
-        table_rows,
+        HOTKEYS, draw, fleet_table_order_label, overlay_title, selection_rows, sort_footer_label,
+        sync_cursor_to_jump_input, table_rows,
     };
     use crate::app::state::{
         ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, FleetOverlayRowKey,
@@ -2275,6 +2275,25 @@ mod tests {
 
         assert_eq!(fleet_row.cells[1], "X");
         assert!(starbase_row.cells[1].is_empty());
+    }
+
+    #[test]
+    fn fleet_table_uses_readable_abbreviated_order_labels() {
+        let app = dash_app_with_starbase();
+        let rows = table_rows(&app);
+        let fleet_row = rows
+            .iter()
+            .find(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
+            .expect("fleet row");
+        let starbase_row = rows
+            .iter()
+            .find(|row| matches!(row.key, FleetOverlayRowKey::Starbase(_)))
+            .expect("starbase row");
+
+        assert_eq!(fleet_row.cells[3], fleet_table_order_label(fleet_row.order));
+        assert_eq!(starbase_row.cells[3], "Guard SB");
+        assert_eq!(fleet_table_order_label(Order::MoveOnly), "Move");
+        assert_eq!(fleet_table_order_label(Order::ScoutSector), "Scout sect");
     }
 
     #[test]
