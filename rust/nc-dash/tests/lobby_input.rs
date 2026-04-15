@@ -324,13 +324,27 @@ fn escape_in_hosted_overlay_closes_overlay_without_leaving_game() {
 }
 
 #[test]
-fn escape_from_hosted_root_returns_to_lobby_home() {
+fn escape_from_hosted_root_opens_in_game_quit_confirm() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
     app.state.hosted_game = Some(hosted_game_view());
 
     apply_key(&mut app, key(KeyCode::Esc));
 
-    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert_eq!(app.state.route, LobbyRoute::HostedGame);
+    let lines = {
+        let buffer = app.render_for_test().expect("render hosted lobby");
+        (0..buffer.height())
+            .map(|row| {
+                buffer
+                    .row(row)
+                    .iter()
+                    .map(|cell| cell.ch)
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert!(lines.contains("Quit Game? Y/[N]"));
     assert!(!app.should_quit);
 }
 

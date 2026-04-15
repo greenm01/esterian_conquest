@@ -480,7 +480,10 @@ fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
                 .as_ref()
                 .is_some_and(|hosted| hosted.dashboard.is_at_root_surface())
             {
-                enter_home(app);
+                dispatch_hosted_dashboard_key(
+                    app,
+                    KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT),
+                );
             } else {
                 dispatch_hosted_dashboard_key(app, key);
             }

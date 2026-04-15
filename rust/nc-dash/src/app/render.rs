@@ -146,10 +146,12 @@ fn render_quit_confirm(
             y: parent.y.saturating_add(origin.row_offset as u16),
         })
         .unwrap_or(ModalPlacement::Centered);
+    let message = "Quit Game? Y/[N]";
+    let popup_width = (message.chars().count() + 4).max("QUIT".chars().count() + 6);
     let popup = draw_modal_frame_in_parent_with_placement(
         buf,
         "QUIT",
-        18,
+        popup_width,
         5,
         parent,
         placement,
@@ -161,7 +163,6 @@ fn render_quit_confirm(
         },
     );
     let content = crate::modal::modal_content_rect(popup);
-    let message = "Quit Game? Y/[N]";
     let message_width = message.chars().count();
     let content_width = content.width as usize;
     let start_col = content.x as usize + content_width.saturating_sub(message_width) / 2;
