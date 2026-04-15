@@ -123,7 +123,6 @@ fn render_comms_chat_bar(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
     };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" [?] [ESC] ")
         .style(styles.body)
         .border_style(with_panel_bg(border))
         .title_style(with_panel_bg(title));

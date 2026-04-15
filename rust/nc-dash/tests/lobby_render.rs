@@ -363,7 +363,6 @@ fn thread_panel_renders_irc_style_transcript_and_prompt() {
     assert!(lines.contains("BROADCAST"));
     assert!(lines.contains("DIRECT"));
     assert!(lines.contains("THREAD: nc_sysop"));
-    assert!(lines.contains("[?] [ESC]"));
     assert!(lines.contains("sysop"));
     assert!(lines.contains("draft line"));
     assert!(!lines.contains("<niltempus>: draft line"));
@@ -396,7 +395,6 @@ fn comms_route_renders_full_screen_chat_scene() {
     assert!(lines.contains("THREAD: nc_sysop"));
     assert!(lines.contains("NEW"));
     assert!(lines.contains("THREADS"));
-    assert!(lines.contains("[?] [ESC]"));
     assert!(lines.contains("draft"));
     assert!(!lines.contains("<niltempus>: draft"));
 }
