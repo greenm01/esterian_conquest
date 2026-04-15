@@ -11,6 +11,7 @@ use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
     HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
+    compute_state_hash,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,25 +78,19 @@ pub fn build_game_state_payload(
     let queued_mail = visible_queued_mail(&snapshot.queued_mail, viewer_empire_id);
     let report_blocks = visible_report_blocks(&snapshot.report_block_rows, viewer_empire_id);
 
-    let state_hash = blake3::hash(&serde_json::to_vec(&(
-        state.clone(),
-        queued_mail.clone(),
-        report_blocks.clone(),
-    ))?)
-    .to_hex()
-    .to_string();
-
-    Ok(GameState {
+    let mut result = GameState {
         game_id: game_id.to_string(),
         turn: snapshot.turn,
         year: u32::from(snapshot.game_year),
         player_seat,
         player_name: display_player_name(player, player_seat),
-        state_hash,
+        state_hash: String::new(),
         state,
         queued_mail,
         report_blocks,
-    })
+    };
+    result.state_hash = compute_state_hash(&result)?;
+    Ok(result)
 }
 
 struct PlayerRuntimeSnapshot {

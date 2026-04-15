@@ -54,20 +54,23 @@ fn test_state_sync_structs() {
     assert_eq!(state.year, 3005);
 
     let deltas = StateDeltas {
-        planets: vec![],
-        fleets: vec![],
-        events: vec![],
+        planets: Some(vec![]),
+        fleets: Some(vec![]),
+        ..StateDeltas::default()
     };
 
     let delta = StateDelta {
         game_id: "test".to_string(),
         turn: 6,
+        year: 3006,
+        player_name: "Test Empire".to_string(),
         base_hash: "abc123".to_string(),
         state_hash: "def456".to_string(),
         deltas,
     };
 
     assert_eq!(delta.turn, 6);
+    assert_eq!(delta.year, 3006);
     assert_eq!(delta.base_hash, "abc123");
 }
 
@@ -228,6 +231,91 @@ async fn claimed_state_request_enqueues_game_state_payload() {
         serde_json::from_str(&pending[0].content).expect("game state payload");
     assert_eq!(payload.game_id, "state-sync-worker");
     assert_eq!(payload.player_seat, 1);
+}
+
+#[tokio::test]
+async fn claimed_state_request_returns_delta_when_last_hash_matches_cached_snapshot() {
+    let (_temp, game_dir, store) = create_test_game("state-sync-delta", 4);
+    nc_data::hosted::claim_seat(
+        store.connection(),
+        "state-sync-delta",
+        1,
+        "player-pubkey-delta",
+        3000,
+    )
+    .expect("claim seat");
+    seed_runtime_snapshot(
+        &game_dir,
+        "state-sync-delta",
+        "State Sync Delta",
+        4,
+        &[],
+        &[],
+    );
+
+    let worker = GameWorker::new("state-sync-delta".to_string(), game_dir.join("hosted.db"));
+    worker
+        .handle_effect(GameEffects::HandleStateRequest {
+            request: StateRequest {
+                request_id: "state-delta-001".to_string(),
+                game_id: "state-sync-delta".to_string(),
+                player_pubkey: "player-pubkey-delta".to_string(),
+                last_turn: None,
+                last_hash: None,
+                handle: Some("pilot".to_string()),
+            },
+        })
+        .await;
+
+    let initial = nc_data::hosted::get_pending(store.connection(), "state-sync-delta", 10)
+        .expect("pending initial");
+    assert_eq!(initial.len(), 1);
+    assert_eq!(initial[0].kind, 30520);
+    let initial_payload: nc_nostr::state_sync::GameState =
+        serde_json::from_str(&initial[0].content).expect("initial snapshot");
+
+    seed_runtime_snapshot(
+        &game_dir,
+        "state-sync-delta",
+        "State Sync Delta",
+        4,
+        &[QueuedPlayerMail {
+            sender_empire_id: 2,
+            recipient_empire_id: 1,
+            year: 3000,
+            subject: "Updated".to_string(),
+            body: "Fresh report.".to_string(),
+            recipient_deleted: false,
+        }],
+        &[],
+    );
+
+    worker
+        .handle_effect(GameEffects::HandleStateRequest {
+            request: StateRequest {
+                request_id: "state-delta-002".to_string(),
+                game_id: "state-sync-delta".to_string(),
+                player_pubkey: "player-pubkey-delta".to_string(),
+                last_turn: Some(initial_payload.turn),
+                last_hash: Some(initial_payload.state_hash.clone()),
+                handle: Some("pilot".to_string()),
+            },
+        })
+        .await;
+
+    let pending = nc_data::hosted::get_pending(store.connection(), "state-sync-delta", 10)
+        .expect("pending");
+    assert_eq!(pending.len(), 2);
+    assert_eq!(pending[1].kind, 30521);
+
+    let tags: Vec<Vec<String>> = serde_json::from_str(&pending[1].tags).expect("tags");
+    assert!(tags.iter().any(|tag| tag == &["request-id".to_string(), "state-delta-002".to_string()]));
+
+    let delta: nc_nostr::state_sync::StateDelta =
+        serde_json::from_str(&pending[1].content).expect("delta");
+    assert_eq!(delta.base_hash, initial_payload.state_hash);
+    assert_eq!(delta.game_id, "state-sync-delta");
+    assert!(delta.deltas.queued_mail.is_some());
 }
 
 #[tokio::test]

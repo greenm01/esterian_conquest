@@ -9,6 +9,9 @@ use nc_client::hosted::session::{
     CatalogGame, HostedClientSession, HostedStateRequestError, PlayerEventBatch,
     SandboxJoinOutcome,
 };
+use nc_client::hosted::store::{
+    CachedHostedDraft, HostedDraftStatus, HostedStateStore,
+};
 use nc_client::keychain::{
     Keychain, active_keys, load_keychain, now_iso8601, push_new_identity, save_keychain,
     set_active_handle,
@@ -20,8 +23,9 @@ use nc_nostr::handle_check::HandleCheckStatus;
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
 use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::pubkeys::hex_to_npub;
-use nc_nostr::state_sync::{GameState, StateErrorCode};
+use nc_nostr::state_sync::{GameState, StateErrorCode, apply_state_delta};
 use nc_nostr::turn_commands::TurnReceiptStatus;
+use nc_data::TurnSubmission;
 
 use super::models::{
     DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
@@ -396,6 +400,7 @@ impl LobbyTransport {
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
         let handle = current_handle(&unlocked.keychain);
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         match session
             .join_sandbox_game(&row.game_id, &row.daemon_pubkey, handle.as_deref())
             .map_err(|err| err.to_string())?
@@ -433,6 +438,11 @@ impl LobbyTransport {
                         })
                         .collect(),
                 );
+                open_hosted_state_store()
+                    .and_then(|store| {
+                        store.save_snapshot(&unlocked.password, &player_pubkey, &snapshot)
+                    })
+                    .map_err(|err| err.to_string())?;
                 save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
                 let loaded = build_loaded_state(
                     unlocked,
@@ -467,15 +477,61 @@ impl LobbyTransport {
                 loaded: None,
             })?;
         let handle = current_handle(&unlocked.keychain);
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| {
+            LobbyOpenGameError {
+                code: None,
+                message: err.to_string(),
+                loaded: None,
+            }
+        })?;
+        let hosted_store = open_hosted_state_store().map_err(|err| LobbyOpenGameError {
+            code: None,
+            message: err.to_string(),
+            loaded: None,
+        })?;
+        let baseline = hosted_store
+            .load_snapshot(&unlocked.password, &player_pubkey, &row.game_id)
+            .map_err(|err| LobbyOpenGameError {
+                code: None,
+                message: err.to_string(),
+                loaded: None,
+            })?
+            .map(|cached| cached.snapshot);
         let state = session
             .request_state(
                 &row.game_id,
                 &row.daemon_pubkey,
-                row.last_turn,
-                row.last_hash.as_deref(),
+                baseline.as_ref().map(|state| state.turn),
+                baseline.as_ref().map(|state| state.state_hash.as_str()),
                 handle.as_deref(),
+                baseline.as_ref(),
             )
             .map_err(|err| lobby_open_game_error(unlocked, row, err))?;
+        hosted_store
+            .save_snapshot(&unlocked.password, &player_pubkey, &state)
+            .map_err(|err| LobbyOpenGameError {
+                code: None,
+                message: err.to_string(),
+                loaded: None,
+            })?;
+        if let Some(draft) = hosted_store
+            .load_draft(&unlocked.password, &player_pubkey, &row.game_id)
+            .map_err(|err| LobbyOpenGameError {
+                code: None,
+                message: err.to_string(),
+                loaded: None,
+            })?
+        {
+            if state.turn > draft.turn {
+                hosted_store
+                    .clear_draft(&player_pubkey, &row.game_id)
+                    .map_err(|err| LobbyOpenGameError {
+                        code: None,
+                        message: err.to_string(),
+                        loaded: None,
+                    })?;
+            }
+        }
         let mut cached = cache_game_from_row(row);
         cached.status = "joined".to_string();
         cached.last_turn = Some(state.turn);
@@ -518,6 +574,7 @@ impl LobbyTransport {
             .session
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         let state = session
             .complete_first_join_setup(
                 &row.game_id,
@@ -525,6 +582,9 @@ impl LobbyTransport {
                 empire_name,
                 homeworld_name,
             )
+            .map_err(|err| err.to_string())?;
+        open_hosted_state_store()
+            .and_then(|store| store.save_snapshot(&unlocked.password, &player_pubkey, &state))
             .map_err(|err| err.to_string())?;
         let mut cached = cache_game_from_row(row);
         cached.status = "joined".to_string();
@@ -565,6 +625,7 @@ impl LobbyTransport {
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
         let handle = current_handle(&unlocked.keychain);
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         session
             .submit_turn(
                 &row.game_id,
@@ -574,12 +635,103 @@ impl LobbyTransport {
                 handle.as_deref(),
             )
             .map_err(|err| err.to_string())?;
+        let hosted_store = open_hosted_state_store().map_err(|err| err.to_string())?;
+        let parsed_commands = TurnSubmission::parse_kdl_str(commands).ok();
+        if let Some(draft) = parsed_commands {
+            hosted_store
+                .save_draft(
+                    &unlocked.password,
+                    &player_pubkey,
+                    &row.game_id,
+                    row.last_hash.as_deref().unwrap_or(""),
+                    &draft,
+                    HostedDraftStatus::SubmittedPending,
+                    None,
+                )
+                .map_err(|err| err.to_string())?;
+        } else if let Some(draft) = hosted_store
+            .load_draft(&unlocked.password, &player_pubkey, &row.game_id)
+            .map_err(|err| err.to_string())?
+        {
+            hosted_store
+                .save_draft(
+                    &unlocked.password,
+                    &player_pubkey,
+                    &row.game_id,
+                    &draft.base_hash,
+                    &draft.draft,
+                    HostedDraftStatus::SubmittedPending,
+                    draft.submit_id.as_deref(),
+                )
+                .map_err(|err| err.to_string())?;
+        }
         Ok(build_loaded_state(
             unlocked,
             Some("Turn submitted. Waiting for nc-host receipt.".to_string()),
             LobbyStatusTone::Success,
             None,
         ))
+    }
+
+    pub fn load_cached_hosted_snapshot(&self, game_id: &str) -> Result<Option<GameState>, String> {
+        let unlocked = self
+            .unlocked
+            .as_ref()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        open_hosted_state_store()
+            .and_then(|store| store.load_snapshot(&unlocked.password, &player_pubkey, game_id))
+            .map(|snapshot| snapshot.map(|cached| cached.snapshot))
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn load_hosted_draft(&self, game_id: &str) -> Result<Option<CachedHostedDraft>, String> {
+        let unlocked = self
+            .unlocked
+            .as_ref()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        open_hosted_state_store()
+            .and_then(|store| store.load_draft(&unlocked.password, &player_pubkey, game_id))
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn save_hosted_draft(
+        &mut self,
+        game_id: &str,
+        base_hash: &str,
+        draft: &TurnSubmission,
+        status: HostedDraftStatus,
+    ) -> Result<(), String> {
+        let unlocked = self
+            .unlocked
+            .as_ref()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        open_hosted_state_store()
+            .and_then(|store| {
+                store.save_draft(
+                    &unlocked.password,
+                    &player_pubkey,
+                    game_id,
+                    base_hash,
+                    draft,
+                    status,
+                    None,
+                )
+            })
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn clear_hosted_draft(&mut self, game_id: &str) -> Result<(), String> {
+        let unlocked = self
+            .unlocked
+            .as_ref()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        open_hosted_state_store()
+            .and_then(|store| store.clear_draft(&player_pubkey, game_id))
+            .map_err(|err| err.to_string())
     }
 
     pub fn add_direct_contact(
@@ -903,6 +1055,14 @@ fn current_handle(keychain: &Keychain) -> Option<String> {
         .and_then(|identity| identity.handle.clone())
 }
 
+fn current_player_pubkey(keychain: &Keychain) -> Result<String, Box<dyn std::error::Error>> {
+    Ok(active_keys(keychain)?.public_key().to_hex())
+}
+
+fn open_hosted_state_store() -> Result<HostedStateStore, Box<dyn std::error::Error>> {
+    HostedStateStore::open_default()
+}
+
 fn build_sessions(
     keychain: &Keychain,
     relay_url: Option<&str>,
@@ -997,6 +1157,8 @@ fn apply_player_events(
     batch: PlayerEventBatch,
     catalog: &[CatalogGame],
 ) {
+    let player_pubkey = current_player_pubkey(&unlocked.keychain).ok();
+    let hosted_store = open_hosted_state_store().ok();
     for receipt in batch.receipts {
         if let Some(game) = unlocked
             .cache
@@ -1035,32 +1197,32 @@ fn apply_player_events(
         }
     }
     for state in batch.states {
-        if let Some(game) = unlocked
-            .cache
-            .games
-            .iter_mut()
-            .find(|game| game.id == state.game_id)
-        {
-            game.last_turn = Some(state.turn);
-            game.last_hash = Some(state.state_hash.clone());
-            game.seat = Some(state.player_seat);
-            game.status = "joined".to_string();
-            game.updated_at = now_iso8601();
+        if let (Some(player_pubkey), Some(store)) = (player_pubkey.as_deref(), hosted_store.as_ref()) {
+            let _ = store.save_snapshot(&unlocked.password, player_pubkey, &state);
+            clear_advanced_draft_if_needed(store, &unlocked.password, player_pubkey, &state.game_id, state.turn);
         }
-        unlocked.cache.replace_roster(
-            &state.game_id,
-            state
-                .state
-                .roster
-                .iter()
-                .map(|entry| GameRosterEntry {
-                    game_id: state.game_id.clone(),
-                    empire_id: entry.empire_id,
-                    empire_name: entry.empire_name.clone(),
-                    is_self: entry.is_self,
-                })
-                .collect(),
-        );
+        apply_state_snapshot_to_cache(unlocked, &state);
+    }
+    for delta in batch.deltas {
+        let Some(player_pubkey) = player_pubkey.as_deref() else {
+            continue;
+        };
+        let Some(store) = hosted_store.as_ref() else {
+            continue;
+        };
+        let updated = store
+            .load_snapshot(&unlocked.password, player_pubkey, &delta.game_id)
+            .ok()
+            .flatten()
+            .map(|cached| cached.snapshot)
+            .and_then(|snapshot| apply_state_delta(&snapshot, &delta).ok())
+            .or_else(|| recover_full_hosted_state(unlocked, &delta.game_id, catalog).ok());
+        let Some(state) = updated else {
+            continue;
+        };
+        let _ = store.save_snapshot(&unlocked.password, player_pubkey, &state);
+        clear_advanced_draft_if_needed(store, &unlocked.password, player_pubkey, &state.game_id, state.turn);
+        apply_state_snapshot_to_cache(unlocked, &state);
     }
     for message in batch.contact_messages {
         apply_direct_message(unlocked, message);
@@ -1084,6 +1246,81 @@ fn apply_player_events(
             }
         }
     }
+}
+
+fn apply_state_snapshot_to_cache(unlocked: &mut UnlockedClient, state: &GameState) {
+    if let Some(game) = unlocked
+        .cache
+        .games
+        .iter_mut()
+        .find(|game| game.id == state.game_id)
+    {
+        game.last_turn = Some(state.turn);
+        game.last_hash = Some(state.state_hash.clone());
+        game.seat = Some(state.player_seat);
+        game.status = "joined".to_string();
+        game.updated_at = now_iso8601();
+    }
+    unlocked.cache.replace_roster(
+        &state.game_id,
+        state
+            .state
+            .roster
+            .iter()
+            .map(|entry| GameRosterEntry {
+                game_id: state.game_id.clone(),
+                empire_id: entry.empire_id,
+                empire_name: entry.empire_name.clone(),
+                is_self: entry.is_self,
+            })
+            .collect(),
+    );
+}
+
+fn clear_advanced_draft_if_needed(
+    store: &HostedStateStore,
+    password: &str,
+    player_pubkey: &str,
+    game_id: &str,
+    authoritative_turn: u32,
+) {
+    let Ok(Some(draft)) = store.load_draft(password, player_pubkey, game_id) else {
+        return;
+    };
+    if authoritative_turn > draft.turn {
+        let _ = store.clear_draft(player_pubkey, game_id);
+    }
+}
+
+fn recover_full_hosted_state(
+    unlocked: &UnlockedClient,
+    game_id: &str,
+    catalog: &[CatalogGame],
+) -> Result<GameState, HostedStateRequestError> {
+    let Some(session) = unlocked.session.as_ref() else {
+        return Err(HostedStateRequestError {
+            code: None,
+            message: "no relay configured for the hosted lobby".to_string(),
+        });
+    };
+    let daemon_pubkey = catalog
+        .iter()
+        .find(|entry| entry.definition.game_id == game_id)
+        .map(|entry| entry.daemon_pubkey.as_str())
+        .or_else(|| {
+            unlocked
+                .cache
+                .games
+                .iter()
+                .find(|entry| entry.id == game_id)
+                .map(|entry| entry.daemon_pubkey.as_str())
+        })
+        .ok_or_else(|| HostedStateRequestError {
+            code: None,
+            message: "missing daemon pubkey for hosted state recovery".to_string(),
+        })?;
+    let handle = current_handle(&unlocked.keychain);
+    session.request_state(game_id, daemon_pubkey, None, None, handle.as_deref(), None)
 }
 
 fn apply_notices(unlocked: &mut UnlockedClient, notices: Vec<NoticePayload>) {

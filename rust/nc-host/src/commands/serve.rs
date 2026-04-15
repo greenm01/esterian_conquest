@@ -6,6 +6,7 @@ use nc_data::hosted::{HandleOwnership, RosterStore, resolve_handle_ownership};
 use nc_nostr::handle_check::{
     HandleCheckRequest, HandleCheckResult, HandleCheckStatus, parse_handle_check_request,
 };
+use nc_nostr::tags::tag_content;
 use nostr_sdk::{
     Alphabet, Client, Filter, Keys, Kind, RelayPoolNotification, SingleLetterTag, ToBech32,
 };
@@ -254,6 +255,7 @@ async fn run_async_server(
                                         publish_state_error_direct(
                                             &publisher,
                                             &event.pubkey.to_hex(),
+                                            tag_content(&event.tags, "d"),
                                             &nc_nostr::state_sync::StateErrorPayload {
                                                 game_id: game_id.clone(),
                                                 code: nc_nostr::state_sync::StateErrorCode::GameNotFound,
@@ -288,6 +290,7 @@ async fn run_async_server(
                                         publish_state_error_direct(
                                             &publisher,
                                             &event.pubkey.to_hex(),
+                                            tag_content(&event.tags, "d"),
                                             &nc_nostr::state_sync::StateErrorPayload {
                                                 game_id,
                                                 code: nc_nostr::state_sync::StateErrorCode::InvalidRequest,
@@ -449,6 +452,7 @@ fn extract_game_id_tag(event: &nostr_sdk::Event) -> Option<String> {
 async fn publish_state_error_direct(
     publisher: &EventPublisher,
     player_pubkey: &str,
+    request_id: Option<&str>,
     error: &nc_nostr::state_sync::StateErrorPayload,
 ) {
     let content = match serde_json::to_string(error) {
@@ -459,10 +463,13 @@ async fn publish_state_error_direct(
         }
     };
 
-    let tags = nc_nostr::state_sync::build_state_error_tags(error)
+    let mut tags = nc_nostr::state_sync::build_state_error_tags(error)
         .into_iter()
         .map(|(key, value)| vec![key.to_string(), value])
-        .collect();
+        .collect::<Vec<_>>();
+    if let Some(request_id) = request_id {
+        tags.push(vec!["request-id".to_string(), request_id.to_string()]);
+    }
 
     if let Err(e) = publisher
         .publish_encrypted_multi(player_pubkey, 30520, &content, tags)

@@ -335,6 +335,11 @@ impl LobbyApp {
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
                 self.state.apply_loaded(loaded);
+                if self.state.route == LobbyRoute::HostedGame
+                    && update::reload_hosted_dashboard_from_cached_snapshot(self)
+                {
+                    return true;
+                }
                 if self.state.route == LobbyRoute::Home
                     && self.state.active_tab == LobbyTab::Comms
                     && self.state.thread_pane_focus == ThreadPaneFocus::Chat
@@ -620,6 +625,7 @@ impl NativeApp for LobbyApp {
                     self.should_quit = true;
                 }
             }
+            update::sync_hosted_dashboard_draft(self);
             return;
         }
 

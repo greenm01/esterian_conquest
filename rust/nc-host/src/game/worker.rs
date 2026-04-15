@@ -13,7 +13,10 @@ use nc_nostr::first_join::{
 use nc_nostr::invite_request::{
     InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
 };
-use nc_nostr::state_sync::{StateErrorCode, StateErrorPayload, StateRequest};
+use nc_nostr::state_sync::{
+    StateErrorCode, StateErrorPayload, StateRequest, build_state_delta,
+    build_delta_response_tags,
+};
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
 use std::fmt;
 use std::path::PathBuf;
@@ -87,6 +90,7 @@ impl GameWorker {
                 let _ = self.enqueue_state_error(
                     store.connection(),
                     &request.player_pubkey,
+                    Some(&request.request_id),
                     StateErrorCode::NotAPlayer,
                     "You no longer have a claimed seat in this game.",
                 );
@@ -97,6 +101,7 @@ impl GameWorker {
                 let _ = self.enqueue_state_error(
                     store.connection(),
                     &request.player_pubkey,
+                    Some(&request.request_id),
                     StateErrorCode::StateUnavailable,
                     "Failed to lookup your hosted seat.",
                 );
@@ -110,6 +115,7 @@ impl GameWorker {
             let _ = self.enqueue_state_error(
                 store.connection(),
                 &request.player_pubkey,
+                Some(&request.request_id),
                 StateErrorCode::HandleTaken,
                 &message,
             );
@@ -125,6 +131,7 @@ impl GameWorker {
             let _ = self.enqueue_state_error(
                 store.connection(),
                 &request.player_pubkey,
+                Some(&request.request_id),
                 StateErrorCode::StateUnavailable,
                 "Hosted state is unavailable right now.",
             );
@@ -143,6 +150,7 @@ impl GameWorker {
             let _ = self.enqueue_state_error(
                 store.connection(),
                 &request.player_pubkey,
+                Some(&request.request_id),
                 StateErrorCode::StateUnavailable,
                 "Failed to initialize hosted player state.",
             );
@@ -164,6 +172,7 @@ impl GameWorker {
                 let _ = self.enqueue_state_error(
                     store.connection(),
                     &request.player_pubkey,
+                    Some(&request.request_id),
                     StateErrorCode::StateUnavailable,
                     "Failed to build hosted game state.",
                 );
@@ -171,31 +180,67 @@ impl GameWorker {
             }
         };
 
-        let content = match serde_json::to_string(&state_payload) {
-            Ok(content) => content,
-            Err(e) => {
-                tracing::error!("Failed to serialize state payload: {}", e);
-                return;
-            }
-        };
+        let prior_snapshot = request.last_hash.as_deref().and_then(|state_hash| {
+            hosted::get_state_snapshot_by_hash(
+                store.connection(),
+                &self.game_id,
+                seat.seat_number,
+                state_hash,
+            )
+            .ok()
+            .flatten()
+        });
 
-        let tags = nc_nostr::state_sync::build_state_response_tags(&state_payload)
-            .into_iter()
-            .map(|(key, value)| vec![key.to_string(), value])
-            .collect();
+        let (kind, content, tags) = if let Some(previous) = prior_snapshot.as_ref() {
+            let delta = build_state_delta(previous, &state_payload);
+            let content = match serde_json::to_string(&delta) {
+                Ok(content) => content,
+                Err(e) => {
+                    tracing::error!("Failed to serialize state delta: {}", e);
+                    return;
+                }
+            };
+            let mut tags = build_delta_response_tags(&delta)
+                .into_iter()
+                .map(|(key, value)| vec![key.to_string(), value])
+                .collect::<Vec<_>>();
+            tags.push(vec!["request-id".to_string(), request.request_id.clone()]);
+            (30521, content, tags)
+        } else {
+            let content = match serde_json::to_string(&state_payload) {
+                Ok(content) => content,
+                Err(e) => {
+                    tracing::error!("Failed to serialize state payload: {}", e);
+                    return;
+                }
+            };
+            let mut tags = nc_nostr::state_sync::build_state_response_tags(&state_payload)
+                .into_iter()
+                .map(|(key, value)| vec![key.to_string(), value])
+                .collect::<Vec<_>>();
+            tags.push(vec!["request-id".to_string(), request.request_id.clone()]);
+            (30520, content, tags)
+        };
 
         if let Err(e) = enqueue_encrypted_event(
             store.connection(),
             &self.game_id,
             &request.player_pubkey,
-            30520,
+            kind,
             &content,
             tags,
         ) {
             tracing::error!("Failed to enqueue state response: {}", e);
+        } else if let Err(e) = hosted::save_state_snapshot(
+            store.connection(),
+            &self.game_id,
+            seat.seat_number,
+            &state_payload,
+        ) {
+            tracing::error!("Failed to persist hosted state snapshot: {}", e);
         } else {
             tracing::info!(
-                "Queued encrypted state for {}",
+                "Queued encrypted hosted state sync for {}",
                 short_pubkey(&request.player_pubkey)
             );
         }
@@ -205,6 +250,7 @@ impl GameWorker {
         &self,
         conn: &rusqlite::Connection,
         recipient_pubkey: &str,
+        request_id: Option<&str>,
         code: StateErrorCode,
         message: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -214,10 +260,13 @@ impl GameWorker {
             message: message.to_string(),
         };
         let content = serde_json::to_string(&payload)?;
-        let tags = nc_nostr::state_sync::build_state_error_tags(&payload)
+        let mut tags = nc_nostr::state_sync::build_state_error_tags(&payload)
             .into_iter()
             .map(|(key, value)| vec![key.to_string(), value])
-            .collect();
+            .collect::<Vec<_>>();
+        if let Some(request_id) = request_id {
+            tags.push(vec!["request-id".to_string(), request_id.to_string()]);
+        }
         enqueue_encrypted_event(conn, &self.game_id, recipient_pubkey, 30520, &content, tags)?;
         Ok(())
     }
@@ -379,6 +428,12 @@ impl GameWorker {
                 return;
             }
         };
+
+        if let Err(e) =
+            hosted::save_state_snapshot(store.connection(), &self.game_id, seat.seat_number, &state)
+        {
+            tracing::error!("Failed to persist first-join hosted state snapshot: {}", e);
+        }
 
         let _ = self.enqueue_first_join_setup_result(
             store.connection(),

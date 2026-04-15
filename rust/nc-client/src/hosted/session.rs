@@ -17,7 +17,7 @@ use nc_nostr::player_message::{
 use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
 use nc_nostr::state_sync::{
     GameState, StateDelta, StateErrorCode, StateErrorPayload, StateRequestPayload,
-    parse_state_error,
+    apply_state_delta, parse_state_error,
 };
 use nc_nostr::tags::tag_content;
 use nc_nostr::thread_message::{SenderRole, SysopThreadMessage, decrypt_thread_message};
@@ -305,7 +305,7 @@ impl HostedClientSession {
                 match decision.decision {
                     nc_nostr::invite_request::InviteDecision::Approved { .. } => {
                         let state = self
-                            .request_state(game_id, daemon_pubkey, None, None, handle)
+                            .request_state(game_id, daemon_pubkey, None, None, handle, None)
                             .map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
                         return Ok(SandboxJoinOutcome::Joined(state));
                     }
@@ -649,11 +649,13 @@ impl HostedClientSession {
         last_turn: Option<u32>,
         last_hash: Option<&str>,
         handle: Option<&str>,
+        baseline: Option<&GameState>,
     ) -> Result<GameState, HostedStateRequestError> {
         let request_id = random_nonce_hex();
         let daemon_pubkey =
             PublicKey::parse(daemon_pubkey).map_err(|err| HostedStateRequestError::new(err.to_string()))?;
         let player_pubkey_hex = self.keys.public_key().to_hex();
+        let baseline = baseline.cloned();
         let runtime =
             tokio::runtime::Runtime::new().map_err(|err| HostedStateRequestError::new(err.to_string()))?;
         runtime.block_on(async {
@@ -705,18 +707,39 @@ impl HostedClientSession {
                         match notification {
                             Ok(nostr_sdk::RelayPoolNotification::Event { subscription_id, event, .. }) if subscription_id == subscription => {
                                 let event = *event;
+                                if tag_content(&event.tags, "request-id") != Some(request_id.as_str()) {
+                                    continue;
+                                }
                                 if tag_content(&event.tags, "game-id") != Some(game_id) {
                                     continue;
                                 }
-                                if event.kind.as_u16() == 30520 {
-                                    if let Some(err) = parse_state_error(self.keys.secret_key(), &event) {
-                                        client.unsubscribe(&subscription).await;
-                                        break Err(HostedStateRequestError::from_payload(err));
+                                match event.kind.as_u16() {
+                                    30520 => {
+                                        if let Some(err) = parse_state_error(self.keys.secret_key(), &event) {
+                                            client.unsubscribe(&subscription).await;
+                                            break Err(HostedStateRequestError::from_payload(err));
+                                        }
+                                        if let Some(state) = decrypt_json::<GameState>(self.keys.secret_key(), &event) {
+                                            client.unsubscribe(&subscription).await;
+                                            break Ok(state);
+                                        }
                                     }
-                                    if let Some(state) = decrypt_json::<GameState>(self.keys.secret_key(), &event) {
+                                    30521 => {
+                                        let Some(delta) = decrypt_json::<StateDelta>(self.keys.secret_key(), &event) else {
+                                            continue;
+                                        };
+                                        let Some(base) = baseline.as_ref() else {
+                                            client.unsubscribe(&subscription).await;
+                                            break Err(HostedStateRequestError::new(
+                                                "received a hosted state delta with no local baseline",
+                                            ));
+                                        };
+                                        let state = apply_state_delta(base, &delta)
+                                            .map_err(HostedStateRequestError::new)?;
                                         client.unsubscribe(&subscription).await;
                                         break Ok(state);
                                     }
+                                    _ => {}
                                 }
                             }
                             Ok(_) => {}

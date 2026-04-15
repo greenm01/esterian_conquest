@@ -66,6 +66,8 @@ pub struct StateErrorPayload {
 pub struct StateDelta {
     pub game_id: String,
     pub turn: u32,
+    pub year: u32,
+    pub player_name: String,
     pub base_hash: String,
     pub state_hash: String,
     pub deltas: StateDeltas,
@@ -73,12 +75,20 @@ pub struct StateDelta {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct StateDeltas {
-    #[serde(default)]
-    pub planets: Vec<HostedOwnedPlanet>,
-    #[serde(default)]
-    pub fleets: Vec<HostedOwnedFleet>,
-    #[serde(default)]
-    pub events: Vec<HostedReportBlock>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub player: Option<HostedPlayerState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roster: Option<Vec<HostedPlayerRosterEntry>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub starmap: Option<HostedStarmapState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planets: Option<Vec<HostedOwnedPlanet>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fleets: Option<Vec<HostedOwnedFleet>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queued_mail: Option<Vec<HostedQueuedMail>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_blocks: Option<Vec<HostedReportBlock>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -250,6 +260,16 @@ pub fn build_state_response_tags(state: &GameState) -> Vec<(&'static str, String
     ]
 }
 
+pub fn compute_state_hash(state: &GameState) -> Result<String, serde_json::Error> {
+    Ok(blake3::hash(&serde_json::to_vec(&(
+        state.state.clone(),
+        state.queued_mail.clone(),
+        state.report_blocks.clone(),
+    ))?)
+    .to_hex()
+    .to_string())
+}
+
 pub fn build_state_error_tags(error: &StateErrorPayload) -> Vec<(&'static str, String)> {
     vec![
         ("d", "state-error".to_string()),
@@ -263,7 +283,79 @@ pub fn build_delta_response_tags(delta: &StateDelta) -> Vec<(&'static str, Strin
         ("d", format!("delta-{}", delta.turn)),
         ("game-id", delta.game_id.clone()),
         ("turn", delta.turn.to_string()),
+        ("year", delta.year.to_string()),
         ("base-hash", delta.base_hash.clone()),
         ("hash", delta.state_hash.clone()),
     ]
+}
+
+pub fn build_state_delta(previous: &GameState, current: &GameState) -> StateDelta {
+    StateDelta {
+        game_id: current.game_id.clone(),
+        turn: current.turn,
+        year: current.year,
+        player_name: current.player_name.clone(),
+        base_hash: previous.state_hash.clone(),
+        state_hash: current.state_hash.clone(),
+        deltas: StateDeltas {
+            player: (previous.state.player != current.state.player)
+                .then(|| current.state.player.clone()),
+            roster: (previous.state.roster != current.state.roster)
+                .then(|| current.state.roster.clone()),
+            starmap: (previous.state.starmap != current.state.starmap)
+                .then(|| current.state.starmap.clone()),
+            planets: (previous.state.owned_planets != current.state.owned_planets)
+                .then(|| current.state.owned_planets.clone()),
+            fleets: (previous.state.owned_fleets != current.state.owned_fleets)
+                .then(|| current.state.owned_fleets.clone()),
+            queued_mail: (previous.queued_mail != current.queued_mail)
+                .then(|| current.queued_mail.clone()),
+            report_blocks: (previous.report_blocks != current.report_blocks)
+                .then(|| current.report_blocks.clone()),
+        },
+    }
+}
+
+pub fn apply_state_delta(base: &GameState, delta: &StateDelta) -> Result<GameState, String> {
+    if base.game_id != delta.game_id {
+        return Err("delta game id does not match baseline".to_string());
+    }
+    if base.state_hash != delta.base_hash {
+        return Err("delta base hash does not match baseline".to_string());
+    }
+
+    let mut state = base.clone();
+    state.turn = delta.turn;
+    state.year = delta.year;
+    state.player_name = delta.player_name.clone();
+    state.state_hash = delta.state_hash.clone();
+
+    if let Some(player) = delta.deltas.player.as_ref() {
+        state.state.player = player.clone();
+    }
+    if let Some(roster) = delta.deltas.roster.as_ref() {
+        state.state.roster = roster.clone();
+    }
+    if let Some(starmap) = delta.deltas.starmap.as_ref() {
+        state.state.starmap = starmap.clone();
+    }
+    if let Some(planets) = delta.deltas.planets.as_ref() {
+        state.state.owned_planets = planets.clone();
+    }
+    if let Some(fleets) = delta.deltas.fleets.as_ref() {
+        state.state.owned_fleets = fleets.clone();
+    }
+    if let Some(queued_mail) = delta.deltas.queued_mail.as_ref() {
+        state.queued_mail = queued_mail.clone();
+    }
+    if let Some(report_blocks) = delta.deltas.report_blocks.as_ref() {
+        state.report_blocks = report_blocks.clone();
+    }
+    let actual_hash = compute_state_hash(&state)
+        .map_err(|err| format!("failed to recompute hosted state hash: {err}"))?;
+    if actual_hash != delta.state_hash {
+        return Err("delta state hash validation failed".to_string());
+    }
+
+    Ok(state)
 }

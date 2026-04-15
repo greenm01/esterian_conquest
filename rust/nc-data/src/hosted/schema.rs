@@ -133,4 +133,18 @@ CREATE INDEX IF NOT EXISTS idx_player_messages_game_player
     ON player_messages(game_id, sender_pubkey, recipient_pubkey, created_at);
 CREATE INDEX IF NOT EXISTS idx_sysop_notifications_status
     ON sysop_notifications(status, created_at);
+
+CREATE TABLE IF NOT EXISTS hosted_state_snapshots (
+    game_id TEXT NOT NULL,
+    seat_number INTEGER NOT NULL,
+    state_hash TEXT NOT NULL,
+    turn INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (game_id, seat_number, state_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_hosted_state_snapshots_game_seat_created
+    ON hosted_state_snapshots(game_id, seat_number, created_at DESC);
 "#;

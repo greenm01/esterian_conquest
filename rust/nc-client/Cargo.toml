@@ -8,10 +8,12 @@ license-file = "../../LICENSE"
 chacha20poly1305 = "0.10"
 dirs = "5"
 kdl = "6"
+nc-data = { path = "../nc-data" }
 nc-nostr = { path = "../nc-nostr" }
 nostr-sdk = { version = "0.44", features = ["nip44"] }
 pbkdf2 = { version = "0.12", features = ["hmac"] }
 rand = "0.8"
+rusqlite = { version = "0.31", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

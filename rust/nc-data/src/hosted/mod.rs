@@ -5,6 +5,7 @@ pub mod player_roster;
 pub mod schema;
 pub mod seats;
 pub mod settings;
+pub mod state_sync;
 pub mod store;
 pub mod sysop_notifications;
 pub mod threads;
@@ -34,6 +35,7 @@ pub use settings::{
     GameMetadata, GameSettings, GameTier, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
     get_catalog_dirty_since, get_game_metadata, get_settings, mark_catalog_dirty, update_settings,
 };
+pub use state_sync::{get_latest_state_snapshot, get_state_snapshot_by_hash, save_state_snapshot};
 pub use player_roster::{
     HandleOwnership, RosterEntry, RosterEvent, RosterStore, get_roster_entry, list_roster,
     list_roster_events_for_npub, record_player_abandoned, record_player_joined,

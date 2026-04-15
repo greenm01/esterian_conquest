@@ -1,9 +1,10 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use nc_client::hosted::store::HostedDraftStatus;
 use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use nc_client::password::validate_new_password;
 use std::time::Instant;
 
-use super::hosted::dashboard::build_hosted_dash_app;
+use super::hosted::dashboard::{build_hosted_dash_app, replay_hosted_draft};
 use super::state::{
     FirstJoinSetupField, FirstJoinSetupView, FirstRunField, GateResetAction, HostedGameView,
     KeychainGateMode, LobbyApp, LobbyNetworkStatus, LobbyRoute, LobbyStatusTone, LobbyTab,
@@ -582,6 +583,30 @@ fn dispatch_hosted_dashboard_key(app: &mut LobbyApp, key: KeyEvent) {
             app.should_quit = true;
         }
     }
+    sync_hosted_dashboard_draft(app);
+}
+
+pub(crate) fn sync_hosted_dashboard_draft(app: &mut LobbyApp) {
+    let Some(hosted) = app.state.hosted_game.as_ref() else {
+        return;
+    };
+    let Some(draft) = hosted.dashboard.hosted_turn_draft.clone() else {
+        return;
+    };
+    let game_id = hosted.row.game_id.clone();
+    let base_hash = hosted.snapshot.state_hash.clone();
+    let has_commands = hosted.dashboard.hosted_turn_text().is_some();
+    let result = if has_commands {
+        app.transport
+            .save_hosted_draft(&game_id, &base_hash, &draft, HostedDraftStatus::Local)
+    } else {
+        app.transport.clear_hosted_draft(&game_id)
+    };
+    if let Err(err) = result {
+        if let Some(hosted) = app.state.hosted_game.as_mut() {
+            hosted.submit_status = Some(format!("Failed to persist hosted draft: {err}"));
+        }
+    }
 }
 
 fn handle_settings_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -999,24 +1024,23 @@ fn refresh_hosted_game(app: &mut LobbyApp) {
         return;
     };
     match app.transport.open_game(&row) {
-        Ok(snapshot) => {
-            let submit_status = Some("Hosted dashboard refreshed from nc-host.".to_string());
-            match build_hosted_dash_app(&snapshot, app.geometry) {
-                Ok(dashboard) => {
-                    if let Some(hosted) = app.state.hosted_game.as_mut() {
-                        hosted.snapshot = snapshot;
-                        hosted.dashboard = dashboard;
-                        hosted.submit_status = submit_status;
-                    }
-                }
-                Err(err) => {
-                    if let Some(hosted) = app.state.hosted_game.as_mut() {
-                        hosted.submit_status =
-                            Some(format!("Hosted dashboard refresh failed: {err}"));
-                    }
+        Ok(snapshot) => match build_hosted_dash_app_with_local_draft(app, &row, &snapshot) {
+            Ok((dashboard, submit_status)) => {
+                let submit_input = dashboard.hosted_turn_text().unwrap_or_default();
+                if let Some(hosted) = app.state.hosted_game.as_mut() {
+                    hosted.snapshot = snapshot;
+                    hosted.dashboard = dashboard;
+                    hosted.submit_input = submit_input;
+                    hosted.submit_status = submit_status
+                        .or_else(|| Some("Hosted dashboard refreshed from nc-host.".to_string()));
                 }
             }
-        }
+            Err(err) => {
+                if let Some(hosted) = app.state.hosted_game.as_mut() {
+                    hosted.submit_status = Some(format!("Hosted dashboard refresh failed: {err}"));
+                }
+            }
+        },
         Err(err) => {
             if let Some(loaded) = err.loaded {
                 app.state.apply_loaded(loaded);
@@ -1155,14 +1179,16 @@ fn open_hosted_dashboard(
         return;
     }
     app.state.first_join_setup = None;
-    match build_hosted_dash_app(&snapshot, app.geometry) {
-        Ok(dashboard) => {
+    match build_hosted_dash_app_with_local_draft(app, &row, &snapshot) {
+        Ok((dashboard, submit_status)) => {
+            let submit_input = dashboard.hosted_turn_text().unwrap_or_default();
             app.state.hosted_game = Some(HostedGameView {
                 row,
                 snapshot,
                 dashboard,
-                submit_input: String::new(),
-                submit_status: Some("Hosted dashboard loaded from nc-host.".to_string()),
+                submit_input,
+                submit_status: submit_status
+                    .or_else(|| Some("Hosted dashboard loaded from nc-host.".to_string())),
             });
             app.state.route = LobbyRoute::HostedGame;
             app.popup_position = None;
@@ -1173,6 +1199,113 @@ fn open_hosted_dashboard(
                 LobbyStatusTone::Error,
                 format!("Unable to build hosted dashboard: {err}"),
             );
+        }
+    }
+}
+
+fn build_hosted_dash_app_with_local_draft(
+    app: &mut LobbyApp,
+    row: &super::models::JoinedGameRow,
+    snapshot: &nc_nostr::state_sync::GameState,
+) -> Result<(crate::app::state::DashApp, Option<String>), String> {
+    let mut dashboard =
+        build_hosted_dash_app(snapshot, app.geometry).map_err(|err| err.to_string())?;
+    let Some(cached_draft) = app
+        .transport
+        .load_hosted_draft(&row.game_id)
+        .map_err(|err| err.to_string())?
+    else {
+        return Ok((dashboard, None));
+    };
+    if snapshot.turn > cached_draft.turn {
+        app.transport
+            .clear_hosted_draft(&row.game_id)
+            .map_err(|err| err.to_string())?;
+        return Ok((
+            dashboard,
+            Some("Cleared staged local orders from an earlier turn.".to_string()),
+        ));
+    }
+    if snapshot.turn != cached_draft.turn {
+        app.transport
+            .save_hosted_draft(
+                &row.game_id,
+                &cached_draft.base_hash,
+                &cached_draft.draft,
+                HostedDraftStatus::Conflict,
+            )
+            .map_err(|err| err.to_string())?;
+        return Ok((
+            dashboard,
+            Some("Local staged orders are out of sync and need review.".to_string()),
+        ));
+    }
+    match replay_hosted_draft(&mut dashboard, &cached_draft.draft) {
+        Ok(()) => {
+            let message = match cached_draft.status {
+                HostedDraftStatus::SubmittedPending => {
+                    "Hosted dashboard loaded from nc-host. Reapplied pending submitted orders."
+                }
+                HostedDraftStatus::Conflict => {
+                    "Hosted dashboard loaded from nc-host. Reapplied local orders marked for review."
+                }
+                HostedDraftStatus::Local => {
+                    "Hosted dashboard loaded from nc-host. Reapplied staged local orders."
+                }
+            };
+            Ok((dashboard, Some(message.to_string())))
+        }
+        Err(err) => {
+            app.transport
+                .save_hosted_draft(
+                    &row.game_id,
+                    &cached_draft.base_hash,
+                    &cached_draft.draft,
+                    HostedDraftStatus::Conflict,
+                )
+                .map_err(|save_err| save_err.to_string())?;
+            Ok((
+                dashboard,
+                Some(format!(
+                    "Local staged orders no longer apply cleanly and need review: {err}"
+                )),
+            ))
+        }
+    }
+}
+
+pub(crate) fn reload_hosted_dashboard_from_cached_snapshot(app: &mut LobbyApp) -> bool {
+    let Some((row, current_hash)) = app
+        .state
+        .hosted_game
+        .as_ref()
+        .map(|hosted| (hosted.row.clone(), hosted.snapshot.state_hash.clone()))
+    else {
+        return false;
+    };
+    let Ok(Some(snapshot)) = app.transport.load_cached_hosted_snapshot(&row.game_id) else {
+        return false;
+    };
+    if snapshot.state_hash == current_hash {
+        return false;
+    }
+    match build_hosted_dash_app_with_local_draft(app, &row, &snapshot) {
+        Ok((dashboard, submit_status)) => {
+            let submit_input = dashboard.hosted_turn_text().unwrap_or_default();
+            if let Some(hosted) = app.state.hosted_game.as_mut() {
+                hosted.snapshot = snapshot;
+                hosted.dashboard = dashboard;
+                hosted.submit_input = submit_input;
+                hosted.submit_status = submit_status
+                    .or_else(|| Some("Hosted dashboard synchronized from nc-host.".to_string()));
+            }
+            true
+        }
+        Err(err) => {
+            if let Some(hosted) = app.state.hosted_game.as_mut() {
+                hosted.submit_status = Some(format!("Hosted dashboard sync failed: {err}"));
+            }
+            false
         }
     }
 }
