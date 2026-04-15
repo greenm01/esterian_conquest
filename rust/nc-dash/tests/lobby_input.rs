@@ -4,7 +4,8 @@ use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::state::{
-    FirstRunField, GateResetAction, HostedGameView, KeychainGateMode, LobbyRoute, LobbyTab,
+    FirstJoinSetupField, FirstJoinSetupView, FirstRunField, GateResetAction, HostedGameView,
+    KeychainGateMode, LobbyRoute, LobbyTab,
 };
 use nc_dash::lobby::transport::LobbyLoadedState;
 use nc_dash::lobby::update::apply_key;
@@ -110,6 +111,28 @@ fn league_open_game() -> OpenGameRow {
     );
     row.game_tier = "League".to_string();
     row
+}
+
+fn first_join_setup_view() -> FirstJoinSetupView {
+    FirstJoinSetupView {
+        row: JoinedGameRow::new(
+            "friday-night",
+            "joined",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "y3004 t4",
+        ),
+        empire_input: String::new(),
+        homeworld_input: String::new(),
+        active_field: FirstJoinSetupField::Empire,
+        status: None,
+        homeworld_coords: [8, 8],
+        present_production: 100,
+        potential_production: 100,
+    }
 }
 
 #[test]
@@ -270,6 +293,34 @@ fn alt_q_in_hosted_game_opens_in_game_quit_confirm() {
     };
     assert!(lines.contains("QUIT"));
     assert!(!lines.contains("Quit NC? Y/[N]"));
+}
+
+#[test]
+fn enter_in_first_join_setup_advances_to_homeworld_field() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstJoinSetup, ScreenGeometry::new(120, 40));
+    app.state.first_join_setup = Some(first_join_setup_view());
+    app.state
+        .first_join_setup
+        .as_mut()
+        .expect("setup")
+        .empire_input = "Terran Union".to_string();
+
+    apply_key(&mut app, key(KeyCode::Enter));
+
+    let setup = app.state.first_join_setup.as_ref().expect("setup");
+    assert_eq!(setup.active_field, FirstJoinSetupField::Homeworld);
+    assert_eq!(app.state.route, LobbyRoute::FirstJoinSetup);
+}
+
+#[test]
+fn escape_in_first_join_setup_cancels_back_to_home() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstJoinSetup, ScreenGeometry::new(120, 40));
+    app.state.first_join_setup = Some(first_join_setup_view());
+
+    apply_key(&mut app, key(KeyCode::Esc));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+    assert!(app.state.first_join_setup.is_none());
 }
 
 #[test]

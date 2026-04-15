@@ -37,8 +37,7 @@ pub fn ensure_hosted_player_initialized(
         return Ok(());
     }
 
-    let player_count = runtime.game_data.conquest.player_count();
-    let mut game_data = runtime.game_data;
+    let mut game_data = runtime.game_data.clone();
     let empire_name = game_data
         .player
         .records
@@ -63,6 +62,59 @@ pub fn ensure_hosted_player_initialized(
             player.set_assigned_player_handle_raw(handle);
         }
     }
+
+    save_runtime_state_with_recomputed_intel(&store, runtime, game_data)?;
+
+    Ok(())
+}
+
+pub fn apply_hosted_first_join_names(
+    game_dir: &Path,
+    player_seat: u32,
+    empire_name: &str,
+    homeworld_name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let player_record_index_1_based =
+        usize::try_from(player_seat).map_err(|_| format!("invalid player seat {}", player_seat))?;
+    let store = CampaignStore::open_default_in_dir(game_dir)?;
+    let runtime = load_or_seed_runtime_state(game_dir, &store)?;
+    let mut game_data = runtime.game_data.clone();
+    let player = game_data
+        .player
+        .records
+        .get(player_record_index_1_based.saturating_sub(1))
+        .ok_or_else(|| format!("missing player record for seat {}", player_seat))?;
+    let empire_pending = player.controlled_empire_name_summary() == "In Civil Disorder";
+    let homeworld_pending = player
+        .homeworld_planet_index_1_based_raw()
+        .checked_sub(1)
+        .and_then(|idx| game_data.planets.records.get(idx as usize))
+        .is_some_and(|planet| planet.is_named_homeworld_seed());
+
+    if !empire_pending && !homeworld_pending {
+        return Err("first-join naming is no longer available".into());
+    }
+
+    if let Some(player) = game_data
+        .player
+        .records
+        .get_mut(player_record_index_1_based.saturating_sub(1))
+    {
+        player.set_controlled_empire_name_raw(empire_name);
+    }
+    game_data.rename_player_homeworld(player_record_index_1_based, homeworld_name)?;
+
+    save_runtime_state_with_recomputed_intel(&store, runtime, game_data)?;
+
+    Ok(())
+}
+
+fn save_runtime_state_with_recomputed_intel(
+    store: &CampaignStore,
+    runtime: CampaignRuntimeState,
+    game_data: CoreGameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let player_count = game_data.conquest.player_count();
 
     let planet_intel_by_viewer = (1..=player_count)
         .map(|viewer_empire_id| {

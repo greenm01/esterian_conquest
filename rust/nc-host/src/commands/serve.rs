@@ -138,6 +138,7 @@ async fn run_async_server(
 
     let filter = Filter::new()
         .kind(Kind::Custom(30525))
+        .kind(Kind::Custom(30527))
         .kind(Kind::Custom(30507))
         .kind(Kind::Custom(30510))
         .kind(Kind::Custom(30513))
@@ -148,7 +149,7 @@ async fn run_async_server(
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523, 30525");
+    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523, 30525, 30527");
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();

@@ -1,6 +1,7 @@
 mod common;
 
 use nc_nostr::claim::{SeatClaimRequestPayload, parse_seat_claim_request};
+use nc_nostr::first_join::{FirstJoinSetupRequestPayload, parse_first_join_setup_request};
 use nc_nostr::handle_check::{HandleCheckRequestPayload, parse_handle_check_request};
 use nc_nostr::invite_request::{InviteRequestPayload, parse_invite_request};
 use nc_nostr::private_payload::encrypt_private_json;
@@ -192,6 +193,37 @@ fn test_parse_handle_check_30525() {
     assert_eq!(parsed.request_id, "handle-check-001");
     assert_eq!(parsed.handle, "StarRider");
     assert_eq!(parsed.player_pubkey, player_keys.public_key().to_hex());
+}
+
+#[test]
+fn test_parse_first_join_setup_30527() {
+    let player_keys = make_test_keys();
+    let host_keys = make_test_keys();
+
+    let tags = vec![
+        Tag::parse(["d", "first-join-001"]).unwrap(),
+        Tag::parse(["p", &host_keys.public_key().to_hex()]).unwrap(),
+        Tag::parse(["game-id", "test-game"]).unwrap(),
+    ];
+
+    let event = build_private_event(
+        &player_keys,
+        &host_keys,
+        30527,
+        &FirstJoinSetupRequestPayload {
+            empire_name: "Terran Union".to_string(),
+            homeworld_name: "Sol".to_string(),
+        },
+        tags,
+    );
+
+    let parsed =
+        parse_first_join_setup_request(host_keys.secret_key(), &event).expect("should parse");
+
+    assert_eq!(parsed.request_id, "first-join-001");
+    assert_eq!(parsed.game_id, "test-game");
+    assert_eq!(parsed.empire_name, "Terran Union");
+    assert_eq!(parsed.homeworld_name, "Sol");
 }
 
 #[test]

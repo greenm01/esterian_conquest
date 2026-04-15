@@ -2,6 +2,9 @@ use std::time::{Duration, Instant};
 
 use nc_nostr::claim::{SeatClaimRequestPayload, SeatClaimResultPayload};
 use nc_nostr::contact_message::{ContactMessage, decrypt_contact_message};
+use nc_nostr::first_join::{
+    FIRST_JOIN_NAME_MAX_CHARS, FirstJoinSetupRequestPayload, FirstJoinSetupResult,
+};
 use nc_nostr::game_definition::{GameDefinition, parse_game_definition};
 use nc_nostr::handle_check::{
     HandleCheckRequestPayload, HandleCheckResult,
@@ -477,6 +480,93 @@ impl HostedClientSession {
                             }
                             Ok(_) => {}
                             Err(_) => return Err("handle check stream closed".into()),
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    pub fn complete_first_join_setup(
+        &self,
+        game_id: &str,
+        daemon_pubkey: &str,
+        empire_name: &str,
+        homeworld_name: &str,
+    ) -> Result<GameState, Box<dyn std::error::Error>> {
+        let request_id = random_nonce_hex();
+        let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let player_pubkey_hex = self.keys.public_key().to_hex();
+        let empire_name = empire_name.trim();
+        let homeworld_name = homeworld_name.trim();
+        if empire_name.is_empty() {
+            return Err("Empire names need at least one visible character.".into());
+        }
+        if homeworld_name.is_empty() {
+            return Err("Homeworld names need at least one visible character.".into());
+        }
+        if empire_name.chars().count() > FIRST_JOIN_NAME_MAX_CHARS
+            || homeworld_name.chars().count() > FIRST_JOIN_NAME_MAX_CHARS
+        {
+            return Err(
+                format!(
+                    "Empire and homeworld names must be {} characters or less.",
+                    FIRST_JOIN_NAME_MAX_CHARS
+                )
+                .into(),
+            );
+        }
+        self.with_client(async move |client| {
+            let mut notifications = client.notifications();
+            let subscription = client
+                .subscribe(
+                    Filter::new()
+                        .kinds([Kind::Custom(30528)])
+                        .author(daemon_pubkey.clone())
+                        .custom_tag(
+                            SingleLetterTag::lowercase(Alphabet::P),
+                            player_pubkey_hex.as_str(),
+                        )
+                        .since(Timestamp::now() - Duration::from_secs(15)),
+                    None,
+                )
+                .await?
+                .val;
+
+            let event = build_private_json_event(
+                &self.keys,
+                &daemon_pubkey,
+                30527,
+                &FirstJoinSetupRequestPayload {
+                    empire_name: empire_name.to_string(),
+                    homeworld_name: homeworld_name.to_string(),
+                },
+                &request_id,
+                Some(game_id),
+            )?;
+            client.send_event(&event).await?;
+
+            let timeout = tokio::time::Instant::now() + Duration::from_secs(15);
+            loop {
+                tokio::select! {
+                    _ = tokio::time::sleep_until(timeout) => return Err("first-join setup timed out".into()),
+                    notification = notifications.recv() => {
+                        match notification {
+                            Ok(nostr_sdk::RelayPoolNotification::Event { subscription_id, event, .. }) if subscription_id == subscription => {
+                                let event = *event;
+                                if tag_content(&event.tags, "d") != Some(request_id.as_str()) {
+                                    continue;
+                                }
+                                if let Some(result) = decrypt_json::<FirstJoinSetupResult>(self.keys.secret_key(), &event) {
+                                    client.unsubscribe(&subscription).await;
+                                    return match result.state {
+                                        Some(state) if result.status == nc_nostr::first_join::FirstJoinSetupStatus::Accepted => Ok(state),
+                                        _ => Err(result.message.into()),
+                                    };
+                                }
+                            }
+                            Ok(_) => {}
+                            Err(_) => return Err("first-join setup stream closed".into()),
                         }
                     }
                 }

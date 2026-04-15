@@ -349,6 +349,17 @@ pub(super) fn render_edit_handle_popup(buffer: &mut Buffer, app: &LobbyApp, pare
     );
 }
 
+pub(super) fn render_first_join_setup_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
+    let lines = first_join_setup_popup_lines(app);
+    render_popup_lines(
+        buffer,
+        popup_rect(parent, popup_text_size(parent, &lines), app.popup_position),
+        " FIRST JOIN SETUP ",
+        &measure_popup_text(parent, &lines).lines,
+        theme::tui_theme().value,
+    );
+}
+
 pub(super) fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
     let popup = popup_rect(
         parent,
@@ -625,6 +636,10 @@ pub(super) fn edit_handle_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16)
     popup_text_size(parent, &edit_handle_popup_lines(app))
 }
 
+pub(super) fn first_join_setup_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
+    popup_text_size(parent, &first_join_setup_popup_lines(app))
+}
+
 pub(super) fn contact_picker_popup_size(app: &LobbyApp, parent: Rect) -> (u16, u16) {
     let contacts = app.state.selectable_direct_contacts();
     let row_width = contacts
@@ -809,6 +824,44 @@ fn edit_handle_popup_lines(app: &LobbyApp) -> Vec<String> {
         format!("New handle   : {}", app.state.edit_handle_input),
         "Enter saves your handle.".to_string(),
     ]
+}
+
+fn first_join_setup_popup_lines(app: &LobbyApp) -> Vec<String> {
+    let Some(setup) = app.state.first_join_setup.as_ref() else {
+        return vec!["Preparing first-join setup...".to_string()];
+    };
+    let empire_prefix = if setup.active_field == crate::lobby::state::FirstJoinSetupField::Empire {
+        ">"
+    } else {
+        " "
+    };
+    let homeworld_prefix =
+        if setup.active_field == crate::lobby::state::FirstJoinSetupField::Homeworld {
+            ">"
+        } else {
+            " "
+        };
+    let coords = format!(
+        "{:02},{:02}",
+        setup.homeworld_coords[0], setup.homeworld_coords[1]
+    );
+    let mut lines = vec![
+        "Name your empire and homeworld before continuing.".to_string(),
+        format!(
+            "Homeworld : {}  [{}/{} prod]",
+            coords, setup.present_production, setup.potential_production
+        ),
+        String::new(),
+        format!("{empire_prefix} Empire    : {}", setup.empire_input),
+        format!("{homeworld_prefix} Homeworld : {}", setup.homeworld_input),
+        String::new(),
+        "Tab switches fields. Enter advances and saves. Esc cancels.".to_string(),
+    ];
+    if let Some(status) = setup.status.as_deref() {
+        lines.push(String::new());
+        lines.push(status.to_string());
+    }
+    lines
 }
 
 fn add_contact_popup_lines(app: &LobbyApp) -> Vec<String> {

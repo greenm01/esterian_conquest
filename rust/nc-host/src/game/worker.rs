@@ -2,9 +2,14 @@ use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
 use crate::support::pubkeys::short_pubkey;
-use crate::support::runtime::{current_runtime_year, ensure_hosted_player_initialized};
+use crate::support::runtime::{
+    apply_hosted_first_join_names, current_runtime_year, ensure_hosted_player_initialized,
+};
 use nc_data::hosted::{self, GameTier, HandleOwnership, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
+use nc_nostr::first_join::{
+    FIRST_JOIN_NAME_MAX_CHARS, FirstJoinSetupRequest, FirstJoinSetupResult, FirstJoinSetupStatus,
+};
 use nc_nostr::invite_request::{
     InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
 };
@@ -32,6 +37,9 @@ impl GameWorker {
             }
             GameEffects::HandleInviteRequest { request, .. } => {
                 self.handle_invite_request(request).await;
+            }
+            GameEffects::HandleFirstJoinSetup { request, .. } => {
+                self.handle_first_join_setup(request).await;
             }
             GameEffects::HandleSeatClaim { request, .. } => {
                 self.handle_seat_claim(request).await;
@@ -211,6 +219,192 @@ impl GameWorker {
             .map(|(key, value)| vec![key.to_string(), value])
             .collect();
         enqueue_encrypted_event(conn, &self.game_id, recipient_pubkey, 30520, &content, tags)?;
+        Ok(())
+    }
+
+    async fn handle_first_join_setup(&self, request: FirstJoinSetupRequest) {
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Failed to open store: {}", e);
+                return;
+            }
+        };
+
+        let seat = match hosted::get_seat_by_pubkey(
+            store.connection(),
+            &self.game_id,
+            &request.player_pubkey,
+        ) {
+            Ok(Some(seat)) => seat,
+            Ok(None) => {
+                let _ = self.enqueue_first_join_setup_result(
+                    store.connection(),
+                    &request.player_pubkey,
+                    FirstJoinSetupResult {
+                        request_id: request.request_id,
+                        game_id: self.game_id.clone(),
+                        status: FirstJoinSetupStatus::Rejected,
+                        message: "You no longer have a claimed seat in this game.".to_string(),
+                        state: None,
+                    },
+                );
+                return;
+            }
+            Err(e) => {
+                tracing::error!("Failed to lookup player seat: {}", e);
+                return;
+            }
+        };
+
+        let empire_name = request.empire_name.trim();
+        let homeworld_name = request.homeworld_name.trim();
+        if empire_name.is_empty() {
+            let _ = self.enqueue_first_join_setup_result(
+                store.connection(),
+                &request.player_pubkey,
+                FirstJoinSetupResult {
+                    request_id: request.request_id,
+                    game_id: self.game_id.clone(),
+                    status: FirstJoinSetupStatus::Rejected,
+                    message: "Empire names need at least one visible character.".to_string(),
+                    state: None,
+                },
+            );
+            return;
+        }
+        if homeworld_name.is_empty() {
+            let _ = self.enqueue_first_join_setup_result(
+                store.connection(),
+                &request.player_pubkey,
+                FirstJoinSetupResult {
+                    request_id: request.request_id,
+                    game_id: self.game_id.clone(),
+                    status: FirstJoinSetupStatus::Rejected,
+                    message: "Homeworld names need at least one visible character.".to_string(),
+                    state: None,
+                },
+            );
+            return;
+        }
+        if empire_name.chars().count() > FIRST_JOIN_NAME_MAX_CHARS
+            || homeworld_name.chars().count() > FIRST_JOIN_NAME_MAX_CHARS
+        {
+            let _ = self.enqueue_first_join_setup_result(
+                store.connection(),
+                &request.player_pubkey,
+                FirstJoinSetupResult {
+                    request_id: request.request_id,
+                    game_id: self.game_id.clone(),
+                    status: FirstJoinSetupStatus::Rejected,
+                    message: format!(
+                        "Empire and homeworld names must be {} characters or less.",
+                        FIRST_JOIN_NAME_MAX_CHARS
+                    ),
+                    state: None,
+                },
+            );
+            return;
+        }
+
+        let Some(game_dir) = self.db_path.parent() else {
+            tracing::error!(
+                "Hosted db path has no parent for {}",
+                self.db_path.display()
+            );
+            return;
+        };
+
+        if let Err(e) = ensure_hosted_player_initialized(game_dir, seat.seat_number, None) {
+            tracing::error!(
+                "Failed to initialize hosted player {} in {} before naming: {}",
+                seat.seat_number,
+                self.game_id,
+                e
+            );
+            let _ = self.enqueue_first_join_setup_result(
+                store.connection(),
+                &request.player_pubkey,
+                FirstJoinSetupResult {
+                    request_id: request.request_id,
+                    game_id: self.game_id.clone(),
+                    status: FirstJoinSetupStatus::Rejected,
+                    message: "Unable to prepare your empire for first-time naming.".to_string(),
+                    state: None,
+                },
+            );
+            return;
+        }
+
+        if let Err(e) =
+            apply_hosted_first_join_names(game_dir, seat.seat_number, empire_name, homeworld_name)
+        {
+            let _ = self.enqueue_first_join_setup_result(
+                store.connection(),
+                &request.player_pubkey,
+                FirstJoinSetupResult {
+                    request_id: request.request_id,
+                    game_id: self.game_id.clone(),
+                    status: FirstJoinSetupStatus::Rejected,
+                    message: e.to_string(),
+                    state: None,
+                },
+            );
+            return;
+        }
+
+        let state = match crate::game::state::build_game_state_payload(
+            game_dir,
+            &self.game_id,
+            seat.seat_number,
+        ) {
+            Ok(state) => state,
+            Err(e) => {
+                tracing::error!(
+                    "Failed to build first-join state payload for {}: {}",
+                    self.game_id,
+                    e
+                );
+                let _ = self.enqueue_first_join_setup_result(
+                    store.connection(),
+                    &request.player_pubkey,
+                    FirstJoinSetupResult {
+                        request_id: request.request_id,
+                        game_id: self.game_id.clone(),
+                        status: FirstJoinSetupStatus::Rejected,
+                        message: "Unable to build the updated hosted state.".to_string(),
+                        state: None,
+                    },
+                );
+                return;
+            }
+        };
+
+        let _ = self.enqueue_first_join_setup_result(
+            store.connection(),
+            &request.player_pubkey,
+            FirstJoinSetupResult {
+                request_id: request.request_id,
+                game_id: self.game_id.clone(),
+                status: FirstJoinSetupStatus::Accepted,
+                message: "First-join names saved.".to_string(),
+                state: Some(state),
+            },
+        );
+    }
+
+    fn enqueue_first_join_setup_result(
+        &self,
+        conn: &rusqlite::Connection,
+        recipient_pubkey: &str,
+        result: FirstJoinSetupResult,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let content = serde_json::to_string(&result)?;
+        let tags = nc_nostr::first_join::build_first_join_setup_result_tags(&result)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+        enqueue_encrypted_event(conn, &self.game_id, recipient_pubkey, 30528, &content, tags)?;
         Ok(())
     }
 

@@ -23,6 +23,7 @@ pub enum LobbyRoute {
     MatrixLocked,
     Locked,
     Home,
+    FirstJoinSetup,
     QuitConfirm,
     ComposeInvite,
     SandboxJoinConfirm,
@@ -79,6 +80,21 @@ pub enum FirstRunField {
     Handle,
     Password,
     Confirm,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FirstJoinSetupField {
+    Empire,
+    Homeworld,
+}
+
+impl FirstJoinSetupField {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Empire => Self::Homeworld,
+            Self::Homeworld => Self::Empire,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -145,6 +161,17 @@ pub struct HostedGameView {
     pub submit_status: Option<String>,
 }
 
+pub struct FirstJoinSetupView {
+    pub row: JoinedGameRow,
+    pub empire_input: String,
+    pub homeworld_input: String,
+    pub active_field: FirstJoinSetupField,
+    pub status: Option<String>,
+    pub homeworld_coords: [u8; 2],
+    pub present_production: u16,
+    pub potential_production: u16,
+}
+
 pub struct LobbyState {
     pub route: LobbyRoute,
     pub quit_confirm_return_route: LobbyRoute,
@@ -183,6 +210,7 @@ pub struct LobbyState {
     pub manual_seen_this_session: bool,
     pub sandbox_join_target: Option<OpenGameRow>,
     pub sandbox_join_notice: Option<String>,
+    pub first_join_setup: Option<FirstJoinSetupView>,
     pub first_run_field: FirstRunField,
     pub first_run_handle_input: String,
     pub first_run_password_input: String,
@@ -250,6 +278,7 @@ impl LobbyState {
             manual_seen_this_session: route == LobbyRoute::Home,
             sandbox_join_target: None,
             sandbox_join_notice: None,
+            first_join_setup: None,
             first_run_field: FirstRunField::Handle,
             first_run_handle_input: String::new(),
             first_run_password_input: String::new(),

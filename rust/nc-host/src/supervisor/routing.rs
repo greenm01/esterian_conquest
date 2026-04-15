@@ -94,6 +94,20 @@ pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<G
                 }]
             }
         }
+        30527 => {
+            if let Some(req) =
+                nc_nostr::first_join::parse_first_join_setup_request(host_secret_key, &routed.event)
+            {
+                vec![GameEffects::HandleFirstJoinSetup {
+                    request: req,
+                    game_id: routed.game_id.clone(),
+                }]
+            } else {
+                vec![GameEffects::InvalidEvent {
+                    reason: "failed to parse FirstJoinSetupRequest".to_string(),
+                }]
+            }
+        }
         30510 => match nc_nostr::claim::parse_seat_claim_request(host_secret_key, &routed.event) {
             Ok(req) => vec![GameEffects::HandleSeatClaim {
                 request: req,

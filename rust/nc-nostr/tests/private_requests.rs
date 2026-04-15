@@ -1,3 +1,7 @@
+use nc_nostr::first_join::{
+    FirstJoinSetupRequestPayload, FirstJoinSetupResult, FirstJoinSetupStatus,
+    parse_first_join_setup_request,
+};
 use nc_nostr::handle_check::{
     HandleCheckRequestPayload, HandleCheckResult, HandleCheckStatus, parse_handle_check_request,
 };
@@ -92,6 +96,36 @@ fn handle_check_request_uses_hex_player_pubkey() {
         parse_handle_check_request(host.secret_key(), &event).expect("parse handle check");
     assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
     assert_eq!(parsed.handle, "StarRider");
+}
+
+#[test]
+fn first_join_setup_request_uses_hex_player_pubkey() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &player,
+        &host.public_key(),
+        &FirstJoinSetupRequestPayload {
+            empire_name: "Terran Union".to_string(),
+            homeworld_name: "Sol".to_string(),
+        },
+    )
+    .expect("encrypt first join setup");
+
+    let event = EventBuilder::new(Kind::Custom(30527), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "first-join-001"]).unwrap(),
+            Tag::parse(["game-id", "friday-night"]).unwrap(),
+            Tag::parse(["p", &host.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&player)
+        .unwrap();
+
+    let parsed =
+        parse_first_join_setup_request(host.secret_key(), &event).expect("parse first join");
+    assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
+    assert_eq!(parsed.empire_name, "Terran Union");
+    assert_eq!(parsed.homeworld_name, "Sol");
 }
 
 #[test]
@@ -219,4 +253,38 @@ fn handle_check_result_round_trips_as_private_30526() {
             .expect("parse handle result");
     assert_eq!(parsed.status, HandleCheckStatus::Taken);
     assert_eq!(parsed.handle, "StarRider");
+}
+
+#[test]
+fn first_join_setup_result_round_trips_as_private_30528() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &host,
+        &player.public_key(),
+        &FirstJoinSetupResult {
+            request_id: "first-join-001".to_string(),
+            game_id: "sandbox-smoke".to_string(),
+            status: FirstJoinSetupStatus::Rejected,
+            message: "first-join naming is no longer available".to_string(),
+            state: None,
+        },
+    )
+    .expect("encrypt first join result");
+
+    let event = EventBuilder::new(Kind::Custom(30528), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "first-join-001"]).unwrap(),
+            Tag::parse(["game-id", "sandbox-smoke"]).unwrap(),
+            Tag::parse(["status", "rejected"]).unwrap(),
+            Tag::parse(["p", &player.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&host)
+        .unwrap();
+
+    let parsed: FirstJoinSetupResult =
+        nc_nostr::private_payload::decrypt_private_json_from_event(player.secret_key(), &event)
+            .expect("parse first join result");
+    assert_eq!(parsed.status, FirstJoinSetupStatus::Rejected);
+    assert_eq!(parsed.game_id, "sandbox-smoke");
 }

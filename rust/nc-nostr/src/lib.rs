@@ -1,6 +1,7 @@
 pub mod claim;
 pub mod contact_message;
 pub mod discovery;
+pub mod first_join;
 pub mod game_definition;
 pub mod handle_check;
 pub mod hash;

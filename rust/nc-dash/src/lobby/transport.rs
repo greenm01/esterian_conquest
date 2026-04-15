@@ -504,6 +504,52 @@ impl LobbyTransport {
         Ok(state)
     }
 
+    pub fn complete_first_join_setup(
+        &mut self,
+        row: &JoinedGameRow,
+        empire_name: &str,
+        homeworld_name: &str,
+    ) -> Result<GameState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let session = unlocked
+            .session
+            .as_ref()
+            .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
+        let state = session
+            .complete_first_join_setup(
+                &row.game_id,
+                &row.daemon_pubkey,
+                empire_name,
+                homeworld_name,
+            )
+            .map_err(|err| err.to_string())?;
+        let mut cached = cache_game_from_row(row);
+        cached.status = "joined".to_string();
+        cached.last_turn = Some(state.turn);
+        cached.last_hash = Some(state.state_hash.clone());
+        cached.updated_at = now_iso8601();
+        unlocked.cache.upsert_game(cached);
+        unlocked.cache.replace_roster(
+            &state.game_id,
+            state
+                .state
+                .roster
+                .iter()
+                .map(|entry| GameRosterEntry {
+                    game_id: state.game_id.clone(),
+                    empire_id: entry.empire_id,
+                    empire_name: entry.empire_name.clone(),
+                    is_self: entry.is_self,
+                })
+                .collect(),
+        );
+        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        Ok(state)
+    }
+
     pub fn submit_turn(
         &mut self,
         row: &JoinedGameRow,

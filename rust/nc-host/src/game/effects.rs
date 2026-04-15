@@ -1,4 +1,5 @@
 use nc_nostr::claim::SeatClaimRequest;
+use nc_nostr::first_join::FirstJoinSetupRequest;
 use nc_nostr::invite_request::InviteRequest;
 use nc_nostr::player_message::PlayerMessageRequest;
 use nc_nostr::state_sync::StateRequest;
@@ -12,6 +13,10 @@ pub enum GameEffects {
     },
     HandleInviteRequest {
         request: InviteRequest,
+        game_id: String,
+    },
+    HandleFirstJoinSetup {
+        request: FirstJoinSetupRequest,
         game_id: String,
     },
     HandleSeatClaim {

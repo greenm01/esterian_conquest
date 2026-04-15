@@ -1,7 +1,9 @@
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};
 use nc_dash::lobby::onboarding::matrix_glyph;
-use nc_dash::lobby::state::{LobbyNetworkStatus, LobbyRoute, LobbyTab};
+use nc_dash::lobby::state::{
+    FirstJoinSetupField, FirstJoinSetupView, LobbyNetworkStatus, LobbyRoute, LobbyTab,
+};
 use nc_dash::{PlayfieldBuffer, ScreenGeometry};
 
 fn render_lines(route: LobbyRoute) -> String {
@@ -36,6 +38,28 @@ fn find_first_char(buffer: &PlayfieldBuffer, ch: char) -> Option<(usize, usize)>
             .position(|cell| cell.ch == ch)
             .map(|col| (row, col))
     })
+}
+
+fn sample_first_join_setup_view() -> FirstJoinSetupView {
+    FirstJoinSetupView {
+        row: JoinedGameRow::new(
+            "friday-night",
+            "joined",
+            "Friday Night",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "y3004 t4",
+        ),
+        empire_input: "Terran Union".to_string(),
+        homeworld_input: "Sol".to_string(),
+        active_field: FirstJoinSetupField::Homeworld,
+        status: None,
+        homeworld_coords: [8, 8],
+        present_production: 100,
+        potential_production: 100,
+    }
 }
 
 #[test]
@@ -352,6 +376,20 @@ fn sandbox_full_popup_renders_dismissal_copy() {
     assert!(lines.contains("SANDBOX FULL"));
     assert!(lines.contains("Sandbox Smoke is full right now."));
     assert!(lines.contains("Press any key to dismiss."));
+}
+
+#[test]
+fn first_join_setup_popup_renders_empire_and_homeworld_inputs() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::FirstJoinSetup, ScreenGeometry::new(120, 40));
+    app.state.first_join_setup = Some(sample_first_join_setup_view());
+
+    let lines = render_app_lines(app);
+
+    assert!(lines.contains("FIRST JOIN SETUP"));
+    assert!(lines.contains("Name your empire and homeworld before continuing."));
+    assert!(lines.contains("Empire    : Terran Union"));
+    assert!(lines.contains("Homeworld : Sol"));
+    assert!(lines.contains("Enter advances and saves. Esc cancels."));
 }
 
 #[test]

@@ -1,11 +1,13 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use nc_client::password::validate_new_password;
 use std::time::Instant;
 
 use super::hosted::dashboard::build_hosted_dash_app;
 use super::state::{
-    FirstRunField, GateResetAction, HostedGameView, KeychainGateMode, LobbyApp,
-    LobbyNetworkStatus, LobbyRoute, LobbyStatusTone, LobbyTab, ThreadPaneFocus,
+    FirstJoinSetupField, FirstJoinSetupView, FirstRunField, GateResetAction, HostedGameView,
+    KeychainGateMode, LobbyApp, LobbyNetworkStatus, LobbyRoute, LobbyStatusTone, LobbyTab,
+    ThreadPaneFocus,
 };
 use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use crate::theme;
@@ -51,6 +53,7 @@ pub fn apply_key(app: &mut LobbyApp, key: KeyEvent) {
         LobbyRoute::FirstRun => handle_first_run_key(app, key),
         LobbyRoute::MatrixLocked => handle_matrix_locked_key(app, key),
         LobbyRoute::Locked => handle_locked_key(app, key),
+        LobbyRoute::FirstJoinSetup => handle_first_join_setup_key(app, key),
         LobbyRoute::QuitConfirm => handle_quit_confirm_key(app, key),
         LobbyRoute::ComposeInvite => handle_compose_key(app, key),
         LobbyRoute::SandboxJoinConfirm => handle_sandbox_join_confirm_key(app, key),
@@ -469,6 +472,84 @@ fn handle_edit_handle_key(app: &mut LobbyApp, key: KeyEvent) {
         }
         _ => {}
     }
+}
+
+fn handle_first_join_setup_key(app: &mut LobbyApp, key: KeyEvent) {
+    if handle_first_join_setup_paste(app, key) {
+        trim_first_join_setup_inputs(app);
+        return;
+    }
+
+    match key.code {
+        KeyCode::Esc => cancel_first_join_setup(app),
+        KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
+            if let Some(setup) = app.state.first_join_setup.as_mut() {
+                setup.active_field = setup.active_field.next();
+                setup.status = None;
+            }
+        }
+        KeyCode::Backspace => {
+            if let Some(setup) = app.state.first_join_setup.as_mut() {
+                match setup.active_field {
+                    FirstJoinSetupField::Empire => {
+                        setup.empire_input.pop();
+                    }
+                    FirstJoinSetupField::Homeworld => {
+                        setup.homeworld_input.pop();
+                    }
+                }
+                setup.status = None;
+            }
+        }
+        KeyCode::Enter => {
+            if !validate_first_join_setup_field(app) {
+                return;
+            }
+            let Some(active_field) = app.state.first_join_setup.as_ref().map(|setup| setup.active_field)
+            else {
+                return;
+            };
+            if active_field == FirstJoinSetupField::Empire {
+                if let Some(setup) = app.state.first_join_setup.as_mut() {
+                    setup.active_field = FirstJoinSetupField::Homeworld;
+                    setup.status = None;
+                }
+            } else {
+                submit_first_join_setup(app);
+            }
+        }
+        KeyCode::Char(ch)
+            if !key.modifiers.contains(KeyModifiers::CONTROL)
+                && !key.modifiers.contains(KeyModifiers::ALT) =>
+        {
+            if let Some(setup) = app.state.first_join_setup.as_mut() {
+                let input = match setup.active_field {
+                    FirstJoinSetupField::Empire => &mut setup.empire_input,
+                    FirstJoinSetupField::Homeworld => &mut setup.homeworld_input,
+                };
+                if input.chars().count() < FIRST_JOIN_NAME_MAX_CHARS {
+                    input.push(ch);
+                }
+                setup.status = None;
+            }
+        }
+        _ => {}
+    }
+}
+
+fn handle_first_join_setup_paste(app: &mut LobbyApp, key: KeyEvent) -> bool {
+    let Some(text) = read_clipboard_text(app, key) else {
+        return false;
+    };
+    let Some(setup) = app.state.first_join_setup.as_mut() else {
+        return false;
+    };
+    let input = match setup.active_field {
+        FirstJoinSetupField::Empire => &mut setup.empire_input,
+        FirstJoinSetupField::Homeworld => &mut setup.homeworld_input,
+    };
+    input.extend(sanitize_single_line_paste(&text));
+    true
 }
 
 fn handle_hosted_game_key(app: &mut LobbyApp, key: KeyEvent) {
@@ -1068,6 +1149,12 @@ fn open_hosted_dashboard(
     row: super::models::JoinedGameRow,
     snapshot: nc_nostr::state_sync::GameState,
 ) {
+    if let Some(setup) = first_join_setup_view(row.clone(), &snapshot) {
+        app.state.first_join_setup = Some(setup);
+        open_popup_route(app, LobbyRoute::FirstJoinSetup);
+        return;
+    }
+    app.state.first_join_setup = None;
     match build_hosted_dash_app(&snapshot, app.geometry) {
         Ok(dashboard) => {
             app.state.hosted_game = Some(HostedGameView {
@@ -1088,6 +1175,118 @@ fn open_hosted_dashboard(
             );
         }
     }
+}
+
+fn first_join_setup_view(
+    row: super::models::JoinedGameRow,
+    snapshot: &nc_nostr::state_sync::GameState,
+) -> Option<FirstJoinSetupView> {
+    let empire_pending = snapshot.state.player.empire_name == "In Civil Disorder";
+    let homeworld = snapshot
+        .state
+        .owned_planets
+        .iter()
+        .find(|planet| {
+            planet.planet_index == usize::from(snapshot.state.player.homeworld_planet_index)
+        })
+        .or_else(|| snapshot.state.owned_planets.first())?;
+    let homeworld_pending = homeworld.name == "Not Named Yet";
+    if !empire_pending && !homeworld_pending {
+        return None;
+    }
+    Some(FirstJoinSetupView {
+        row,
+        empire_input: if empire_pending {
+            String::new()
+        } else {
+            snapshot.state.player.empire_name.clone()
+        },
+        homeworld_input: if homeworld_pending {
+            String::new()
+        } else {
+            homeworld.name.clone()
+        },
+        active_field: if empire_pending {
+            FirstJoinSetupField::Empire
+        } else {
+            FirstJoinSetupField::Homeworld
+        },
+        status: None,
+        homeworld_coords: homeworld.coords,
+        present_production: u16::from(homeworld.current_production),
+        potential_production: homeworld.potential_production,
+    })
+}
+
+fn validate_first_join_setup_field(app: &mut LobbyApp) -> bool {
+    let Some(setup) = app.state.first_join_setup.as_mut() else {
+        return false;
+    };
+    let value = match setup.active_field {
+        FirstJoinSetupField::Empire => setup.empire_input.trim(),
+        FirstJoinSetupField::Homeworld => setup.homeworld_input.trim(),
+    };
+    if value.is_empty() {
+        setup.status = Some(match setup.active_field {
+            FirstJoinSetupField::Empire => {
+                "Empire names need at least one visible character.".to_string()
+            }
+            FirstJoinSetupField::Homeworld => {
+                "Homeworld names need at least one visible character.".to_string()
+            }
+        });
+        return false;
+    }
+    true
+}
+
+fn trim_first_join_setup_inputs(app: &mut LobbyApp) {
+    let Some(setup) = app.state.first_join_setup.as_mut() else {
+        return;
+    };
+    if setup.empire_input.chars().count() > FIRST_JOIN_NAME_MAX_CHARS {
+        setup.empire_input = setup
+            .empire_input
+            .chars()
+            .take(FIRST_JOIN_NAME_MAX_CHARS)
+            .collect();
+    }
+    if setup.homeworld_input.chars().count() > FIRST_JOIN_NAME_MAX_CHARS {
+        setup.homeworld_input = setup
+            .homeworld_input
+            .chars()
+            .take(FIRST_JOIN_NAME_MAX_CHARS)
+            .collect();
+    }
+    setup.status = None;
+}
+
+fn submit_first_join_setup(app: &mut LobbyApp) {
+    let Some(setup) = app.state.first_join_setup.as_ref() else {
+        return;
+    };
+    let row = setup.row.clone();
+    let empire_name = setup.empire_input.trim().to_string();
+    let homeworld_name = setup.homeworld_input.trim().to_string();
+    match app
+        .transport
+        .complete_first_join_setup(&row, &empire_name, &homeworld_name)
+    {
+        Ok(snapshot) => {
+            app.state.first_join_setup = None;
+            open_hosted_dashboard(app, row, snapshot);
+        }
+        Err(err) => {
+            if let Some(setup) = app.state.first_join_setup.as_mut() {
+                setup.status = Some(err);
+            }
+        }
+    }
+}
+
+fn cancel_first_join_setup(app: &mut LobbyApp) {
+    app.state.first_join_setup = None;
+    close_popup_route(app, LobbyRoute::Home);
 }
 
 fn move_selection(app: &mut LobbyApp, delta: isize) {

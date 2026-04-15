@@ -5,6 +5,7 @@ use common::seed_runtime_snapshot;
 use nc_data::{CampaignStore, QueuedPlayerMail, ReportBlockRow};
 use nc_host::game::effects::GameEffects;
 use nc_host::game::worker::GameWorker;
+use nc_nostr::first_join::{FirstJoinSetupRequest, FirstJoinSetupStatus, FirstJoinSetupResult};
 use nc_nostr::state_sync::{StateErrorCode, StateErrorPayload, StateRequest};
 
 #[test]
@@ -350,4 +351,85 @@ async fn first_hosted_state_request_initializes_claimed_seat_once_without_leakin
         state.game_data.player.records[0].assigned_player_handle_summary(),
         "pilot"
     );
+}
+
+#[tokio::test]
+async fn first_join_setup_renames_empire_and_homeworld_and_returns_updated_state() {
+    let (_temp, game_dir, store) = create_test_game("state-sync-name-setup", 4);
+    nc_data::hosted::claim_seat(
+        store.connection(),
+        "state-sync-name-setup",
+        1,
+        "player-pubkey-name-setup",
+        3000,
+    )
+    .expect("claim seat");
+    seed_runtime_snapshot(
+        &game_dir,
+        "state-sync-name-setup",
+        "State Sync Name Setup",
+        4,
+        &[],
+        &[],
+    );
+
+    let worker = GameWorker::new(
+        "state-sync-name-setup".to_string(),
+        game_dir.join("hosted.db"),
+    );
+    worker
+        .handle_effect(GameEffects::HandleStateRequest {
+            request: StateRequest {
+                request_id: "state-004".to_string(),
+                game_id: "state-sync-name-setup".to_string(),
+                player_pubkey: "player-pubkey-name-setup".to_string(),
+                last_turn: Some(0),
+                last_hash: None,
+                handle: Some("pilot".to_string()),
+            },
+        })
+        .await;
+
+    worker
+        .handle_effect(GameEffects::HandleFirstJoinSetup {
+            request: FirstJoinSetupRequest {
+                request_id: "first-join-001".to_string(),
+                game_id: "state-sync-name-setup".to_string(),
+                player_pubkey: "player-pubkey-name-setup".to_string(),
+                empire_name: "Terran Union".to_string(),
+                homeworld_name: "Sol".to_string(),
+            },
+            game_id: "state-sync-name-setup".to_string(),
+        })
+        .await;
+
+    let pending = nc_data::hosted::get_pending(store.connection(), "state-sync-name-setup", 10)
+        .expect("pending");
+    let result: FirstJoinSetupResult =
+        serde_json::from_str(&pending.last().expect("setup result").content)
+            .expect("first join result");
+    assert_eq!(result.status, FirstJoinSetupStatus::Accepted);
+    let state = result.state.expect("updated state");
+    assert_eq!(state.state.player.empire_name, "Terran Union");
+    assert_eq!(state.state.roster[0].empire_name, "Terran Union");
+    assert_eq!(state.state.owned_planets[0].name, "Sol");
+    let homeworld = state
+        .state
+        .starmap
+        .worlds
+        .iter()
+        .find(|world| world.planet_index == 1)
+        .expect("homeworld world");
+    assert_eq!(homeworld.known_name.as_deref(), Some("Sol"));
+
+    let campaign_store = CampaignStore::open_default_in_dir(&game_dir).expect("campaign store");
+    let state = campaign_store
+        .load_latest_runtime_state()
+        .expect("runtime state")
+        .expect("seeded runtime");
+    assert_eq!(
+        state.game_data.player.records[0].controlled_empire_name_summary(),
+        "Terran Union"
+    );
+    assert_eq!(state.game_data.planets.records[0].planet_name(), "Sol");
 }
