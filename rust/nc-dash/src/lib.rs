@@ -42,11 +42,13 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
             Ok(())
         }
         LaunchCommand::Launch(LaunchTarget::Lobby(options)) => {
-            native::run(lobby::LobbyApp::new(options))
+            let window_mode = options.window_mode;
+            native::run(lobby::LobbyApp::new(options), window_mode)
         }
-        LaunchCommand::Launch(LaunchTarget::Dashboard { game_dir }) => {
-            run_dashboard_from_dir(game_dir)
-        }
+        LaunchCommand::Launch(LaunchTarget::Dashboard {
+            game_dir,
+            window_mode,
+        }) => run_dashboard_from_dir(game_dir, window_mode),
     }
 }
 
@@ -54,10 +56,13 @@ pub fn main_entry() -> Result<(), Box<dyn std::error::Error>> {
     run(std::env::args())
 }
 
-fn run_dashboard_from_dir(game_dir: std::path::PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn run_dashboard_from_dir(
+    game_dir: std::path::PathBuf,
+    window_mode: startup::NativeWindowMode,
+) -> Result<(), Box<dyn std::error::Error>> {
     let app = dashboard_launch::DashLaunchState::from_local_dir(game_dir)?
         .into_app(crate::geometry::ScreenGeometry::new(1, 1))?;
-    native::run(app)
+    native::run(app, window_mode)
 }
 
 pub(crate) fn show_fatal_error(message: &str) {

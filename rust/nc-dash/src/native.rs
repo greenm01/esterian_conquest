@@ -4,6 +4,7 @@ use crate::native_grid::{
     terminal_grid_for_pixels,
 };
 use crate::rendered::RenderedUi;
+use crate::startup::NativeWindowMode;
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
 use winit::dpi::{LogicalSize, PhysicalPosition};
@@ -274,21 +275,42 @@ impl<T: NativeApp> NativeShell<T> {
     }
 }
 
-pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run<T: NativeApp>(
+    app: T,
+    window_mode: NativeWindowMode,
+) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
     let geometry = app.geometry();
     let logical_width = (geometry.width() * crate::native_grid::DEFAULT_CELL_WIDTH) as f64;
     let logical_height = (geometry.height() * crate::native_grid::DEFAULT_CELL_HEIGHT) as f64;
-    let window = Box::new(
-        WindowBuilder::new()
-            .with_title(app.window_title())
-            .with_inner_size(LogicalSize::new(logical_width, logical_height))
-            .with_fullscreen(Some(Fullscreen::Borderless(None)))
-            .with_resizable(true)
-            .build(&event_loop)?,
-    );
+    let session_backend = detect_session_backend();
+    let builder = WindowBuilder::new()
+        .with_title(app.window_title())
+        .with_inner_size(LogicalSize::new(logical_width, logical_height))
+        .with_resizable(true);
+    let builder = match window_mode {
+        NativeWindowMode::MaximizedWindow => builder.with_maximized(true),
+        NativeWindowMode::BorderlessFullscreen => {
+            builder.with_fullscreen(Some(Fullscreen::Borderless(None)))
+        }
+    };
+    let window = Box::new(builder.build(&event_loop).map_err(|err| {
+        native_error(
+            "unable to create nc-dash window",
+            window_mode,
+            session_backend,
+            &err.to_string(),
+        )
+    })?);
     let window: &'static winit::window::Window = Box::leak(window);
-    let mut renderer = CellGridWindowRenderer::new(window)?;
+    let mut renderer = CellGridWindowRenderer::new(window).map_err(|err| {
+        native_error(
+            "unable to initialize nc-dash renderer",
+            window_mode,
+            session_backend,
+            &err.to_string(),
+        )
+    })?;
     let initial_size = window.inner_size();
     let mut shell = NativeShell::new(app, initial_size.width, initial_size.height);
     dispatch(
@@ -384,8 +406,11 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
                     match shell.app.render_ui() {
                         Ok(rendered) => {
                             if let Err(err) = renderer.render(&rendered, size.width, size.height) {
-                                crate::show_fatal_error(&format!(
-                                    "unable to render nc-dash window: {err}"
+                                crate::show_fatal_error(&native_error(
+                                    "unable to render nc-dash window",
+                                    window_mode,
+                                    session_backend,
+                                    &err.to_string(),
                                 ));
                                 elwt.exit();
                             } else {
@@ -444,6 +469,43 @@ pub fn run<T: NativeApp>(app: T) -> Result<(), Box<dyn std::error::Error>> {
     })?;
 
     Ok(())
+}
+
+fn detect_session_backend() -> &'static str {
+    if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        "wayland"
+    } else if std::env::var_os("DISPLAY").is_some() {
+        "x11"
+    } else if let Some(session_type) = std::env::var_os("XDG_SESSION_TYPE") {
+        if session_type == "wayland" {
+            "wayland"
+        } else if session_type == "x11" {
+            "x11"
+        } else {
+            "unknown"
+        }
+    } else {
+        "unknown"
+    }
+}
+
+fn native_error(
+    prefix: &str,
+    window_mode: NativeWindowMode,
+    session_backend: &str,
+    err: &str,
+) -> String {
+    let mut message = format!(
+        "{prefix} (mode: {}, session: {}): {err}",
+        window_mode.cli_label(),
+        session_backend
+    );
+    if window_mode == NativeWindowMode::BorderlessFullscreen && session_backend == "wayland" {
+        message.push_str(
+            " — retry without --fullscreen or launch windowed and let your compositor make it fullscreen",
+        );
+    }
+    message
 }
 
 fn dispatch<T: NativeApp>(

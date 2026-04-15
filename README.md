@@ -131,6 +131,10 @@ the player client. That stack is still under construction, but it is the
 intended long-term way to host and join NC over the network without direct BBS
 or localhost access.
 
+`nc-dash` now opens in a maximized native window by default. Use
+`--fullscreen` to force borderless fullscreen if you want the app to request
+that mode directly.
+
 ## Operator Docs
 
 - [NC Sysop Manual (PDF)](docs/manuals/nc_sysop_manual.pdf)

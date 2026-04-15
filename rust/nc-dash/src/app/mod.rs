@@ -4642,6 +4642,17 @@ mod tests {
     }
 
     #[test]
+    fn owned_planet_popup_browse_uses_planet_status_title() {
+        let mut app = dash_app();
+        let owned_coords = first_owned_planet_coords(&app);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+
+        assert!(render_owned_planet_popup_line(&app, "PLANET STATUS").contains("PLANET STATUS"));
+    }
+
+    #[test]
     fn owned_planet_popup_question_mark_opens_help_overlay() {
         let mut app = dash_app();
         let owned_coords = first_owned_planet_coords(&app);
@@ -4720,6 +4731,59 @@ mod tests {
         assert!(
             render_owned_planet_popup_line(&app, "Unit number or 0 if done")
                 .contains("Unit number or 0 if done")
+        );
+    }
+
+    #[test]
+    fn owned_planet_build_popup_uses_build_title_budget_and_bordered_table() {
+        let mut app = dash_app();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
+            })
+            .map(|(idx, _)| idx + 1)
+            .expect("owned planet");
+        let planet_name = app
+            .game_data
+            .empire_planet_economy_rows(app.player_record_index_1_based)
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == expected_record)
+            .map(|row| row.planet_name)
+            .expect("owned planet row");
+        let planet = app
+            .game_data
+            .planets
+            .records
+            .get_mut(expected_record.saturating_sub(1))
+            .expect("owned planet record");
+        let _ = planet.set_present_production_points(80);
+        planet.set_stored_production_points(80);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+        app.handle_key(key(KeyCode::Char('b')));
+
+        assert_eq!(
+            app.owned_planet_popup.mode,
+            OwnedPlanetPopupMode::BuildSpecify
+        );
+        assert!(
+            render_owned_planet_popup_line(&app, &format!("BUILD ON PLANET: {planet_name}"))
+                .contains(&format!("BUILD ON PLANET: {planet_name}"))
+        );
+        assert!(render_owned_planet_popup_line(&app, "BUDGET: ").contains("BUDGET: "));
+        assert!(render_owned_planet_popup_line(&app, "┌").contains("┌"));
+        assert!(render_owned_planet_popup_line(&app, "│ │#").contains("│ │#"));
+        assert!(
+            render_owned_planet_popup_line(&app, "Unit").contains("Unit")
+                && render_owned_planet_popup_line(&app, "Queued").contains("Queued")
+                && render_owned_planet_popup_line(&app, "Status").contains("Status")
         );
     }
 

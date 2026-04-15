@@ -82,6 +82,12 @@ impl DashApp {
         planet_build_specify_entries(view.points_left, &self.owned_planet_build_orders())
     }
 
+    pub(crate) fn owned_planet_build_budget(&self) -> u32 {
+        self.owned_planet_build_view()
+            .map(|view| view.points_left)
+            .unwrap_or_default()
+    }
+
     pub(crate) fn owned_planet_build_view(
         &self,
     ) -> Option<super::planet_build::PlanetBuildOverlayView> {
