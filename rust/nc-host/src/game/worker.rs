@@ -1,8 +1,8 @@
 use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
-use crate::support::runtime::current_runtime_year;
 use crate::support::pubkeys::short_pubkey;
+use crate::support::runtime::{current_runtime_year, ensure_hosted_player_initialized};
 use nc_data::hosted::{self, GameTier, HandleOwnership, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
 use nc_nostr::invite_request::{
@@ -122,6 +122,22 @@ impl GameWorker {
             );
             return;
         };
+
+        if let Err(e) = ensure_hosted_player_initialized(game_dir, seat.seat_number) {
+            tracing::error!(
+                "Failed to initialize hosted player {} in {}: {}",
+                seat.seat_number,
+                self.game_id,
+                e
+            );
+            let _ = self.enqueue_state_error(
+                store.connection(),
+                &request.player_pubkey,
+                StateErrorCode::StateUnavailable,
+                "Failed to initialize hosted player state.",
+            );
+            return;
+        }
 
         let state_payload = match crate::game::state::build_game_state_payload(
             game_dir,
@@ -247,8 +263,8 @@ impl GameWorker {
                     message: "You already have a pending invite request for this game.".to_string(),
                 },
                 Ok(_) => {
-                    if let Err(message) =
-                        self.validate_player_handle(&request.player_pubkey, request.handle.as_deref())
+                    if let Err(message) = self
+                        .validate_player_handle(&request.player_pubkey, request.handle.as_deref())
                     {
                         return self.publish_invite_receipt(
                             store.connection(),
@@ -330,7 +346,10 @@ impl GameWorker {
         let claimed_year = match current_runtime_year(game_dir) {
             Ok(year) => year,
             Err(e) => {
-                tracing::error!("Failed to load runtime year for sandbox auto-approve: {}", e);
+                tracing::error!(
+                    "Failed to load runtime year for sandbox auto-approve: {}",
+                    e
+                );
                 return self.queued_receipt(request);
             }
         };
@@ -720,7 +739,10 @@ impl GameWorker {
         };
 
         if sender_seat.seat_number == u32::from(message.recipient_empire_id) {
-            tracing::warn!("Ignoring self-directed player message {}", message.message_id);
+            tracing::warn!(
+                "Ignoring self-directed player message {}",
+                message.message_id
+            );
             return;
         }
 
@@ -942,7 +964,11 @@ impl GameWorker {
 }
 
 fn player_empire_name(game_data: &nc_data::CoreGameData, empire_id: u8) -> String {
-    let Some(player) = game_data.player.records.get(empire_id.saturating_sub(1) as usize) else {
+    let Some(player) = game_data
+        .player
+        .records
+        .get(empire_id.saturating_sub(1) as usize)
+    else {
         return format!("Seat {}", empire_id);
     };
     let empire_name = player.controlled_empire_name_summary();

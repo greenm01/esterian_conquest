@@ -2,12 +2,12 @@
 
 use crate::geometry::ScreenGeometry;
 use crate::table_filter::{TableFilterClause, TableFilterColumn};
-use nc_engine::ArmyTransportMode;
 use nc_data::FleetDetachSelection;
 use nc_data::{
     CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
     ProductionItemKind, QueuedPlayerMail, ReportBlockRow, TurnSubmission, WinnerState,
 };
+use nc_engine::ArmyTransportMode;
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -163,6 +163,7 @@ pub enum ActiveMouseGesture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpContext {
     Global,
+    OwnedPlanetPopup,
     PlanetList,
     PlanetListSort,
     PlanetListFilter,

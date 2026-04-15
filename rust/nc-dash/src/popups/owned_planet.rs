@@ -11,7 +11,9 @@ use crate::planet_view::selected_planet_detail;
 use crate::table::TableFooter;
 use crate::theme;
 use nc_data::ProductionItemKind;
-use nc_engine::{ArmyTransportMode, build_unit_spec_by_kind, transport_fleet_candidates_for_planet};
+use nc_engine::{
+    ArmyTransportMode, build_unit_spec_by_kind, transport_fleet_candidates_for_planet,
+};
 
 pub fn draw(
     buf: &mut PlayfieldBuffer,
@@ -21,7 +23,11 @@ pub fn draw(
 ) {
     let max_body_width = map_frame.outer.width.saturating_sub(6).max(1);
     let (lines, footer) = popup_content(app, max_body_width);
-    let body_width = lines.iter().map(|line| line.chars().count()).max().unwrap_or(1);
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
@@ -53,7 +59,11 @@ pub fn popup_rect(
 ) -> Rect {
     let max_body_width = map_frame.outer.width.saturating_sub(6).max(1);
     let (lines, footer) = popup_content(app, max_body_width);
-    let body_width = lines.iter().map(|line| line.chars().count()).max().unwrap_or(1);
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
     overlay_popup_rect_for_body_in_parent(
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INFO ABOUT A PLANET:",
@@ -73,7 +83,7 @@ fn popup_content<'a>(app: &'a DashApp, max_body_width: usize) -> (Vec<String>, T
             browse_lines(app, max_body_width),
             TableFooter::CommandPrompt {
                 label: "COMMAND",
-                prompt: "B D A C M L U X ->",
+                prompt: "? B D A C M L U X <ESC> ->",
             },
         ),
         OwnedPlanetPopupMode::BuildList => (
@@ -140,9 +150,9 @@ fn popup_content<'a>(app: &'a DashApp, max_body_width: usize) -> (Vec<String>, T
         ),
         OwnedPlanetPopupMode::MassCommissionConfirm => (
             wrap_plain_lines(
-                &[
-                    String::from("Automatically commission all ships and starbases in stardock?"),
-                ],
+                &[String::from(
+                    "Automatically commission all ships and starbases in stardock?",
+                )],
                 max_body_width,
             ),
             TableFooter::CommandPrompt {
@@ -223,7 +233,9 @@ fn popup_content<'a>(app: &'a DashApp, max_body_width: usize) -> (Vec<String>, T
 
 fn browse_lines(app: &DashApp, max_body_width: usize) -> Vec<String> {
     let mut lines = selected_planet_detail(app)
-        .map(|detail| crate::popups::planet_detail::popup_lines(&detail.popup_lines, max_body_width))
+        .map(|detail| {
+            crate::popups::planet_detail::popup_lines(&detail.popup_lines, max_body_width)
+        })
         .unwrap_or_else(|| vec![String::from("No planet selected.")]);
     if let Some(status) = app.owned_planet_popup.status.as_deref() {
         lines.push(String::new());

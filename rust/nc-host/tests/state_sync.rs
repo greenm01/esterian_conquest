@@ -2,7 +2,7 @@ mod common;
 
 use common::create_test_game;
 use common::seed_runtime_snapshot;
-use nc_data::{QueuedPlayerMail, ReportBlockRow};
+use nc_data::{CampaignStore, QueuedPlayerMail, ReportBlockRow};
 use nc_host::game::effects::GameEffects;
 use nc_host::game::worker::GameWorker;
 use nc_nostr::state_sync::{StateErrorCode, StateErrorPayload, StateRequest};
@@ -172,8 +172,8 @@ async fn unclaimed_state_request_enqueues_not_a_player_error() {
         })
         .await;
 
-    let pending =
-        nc_data::hosted::get_pending(store.connection(), "state-sync-unclaimed", 10).expect("pending");
+    let pending = nc_data::hosted::get_pending(store.connection(), "state-sync-unclaimed", 10)
+        .expect("pending");
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].kind, 30520);
     assert_eq!(pending[0].pubkey, "player-pubkey-001");
@@ -227,4 +227,80 @@ async fn claimed_state_request_enqueues_game_state_payload() {
         serde_json::from_str(&pending[0].content).expect("game state payload");
     assert_eq!(payload.game_id, "state-sync-worker");
     assert_eq!(payload.player_seat, 1);
+}
+
+#[tokio::test]
+async fn first_hosted_state_request_initializes_homeworld_treasury_once() {
+    let (_temp, game_dir, store) = create_test_game("state-sync-first-join", 4);
+    nc_data::hosted::claim_seat(
+        store.connection(),
+        "state-sync-first-join",
+        1,
+        "player-pubkey-first-join",
+        3000,
+    )
+    .expect("claim seat");
+    seed_runtime_snapshot(
+        &game_dir,
+        "state-sync-first-join",
+        "State Sync First Join",
+        4,
+        &[],
+        &[],
+    );
+
+    let worker = GameWorker::new(
+        "state-sync-first-join".to_string(),
+        game_dir.join("hosted.db"),
+    );
+    let request = StateRequest {
+        request_id: "state-003".to_string(),
+        game_id: "state-sync-first-join".to_string(),
+        player_pubkey: "player-pubkey-first-join".to_string(),
+        last_turn: Some(0),
+        last_hash: None,
+        handle: Some("pilot".to_string()),
+    };
+
+    worker
+        .handle_effect(GameEffects::HandleStateRequest {
+            request: request.clone(),
+        })
+        .await;
+
+    let pending = nc_data::hosted::get_pending(store.connection(), "state-sync-first-join", 10)
+        .expect("pending");
+    let payload: nc_nostr::state_sync::GameState =
+        serde_json::from_str(&pending[0].content).expect("game state payload");
+    let homeworld = payload
+        .state
+        .owned_planets
+        .iter()
+        .find(|planet| planet.planet_index == 1)
+        .expect("homeworld");
+    assert_eq!(homeworld.current_production, 100);
+    assert_eq!(homeworld.stored_points, 50);
+
+    let campaign_store = CampaignStore::open_default_in_dir(&game_dir).expect("campaign store");
+    let state = campaign_store
+        .load_latest_runtime_state()
+        .expect("runtime state")
+        .expect("seeded runtime");
+    assert_eq!(
+        state.game_data.planets.records[0].stored_production_points(),
+        50
+    );
+
+    worker
+        .handle_effect(GameEffects::HandleStateRequest { request })
+        .await;
+
+    let state = campaign_store
+        .load_latest_runtime_state()
+        .expect("runtime state")
+        .expect("seeded runtime");
+    assert_eq!(
+        state.game_data.planets.records[0].stored_production_points(),
+        50
+    );
 }
