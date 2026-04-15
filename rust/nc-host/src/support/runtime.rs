@@ -23,6 +23,7 @@ pub fn current_runtime_year(game_dir: &Path) -> Result<u16, Box<dyn std::error::
 pub fn ensure_hosted_player_initialized(
     game_dir: &Path,
     player_seat: u32,
+    handle: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let player_record_index_1_based =
         usize::try_from(player_seat).map_err(|_| format!("invalid player seat {}", player_seat))?;
@@ -53,6 +54,15 @@ pub fn ensure_hosted_player_initialized(
         .unwrap_or_else(|| format!("Seat {}", player_seat));
 
     game_data.join_player(player_record_index_1_based, &empire_name)?;
+    if let Some(handle) = handle {
+        if let Some(player) = game_data
+            .player
+            .records
+            .get_mut(player_record_index_1_based.saturating_sub(1))
+        {
+            player.set_assigned_player_handle_raw(handle);
+        }
+    }
 
     let planet_intel_by_viewer = (1..=player_count)
         .map(|viewer_empire_id| {

@@ -230,7 +230,7 @@ async fn claimed_state_request_enqueues_game_state_payload() {
 }
 
 #[tokio::test]
-async fn first_hosted_state_request_initializes_homeworld_treasury_once() {
+async fn first_hosted_state_request_initializes_claimed_seat_once_without_leaking_full_state() {
     let (_temp, game_dir, store) = create_test_game("state-sync-first-join", 4);
     nc_data::hosted::claim_seat(
         store.connection(),
@@ -272,6 +272,14 @@ async fn first_hosted_state_request_initializes_homeworld_treasury_once() {
         .expect("pending");
     let payload: nc_nostr::state_sync::GameState =
         serde_json::from_str(&pending[0].content).expect("game state payload");
+    assert_eq!(payload.state.player.mode, "active");
+    assert_eq!(payload.state.player.handle.as_deref(), Some("pilot"));
+    assert_eq!(payload.state.player.tax_rate, 50);
+    assert_eq!(payload.state.player.last_run_year, 3000);
+    assert_eq!(payload.state.player.homeworld_planet_index, 1);
+    assert_eq!(payload.state.player.planet_count, 1);
+    assert_eq!(payload.state.player.starbase_count, 0);
+    assert_eq!(payload.state.player.empire_name, "In Civil Disorder");
     let homeworld = payload
         .state
         .owned_planets
@@ -280,15 +288,50 @@ async fn first_hosted_state_request_initializes_homeworld_treasury_once() {
         .expect("homeworld");
     assert_eq!(homeworld.current_production, 100);
     assert_eq!(homeworld.stored_points, 50);
+    assert_eq!(homeworld.armies, 10);
+    assert_eq!(homeworld.ground_batteries, 4);
+    assert_eq!(payload.state.owned_planets.len(), 1);
+    assert_eq!(payload.state.owned_fleets.len(), 4);
+    assert!(payload.state.roster.iter().any(|entry| entry.is_self));
+
+    let foreign_world = payload
+        .state
+        .starmap
+        .worlds
+        .iter()
+        .find(|world| world.planet_index != homeworld.planet_index)
+        .expect("foreign world should exist");
+    assert_ne!(foreign_world.intel_tier, "owned");
+    assert_eq!(foreign_world.known_stored_points, None);
+    assert_eq!(foreign_world.known_current_production, None);
 
     let campaign_store = CampaignStore::open_default_in_dir(&game_dir).expect("campaign store");
     let state = campaign_store
         .load_latest_runtime_state()
         .expect("runtime state")
         .expect("seeded runtime");
+    assert!(state.game_data.player.records[0].is_active_human_player());
+    assert_eq!(
+        state.game_data.player.records[0].assigned_player_handle_summary(),
+        "pilot"
+    );
+    assert_eq!(
+        state.game_data.player.records[0].controlled_empire_name_summary(),
+        "In Civil Disorder"
+    );
+    assert_eq!(state.game_data.player.records[0].tax_rate(), 50);
+    assert_eq!(state.game_data.player.records[0].last_run_year_raw(), 3000);
     assert_eq!(
         state.game_data.planets.records[0].stored_production_points(),
         50
+    );
+    assert!(
+        !state.game_data.player.records[1].is_active_human_player(),
+        "other seats should remain unjoined"
+    );
+    assert_eq!(
+        state.game_data.player.records[1].assigned_player_handle_summary(),
+        ""
     );
 
     worker
@@ -302,5 +345,9 @@ async fn first_hosted_state_request_initializes_homeworld_treasury_once() {
     assert_eq!(
         state.game_data.planets.records[0].stored_production_points(),
         50
+    );
+    assert_eq!(
+        state.game_data.player.records[0].assigned_player_handle_summary(),
+        "pilot"
     );
 }

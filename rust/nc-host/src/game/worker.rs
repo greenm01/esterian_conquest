@@ -123,7 +123,9 @@ impl GameWorker {
             return;
         };
 
-        if let Err(e) = ensure_hosted_player_initialized(game_dir, seat.seat_number) {
+        if let Err(e) =
+            ensure_hosted_player_initialized(game_dir, seat.seat_number, request.handle.as_deref())
+        {
             tracing::error!(
                 "Failed to initialize hosted player {} in {}: {}",
                 seat.seat_number,
