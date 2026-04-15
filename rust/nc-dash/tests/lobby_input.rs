@@ -917,7 +917,7 @@ fn clicking_home_rows_focuses_pane_and_selects_clicked_row() {
         .find_map(|row| {
             buffer
                 .plain_line(row)
-                .find(" MY ACTIVE GAMES ")
+                .find(" MY GAMES ")
                 .map(|col| (row, col))
         })
         .expect("joined panel");

@@ -11,6 +11,7 @@ use crate::paths::data_root;
 pub struct CachedGame {
     pub id: String,
     pub name: String,
+    pub game_tier: Option<String>,
     pub host_alias: Option<String>,
     pub host_contact_npub: Option<String>,
     pub host_contact_label: Option<String>,
@@ -295,6 +296,7 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                 cache.games.push(CachedGame {
                     id: req_string(node, "id", "game")?,
                     name: req_string(node, "name", "game")?,
+                    game_tier: opt_string(node, "game-tier"),
                     host_alias: opt_string(node, "host-alias"),
                     host_contact_npub: opt_string(node, "host-contact-npub"),
                     host_contact_label: opt_string(node, "host-contact-label"),
@@ -383,6 +385,9 @@ pub fn render_cache(cache: &ClientCache) -> String {
             escape(&game.status),
             escape(&game.updated_at),
         ));
+        if let Some(game_tier) = game.game_tier.as_deref() {
+            out.push_str(&format!(" game-tier=\"{}\"", escape(game_tier)));
+        }
         if let Some(host_alias) = game.host_alias.as_deref() {
             out.push_str(&format!(" host-alias=\"{}\"", escape(host_alias)));
         }

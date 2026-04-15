@@ -56,6 +56,7 @@ fn home_route_renders_tabbed_shell_copy() {
     assert!(lines.contains("Status"));
     assert!(lines.contains("Game"));
     assert!(lines.contains("Host"));
+    assert!(lines.contains("Type"));
     assert!(lines.contains("Seats"));
     assert!(!lines.contains("COMMANDS <-"));
     assert!(!lines.contains("HANDLE:"));
@@ -65,7 +66,9 @@ fn home_route_renders_tabbed_shell_copy() {
 fn home_route_keeps_empty_messages_under_table_headers() {
     let mut my_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     my_games.state.active_tab = LobbyTab::MyGames;
-    assert!(render_app_lines(my_games).contains("<no games yet - press 'j' to join an open game>"));
+    let my_lines = render_app_lines(my_games);
+    assert!(my_lines.contains("MY GAMES"));
+    assert!(my_lines.contains("<no games yet - press 'j' to join an open game>"));
 
     let mut open_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     open_games.state.active_tab = LobbyTab::OpenGames;
@@ -79,7 +82,7 @@ fn home_route_keeps_empty_messages_under_table_headers() {
 fn home_route_tables_split_year_and_turn_columns() {
     let mut my_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
     my_games.state.active_tab = LobbyTab::MyGames;
-    my_games.state.joined_games = vec![JoinedGameRow::new(
+    let mut joined = JoinedGameRow::new(
         "friday-night",
         "joined",
         "Friday Night",
@@ -88,15 +91,18 @@ fn home_route_tables_split_year_and_turn_columns() {
         "daemon",
         Some(1),
         "Y3004 T4",
-    )];
+    );
+    joined.game_tier = "Sandbox".to_string();
+    my_games.state.joined_games = vec![joined];
     let my_lines = render_app_lines(my_games);
 
     assert!(my_lines.contains("Y3004:T4"));
+    assert!(my_lines.contains("Sandbox"));
     assert!(!my_lines.contains("Y3004 T4"));
 
     let mut open_games = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
     open_games.state.active_tab = LobbyTab::OpenGames;
-    open_games.state.open_games = vec![OpenGameRow::new(
+    let mut open = OpenGameRow::new(
         "saturday-night",
         "Open",
         "Saturday Night",
@@ -109,7 +115,9 @@ fn home_route_tables_split_year_and_turn_columns() {
         "2026-04-13",
         "y3005 t2",
         "summary",
-    )];
+    );
+    open.game_tier = "League".to_string();
+    open_games.state.open_games = vec![open];
 
     let lines = render_app_lines(open_games);
 
@@ -117,8 +125,44 @@ fn home_route_tables_split_year_and_turn_columns() {
     assert!(lines.contains("27x27"));
     assert!(lines.contains("2026-04-13"));
     assert!(lines.contains("Open"));
+    assert!(lines.contains("League"));
     assert!(!lines.contains("y3005"));
     assert!(!lines.contains("t2"));
+}
+
+#[test]
+fn my_games_history_keeps_active_rows_above_old_rows() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(180, 40));
+    app.state.active_tab = LobbyTab::MyGames;
+    let mut final_game = JoinedGameRow::new(
+        "ancient-war",
+        "final",
+        "Ancient War",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        Some(2),
+        "- -",
+    );
+    final_game.game_tier = "League".to_string();
+    let mut active_game = JoinedGameRow::new(
+        "fresh-frontier",
+        "joined",
+        "Fresh Frontier",
+        "nc-host",
+        "ws://127.0.0.1:8080",
+        "daemon",
+        Some(1),
+        "Y3004 T4",
+    );
+    active_game.game_tier = "Sandbox".to_string();
+    app.state.joined_games = vec![active_game, final_game];
+
+    let lines = render_app_lines(app);
+    let active_idx = lines.find("Fresh Frontier").expect("active game");
+    let final_idx = lines.find("Ancient War").expect("history game");
+
+    assert!(active_idx < final_idx);
 }
 
 #[test]

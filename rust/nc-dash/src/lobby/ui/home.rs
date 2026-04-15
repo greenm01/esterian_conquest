@@ -188,7 +188,7 @@ fn area_width_limit(x: u16, len: usize, buffer: &Buffer) -> usize {
 }
 
 fn render_joined_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state: &LobbyState) {
-    const COLUMNS: [TableColumnSpec; 4] = [
+    const COLUMNS: [TableColumnSpec; 5] = [
         TableColumnSpec {
             title_top: None,
             title: "Status",
@@ -199,6 +199,12 @@ fn render_joined_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, sta
             title_top: None,
             title: "Game",
             constraint: Constraint::Fill(1),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Type",
+            constraint: Constraint::Length(9),
             align: TableCellAlign::Left,
         },
         TableColumnSpec {
@@ -218,7 +224,7 @@ fn render_joined_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, sta
     render_table_panel(
         buffer,
         area,
-        " MY ACTIVE GAMES ",
+        " MY GAMES ",
         focused,
         &COLUMNS,
         1,
@@ -231,6 +237,7 @@ fn render_joined_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, sta
             vec![
                 joined_game_status_label(&row.status).to_string(),
                 row.game.clone(),
+                row.game_tier.clone(),
                 row.seat
                     .map(|seat| seat.to_string())
                     .unwrap_or_else(|| "-".to_string()),
@@ -241,7 +248,7 @@ fn render_joined_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, sta
 }
 
 fn render_open_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state: &LobbyState) {
-    const COLUMNS: [TableColumnSpec; 7] = [
+    const COLUMNS: [TableColumnSpec; 8] = [
         TableColumnSpec {
             title_top: None,
             title: "Status",
@@ -258,6 +265,12 @@ fn render_open_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state
             title_top: None,
             title: "Host",
             constraint: Constraint::Fill(1),
+            align: TableCellAlign::Left,
+        },
+        TableColumnSpec {
+            title_top: None,
+            title: "Type",
+            constraint: Constraint::Length(9),
             align: TableCellAlign::Left,
         },
         TableColumnSpec {
@@ -303,6 +316,7 @@ fn render_open_games_panel(buffer: &mut Buffer, area: Rect, focused: bool, state
                 row.status.clone(),
                 row.game.clone(),
                 row.host.clone(),
+                row.game_tier.clone(),
                 format!("{}/{}", row.open_seats, row.total_seats),
                 map_size_summary(row.total_seats),
                 row.created_date.clone(),
@@ -331,6 +345,7 @@ fn joined_game_status_label(status: &str) -> &str {
         "requested" => "Requested",
         "rejected" => "Rejected",
         "joined" => "Joined",
+        "final" => "Final",
         other => other,
     }
 }

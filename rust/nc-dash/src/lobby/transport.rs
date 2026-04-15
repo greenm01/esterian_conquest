@@ -72,6 +72,21 @@ fn open_game_status(game: &CatalogGame) -> (&'static str, u8) {
     }
 }
 
+fn game_tier_label(raw: Option<&str>) -> &'static str {
+    match raw.unwrap_or("league") {
+        "sandbox" => "Sandbox",
+        _ => "League",
+    }
+}
+
+fn joined_game_status_sort_key(status: &str) -> u8 {
+    match status {
+        "joined" => 0,
+        "requested" | "approved" => 1,
+        _ => 2,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LobbyLoadedState {
     pub relay_label: Option<String>,
@@ -290,6 +305,7 @@ impl LobbyTransport {
         unlocked.cache.upsert_game(CachedGame {
             id: row.game_id.clone(),
             name: row.game.clone(),
+            game_tier: Some(row.game_tier.to_ascii_lowercase()),
             host_alias: Some(row.host.clone()),
             host_contact_npub: row.host_contact_npub.clone(),
             host_contact_label: Some(row.host.clone()),
@@ -647,12 +663,24 @@ fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
             .find(|cached| cached.id == catalog_game.definition.game_id)
         {
             cached.name = catalog_game.definition.game_name.clone();
+            cached.game_tier = Some(
+                catalog_game
+                    .definition
+                    .game_tier
+                    .as_ref()
+                    .map(|tier| tier.as_str())
+                    .unwrap_or("league")
+                    .to_string(),
+            );
             cached.host_alias = catalog_game.definition.host_alias.clone();
             cached.host_contact_npub = catalog_game.definition.host_contact_npub.clone();
             cached.host_contact_label = catalog_game.definition.host_contact_label.clone();
             cached.host_contact_nip05 = catalog_game.definition.host_contact_nip05.clone();
             cached.daemon_pubkey = catalog_game.daemon_pubkey.clone();
             cached.relay_url = unlocked.relay_url.clone().unwrap_or_default();
+            if catalog_game.definition.status == GameStatus::Finished && cached.status == "joined" {
+                cached.status = "final".to_string();
+            }
         }
 
         maybe_cache_host_contact(
@@ -887,6 +915,12 @@ fn apply_decision(
     let mut cached = CachedGame {
         id: decision.game_id.clone(),
         name: game_name,
+        game_tier: Some(
+            catalog_match
+                .and_then(|game| game.definition.game_tier.as_ref().map(|tier| tier.as_str()))
+                .unwrap_or("league")
+                .to_string(),
+        ),
         host_alias: catalog_match.and_then(|game| game.definition.host_alias.clone()),
         host_contact_npub: catalog_match.and_then(|game| game.definition.host_contact_npub.clone()),
         host_contact_label: catalog_match
@@ -937,6 +971,10 @@ fn build_loaded_state(
                 OpenGameRow {
                     game_id: game.definition.game_id.clone(),
                     status: status.to_string(),
+                    game_tier: game_tier_label(
+                        game.definition.game_tier.as_ref().map(|tier| tier.as_str()),
+                    )
+                    .to_string(),
                     game: game.definition.game_name.clone(),
                     host: format_host_label(
                         game.definition.host_alias.as_deref(),
@@ -968,22 +1006,17 @@ fn build_loaded_state(
         .map(|(_, row)| row)
         .collect::<Vec<_>>();
 
-    let joined_games = unlocked
+    let mut joined_games = unlocked
         .cache
         .games
         .iter()
-        .filter(|game| {
-            matches!(
-                game.status.as_str(),
-                "requested" | "rejected" | "joined" | "approved"
-            )
-        })
         .map(|game| JoinedGameRow {
             game_id: game.id.clone(),
             status: match game.status.as_str() {
                 "approved" => "requested".to_string(),
                 other => other.to_string(),
             },
+            game_tier: game_tier_label(game.game_tier.as_deref()).to_string(),
             game: game.name.clone(),
             host: format_host_label(
                 game.host_alias.as_deref(),
@@ -1007,6 +1040,13 @@ fn build_loaded_state(
             last_hash: game.last_hash.clone(),
         })
         .collect::<Vec<_>>();
+    joined_games.sort_by(|left, right| {
+        joined_game_status_sort_key(&left.status)
+            .cmp(&joined_game_status_sort_key(&right.status))
+            .then_with(|| right.last_turn.cmp(&left.last_turn))
+            .then_with(|| left.game.to_lowercase().cmp(&right.game.to_lowercase()))
+            .then_with(|| left.game_id.cmp(&right.game_id))
+    });
 
     let game_inbox = build_game_inbox_rows(&joined_games, &unlocked.cache);
 
@@ -1196,6 +1236,7 @@ fn cache_game_from_row(row: &JoinedGameRow) -> CachedGame {
     CachedGame {
         id: row.game_id.clone(),
         name: row.game.clone(),
+        game_tier: Some(row.game_tier.to_ascii_lowercase()),
         host_alias: Some(row.host.clone()),
         host_contact_npub: row.host_contact_npub.clone(),
         host_contact_label: Some(row.host.clone()),

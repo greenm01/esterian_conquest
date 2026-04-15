@@ -2,6 +2,7 @@
 pub struct JoinedGameRow {
     pub game_id: String,
     pub status: String,
+    pub game_tier: String,
     pub game: String,
     pub host: String,
     pub host_contact_npub: Option<String>,
@@ -29,6 +30,7 @@ impl JoinedGameRow {
         Self {
             game_id: game_id.to_string(),
             status: status.to_string(),
+            game_tier: "league".to_string(),
             game: game.to_string(),
             host: host.to_string(),
             host_contact_npub: None,
@@ -47,6 +49,7 @@ impl JoinedGameRow {
 pub struct OpenGameRow {
     pub game_id: String,
     pub status: String,
+    pub game_tier: String,
     pub game: String,
     pub host: String,
     pub host_contact_npub: Option<String>,
@@ -79,6 +82,7 @@ impl OpenGameRow {
         Self {
             game_id: game_id.to_string(),
             status: status.to_string(),
+            game_tier: "league".to_string(),
             game: game.to_string(),
             host: host.to_string(),
             host_contact_npub: None,
