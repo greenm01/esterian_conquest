@@ -280,16 +280,10 @@ fn decrypt_json<T: serde::de::DeserializeOwned>(
     Ok(serde_json::from_str(&decrypt_string(payload, password)?)?)
 }
 
-fn encrypt_string(
-    value: &str,
-    password: &str,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn encrypt_string(value: &str, password: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     Ok(encrypt_blob(value, password)?)
 }
 
-fn decrypt_string(
-    payload: &[u8],
-    password: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
+fn decrypt_string(payload: &[u8], password: &str) -> Result<String, Box<dyn std::error::Error>> {
     Ok(decrypt_blob(payload, password)?)
 }

@@ -461,9 +461,7 @@ pub fn reset_player_slot_to_baseline(
     data: &mut CoreGameData,
     player_index_1_based: usize,
 ) -> Result<(), GameStateMutationError> {
-    if player_index_1_based == 0
-        || player_index_1_based > data.player.records.len()
-    {
+    if player_index_1_based == 0 || player_index_1_based > data.player.records.len() {
         return Err(GameStateMutationError::MissingPlayerRecord {
             index_1_based: player_index_1_based,
         });

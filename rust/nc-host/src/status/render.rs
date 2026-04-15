@@ -46,9 +46,10 @@ pub fn render_human(report: &DaemonStatusReport) -> String {
 
 fn render_game_row(game: &GameStatusRow) -> String {
     format!(
-        "  {}  {}  y{} t{}  seats {}/{}  recruiting={}  maint={}  req={} dec={} turns={} outbox {}/{}",
+        "  {}  {}  catalog={}  y{} t{}  seats {}/{}  recruiting={}  maint={}  req={} dec={} turns={} outbox {}/{}",
         game.game_id,
         game.status,
+        game.catalog_state,
         game.year,
         game.turn,
         game.claimed_seats,

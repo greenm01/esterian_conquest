@@ -1,6 +1,6 @@
 pub mod cache;
-pub mod contacts;
 pub mod config;
+pub mod contacts;
 pub mod hosted;
 pub mod keychain;
 pub mod password;

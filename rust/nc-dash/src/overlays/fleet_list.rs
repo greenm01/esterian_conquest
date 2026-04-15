@@ -305,7 +305,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         false,
         TableWidthMode::Compact,
     );
-    let body_width = table_render_width(&columns).max("You have no active fleets.".chars().count() + 4);
+    let body_width =
+        table_render_width(&columns).max("You have no active fleets.".chars().count() + 4);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         overlay_parent_rect(app),
@@ -464,7 +465,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         false,
         TableWidthMode::Compact,
     );
-    let body_width = table_render_width(&columns).max("You have no active fleets.".chars().count() + 4);
+    let body_width =
+        table_render_width(&columns).max("You have no active fleets.".chars().count() + 4);
     Some(overlay_popup_rect_for_body_in_parent(
         overlay_parent_rect(app),
         &title,
@@ -1472,11 +1474,12 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
     table_rows(app)
         .into_iter()
         .map(|row| {
-            vec![row
-                .id_label
-                .parse::<u16>()
-                .map(|fleet_number| format!("{fleet_number:02}"))
-                .unwrap_or(row.id_label)]
+            vec![
+                row.id_label
+                    .parse::<u16>()
+                    .map(|fleet_number| format!("{fleet_number:02}"))
+                    .unwrap_or(row.id_label),
+            ]
         })
         .collect()
 }
@@ -1979,11 +1982,10 @@ mod tests {
         let rows = table_rows(&app);
         assert_eq!(rows[app.fleet_overlay.selected].id_label, "2");
         assert_eq!(selection_rows(&app)[app.fleet_overlay.selected][0], "02");
-        assert!(
-            selection_rows(&app)
-                .iter()
-                .all(|row| row.first().is_some_and(|value| value.chars().all(|ch| ch.is_ascii_digit())))
-        );
+        assert!(selection_rows(&app).iter().all(|row| {
+            row.first()
+                .is_some_and(|value| value.chars().all(|ch| ch.is_ascii_digit()))
+        }));
     }
 
     #[test]
@@ -2191,9 +2193,10 @@ mod tests {
             .expect("selected fleet row");
 
         assert_eq!(fleet_row.cells[1], "X");
-        assert!(rows
-            .iter()
-            .all(|row| !matches!(row.key, crate::app::state::FleetOverlayRowKey::Starbase(_))));
+        assert!(
+            rows.iter()
+                .all(|row| !matches!(row.key, crate::app::state::FleetOverlayRowKey::Starbase(_)))
+        );
     }
 
     #[test]
@@ -2214,9 +2217,11 @@ mod tests {
     fn fleet_table_excludes_starbases_from_rows() {
         let app = dash_app_with_starbase();
 
-        assert!(table_rows(&app)
-            .iter()
-            .all(|row| !matches!(row.key, FleetOverlayRowKey::Starbase(_))));
+        assert!(
+            table_rows(&app)
+                .iter()
+                .all(|row| !matches!(row.key, FleetOverlayRowKey::Starbase(_)))
+        );
     }
 
     #[test]

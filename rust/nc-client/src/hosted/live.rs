@@ -237,10 +237,7 @@ async fn backfill(
     Ok(())
 }
 
-fn send_status_update(
-    update_tx: &mpsc::Sender<HostedSessionUpdate>,
-    status: HostedSessionStatus,
-) {
+fn send_status_update(update_tx: &mpsc::Sender<HostedSessionUpdate>, status: HostedSessionStatus) {
     let _ = update_tx.send(HostedSessionUpdate {
         status: Some(status),
         ..HostedSessionUpdate::default()
@@ -255,6 +252,7 @@ fn parse_event(keys: &Keys, event: &nostr_sdk::Event) -> Option<HostedSessionUpd
             update.catalog.push(CatalogGame {
                 daemon_pubkey: event.pubkey.to_hex(),
                 definition,
+                published_at: event.created_at.as_secs(),
             });
         }
         30516 => {

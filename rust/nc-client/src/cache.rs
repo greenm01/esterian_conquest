@@ -95,7 +95,11 @@ impl ClientCache {
     }
 
     pub fn upsert_game(&mut self, game: CachedGame) {
-        if let Some(existing) = self.games.iter_mut().find(|existing| existing.id == game.id) {
+        if let Some(existing) = self
+            .games
+            .iter_mut()
+            .find(|existing| existing.id == game.id)
+        {
             *existing = game;
         } else {
             self.games.push(game);

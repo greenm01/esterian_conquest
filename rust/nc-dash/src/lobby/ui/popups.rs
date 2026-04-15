@@ -266,7 +266,11 @@ pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, par
 
 pub(super) fn render_quit_confirm_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
     let styles = theme::tui_theme();
-    let area = popup_rect(parent, quit_confirm_popup_size(app, parent), app.popup_position);
+    let area = popup_rect(
+        parent,
+        quit_confirm_popup_size(app, parent),
+        app.popup_position,
+    );
     let block = Block::default()
         .borders(Borders::ALL)
         .padding(Padding::horizontal(1))
@@ -304,15 +308,15 @@ pub(super) fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, p
     );
 }
 
-pub(super) fn render_sandbox_join_confirm_popup(
-    buffer: &mut Buffer,
-    app: &LobbyApp,
-    parent: Rect,
-) {
+pub(super) fn render_sandbox_join_confirm_popup(buffer: &mut Buffer, app: &LobbyApp, parent: Rect) {
     let lines = sandbox_join_confirm_popup_lines(app);
     render_popup_lines(
         buffer,
-        popup_rect(parent, sandbox_join_confirm_popup_size(app, parent), app.popup_position),
+        popup_rect(
+            parent,
+            sandbox_join_confirm_popup_size(app, parent),
+            app.popup_position,
+        ),
         " JOIN SANDBOX ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,

@@ -2940,6 +2940,7 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm",
+ "dirs 5.0.1",
  "nc-client",
  "nc-data",
  "nc-log",

@@ -86,6 +86,7 @@ fn init_test_game_dir(game_dir: &std::path::Path, game_id: &str, player_count: u
         &nc_data::hosted::GameSettings {
             recruiting: nc_data::hosted::RecruitingMode::NewPlayers,
             lobby_visibility: nc_data::hosted::LobbyVisibility::Public,
+            catalog_state: nc_data::hosted::CatalogState::Listed,
             host_alias: Some("Test Host".to_string()),
             summary: Some("Test game for nc-host".to_string()),
             maintenance_enabled: true,

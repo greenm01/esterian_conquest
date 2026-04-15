@@ -14,8 +14,7 @@ use nc_nostr::invite_request::{
     InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
 };
 use nc_nostr::state_sync::{
-    StateErrorCode, StateErrorPayload, StateRequest, build_state_delta,
-    build_delta_response_tags,
+    StateErrorCode, StateErrorPayload, StateRequest, build_delta_response_tags, build_state_delta,
 };
 use nc_nostr::turn_commands::{TurnCommands, TurnReceipt, TurnReceiptError, TurnReceiptStatus};
 use std::fmt;

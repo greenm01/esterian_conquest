@@ -208,7 +208,10 @@ pub fn get_roster_entry(conn: &Connection, npub: &str) -> SqliteResult<Option<Ro
     }
 }
 
-pub fn list_roster_events_for_npub(conn: &Connection, npub: &str) -> SqliteResult<Vec<RosterEvent>> {
+pub fn list_roster_events_for_npub(
+    conn: &Connection,
+    npub: &str,
+) -> SqliteResult<Vec<RosterEvent>> {
     let mut stmt = conn.prepare(
         "SELECT npub, game_id, event_type, seat, created_at
          FROM player_roster_events WHERE npub = ?1 ORDER BY created_at DESC",

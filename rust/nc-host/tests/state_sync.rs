@@ -5,7 +5,7 @@ use common::seed_runtime_snapshot;
 use nc_data::{CampaignStore, QueuedPlayerMail, ReportBlockRow};
 use nc_host::game::effects::GameEffects;
 use nc_host::game::worker::GameWorker;
-use nc_nostr::first_join::{FirstJoinSetupRequest, FirstJoinSetupStatus, FirstJoinSetupResult};
+use nc_nostr::first_join::{FirstJoinSetupRequest, FirstJoinSetupResult, FirstJoinSetupStatus};
 use nc_nostr::state_sync::{StateErrorCode, StateErrorPayload, StateRequest};
 
 #[test]
@@ -303,13 +303,16 @@ async fn claimed_state_request_returns_delta_when_last_hash_matches_cached_snaps
         })
         .await;
 
-    let pending = nc_data::hosted::get_pending(store.connection(), "state-sync-delta", 10)
-        .expect("pending");
+    let pending =
+        nc_data::hosted::get_pending(store.connection(), "state-sync-delta", 10).expect("pending");
     assert_eq!(pending.len(), 2);
     assert_eq!(pending[1].kind, 30521);
 
     let tags: Vec<Vec<String>> = serde_json::from_str(&pending[1].tags).expect("tags");
-    assert!(tags.iter().any(|tag| tag == &["request-id".to_string(), "state-delta-002".to_string()]));
+    assert!(
+        tags.iter()
+            .any(|tag| tag == &["request-id".to_string(), "state-delta-002".to_string()])
+    );
 
     let delta: nc_nostr::state_sync::StateDelta =
         serde_json::from_str(&pending[1].content).expect("delta");

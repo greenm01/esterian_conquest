@@ -32,7 +32,10 @@ async fn collect_status_async(
     let mut totals = DaemonStatusTotals::default();
     for game in &games {
         totals.discovered_games += 1;
-        if game.lobby_visibility == "public" && game.recruiting != RecruitingMode::None.as_str() {
+        if game.catalog_state == "listed"
+            && game.lobby_visibility == "public"
+            && game.recruiting != RecruitingMode::None.as_str()
+        {
             totals.public_recruiting_games += 1;
         }
         if game.maintenance_due_now {
@@ -131,6 +134,7 @@ fn build_game_status_row(
         open_seats,
         recruiting: settings.recruiting.as_str().to_string(),
         lobby_visibility: settings.lobby_visibility.as_str().to_string(),
+        catalog_state: settings.catalog_state.as_str().to_string(),
         maintenance_enabled: settings.maintenance_enabled,
         maintenance_due_unix_seconds: due_seconds,
         maintenance_due_now,

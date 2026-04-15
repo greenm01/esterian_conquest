@@ -6,8 +6,8 @@ use nc_engine::{
     ArmyTransportMode, PlanetCommissionSlotEntry, build_unit_spec, build_unit_spec_by_kind,
     planet_build_list_entries, planet_build_max_quantity, planet_build_orders,
     planet_build_specify_entries, planet_build_unavailable_message, planet_build_view,
-    planet_commission_slot_entries, production_item_kind_raw, resolve_planet_transport_fleet_selection,
-    transport_fleet_candidates_for_planet,
+    planet_commission_slot_entries, production_item_kind_raw,
+    resolve_planet_transport_fleet_selection, transport_fleet_candidates_for_planet,
 };
 
 use super::state::{ActiveMouseGesture, ActivePopup, DashApp, OwnedPlanetPopupMode};
@@ -44,7 +44,8 @@ impl DashApp {
         self.owned_planet_popup.default.clear();
         self.owned_planet_popup.status = None;
         self.owned_planet_popup.build_selected_kind = None;
-        self.owned_planet_popup.transport_selected_fleet_record_index_1_based = None;
+        self.owned_planet_popup
+            .transport_selected_fleet_record_index_1_based = None;
         self.owned_planet_popup.transport_selected_fleet_number = None;
         self.owned_planet_popup.transport_available_qty = 0;
         if !matches!(
@@ -81,7 +82,9 @@ impl DashApp {
         planet_build_specify_entries(view.points_left, &self.owned_planet_build_orders())
     }
 
-    pub(crate) fn owned_planet_build_view(&self) -> Option<super::planet_build::PlanetBuildOverlayView> {
+    pub(crate) fn owned_planet_build_view(
+        &self,
+    ) -> Option<super::planet_build::PlanetBuildOverlayView> {
         let record = self.owned_planet_popup_record_index_1_based()?;
         let row = self
             .game_data
@@ -203,8 +206,7 @@ impl DashApp {
             return Ok(());
         }
         if qty > max_qty {
-            self.owned_planet_popup.status =
-                Some(format!("Enter a quantity from 0 to {max_qty}."));
+            self.owned_planet_popup.status = Some(format!("Enter a quantity from 0 to {max_qty}."));
             return Ok(());
         }
         let Some(record) = self.owned_planet_popup_record_index_1_based() else {
@@ -229,15 +231,15 @@ impl DashApp {
         self.game_data
             .append_planet_build_order(record, points, production_item_kind_raw(kind))?;
         if let Ok(points_remaining_raw) = u8::try_from(points) {
-            self.stage_hosted_planet_build(record, points_remaining_raw, production_item_kind_raw(kind));
+            self.stage_hosted_planet_build(
+                record,
+                points_remaining_raw,
+                production_item_kind_raw(kind),
+            );
         }
         self.save_and_refresh_runtime()?;
         self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-        self.show_owned_planet_status(format!(
-            "Queued {} {}.",
-            qty,
-            unit.label
-        ));
+        self.show_owned_planet_status(format!("Queued {} {}.", qty, unit.label));
         Ok(())
     }
 
@@ -275,7 +277,9 @@ impl DashApp {
         } else {
             self.owned_planet_popup.input.trim()
         };
-        let slot = raw.parse::<usize>().map_err(|_| "Enter a valid slot number.")?;
+        let slot = raw
+            .parse::<usize>()
+            .map_err(|_| "Enter a valid slot number.")?;
         let Some(slot_0_based) = slot.checked_sub(1) else {
             return Err("Slot numbers are 1-based.".into());
         };
@@ -381,8 +385,8 @@ impl DashApp {
         self.owned_planet_popup.input.clear();
         self.owned_planet_popup.default = fleet.available_qty.to_string();
         self.owned_planet_popup.status = None;
-        self.owned_planet_popup.transport_selected_fleet_record_index_1_based =
-            Some(fleet.fleet_record_index_1_based);
+        self.owned_planet_popup
+            .transport_selected_fleet_record_index_1_based = Some(fleet.fleet_record_index_1_based);
         self.owned_planet_popup.transport_selected_fleet_number = Some(fleet.fleet_number);
         self.owned_planet_popup.transport_available_qty = fleet.available_qty;
         Ok(())
@@ -392,12 +396,14 @@ impl DashApp {
         &mut self,
         mode: ArmyTransportMode,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(planet_record_index_1_based) = self.owned_planet_popup_record_index_1_based() else {
+        let Some(planet_record_index_1_based) = self.owned_planet_popup_record_index_1_based()
+        else {
             self.close_owned_planet_popup();
             return Ok(());
         };
-        let Some(fleet_record_index_1_based) =
-            self.owned_planet_popup.transport_selected_fleet_record_index_1_based
+        let Some(fleet_record_index_1_based) = self
+            .owned_planet_popup
+            .transport_selected_fleet_record_index_1_based
         else {
             self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
             return Ok(());
@@ -479,9 +485,7 @@ impl DashApp {
         self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::ScorchConfirm1);
     }
 
-    pub(crate) fn submit_owned_planet_scorch(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) fn submit_owned_planet_scorch(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(record) = self.owned_planet_popup_record_index_1_based() else {
             self.close_owned_planet_popup();
             return Ok(());

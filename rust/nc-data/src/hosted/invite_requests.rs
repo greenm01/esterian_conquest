@@ -159,10 +159,9 @@ pub fn approve_request_for_seat(
         Some(_) => Err(rusqlite::Error::InvalidParameterName(format!(
             "seat {seat_number} is already claimed"
         ))),
-        None => super::seats::open_seat(conn, game_id, seat_number, reserve_invite_token)
-            .and_then(|_| {
-                super::seats::claim_seat(conn, game_id, seat_number, player_pubkey, claimed_year)
-            }),
+        None => super::seats::open_seat(conn, game_id, seat_number, reserve_invite_token).and_then(
+            |_| super::seats::claim_seat(conn, game_id, seat_number, player_pubkey, claimed_year),
+        ),
     }
     .and_then(|_| approve_request(conn, request_id, decision_message, seat_number, None))
     .and_then(|_| super::settings::mark_catalog_dirty(conn, game_id));
@@ -192,7 +191,13 @@ pub fn auto_approve_sandbox_request(
     let result = (|| -> SqliteResult<SandboxApprovalOutcome> {
         if let Some(existing) = super::seats::get_seat_by_pubkey(conn, game_id, player_pubkey)? {
             if existing.status == super::seats::SeatStatus::Claimed {
-                approve_request(conn, request_id, decision_message, existing.seat_number, None)?;
+                approve_request(
+                    conn,
+                    request_id,
+                    decision_message,
+                    existing.seat_number,
+                    None,
+                )?;
                 return Ok(SandboxApprovalOutcome::Claimed {
                     seat: existing.seat_number,
                 });

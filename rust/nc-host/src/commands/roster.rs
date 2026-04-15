@@ -111,8 +111,14 @@ fn run_show(store: &RosterStore, npub: Option<&str>) -> Result<(), Box<dyn std::
     if let Some(ref h) = entry.handle {
         println!("Handle:         {}", h);
     }
-    println!("First seen:     {}", format_unix_timestamp(entry.first_seen_at));
-    println!("Last seen:      {}", format_unix_timestamp(entry.last_seen_at));
+    println!(
+        "First seen:     {}",
+        format_unix_timestamp(entry.first_seen_at)
+    );
+    println!(
+        "Last seen:      {}",
+        format_unix_timestamp(entry.last_seen_at)
+    );
     println!("Games joined:   {}", entry.games_joined);
     println!("Games completed:{}", entry.games_completed);
     println!("Games abandoned:{}", entry.games_abandoned);
@@ -122,10 +128,7 @@ fn run_show(store: &RosterStore, npub: Option<&str>) -> Result<(), Box<dyn std::
         println!();
         println!("Event history:");
         for ev in &events {
-            let seat_str = ev
-                .seat
-                .map(|s| format!(" seat {}", s))
-                .unwrap_or_default();
+            let seat_str = ev.seat.map(|s| format!(" seat {}", s)).unwrap_or_default();
             println!(
                 "  [{:>12}]  {}  {}{}",
                 ev.event_type,

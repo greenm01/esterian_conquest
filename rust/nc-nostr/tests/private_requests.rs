@@ -10,8 +10,7 @@ use nc_nostr::invite_request::{
 };
 use nc_nostr::private_payload::encrypt_private_json;
 use nc_nostr::state_sync::{
-    StateErrorCode, StateErrorPayload, StateRequestPayload, parse_state_error,
-    parse_state_request,
+    StateErrorCode, StateErrorPayload, StateRequestPayload, parse_state_error, parse_state_request,
 };
 use nc_nostr::turn_commands::{TurnCommandsPayload, parse_turn_commands};
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
@@ -92,8 +91,7 @@ fn handle_check_request_uses_hex_player_pubkey() {
         .sign_with_keys(&player)
         .unwrap();
 
-    let parsed =
-        parse_handle_check_request(host.secret_key(), &event).expect("parse handle check");
+    let parsed = parse_handle_check_request(host.secret_key(), &event).expect("parse handle check");
     assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
     assert_eq!(parsed.handle, "StarRider");
 }

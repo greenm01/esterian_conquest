@@ -263,7 +263,7 @@ impl LobbyApp {
                 })
                 .or_else(|| {
                     cursor_wakeup
-                .map(|cursor| cursor.min(self.next_matrix_frame_at))
+                        .map(|cursor| cursor.min(self.next_matrix_frame_at))
                         .or(Some(self.next_matrix_frame_at))
                 });
         }

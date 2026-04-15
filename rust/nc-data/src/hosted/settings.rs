@@ -7,6 +7,7 @@ pub struct GameSettings {
     pub maintenance_next_due_unix_seconds: Option<i64>,
     pub lobby_visibility: LobbyVisibility,
     pub recruiting: RecruitingMode,
+    pub catalog_state: CatalogState,
     pub host_alias: Option<String>,
     pub summary: Option<String>,
     pub game_tier: GameTier,
@@ -84,10 +85,33 @@ impl RecruitingMode {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CatalogState {
+    Listed,
+    Retired,
+}
+
+impl CatalogState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CatalogState::Listed => "listed",
+            CatalogState::Retired => "retired",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "listed" => Some(CatalogState::Listed),
+            "retired" => Some(CatalogState::Retired),
+            _ => None,
+        }
+    }
+}
+
 pub fn get_settings(conn: &Connection, game_id: &str) -> SqliteResult<GameSettings> {
     let mut stmt = conn.prepare(
         "SELECT maintenance_enabled, maintenance_interval_minutes, maintenance_next_due_unix_seconds,
-                lobby_visibility, recruiting, host_alias, summary, game_tier
+                lobby_visibility, recruiting, catalog_state, host_alias, summary, game_tier
          FROM game_metadata WHERE id = ?1"
     )?;
 
@@ -100,9 +124,15 @@ pub fn get_settings(conn: &Connection, game_id: &str) -> SqliteResult<GameSettin
                 .unwrap_or(LobbyVisibility::Private),
             recruiting: RecruitingMode::from_str(&row.get::<_, String>(4)?)
                 .unwrap_or(RecruitingMode::None),
-            host_alias: row.get(5)?,
-            summary: row.get(6)?,
-            game_tier: row.get::<_, Option<String>>(7)?
+            catalog_state: row
+                .get::<_, Option<String>>(5)?
+                .as_deref()
+                .and_then(CatalogState::from_str)
+                .unwrap_or(CatalogState::Listed),
+            host_alias: row.get(6)?,
+            summary: row.get(7)?,
+            game_tier: row
+                .get::<_, Option<String>>(8)?
                 .as_deref()
                 .and_then(GameTier::from_str)
                 .unwrap_or(GameTier::League),
@@ -152,17 +182,19 @@ pub fn update_settings(
             maintenance_next_due_unix_seconds = ?3,
             lobby_visibility = ?4,
             recruiting = ?5,
-            host_alias = ?6,
-            summary = ?7,
-            updated_at = ?8,
-            game_tier = ?9
-         WHERE id = ?10",
+            catalog_state = ?6,
+            host_alias = ?7,
+            summary = ?8,
+            updated_at = ?9,
+            game_tier = ?10
+         WHERE id = ?11",
         params![
             settings.maintenance_enabled as i32,
             settings.maintenance_interval_minutes,
             settings.maintenance_next_due_unix_seconds,
             settings.lobby_visibility.as_str(),
             settings.recruiting.as_str(),
+            settings.catalog_state.as_str(),
             settings.host_alias,
             settings.summary,
             chrono::Utc::now().timestamp(),

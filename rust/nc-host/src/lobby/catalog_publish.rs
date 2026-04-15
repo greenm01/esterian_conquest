@@ -1,10 +1,10 @@
 use nc_data::hosted::{
-    GameTier as HostedTier, HostedStore, RecruitingMode as HostedRecruiting, get_game_metadata,
-    get_settings, list_seats,
+    CatalogState as HostedCatalogState, GameTier as HostedTier, HostedStore,
+    RecruitingMode as HostedRecruiting, get_game_metadata, get_settings, list_seats,
 };
 use nc_nostr::game_definition::{
-    GameDefinition, GameStatus, GameTier as NostrTier, RecruitingMode as NostrRecruiting, SeatSlot,
-    SeatStatus,
+    CatalogState as NostrCatalogState, GameDefinition, GameStatus, GameTier as NostrTier,
+    RecruitingMode as NostrRecruiting, SeatSlot, SeatStatus,
 };
 use std::path::PathBuf;
 
@@ -21,10 +21,10 @@ pub fn publish_game_definition(
         Err(_) => return Ok(None),
     };
 
-    if settings.lobby_visibility != nc_data::hosted::LobbyVisibility::Public {
-        return Ok(None);
-    }
-    if settings.recruiting == HostedRecruiting::None {
+    if settings.catalog_state != HostedCatalogState::Retired
+        && (settings.lobby_visibility != nc_data::hosted::LobbyVisibility::Public
+            || settings.recruiting == HostedRecruiting::None)
+    {
         return Ok(None);
     }
 
@@ -48,6 +48,10 @@ pub fn publish_game_definition(
         HostedTier::Sandbox => NostrTier::Sandbox,
         HostedTier::League => NostrTier::League,
     });
+    let catalog_state = match settings.catalog_state {
+        HostedCatalogState::Listed => NostrCatalogState::Listed,
+        HostedCatalogState::Retired => NostrCatalogState::Retired,
+    };
 
     let status = if claimed_seats == 0 {
         GameStatus::Setup
@@ -79,6 +83,7 @@ pub fn publish_game_definition(
             .map(|m| m.name.clone())
             .unwrap_or_else(|| game_id.to_string()),
         status,
+        catalog_state,
         created_at: metadata.as_ref().map(|m| m.created_at),
         players: metadata
             .as_ref()

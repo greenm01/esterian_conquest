@@ -42,7 +42,8 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
                 if i + 1 >= args.len() {
                     return Err("missing value for --tier".into());
                 }
-                tier = GameTier::from_str(args[i + 1]).ok_or("invalid tier: use 'sandbox' or 'league'")?;
+                tier = GameTier::from_str(args[i + 1])
+                    .ok_or("invalid tier: use 'sandbox' or 'league'")?;
                 i += 2;
             }
             _ => {

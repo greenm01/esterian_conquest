@@ -167,7 +167,8 @@ fn run_set(
     }
 
     if let Some(t) = tier {
-        settings.game_tier = GameTier::from_str(&t).ok_or("invalid tier: use 'sandbox' or 'league'")?;
+        settings.game_tier =
+            GameTier::from_str(&t).ok_or("invalid tier: use 'sandbox' or 'league'")?;
         dirty = true;
     }
 

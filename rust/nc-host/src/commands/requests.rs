@@ -202,7 +202,5 @@ fn print_usage() {
     println!(
         "  nc-host requests approve --dir <path> --request <id> --player N [--message \"...\"]"
     );
-    println!(
-        "  nc-host requests reject --dir <path> --request <id> [--message \"...\"]"
-    );
+    println!("  nc-host requests reject --dir <path> --request <id> [--message \"...\"]");
 }

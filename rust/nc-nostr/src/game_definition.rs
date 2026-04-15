@@ -6,6 +6,7 @@ pub struct GameDefinition {
     pub game_id: String,
     pub game_name: String,
     pub status: GameStatus,
+    pub catalog_state: CatalogState,
     pub created_at: Option<i64>,
     pub players: u32,
     pub recruiting: RecruitingMode,
@@ -71,6 +72,29 @@ impl GameStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum CatalogState {
+    Listed,
+    Retired,
+}
+
+impl CatalogState {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "listed" => Some(CatalogState::Listed),
+            "retired" => Some(CatalogState::Retired),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CatalogState::Listed => "listed",
+            CatalogState::Retired => "retired",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RecruitingMode {
     None,
     NewPlayers,
@@ -131,6 +155,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
     let mut game_id = None;
     let mut game_name = None;
     let mut status = None;
+    let mut catalog_state = CatalogState::Listed;
     let mut created_at = None;
     let mut players = None;
     let mut recruiting = None;
@@ -154,6 +179,11 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
             "d" if values.len() >= 2 => game_id = Some(values[1].clone()),
             "name" if values.len() >= 2 => game_name = Some(values[1].clone()),
             "status" if values.len() >= 2 => status = GameStatus::from_str(&values[1]),
+            "catalog-state" if values.len() >= 2 => {
+                if let Some(parsed) = CatalogState::from_str(&values[1]) {
+                    catalog_state = parsed;
+                }
+            }
             "created-at" if values.len() >= 2 => created_at = values[1].parse().ok(),
             "players" if values.len() >= 2 => players = values[1].parse().ok(),
             "recruiting" if values.len() >= 2 => recruiting = RecruitingMode::from_str(&values[1]),
@@ -163,8 +193,12 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
             "summary" if values.len() >= 2 => summary = Some(values[1].clone()),
             "host-alias" if values.len() >= 2 => host_alias = Some(values[1].clone()),
             "host-contact-npub" if values.len() >= 2 => host_contact_npub = Some(values[1].clone()),
-            "host-contact-label" if values.len() >= 2 => host_contact_label = Some(values[1].clone()),
-            "host-contact-nip05" if values.len() >= 2 => host_contact_nip05 = Some(values[1].clone()),
+            "host-contact-label" if values.len() >= 2 => {
+                host_contact_label = Some(values[1].clone())
+            }
+            "host-contact-nip05" if values.len() >= 2 => {
+                host_contact_nip05 = Some(values[1].clone())
+            }
             "tier" if values.len() >= 2 => game_tier = GameTier::from_str(&values[1]),
             "slot" if values.len() >= 5 => {
                 let seat = values[1].parse().ok()?;
@@ -186,6 +220,7 @@ pub fn parse_game_definition(event: &Event) -> Option<GameDefinition> {
         game_id: game_id?,
         game_name: game_name?,
         status: status?,
+        catalog_state,
         created_at,
         players: players?,
         recruiting: recruiting?,
@@ -207,6 +242,10 @@ pub fn build_game_definition_tags(def: &GameDefinition) -> Vec<Vec<String>> {
         vec!["d".to_string(), def.game_id.clone()],
         vec!["name".to_string(), def.game_name.clone()],
         vec!["status".to_string(), def.status.as_str().to_string()],
+        vec![
+            "catalog-state".to_string(),
+            def.catalog_state.as_str().to_string(),
+        ],
         vec!["players".to_string(), def.players.to_string()],
         vec![
             "recruiting".to_string(),

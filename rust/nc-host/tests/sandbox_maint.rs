@@ -2,7 +2,7 @@ mod common;
 
 use common::create_test_game;
 use nc_data::hosted::{
-    GameTier, RecruitingMode, RosterStore, upsert_player_seen, record_player_joined,
+    GameTier, RecruitingMode, RosterStore, record_player_joined, upsert_player_seen,
 };
 use nc_data::{CampaignStore, PlayerActivityState, ReportBlockRow};
 use std::collections::BTreeSet;
@@ -13,19 +13,14 @@ fn seed_runtime_with_activity(
     year: u16,
     activity_states: &[PlayerActivityState],
 ) {
-    let game_data = nc_engine::build_seeded_new_game(4, year, 12345).expect("game state should build");
+    let game_data =
+        nc_engine::build_seeded_new_game(4, year, 12345).expect("game state should build");
     game_data.save(game_dir).expect("game data should save");
 
     let store = CampaignStore::open_default_in_dir(game_dir).expect("campaign store should open");
     let intel_by_viewer = (1..=4)
         .map(|viewer_empire_id| {
-            nc_data::merge_player_intel_from_runtime(
-                &game_data,
-                viewer_empire_id,
-                year,
-                None,
-                None,
-            )
+            nc_data::merge_player_intel_from_runtime(&game_data, viewer_empire_id, year, None, None)
         })
         .collect::<Vec<_>>();
     store
@@ -43,12 +38,9 @@ fn seed_runtime_with_activity(
         .expect("campaign settings should save");
 }
 
-fn set_tier(
-    store: &nc_data::hosted::HostedStore,
-    game_id: &str,
-    tier: GameTier,
-) {
-    let mut settings = nc_data::hosted::get_settings(store.connection(), game_id).expect("settings");
+fn set_tier(store: &nc_data::hosted::HostedStore, game_id: &str, tier: GameTier) {
+    let mut settings =
+        nc_data::hosted::get_settings(store.connection(), game_id).expect("settings");
     settings.game_tier = tier;
     settings.recruiting = RecruitingMode::NewPlayers;
     nc_data::hosted::update_settings(store.connection(), game_id, &settings).expect("update");

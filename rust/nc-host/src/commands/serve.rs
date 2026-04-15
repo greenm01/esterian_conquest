@@ -324,8 +324,8 @@ async fn run_async_server(
 mod tests {
     use super::publish_lobby_catalog;
     use nc_data::hosted::{
-        GameSettings, GameTier, HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
-        create_seats, get_pending, update_settings,
+        CatalogState, GameSettings, GameTier, HostedStore, LobbyVisibility, RecruitingMode,
+        clear_catalog_dirty, create_seats, get_pending, update_settings,
     };
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -365,6 +365,7 @@ mod tests {
             &GameSettings {
                 recruiting: RecruitingMode::NewPlayers,
                 lobby_visibility: LobbyVisibility::Public,
+                catalog_state: CatalogState::Listed,
                 host_alias: Some("niltempus".to_string()),
                 summary: Some("Localhost hosted join smoke test".to_string()),
                 maintenance_enabled: true,
@@ -439,14 +440,11 @@ async fn publish_invite_request_receipt_direct(
 }
 
 fn extract_game_id_tag(event: &nostr_sdk::Event) -> Option<String> {
-    event
-        .tags
-        .iter()
-        .find_map(|tag| {
-            let values = tag.clone().to_vec();
-            (values.first().map(String::as_str) == Some("game-id") && values.len() >= 2)
-                .then(|| values[1].clone())
-        })
+    event.tags.iter().find_map(|tag| {
+        let values = tag.clone().to_vec();
+        (values.first().map(String::as_str) == Some("game-id") && values.len() >= 2)
+            .then(|| values[1].clone())
+    })
 }
 
 async fn publish_state_error_direct(
@@ -567,8 +565,8 @@ async fn publish_lobby_catalog(
 ) {
     use crate::lobby::catalog_publish::publish_game_definition;
     use nc_data::hosted::{
-        HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty, get_catalog_dirty_since,
-        get_settings,
+        CatalogState, HostedStore, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
+        get_catalog_dirty_since, get_settings,
     };
     use nc_nostr::game_definition::build_game_definition_tags;
 
@@ -611,10 +609,10 @@ async fn publish_lobby_catalog(
                 }
             };
 
-            if settings.lobby_visibility != LobbyVisibility::Public {
-                continue;
-            }
-            if settings.recruiting == RecruitingMode::None {
+            if settings.catalog_state != CatalogState::Retired
+                && (settings.lobby_visibility != LobbyVisibility::Public
+                    || settings.recruiting == RecruitingMode::None)
+            {
                 continue;
             }
 

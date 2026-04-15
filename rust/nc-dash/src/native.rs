@@ -564,8 +564,8 @@ mod tests {
         RedrawSchedule, coalesce_pointer_move, next_pointer_dispatch, pointer_coords,
         pointer_event_kind,
     };
-    use crate::geometry::ScreenGeometry;
     use crate::RenderedUi;
+    use crate::geometry::ScreenGeometry;
     use crossterm::event::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};

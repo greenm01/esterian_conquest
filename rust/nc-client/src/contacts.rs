@@ -43,8 +43,8 @@ fn resolve_nip05_contact(input: &str) -> Result<ResolvedContact, String> {
         domain.trim(),
         name.trim()
     );
-    let response = reqwest::blocking::get(&url)
-        .map_err(|err| format!("failed to resolve {input}: {err}"))?;
+    let response =
+        reqwest::blocking::get(&url).map_err(|err| format!("failed to resolve {input}: {err}"))?;
     if !response.status().is_success() {
         return Err(format!(
             "failed to resolve {input}: HTTP {}",
@@ -76,7 +76,9 @@ pub fn short_contact_label(npub: &str) -> String {
     format!(
         "{}…{}",
         chars[..8].iter().collect::<String>(),
-        chars[chars.len().saturating_sub(6)..].iter().collect::<String>()
+        chars[chars.len().saturating_sub(6)..]
+            .iter()
+            .collect::<String>()
     )
 }
 

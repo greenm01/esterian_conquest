@@ -187,8 +187,7 @@ fn test_parse_handle_check_30525() {
         tags,
     );
 
-    let parsed =
-        parse_handle_check_request(host_keys.secret_key(), &event).expect("should parse");
+    let parsed = parse_handle_check_request(host_keys.secret_key(), &event).expect("should parse");
 
     assert_eq!(parsed.request_id, "handle-check-001");
     assert_eq!(parsed.handle, "StarRider");

@@ -294,6 +294,7 @@ Required tags:
 - `d` game id
 - `name`
 - `status`
+- `catalog-state`
 - `players`
 - `recruiting`
 - `open-seats`
@@ -317,6 +318,8 @@ Optional tags:
 ```
 
 Public events must never reveal raw invite codes.
+The latest `30500` wins per `(daemon pubkey, game id)`. `catalog-state=retired`
+is the app-level tombstone that removes stale games from public discovery.
 
 ## 10. Module Layout
 

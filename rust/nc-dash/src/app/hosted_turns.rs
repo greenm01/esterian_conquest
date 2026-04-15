@@ -81,10 +81,7 @@ impl DashApp {
         }
     }
 
-    pub(crate) fn stage_hosted_planet_scorch(
-        &mut self,
-        planet_record_index_1_based: usize,
-    ) {
+    pub(crate) fn stage_hosted_planet_scorch(&mut self, planet_record_index_1_based: usize) {
         let Some(submission) = self.hosted_turn_draft.as_mut() else {
             return;
         };

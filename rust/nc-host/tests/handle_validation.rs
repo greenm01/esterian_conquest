@@ -50,8 +50,8 @@ async fn invite_request_rejects_taken_handle() {
         serde_json::from_str(&pending[0].content).expect("invite receipt");
     assert_eq!(receipt.status, InviteRequestReceiptStatus::HandleTaken);
 
-    let requests = nc_data::hosted::list_requests(store.connection(), "handle-invite")
-        .expect("list requests");
+    let requests =
+        nc_data::hosted::list_requests(store.connection(), "handle-invite").expect("list requests");
     assert!(requests.is_empty());
 }
 
@@ -115,10 +115,12 @@ async fn turn_submit_rejects_taken_handle() {
 
     let receipt: TurnReceipt = serde_json::from_str(&pending[0].content).expect("turn receipt");
     assert_eq!(receipt.status, TurnReceiptStatus::Rejected);
-    assert!(receipt
-        .errors
-        .iter()
-        .any(|error| error.path == "handle" && error.message == "handle_taken"));
+    assert!(
+        receipt
+            .errors
+            .iter()
+            .any(|error| error.path == "handle" && error.message == "handle_taken")
+    );
 
     assert!(
         nc_data::hosted::get_pending_turn(store.connection(), "handle-turn", 5, "player-001")

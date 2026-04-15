@@ -29,7 +29,8 @@ pub fn parse_player_message_request(
     secret_key: &SecretKey,
     event: &Event,
 ) -> Option<PlayerMessageRequest> {
-    let mut request: PlayerMessageRequest = decrypt_private_json_from_event(secret_key, event).ok()?;
+    let mut request: PlayerMessageRequest =
+        decrypt_private_json_from_event(secret_key, event).ok()?;
     if request.message_id.trim().is_empty() {
         request.message_id = extract_tag(event, "d")?;
     }

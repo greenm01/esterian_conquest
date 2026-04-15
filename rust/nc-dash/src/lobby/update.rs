@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use nc_client::hosted::store::HostedDraftStatus;
-use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use nc_client::password::validate_new_password;
+use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use std::time::Instant;
 
 use super::hosted::dashboard::{build_hosted_dash_app, replay_hosted_draft};
@@ -506,7 +506,11 @@ fn handle_first_join_setup_key(app: &mut LobbyApp, key: KeyEvent) {
             if !validate_first_join_setup_field(app) {
                 return;
             }
-            let Some(active_field) = app.state.first_join_setup.as_ref().map(|setup| setup.active_field)
+            let Some(active_field) = app
+                .state
+                .first_join_setup
+                .as_ref()
+                .map(|setup| setup.active_field)
             else {
                 return;
             };

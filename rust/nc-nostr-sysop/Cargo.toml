@@ -30,3 +30,4 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 url = "2"
 rpassword = "7"
+dirs = "5"

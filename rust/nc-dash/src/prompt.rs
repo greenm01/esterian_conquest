@@ -354,7 +354,14 @@ pub fn draw_command_line_default_input_at_col(
     input: &str,
 ) {
     draw_command_line_default_input_with_cancel_at_col(
-        buffer, row, col, label, prompt, default, input, "<ESC> -> ",
+        buffer,
+        row,
+        col,
+        label,
+        prompt,
+        default,
+        input,
+        "<ESC> -> ",
     );
 }
 

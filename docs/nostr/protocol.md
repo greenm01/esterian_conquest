@@ -74,7 +74,9 @@ the authoritative hosted messaging protocol and does not replace `30518` or
 ## 4. 30500 `GameDefinition`
 
 `GameDefinition` is the public lobby listing event. Only recruiting games with
-`lobby_visibility=public` should publish it.
+`lobby_visibility=public` should publish it while they are listed. Retired
+games publish one final tombstone `30500` with `catalog-state=retired` so
+clients can remove stale rows from discovery.
 
 Example:
 
@@ -87,6 +89,7 @@ Example:
     ["d", "friday-night"],
     ["name", "Friday Night NC"],
     ["status", "active"],
+    ["catalog-state", "listed"],
     ["players", "4"],
     ["tier", "league"],
     ["recruiting", "replacement_players"],
@@ -107,6 +110,7 @@ Required tags:
 - `d`: game id slug
 - `name`: human-readable game name
 - `status`: `setup`, `active`, or `finished`
+- `catalog-state`: `listed` or `retired`
 - `players`: total seat count
 - `recruiting`: `none`, `new_players`, or `replacement_players`
 - `open-seats`: current open seat count
@@ -132,8 +136,11 @@ Optional tags:
 Rules:
 
 - raw invite codes are normalized, hashed, and never published directly
-- non-recruiting games should not appear in the public lobby
-- private games may omit `30500` entirely
+- the latest `30500` wins per `(pubkey, d-tag)` pair
+- `catalog-state=retired` removes the game from public discovery without
+  deleting joined-player history
+- non-recruiting listed games should not appear in the public lobby
+- private listed games may omit `30500` entirely
 - sandbox games stay open-ended at the game level; hosts may recycle claimed
   seats after 10 elapsed turns and reopen seats after 3-turn MIA ejections
 
@@ -634,6 +641,8 @@ The daemon side must:
 - route every inbound event to the correct game worker by `game-id`
 - keep retries in a per-game outbox
 - republish `30500` when recruiting state or open-seat state changes
+- publish a retired `30500` tombstone before deleting or unlisting a previously
+  public game
 - refuse to start hosted service without a configured dedicated relay/node
 
 ## 16. Client Expectations
@@ -641,6 +650,8 @@ The daemon side must:
 `nc-dash --lobby` should:
 
 - subscribe to `30500` for public recruiting games
+- collapse `30500` rows by `(daemon pubkey, game id)` and honor the latest
+  `catalog-state`
 - render recruiting metadata only
 - keep its local keychain, cache, config, and settings in KDL files under
   platform-specific user paths

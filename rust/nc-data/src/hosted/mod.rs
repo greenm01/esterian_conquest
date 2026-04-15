@@ -25,6 +25,11 @@ pub use player_messages::{
     PlayerMessage as HostedPlayerMessage, list_messages as list_player_messages,
     store_message as store_player_message,
 };
+pub use player_roster::{
+    HandleOwnership, RosterEntry, RosterEvent, RosterStore, get_roster_entry, list_roster,
+    list_roster_events_for_npub, record_player_abandoned, record_player_joined,
+    resolve_handle_ownership, upsert_player_seen,
+};
 pub use schema::INIT_SQL;
 pub use seats::{
     Seat, SeatStatus, claim_seat, close_seat, create_seats, find_seat_by_invite_hash,
@@ -32,15 +37,11 @@ pub use seats::{
     set_claimed_year,
 };
 pub use settings::{
-    GameMetadata, GameSettings, GameTier, LobbyVisibility, RecruitingMode, clear_catalog_dirty,
-    get_catalog_dirty_since, get_game_metadata, get_settings, mark_catalog_dirty, update_settings,
+    CatalogState, GameMetadata, GameSettings, GameTier, LobbyVisibility, RecruitingMode,
+    clear_catalog_dirty, get_catalog_dirty_since, get_game_metadata, get_settings,
+    mark_catalog_dirty, update_settings,
 };
 pub use state_sync::{get_latest_state_snapshot, get_state_snapshot_by_hash, save_state_snapshot};
-pub use player_roster::{
-    HandleOwnership, RosterEntry, RosterEvent, RosterStore, get_roster_entry, list_roster,
-    list_roster_events_for_npub, record_player_abandoned, record_player_joined,
-    resolve_handle_ownership, upsert_player_seen,
-};
 pub use store::HostedStore;
 pub use sysop_notifications::{
     SysopNotification, SysopNotificationStatus, enqueue as enqueue_sysop_notification,

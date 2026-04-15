@@ -2,9 +2,9 @@ mod common;
 
 use common::create_test_game_in_root;
 use nc_data::hosted::{
-    GameSettings, LobbyVisibility, OutboxStatus, RecruitingMode, approve_request, count_by_status,
-    count_pending_requests, count_pending_turns, count_unpublished_decisions, create_request,
-    enqueue, enqueue_turn, mark_failed, update_settings,
+    CatalogState, GameSettings, LobbyVisibility, OutboxStatus, RecruitingMode, approve_request,
+    count_by_status, count_pending_requests, count_pending_turns, count_unpublished_decisions,
+    create_request, enqueue, enqueue_turn, mark_failed, update_settings,
 };
 use nc_host::config::host_config::HostConfig;
 use nc_host::status::{collect, render};
@@ -47,6 +47,7 @@ fn collect_status_aggregates_games_and_queues() {
         &GameSettings {
             recruiting: RecruitingMode::None,
             lobby_visibility: LobbyVisibility::Private,
+            catalog_state: CatalogState::Listed,
             host_alias: Some("Hidden Host".to_string()),
             summary: Some("Private game".to_string()),
             maintenance_enabled: false,
@@ -73,14 +74,8 @@ fn collect_status_aggregates_games_and_queues() {
         "another invite",
     )
     .expect("request should create");
-    approve_request(
-        alpha_store.connection(),
-        "req-b",
-        "Approved",
-        2,
-        None,
-    )
-    .expect("request should approve");
+    approve_request(alpha_store.connection(), "req-b", "Approved", 2, None)
+        .expect("request should approve");
     enqueue_turn(
         alpha_store.connection(),
         "turn-a",

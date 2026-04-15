@@ -11,10 +11,11 @@ use tokio::sync::mpsc;
 use chrono::Utc;
 use rpassword::read_password;
 use nc_client::keychain::{
-    load_keychain, save_keychain, Keychain, push_new_identity, active_keys, Identity, IdentityType,
-    now_iso8601,
+    Keychain, active_keys, load_keychain_from, now_iso8601, push_new_identity,
+    save_keychain_to, Identity, IdentityType,
 };
 use nostr_sdk::ToBech32;
+use std::path::PathBuf;
 
 mod app;
 mod ui;
@@ -22,6 +23,21 @@ mod network;
 
 use crate::app::{App, SysopMessage, update::{self, UpdateResult}};
 use crate::network::{SysopClient, NetworkEvent};
+
+const SYSOP_APP_DIR_NAME: &str = "nc-nostr-sysop";
+
+fn sysop_data_root() -> PathBuf {
+    let base = dirs::data_local_dir().unwrap_or_else(|| {
+        dirs::home_dir()
+            .map(|home| home.join(".local").join("share"))
+            .unwrap_or_else(|| PathBuf::from("."))
+    });
+    base.join(SYSOP_APP_DIR_NAME)
+}
+
+fn sysop_keychain_path() -> PathBuf {
+    sysop_data_root().join("keychain.kdl")
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -66,6 +82,7 @@ async fn main() -> Result<()> {
 }
 
 fn run_init(password: Option<&str>) -> Result<()> {
+    let keychain_path = sysop_keychain_path();
     let password = match password {
         Some(p) => p.to_string(),
         None => {
@@ -83,14 +100,16 @@ fn run_init(password: Option<&str>) -> Result<()> {
     let mut keychain = Keychain::empty();
     let npub = push_new_identity(&mut keychain, now_iso8601(), Some("sysop".to_string()))
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    save_keychain(&keychain, &password).map_err(|e| anyhow::anyhow!("{e}"))?;
+    save_keychain_to(&keychain, &password, &keychain_path).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     println!("Keychain initialized!");
     println!("Npub: {}", npub);
+    println!("Keychain: {}", keychain_path.display());
     Ok(())
 }
 
 fn run_import(nsec: String, handle: Option<String>, password: Option<&str>) -> Result<()> {
+    let keychain_path = sysop_keychain_path();
     let password = match password {
         Some(p) => p.to_string(),
         None => {
@@ -99,7 +118,7 @@ fn run_import(nsec: String, handle: Option<String>, password: Option<&str>) -> R
         }
     };
 
-    let mut keychain = load_keychain(&password)
+    let mut keychain = load_keychain_from(&password, &keychain_path)
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .unwrap_or_else(Keychain::empty);
     keychain.identities.push(Identity {
@@ -108,13 +127,15 @@ fn run_import(nsec: String, handle: Option<String>, password: Option<&str>) -> R
         created: now_iso8601(),
         handle,
     });
-    save_keychain(&keychain, &password).map_err(|e| anyhow::anyhow!("{e}"))?;
+    save_keychain_to(&keychain, &password, &keychain_path).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     println!("Identity imported successfully.");
+    println!("Keychain: {}", keychain_path.display());
     Ok(())
 }
 
 async fn run_tui(args: Args) -> Result<()> {
+    let keychain_path = sysop_keychain_path();
     let password = match args.password {
         Some(p) => p,
         None => {
@@ -123,7 +144,7 @@ async fn run_tui(args: Args) -> Result<()> {
         }
     };
 
-    let keychain = load_keychain(&password)
+    let keychain = load_keychain_from(&password, &keychain_path)
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .ok_or_else(|| anyhow::anyhow!("keychain not found; run `nc-nostr-sysop init` first"))?;
     

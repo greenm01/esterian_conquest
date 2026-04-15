@@ -7,25 +7,23 @@ use nc_client::contacts::{resolve_contact_input, short_contact_label};
 use nc_client::hosted::live::{HostedLiveSession, HostedSessionStatus, HostedSessionUpdate};
 use nc_client::hosted::session::{
     CatalogGame, HostedClientSession, HostedStateRequestError, PlayerEventBatch,
-    SandboxJoinOutcome,
+    SandboxJoinOutcome, compare_catalog_versions,
 };
-use nc_client::hosted::store::{
-    CachedHostedDraft, HostedDraftStatus, HostedStateStore,
-};
+use nc_client::hosted::store::{CachedHostedDraft, HostedDraftStatus, HostedStateStore};
 use nc_client::keychain::{
     Keychain, active_keys, load_keychain, now_iso8601, push_new_identity, save_keychain,
     set_active_handle,
 };
 use nc_client::password::validate_new_password;
 use nc_client::relay::validate_relay_url;
-use nc_nostr::game_definition::{GameStatus, RecruitingMode};
+use nc_data::TurnSubmission;
+use nc_nostr::game_definition::{CatalogState, GameStatus, RecruitingMode};
 use nc_nostr::handle_check::HandleCheckStatus;
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
 use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::pubkeys::hex_to_npub;
 use nc_nostr::state_sync::{GameState, StateErrorCode, apply_state_delta};
 use nc_nostr::turn_commands::TurnReceiptStatus;
-use nc_data::TurnSubmission;
 
 use super::models::{
     DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
@@ -33,9 +31,9 @@ use super::models::{
 };
 use super::state::{LobbyNetworkStatus, LobbyStatusTone};
 
-const CACHE_RESET_MESSAGE: &str = "Local cache was reset. Relay data will repopulate after refresh.";
-const CACHE_RESET_SAVE_FAILED_MESSAGE: &str =
-    "Local cache was reset for this session, but it could not be saved. Relay data will repopulate after refresh.";
+const CACHE_RESET_MESSAGE: &str =
+    "Local cache was reset. Relay data will repopulate after refresh.";
+const CACHE_RESET_SAVE_FAILED_MESSAGE: &str = "Local cache was reset for this session, but it could not be saved. Relay data will repopulate after refresh.";
 const HANDLE_SAVED_LOCAL_MESSAGE: &str =
     "Handle saved locally. It will be verified when you next contact nc-host.";
 const HANDLE_UPDATED_LOCAL_MESSAGE: &str =
@@ -400,7 +398,8 @@ impl LobbyTransport {
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
         let handle = current_handle(&unlocked.keychain);
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         match session
             .join_sandbox_game(&row.game_id, &row.daemon_pubkey, handle.as_deref())
             .map_err(|err| err.to_string())?
@@ -459,14 +458,11 @@ impl LobbyTransport {
     }
 
     pub fn open_game(&mut self, row: &JoinedGameRow) -> Result<GameState, LobbyOpenGameError> {
-        let unlocked = self
-            .unlocked
-            .as_mut()
-            .ok_or_else(|| LobbyOpenGameError {
-                code: None,
-                message: "keychain is locked".to_string(),
-                loaded: None,
-            })?;
+        let unlocked = self.unlocked.as_mut().ok_or_else(|| LobbyOpenGameError {
+            code: None,
+            message: "keychain is locked".to_string(),
+            loaded: None,
+        })?;
         let session = unlocked
             .session
             .as_ref()
@@ -477,13 +473,12 @@ impl LobbyTransport {
                 loaded: None,
             })?;
         let handle = current_handle(&unlocked.keychain);
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| {
-            LobbyOpenGameError {
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| LobbyOpenGameError {
                 code: None,
                 message: err.to_string(),
                 loaded: None,
-            }
-        })?;
+            })?;
         let hosted_store = open_hosted_state_store().map_err(|err| LobbyOpenGameError {
             code: None,
             message: err.to_string(),
@@ -574,7 +569,8 @@ impl LobbyTransport {
             .session
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         let state = session
             .complete_first_join_setup(
                 &row.game_id,
@@ -625,7 +621,8 @@ impl LobbyTransport {
             .as_ref()
             .ok_or_else(|| "no relay configured for the hosted lobby".to_string())?;
         let handle = current_handle(&unlocked.keychain);
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         session
             .submit_turn(
                 &row.game_id,
@@ -678,7 +675,8 @@ impl LobbyTransport {
             .unlocked
             .as_ref()
             .ok_or_else(|| "keychain is locked".to_string())?;
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         open_hosted_state_store()
             .and_then(|store| store.load_snapshot(&unlocked.password, &player_pubkey, game_id))
             .map(|snapshot| snapshot.map(|cached| cached.snapshot))
@@ -690,7 +688,8 @@ impl LobbyTransport {
             .unlocked
             .as_ref()
             .ok_or_else(|| "keychain is locked".to_string())?;
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         open_hosted_state_store()
             .and_then(|store| store.load_draft(&unlocked.password, &player_pubkey, game_id))
             .map_err(|err| err.to_string())
@@ -707,7 +706,8 @@ impl LobbyTransport {
             .unlocked
             .as_ref()
             .ok_or_else(|| "keychain is locked".to_string())?;
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         open_hosted_state_store()
             .and_then(|store| {
                 store.save_draft(
@@ -728,7 +728,8 @@ impl LobbyTransport {
             .unlocked
             .as_ref()
             .ok_or_else(|| "keychain is locked".to_string())?;
-        let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
+        let player_pubkey =
+            current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
         open_hosted_state_store()
             .and_then(|store| store.clear_draft(&player_pubkey, game_id))
             .map_err(|err| err.to_string())
@@ -1106,13 +1107,25 @@ fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate)
 
 fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
     for catalog_game in catalog {
-        if let Some(existing) = unlocked
+        let existing_index = unlocked
             .catalog
-            .iter_mut()
-            .find(|existing| existing.definition.game_id == catalog_game.definition.game_id)
-        {
-            *existing = catalog_game.clone();
-        } else {
+            .iter()
+            .position(|existing| catalog_game_matches(existing, catalog_game));
+        let should_apply = existing_index
+            .and_then(|index| unlocked.catalog.get(index))
+            .map(|existing| compare_catalog_versions(existing, catalog_game).is_lt())
+            .unwrap_or(true);
+        if !should_apply {
+            continue;
+        }
+
+        if let Some(index) = existing_index {
+            if catalog_game.definition.catalog_state == CatalogState::Retired {
+                unlocked.catalog.remove(index);
+            } else {
+                unlocked.catalog[index] = catalog_game.clone();
+            }
+        } else if catalog_game.definition.catalog_state != CatalogState::Retired {
             unlocked.catalog.push(catalog_game.clone());
         }
 
@@ -1120,7 +1133,7 @@ fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
             .cache
             .games
             .iter_mut()
-            .find(|cached| cached.id == catalog_game.definition.game_id)
+            .find(|cached| cached_game_matches_catalog(cached, catalog_game))
         {
             cached.name = catalog_game.definition.game_name.clone();
             cached.game_tier = Some(
@@ -1150,6 +1163,16 @@ fn apply_catalog(unlocked: &mut UnlockedClient, catalog: &[CatalogGame]) {
             catalog_game.definition.host_contact_nip05.as_deref(),
         );
     }
+}
+
+fn catalog_game_matches(left: &CatalogGame, right: &CatalogGame) -> bool {
+    left.daemon_pubkey == right.daemon_pubkey && left.definition.game_id == right.definition.game_id
+}
+
+fn cached_game_matches_catalog(cached: &CachedGame, catalog_game: &CatalogGame) -> bool {
+    cached.id == catalog_game.definition.game_id
+        && (cached.daemon_pubkey.trim().is_empty()
+            || cached.daemon_pubkey == catalog_game.daemon_pubkey)
 }
 
 fn apply_player_events(
@@ -1197,9 +1220,17 @@ fn apply_player_events(
         }
     }
     for state in batch.states {
-        if let (Some(player_pubkey), Some(store)) = (player_pubkey.as_deref(), hosted_store.as_ref()) {
+        if let (Some(player_pubkey), Some(store)) =
+            (player_pubkey.as_deref(), hosted_store.as_ref())
+        {
             let _ = store.save_snapshot(&unlocked.password, player_pubkey, &state);
-            clear_advanced_draft_if_needed(store, &unlocked.password, player_pubkey, &state.game_id, state.turn);
+            clear_advanced_draft_if_needed(
+                store,
+                &unlocked.password,
+                player_pubkey,
+                &state.game_id,
+                state.turn,
+            );
         }
         apply_state_snapshot_to_cache(unlocked, &state);
     }
@@ -1221,7 +1252,13 @@ fn apply_player_events(
             continue;
         };
         let _ = store.save_snapshot(&unlocked.password, player_pubkey, &state);
-        clear_advanced_draft_if_needed(store, &unlocked.password, player_pubkey, &state.game_id, state.turn);
+        clear_advanced_draft_if_needed(
+            store,
+            &unlocked.password,
+            player_pubkey,
+            &state.game_id,
+            state.turn,
+        );
         apply_state_snapshot_to_cache(unlocked, &state);
     }
     for message in batch.contact_messages {
@@ -1826,7 +1863,12 @@ fn lobby_open_game_error(
     let expire_sandbox = row.game_tier.eq_ignore_ascii_case("sandbox")
         && err.code == Some(StateErrorCode::NotAPlayer);
     if expire_sandbox {
-        if let Some(cached) = unlocked.cache.games.iter_mut().find(|game| game.id == row.game_id) {
+        if let Some(cached) = unlocked
+            .cache
+            .games
+            .iter_mut()
+            .find(|game| game.id == row.game_id)
+        {
             cached.status = "expired".to_string();
             cached.seat = None;
             cached.updated_at = now_iso8601();
@@ -1863,6 +1905,9 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use nc_client::keychain::Keychain;
+    use nc_nostr::game_definition::{
+        CatalogState, GameDefinition, GameStatus, RecruitingMode, SeatSlot,
+    };
     use nc_nostr::invite_request::{InviteRequestReceipt, InviteRequestReceiptStatus};
     use nc_nostr::state_sync::StateErrorCode;
 
@@ -1903,6 +1948,37 @@ mod tests {
             live_session: None,
             relay_url: Some("ws://127.0.0.1:8080".to_string()),
             network_status: LobbyNetworkStatus::Connected,
+        }
+    }
+
+    fn catalog_game(
+        game_id: &str,
+        daemon: &str,
+        state: CatalogState,
+        published_at: u64,
+    ) -> CatalogGame {
+        CatalogGame {
+            daemon_pubkey: daemon.to_string(),
+            definition: GameDefinition {
+                game_id: game_id.to_string(),
+                game_name: format!("Game {game_id}"),
+                status: GameStatus::Active,
+                catalog_state: state,
+                created_at: Some(1_700_000_000),
+                players: 4,
+                recruiting: RecruitingMode::NewPlayers,
+                open_seats: 1,
+                year: 3000,
+                turn: 4,
+                summary: None,
+                host_alias: Some("nc-host".to_string()),
+                host_contact_npub: None,
+                host_contact_label: None,
+                host_contact_nip05: None,
+                slots: Vec::<SeatSlot>::new(),
+                game_tier: None,
+            },
+            published_at,
         }
     }
 
@@ -2007,8 +2083,61 @@ mod tests {
         );
 
         assert_eq!(unlocked.cache.games[0].status, "joined");
-        assert_eq!(err.message, "You no longer have a claimed seat in this game.");
+        assert_eq!(
+            err.message,
+            "You no longer have a claimed seat in this game."
+        );
         assert!(err.loaded.is_none());
+    }
+
+    #[test]
+    fn newer_retired_catalog_event_removes_open_game() {
+        let mut unlocked = unlocked_with_game("joined");
+        unlocked.catalog = vec![catalog_game(
+            "sandbox-smoke",
+            "daemon",
+            CatalogState::Listed,
+            10,
+        )];
+
+        apply_catalog(
+            &mut unlocked,
+            &[catalog_game(
+                "sandbox-smoke",
+                "daemon",
+                CatalogState::Retired,
+                11,
+            )],
+        );
+
+        assert!(unlocked.catalog.is_empty());
+    }
+
+    #[test]
+    fn older_catalog_event_does_not_replace_newer_state() {
+        let mut unlocked = unlocked_with_game("joined");
+        unlocked.catalog = vec![catalog_game(
+            "sandbox-smoke",
+            "daemon",
+            CatalogState::Listed,
+            11,
+        )];
+
+        apply_catalog(
+            &mut unlocked,
+            &[catalog_game(
+                "sandbox-smoke",
+                "daemon",
+                CatalogState::Listed,
+                10,
+            )],
+        );
+
+        assert_eq!(unlocked.catalog.len(), 1);
+        assert_eq!(
+            unlocked.catalog[0].definition.catalog_state,
+            CatalogState::Listed
+        );
     }
 
     #[test]
@@ -2021,12 +2150,13 @@ mod tests {
         let result = load_cache_with_recovery("secret", &path);
 
         assert!(result.cache.games.is_empty());
-        assert_eq!(
-            result.status_message.as_deref(),
-            Some(CACHE_RESET_MESSAGE)
-        );
+        assert_eq!(result.status_message.as_deref(), Some(CACHE_RESET_MESSAGE));
         assert_eq!(result.status_tone, LobbyStatusTone::Error);
-        assert!(load_cache_from("secret", &path).expect("load rewritten cache").is_some());
+        assert!(
+            load_cache_from("secret", &path)
+                .expect("load rewritten cache")
+                .is_some()
+        );
 
         let _ = fs::remove_dir_all(&root);
     }

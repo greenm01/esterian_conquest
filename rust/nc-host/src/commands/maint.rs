@@ -1,12 +1,12 @@
-use nc_data::{
-    CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, PlanetIntelSnapshot,
-    DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, apply_inactivity_autopilot_policy,
-    default_player_activity_states, merge_player_intel_from_runtime,
-    reset_player_slot_to_baseline,
-};
 use nc_data::hosted::{
     GameTier, HostedStore, RecruitingMode, RosterStore, SeatStatus, get_seat_by_number,
     record_player_abandoned, set_claimed_year,
+};
+use nc_data::{
+    CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME,
+    DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, PlanetIntelSnapshot,
+    apply_inactivity_autopilot_policy, default_player_activity_states,
+    merge_player_intel_from_runtime, reset_player_slot_to_baseline,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;

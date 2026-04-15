@@ -1,19 +1,16 @@
 use std::time::{Duration, Instant};
+use std::{cmp::Ordering, collections::HashMap};
 
 use nc_nostr::claim::{SeatClaimRequestPayload, SeatClaimResultPayload};
 use nc_nostr::contact_message::{ContactMessage, decrypt_contact_message};
 use nc_nostr::first_join::{
     FIRST_JOIN_NAME_MAX_CHARS, FirstJoinSetupRequestPayload, FirstJoinSetupResult,
 };
-use nc_nostr::game_definition::{GameDefinition, parse_game_definition};
-use nc_nostr::handle_check::{
-    HandleCheckRequestPayload, HandleCheckResult,
-};
+use nc_nostr::game_definition::{CatalogState, GameDefinition, parse_game_definition};
+use nc_nostr::handle_check::{HandleCheckRequestPayload, HandleCheckResult};
 use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestPayload, InviteRequestReceipt};
 use nc_nostr::lobby_notice::LobbyNotice;
-use nc_nostr::player_message::{
-    PlayerMessage, PlayerMessageRequest, decrypt_player_message,
-};
+use nc_nostr::player_message::{PlayerMessage, PlayerMessageRequest, decrypt_player_message};
 use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
 use nc_nostr::state_sync::{
     GameState, StateDelta, StateErrorCode, StateErrorPayload, StateRequestPayload,
@@ -37,6 +34,7 @@ pub struct HostedClientSession {
 pub struct CatalogGame {
     pub daemon_pubkey: String,
     pub definition: GameDefinition,
+    pub published_at: u64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -111,15 +109,11 @@ impl HostedClientSession {
                     Duration::from_secs(8),
                 )
                 .await?;
-            Ok(events
+            let games = events
                 .iter()
-                .filter_map(|event| {
-                    parse_game_definition(event).map(|definition| CatalogGame {
-                        daemon_pubkey: event.pubkey.to_hex(),
-                        definition,
-                    })
-                })
-                .collect())
+                .filter_map(catalog_game_from_event)
+                .collect::<Vec<_>>();
+            Ok(collapse_catalog_games(games))
         })
     }
 
@@ -387,7 +381,8 @@ impl HostedClientSession {
                 .unwrap_or(0),
         };
         self.with_client(async move |client| {
-            let event = build_private_json_event(&keys, &public_key, 30518, &payload, &message_id, None)?;
+            let event =
+                build_private_json_event(&keys, &public_key, 30518, &payload, &message_id, None)?;
             client.send_event(&event).await?;
             Ok(payload)
         })
@@ -508,13 +503,11 @@ impl HostedClientSession {
         if empire_name.chars().count() > FIRST_JOIN_NAME_MAX_CHARS
             || homeworld_name.chars().count() > FIRST_JOIN_NAME_MAX_CHARS
         {
-            return Err(
-                format!(
-                    "Empire and homeworld names must be {} characters or less.",
-                    FIRST_JOIN_NAME_MAX_CHARS
-                )
-                .into(),
-            );
+            return Err(format!(
+                "Empire and homeworld names must be {} characters or less.",
+                FIRST_JOIN_NAME_MAX_CHARS
+            )
+            .into());
         }
         self.with_client(async move |client| {
             let mut notifications = client.notifications();
@@ -652,12 +645,12 @@ impl HostedClientSession {
         baseline: Option<&GameState>,
     ) -> Result<GameState, HostedStateRequestError> {
         let request_id = random_nonce_hex();
-        let daemon_pubkey =
-            PublicKey::parse(daemon_pubkey).map_err(|err| HostedStateRequestError::new(err.to_string()))?;
+        let daemon_pubkey = PublicKey::parse(daemon_pubkey)
+            .map_err(|err| HostedStateRequestError::new(err.to_string()))?;
         let player_pubkey_hex = self.keys.public_key().to_hex();
         let baseline = baseline.cloned();
-        let runtime =
-            tokio::runtime::Runtime::new().map_err(|err| HostedStateRequestError::new(err.to_string()))?;
+        let runtime = tokio::runtime::Runtime::new()
+            .map_err(|err| HostedStateRequestError::new(err.to_string()))?;
         runtime.block_on(async {
             let client = Client::new(self.keys.clone());
             client
@@ -841,6 +834,50 @@ impl HostedClientSession {
             result
         })
     }
+}
+
+fn catalog_game_from_event(event: &Event) -> Option<CatalogGame> {
+    parse_game_definition(event).map(|definition| CatalogGame {
+        daemon_pubkey: event.pubkey.to_hex(),
+        definition,
+        published_at: event.created_at.as_secs(),
+    })
+}
+
+fn collapse_catalog_games(games: Vec<CatalogGame>) -> Vec<CatalogGame> {
+    let mut latest = HashMap::<(String, String), CatalogGame>::new();
+    for game in games {
+        let key = (game.daemon_pubkey.clone(), game.definition.game_id.clone());
+        match latest.get(&key) {
+            Some(existing) if compare_catalog_versions(existing, &game) != Ordering::Less => {}
+            _ => {
+                latest.insert(key, game);
+            }
+        }
+    }
+
+    let mut collapsed = latest
+        .into_values()
+        .filter(|game| game.definition.catalog_state != CatalogState::Retired)
+        .collect::<Vec<_>>();
+    collapsed.sort_by(|left, right| {
+        left.definition
+            .game_name
+            .to_ascii_lowercase()
+            .cmp(&right.definition.game_name.to_ascii_lowercase())
+            .then_with(|| left.daemon_pubkey.cmp(&right.daemon_pubkey))
+            .then_with(|| left.definition.game_id.cmp(&right.definition.game_id))
+    });
+    collapsed
+}
+
+pub fn compare_catalog_versions(left: &CatalogGame, right: &CatalogGame) -> Ordering {
+    left.published_at.cmp(&right.published_at).then_with(|| {
+        left.definition
+            .catalog_state
+            .as_str()
+            .cmp(right.definition.catalog_state.as_str())
+    })
 }
 
 fn build_private_json_event<T: serde::Serialize>(

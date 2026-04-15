@@ -1,6 +1,7 @@
 mod common;
 
 use common::create_test_game;
+use nc_data::hosted::{CatalogState, LobbyVisibility, RecruitingMode, update_settings};
 use nc_host::lobby::catalog_publish::publish_game_definition;
 use nc_nostr::game_definition::build_game_definition_tags;
 use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload, build_invite_decision_tags};
@@ -11,14 +12,7 @@ use nc_nostr::state_sync::{
 #[test]
 fn game_definition_tags_are_per_field_and_slots_are_multivalue() {
     let (_temp, _game_dir, store) = create_test_game("catalog-test", 4);
-    let def = publish_game_definition(
-        &store,
-        "catalog-test",
-        Some("Test Host"),
-        None,
-        None,
-        None,
-    )
+    let def = publish_game_definition(&store, "catalog-test", Some("Test Host"), None, None, None)
         .expect("definition should build")
         .expect("definition should exist");
 
@@ -36,12 +30,33 @@ fn game_definition_tags_are_per_field_and_slots_are_multivalue() {
         tags.iter()
             .any(|t| t.first().map(String::as_str) == Some("recruiting"))
     );
+    assert!(
+        tags.iter()
+            .any(|t| t == &vec!["catalog-state".to_string(), "listed".to_string()])
+    );
 
     let slot = tags
         .iter()
         .find(|t| t.first().map(String::as_str) == Some("slot"))
         .expect("slot tag should exist");
     assert_eq!(slot.len(), 5);
+}
+
+#[test]
+fn retired_game_definition_still_builds_when_not_public_or_recruiting() {
+    let (_temp, _game_dir, store) = create_test_game("retired-test", 4);
+    let mut settings =
+        nc_data::hosted::get_settings(store.connection(), "retired-test").expect("settings");
+    settings.catalog_state = CatalogState::Retired;
+    settings.lobby_visibility = LobbyVisibility::Private;
+    settings.recruiting = RecruitingMode::None;
+    update_settings(store.connection(), "retired-test", &settings).expect("update settings");
+
+    let def = publish_game_definition(&store, "retired-test", None, None, None, None)
+        .expect("definition should build")
+        .expect("retired tombstone should exist");
+
+    assert_eq!(def.catalog_state.as_str(), "retired");
 }
 
 #[test]

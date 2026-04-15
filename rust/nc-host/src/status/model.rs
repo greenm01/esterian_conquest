@@ -45,6 +45,7 @@ pub struct GameStatusRow {
     pub open_seats: u32,
     pub recruiting: String,
     pub lobby_visibility: String,
+    pub catalog_state: String,
     pub maintenance_enabled: bool,
     pub maintenance_due_unix_seconds: Option<i64>,
     pub maintenance_due_now: bool,

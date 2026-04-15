@@ -58,7 +58,9 @@ impl RenderedUi {
         );
         for y in 0..self.buffer.area.height {
             for x in 0..self.buffer.area.width {
-                let Some(cell) = self.buffer.cell((self.buffer.area.x + x, self.buffer.area.y + y))
+                let Some(cell) = self
+                    .buffer
+                    .cell((self.buffer.area.x + x, self.buffer.area.y + y))
                 else {
                     continue;
                 };
@@ -66,12 +68,7 @@ impl RenderedUi {
                 let fg = theme::from_tui_color(cell.fg, base_style.fg);
                 let bg = theme::from_tui_color(cell.bg, base_style.bg);
                 let bold = cell.modifier.contains(Modifier::BOLD);
-                playfield.set_cell(
-                    y as usize,
-                    x as usize,
-                    symbol,
-                    CellStyle::new(fg, bg, bold),
-                );
+                playfield.set_cell(y as usize, x as usize, symbol, CellStyle::new(fg, bg, bold));
             }
         }
         if let Some((col, row)) = self.cursor {

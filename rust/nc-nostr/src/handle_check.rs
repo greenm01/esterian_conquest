@@ -72,9 +72,7 @@ pub fn parse_handle_check_request(
     })
 }
 
-pub fn build_handle_check_result_tags(
-    result: &HandleCheckResult,
-) -> Vec<(&'static str, String)> {
+pub fn build_handle_check_result_tags(result: &HandleCheckResult) -> Vec<(&'static str, String)> {
     vec![
         ("d", result.request_id.clone()),
         ("status", result.status.as_str().to_string()),

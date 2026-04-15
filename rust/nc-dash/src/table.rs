@@ -917,7 +917,15 @@ fn draw_single_table_footer_in_span(
             input,
         } => {
             shared_prompt::draw_command_line_default_input_with_cancel_in_span(
-                buffer, row, col, width, label, prompt, default, input, "<ESC> -> ",
+                buffer,
+                row,
+                col,
+                width,
+                label,
+                prompt,
+                default,
+                input,
+                "<ESC> -> ",
             );
             col + width
         }
