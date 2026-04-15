@@ -12,6 +12,7 @@ pub struct Seat {
     pub player_pubkey: Option<String>,
     pub status: SeatStatus,
     pub claimed_at: Option<i64>,
+    pub claimed_year: Option<u16>,
     pub created_at: i64,
 }
 
@@ -41,7 +42,7 @@ impl SeatStatus {
 pub fn list_seats(conn: &Connection, game_id: &str) -> SqliteResult<Vec<Seat>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, seat_number, invite_code, invite_code_hash, player_pubkey,
-                status, claimed_at, created_at
+                status, claimed_at, claimed_year, created_at
          FROM seats WHERE game_id = ?1 ORDER BY seat_number",
     )?;
 
@@ -55,7 +56,8 @@ pub fn list_seats(conn: &Connection, game_id: &str) -> SqliteResult<Vec<Seat>> {
             player_pubkey: row.get(5)?,
             status: SeatStatus::from_str(&row.get::<_, String>(6)?).unwrap_or(SeatStatus::Pending),
             claimed_at: row.get(7)?,
-            created_at: row.get(8)?,
+            claimed_year: row.get::<_, Option<i64>>(8)?.map(|year| year as u16),
+            created_at: row.get(9)?,
         })
     })?;
 
@@ -69,7 +71,7 @@ pub fn get_seat_by_number(
 ) -> SqliteResult<Option<Seat>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, seat_number, invite_code, invite_code_hash, player_pubkey,
-                status, claimed_at, created_at
+                status, claimed_at, claimed_year, created_at
          FROM seats WHERE game_id = ?1 AND seat_number = ?2",
     )?;
 
@@ -84,7 +86,8 @@ pub fn get_seat_by_number(
             player_pubkey: row.get(5)?,
             status: SeatStatus::from_str(&row.get::<_, String>(6)?).unwrap_or(SeatStatus::Pending),
             claimed_at: row.get(7)?,
-            created_at: row.get(8)?,
+            claimed_year: row.get::<_, Option<i64>>(8)?.map(|year| year as u16),
+            created_at: row.get(9)?,
         }))
     } else {
         Ok(None)
@@ -98,7 +101,7 @@ pub fn get_seat_by_pubkey(
 ) -> SqliteResult<Option<Seat>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, seat_number, invite_code, invite_code_hash, player_pubkey,
-                status, claimed_at, created_at
+                status, claimed_at, claimed_year, created_at
          FROM seats WHERE game_id = ?1 AND player_pubkey = ?2",
     )?;
 
@@ -113,7 +116,8 @@ pub fn get_seat_by_pubkey(
             player_pubkey: row.get(5)?,
             status: SeatStatus::from_str(&row.get::<_, String>(6)?).unwrap_or(SeatStatus::Pending),
             claimed_at: row.get(7)?,
-            created_at: row.get(8)?,
+            claimed_year: row.get::<_, Option<i64>>(8)?.map(|year| year as u16),
+            created_at: row.get(9)?,
         }))
     } else {
         Ok(None)
@@ -127,7 +131,7 @@ pub fn find_seat_by_invite_hash(
 ) -> SqliteResult<Option<Seat>> {
     let mut stmt = conn.prepare(
         "SELECT id, game_id, seat_number, invite_code, invite_code_hash, player_pubkey,
-                status, claimed_at, created_at
+                status, claimed_at, claimed_year, created_at
          FROM seats WHERE game_id = ?1 AND invite_code_hash = ?2",
     )?;
 
@@ -142,7 +146,8 @@ pub fn find_seat_by_invite_hash(
             player_pubkey: row.get(5)?,
             status: SeatStatus::from_str(&row.get::<_, String>(6)?).unwrap_or(SeatStatus::Pending),
             claimed_at: row.get(7)?,
-            created_at: row.get(8)?,
+            claimed_year: row.get::<_, Option<i64>>(8)?.map(|year| year as u16),
+            created_at: row.get(9)?,
         }))
     } else {
         Ok(None)
@@ -154,19 +159,20 @@ pub fn claim_seat(
     game_id: &str,
     seat_number: u32,
     player_pubkey: &str,
+    claimed_year: u16,
 ) -> SqliteResult<()> {
     let now = chrono::Utc::now().timestamp();
     conn.execute(
-        "UPDATE seats SET player_pubkey = ?1, status = 'claimed', claimed_at = ?2
-         WHERE game_id = ?3 AND seat_number = ?4 AND status = 'pending'",
-        params![player_pubkey, now, game_id, seat_number],
+        "UPDATE seats SET player_pubkey = ?1, status = 'claimed', claimed_at = ?2, claimed_year = ?3
+         WHERE game_id = ?4 AND seat_number = ?5 AND status = 'pending'",
+        params![player_pubkey, now, i64::from(claimed_year), game_id, seat_number],
     )?;
     Ok(())
 }
 
 pub fn reset_seat(conn: &Connection, game_id: &str, seat_number: u32) -> SqliteResult<()> {
     conn.execute(
-        "UPDATE seats SET player_pubkey = NULL, status = 'pending', claimed_at = NULL
+        "UPDATE seats SET player_pubkey = NULL, status = 'pending', claimed_at = NULL, claimed_year = NULL
          WHERE game_id = ?1 AND seat_number = ?2",
         params![game_id, seat_number],
     )?;
@@ -185,7 +191,7 @@ pub fn reissue_seat(
     let now = chrono::Utc::now().timestamp();
     conn.execute(
         "UPDATE seats SET invite_code = ?1, invite_code_hash = ?2, player_pubkey = NULL,
-         status = 'pending', claimed_at = NULL, created_at = ?3
+         status = 'pending', claimed_at = NULL, claimed_year = NULL, created_at = ?3
          WHERE game_id = ?4 AND seat_number = ?5",
         params![new_invite_code, new_hash, now, game_id, seat_number],
     )?;
@@ -202,9 +208,23 @@ pub fn open_seat(
     let now = chrono::Utc::now().timestamp();
     conn.execute(
         "INSERT OR REPLACE INTO seats (game_id, seat_number, invite_code, invite_code_hash,
-         player_pubkey, status, claimed_at, created_at)
-         VALUES (?1, ?2, ?3, ?4, NULL, 'pending', NULL, ?5)",
+         player_pubkey, status, claimed_at, claimed_year, created_at)
+         VALUES (?1, ?2, ?3, ?4, NULL, 'pending', NULL, NULL, ?5)",
         params![game_id, seat_number, invite_code, hash, now],
+    )?;
+    Ok(())
+}
+
+pub fn set_claimed_year(
+    conn: &Connection,
+    game_id: &str,
+    seat_number: u32,
+    claimed_year: u16,
+) -> SqliteResult<()> {
+    conn.execute(
+        "UPDATE seats SET claimed_year = ?1
+         WHERE game_id = ?2 AND seat_number = ?3 AND status = 'claimed'",
+        params![i64::from(claimed_year), game_id, seat_number],
     )?;
     Ok(())
 }
@@ -231,8 +251,8 @@ pub fn create_seats(conn: &Connection, game_id: &str, invite_codes: &[String]) -
         let hash = blake3::hash(invite_code.as_bytes()).to_hex().to_string();
         conn.execute(
             "INSERT INTO seats (game_id, seat_number, invite_code, invite_code_hash,
-             player_pubkey, status, claimed_at, created_at)
-             VALUES (?1, ?2, ?3, ?4, NULL, 'pending', NULL, ?5)",
+             player_pubkey, status, claimed_at, claimed_year, created_at)
+             VALUES (?1, ?2, ?3, ?4, NULL, 'pending', NULL, NULL, ?5)",
             params![game_id, (index + 1) as u32, invite_code, hash, now],
         )?;
     }

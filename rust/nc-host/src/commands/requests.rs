@@ -1,4 +1,5 @@
 use crate::invite::generate_invite_code;
+use crate::support::runtime::current_runtime_year;
 use nc_data::hosted::{HostedStore, get_request, list_seats};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -73,7 +74,14 @@ pub fn run(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     match subcmd {
         Some("list") => run_list(&store, &game_id).map_err(|e| e.into()),
         Some("show") => run_show(&store, request_id.as_ref()).map_err(|e| e.into()),
-        Some("approve") => run_approve(&store, &game_id, request_id.as_ref(), player, message.as_ref()),
+        Some("approve") => run_approve(
+            &store,
+            &game_dir,
+            &game_id,
+            request_id.as_ref(),
+            player,
+            message.as_ref(),
+        ),
         Some("reject") => run_reject(&store, &game_id, request_id.as_ref(), message.as_ref()),
         Some(cmd) => Err(format!("unknown subcommand: {}", cmd).into()),
         None => Err("missing subcommand".into()),
@@ -136,6 +144,7 @@ fn run_show(
 
 fn run_approve(
     store: &HostedStore,
+    game_dir: &std::path::Path,
     game_id: &str,
     request_id: Option<&String>,
     player: Option<u32>,
@@ -152,6 +161,7 @@ fn run_approve(
         .map(|s| s.invite_code.clone())
         .collect();
     let reserve_invite_token = generate_invite_code(&existing);
+    let claimed_year = current_runtime_year(game_dir)?;
 
     nc_data::hosted::approve_request_for_seat(
         store.connection(),
@@ -159,6 +169,7 @@ fn run_approve(
         game_id,
         player,
         &request.player_pubkey,
+        claimed_year,
         &reserve_invite_token,
         message,
     )?;

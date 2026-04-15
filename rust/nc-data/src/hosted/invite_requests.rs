@@ -134,6 +134,7 @@ pub fn approve_request_for_seat(
     game_id: &str,
     seat_number: u32,
     player_pubkey: &str,
+    claimed_year: u16,
     reserve_invite_token: &str,
     decision_message: &str,
 ) -> SqliteResult<()> {
@@ -141,14 +142,16 @@ pub fn approve_request_for_seat(
 
     let result = match super::seats::get_seat_by_number(conn, game_id, seat_number)? {
         Some(seat) if seat.status == super::seats::SeatStatus::Pending => {
-            super::seats::claim_seat(conn, game_id, seat_number, player_pubkey)
+            super::seats::claim_seat(conn, game_id, seat_number, player_pubkey, claimed_year)
         }
         Some(seat) if seat.player_pubkey.as_deref() == Some(player_pubkey) => Ok(()),
         Some(_) => Err(rusqlite::Error::InvalidParameterName(format!(
             "seat {seat_number} is already claimed"
         ))),
         None => super::seats::open_seat(conn, game_id, seat_number, reserve_invite_token)
-            .and_then(|_| super::seats::claim_seat(conn, game_id, seat_number, player_pubkey)),
+            .and_then(|_| {
+                super::seats::claim_seat(conn, game_id, seat_number, player_pubkey, claimed_year)
+            }),
     }
     .and_then(|_| approve_request(conn, request_id, decision_message, seat_number, None))
     .and_then(|_| super::settings::mark_catalog_dirty(conn, game_id));

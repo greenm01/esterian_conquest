@@ -49,6 +49,7 @@ fn test_approve_request() {
         game_id,
         2,
         "player-npub",
+        3000,
         "amber-river",
         "Approved for seat 1",
     )
@@ -72,6 +73,7 @@ fn test_approve_request() {
         .expect("seat should exist");
     assert!(!seat.invite_code.is_empty());
     assert_eq!(seat.player_pubkey.as_deref(), Some("player-npub"));
+    assert_eq!(seat.claimed_year, Some(3000));
 }
 
 #[test]
@@ -95,6 +97,7 @@ fn test_approve_request_opens_missing_seat_and_claims_it() {
         game_id,
         4,
         "player-b-npub",
+        3000,
         "reserve-token",
         "Approved for seat 4",
     )

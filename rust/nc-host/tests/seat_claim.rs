@@ -63,7 +63,7 @@ fn test_claim_seat() {
         .expect("seat should exist");
     assert_eq!(seat_before.status, SeatStatus::Pending);
 
-    nc_data::hosted::claim_seat(store.connection(), game_id, 2, player_pubkey)
+    nc_data::hosted::claim_seat(store.connection(), game_id, 2, player_pubkey, 3000)
         .expect("should claim");
 
     let seat_after = nc_data::hosted::get_seat_by_number(store.connection(), game_id, 2)
@@ -73,6 +73,7 @@ fn test_claim_seat() {
     assert_eq!(seat_after.status, SeatStatus::Claimed);
     assert_eq!(seat_after.player_pubkey, Some(player_pubkey.to_string()));
     assert!(seat_after.claimed_at.is_some());
+    assert_eq!(seat_after.claimed_year, Some(3000));
 }
 
 #[test]
@@ -85,9 +86,9 @@ fn test_claim_already_claimed_seat_no_op() {
     let player2 = "player-2";
 
     nc_data::hosted::open_seat(store.connection(), game_id, 3, invite_code).expect("should open");
-    nc_data::hosted::claim_seat(store.connection(), game_id, 3, player1).expect("claim 1");
+    nc_data::hosted::claim_seat(store.connection(), game_id, 3, player1, 3000).expect("claim 1");
 
-    nc_data::hosted::claim_seat(store.connection(), game_id, 3, player2)
+    nc_data::hosted::claim_seat(store.connection(), game_id, 3, player2, 3000)
         .expect("claim 2 should succeed (no error)");
 
     let seat = nc_data::hosted::get_seat_by_number(store.connection(), game_id, 3)
@@ -109,7 +110,7 @@ fn test_reset_seat() {
     let invite_code = "reset-test-code";
 
     nc_data::hosted::open_seat(store.connection(), game_id, 4, invite_code).expect("should open");
-    nc_data::hosted::claim_seat(store.connection(), game_id, 4, "player-1").expect("claim");
+    nc_data::hosted::claim_seat(store.connection(), game_id, 4, "player-1", 3000).expect("claim");
 
     nc_data::hosted::reset_seat(store.connection(), game_id, 4).expect("should reset");
 
@@ -120,4 +121,5 @@ fn test_reset_seat() {
     assert_eq!(seat.status, SeatStatus::Pending);
     assert_eq!(seat.player_pubkey, None);
     assert_eq!(seat.claimed_at, None);
+    assert_eq!(seat.claimed_year, None);
 }

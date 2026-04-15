@@ -2,6 +2,7 @@ use crate::game::effects::GameEffects;
 use crate::game::msg::GameMsg;
 use crate::game::outbox::enqueue_encrypted_event;
 use crate::invite::generate_invite_code;
+use crate::support::runtime::current_runtime_year;
 use crate::support::pubkeys::short_pubkey;
 use nc_data::hosted::{self, GameTier, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
@@ -317,6 +318,20 @@ impl GameWorker {
         let existing_codes: std::collections::HashSet<String> =
             seats.iter().map(|s| s.invite_code.clone()).collect();
         let reserve_token = generate_invite_code(&existing_codes);
+        let Some(game_dir) = self.db_path.parent() else {
+            tracing::error!(
+                "Hosted db path has no parent for {}",
+                self.db_path.display()
+            );
+            return self.queued_receipt(request);
+        };
+        let claimed_year = match current_runtime_year(game_dir) {
+            Ok(year) => year,
+            Err(e) => {
+                tracing::error!("Failed to load runtime year for sandbox auto-approve: {}", e);
+                return self.queued_receipt(request);
+            }
+        };
 
         if let Err(e) = hosted::approve_request_for_seat(
             store.connection(),
@@ -324,6 +339,7 @@ impl GameWorker {
             &self.game_id,
             seat.seat_number,
             &request.player_pubkey,
+            claimed_year,
             &reserve_token,
             "Auto-approved for sandbox game.",
         ) {
@@ -404,11 +420,30 @@ impl GameWorker {
             match hosted::find_seat_by_invite_hash(store.connection(), &self.game_id, &invite_hash)
             {
                 Ok(Some(seat)) if seat.status == hosted::SeatStatus::Pending => {
+                    let Some(game_dir) = self.db_path.parent() else {
+                        tracing::error!(
+                            "Hosted db path has no parent for {}",
+                            self.db_path.display()
+                        );
+                        return;
+                    };
+                    let claimed_year = match current_runtime_year(game_dir) {
+                        Ok(year) => year,
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to load runtime year for seat claim in {}: {}",
+                                self.game_id,
+                                e
+                            );
+                            return;
+                        }
+                    };
                     match hosted::claim_seat(
                         store.connection(),
                         &self.game_id,
                         seat.seat_number,
                         &request.player_pubkey,
+                        claimed_year,
                     ) {
                         Ok(()) => {
                             let _ = hosted::mark_catalog_dirty(store.connection(), &self.game_id);

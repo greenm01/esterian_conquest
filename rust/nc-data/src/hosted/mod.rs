@@ -27,6 +27,7 @@ pub use schema::INIT_SQL;
 pub use seats::{
     Seat, SeatStatus, claim_seat, close_seat, create_seats, find_seat_by_invite_hash,
     get_seat_by_number, get_seat_by_pubkey, list_seats, open_seat, reissue_seat, reset_seat,
+    set_claimed_year,
 };
 pub use settings::{
     GameMetadata, GameSettings, GameTier, LobbyVisibility, RecruitingMode, clear_catalog_dirty,

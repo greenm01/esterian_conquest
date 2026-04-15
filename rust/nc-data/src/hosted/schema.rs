@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS seats (
     player_pubkey TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     claimed_at INTEGER,
+    claimed_year INTEGER,
     created_at INTEGER NOT NULL,
     UNIQUE(game_id, seat_number),
     UNIQUE(game_id, invite_code_hash)

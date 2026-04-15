@@ -5,6 +5,7 @@ use super::schema::INIT_SQL;
 
 const MIGRATIONS: &[&str] = &[
     "ALTER TABLE game_metadata ADD COLUMN game_tier TEXT NOT NULL DEFAULT 'league'",
+    "ALTER TABLE seats ADD COLUMN claimed_year INTEGER",
 ];
 
 pub struct HostedStore {

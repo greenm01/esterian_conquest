@@ -90,7 +90,8 @@ fn test_seat_lookup_for_player() {
     let player_pubkey = "8a937a446e7061f24f6b4b037c56c671146f50c8754472601527805a35cd4dc4";
 
     nc_data::hosted::open_seat(store.connection(), game_id, 1, "invite-123").expect("open");
-    nc_data::hosted::claim_seat(store.connection(), game_id, 1, player_pubkey).expect("claim");
+    nc_data::hosted::claim_seat(store.connection(), game_id, 1, player_pubkey, 3000)
+        .expect("claim");
 
     let seat = nc_data::hosted::get_seat_by_pubkey(store.connection(), game_id, player_pubkey)
         .expect("should get")
@@ -106,7 +107,8 @@ fn test_build_game_state_payload_uses_runtime_snapshot() {
     let game_id = "state-sync-runtime";
     let player_pubkey = "test-player-runtime";
 
-    nc_data::hosted::claim_seat(store.connection(), game_id, 1, player_pubkey).expect("claim");
+    nc_data::hosted::claim_seat(store.connection(), game_id, 1, player_pubkey, 3000)
+        .expect("claim");
     seed_runtime_snapshot(
         &game_dir,
         game_id,
