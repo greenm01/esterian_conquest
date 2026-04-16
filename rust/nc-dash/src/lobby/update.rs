@@ -338,6 +338,7 @@ fn handle_first_run_key(app: &mut LobbyApp, key: KeyEvent) {
                         app.state.unlock_password_input.clear();
                         app.state.first_run_password_input.clear();
                         app.state.first_run_confirm_input.clear();
+                        app.state.auto_open_manual_after_onboarding = true;
                         enter_home(app);
                     }
                     Err(err) => set_status(app, LobbyStatusTone::Error, err),
@@ -1702,11 +1703,12 @@ fn open_manual_popup(app: &mut LobbyApp) {
 
 pub(crate) fn maybe_open_home_manual(app: &mut LobbyApp) {
     if app.state.route != LobbyRoute::Home
-        || app.state.manual_seen_this_session
+        || !app.state.auto_open_manual_after_onboarding
         || app.state.show_resume_sync_overlay
     {
         return;
     }
+    app.state.auto_open_manual_after_onboarding = false;
     open_manual_popup(app);
 }
 
@@ -1758,7 +1760,7 @@ fn sanitize_multiline_paste(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_key, ctrl_key_for_tests};
+    use super::{apply_key, ctrl_key_for_tests, maybe_open_home_manual};
     use crate::geometry::ScreenGeometry;
     use crate::lobby::LobbyApp;
     use crate::lobby::state::{LobbyRoute, LobbyStatusTone};
@@ -1776,6 +1778,32 @@ mod tests {
             Some("Clipboard is unavailable.")
         );
         assert_eq!(app.state.first_run_handle_input, "");
+    }
+
+    #[test]
+    fn home_manual_does_not_auto_open_without_onboarding_flag() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+        maybe_open_home_manual(&mut app);
+
+        assert!(!app.state.show_manual);
+    }
+
+    #[test]
+    fn home_manual_auto_opens_once_after_onboarding() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+        app.state.auto_open_manual_after_onboarding = true;
+
+        maybe_open_home_manual(&mut app);
+
+        assert!(app.state.show_manual);
+        assert!(app.state.manual_seen_this_session);
+        assert!(!app.state.auto_open_manual_after_onboarding);
+
+        app.state.show_manual = false;
+        maybe_open_home_manual(&mut app);
+
+        assert!(!app.state.show_manual);
     }
 }
 

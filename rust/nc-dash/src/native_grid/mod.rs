@@ -17,11 +17,11 @@ pub const DEFAULT_FONT_HEIGHT_PX: u32 = 20;
 
 const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
+    "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Regular.ttf"
 ));
 const PRIMARY_BOLD_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
+    "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Bold.ttf"
 ));
 const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -29,11 +29,11 @@ const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!(concat!(
 ));
 const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Regular.ttf"
+    "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
 ));
 const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Bold.ttf"
+    "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
 ));
 
 type NativeTerminal = Terminal<WgpuBackend<'static, 'static>>;

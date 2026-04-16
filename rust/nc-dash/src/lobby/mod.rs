@@ -117,7 +117,7 @@ impl LobbyApp {
             freeze_live_updates: false,
         };
         app.state.show_manual = false;
-        app.state.manual_seen_this_session = route == LobbyRoute::Home;
+        app.state.manual_seen_this_session = false;
         app
     }
 
