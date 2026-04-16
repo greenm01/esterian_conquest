@@ -22,6 +22,7 @@ opaline = { path = "../opaline", default-features = false, features = ["builtin-
 pollster = "0.4"
 ratatui = "0.30"
 ratatui-wgpu = "0.5"
+rustybuzz = "0.20.1"
 serde_json = "1"
 tracing = "0.1"
 winit = "0.30"

@@ -1,8 +1,7 @@
-use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use nc_dash::{RenderedUi, blit_rendered_ui};
+use nc_dash::{RenderedUi, blit_rendered_ui, build_native_terminal_for_repro};
 use ratatui::Terminal;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
@@ -10,7 +9,7 @@ use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui_wgpu::{Builder, Dimensions, Font, WgpuBackend};
+use ratatui_wgpu::WgpuBackend;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -34,27 +33,6 @@ use winit::platform::wayland::EventLoopBuilderExtWayland;
     target_os = "openbsd"
 ))]
 use winit::platform::x11::EventLoopBuilderExtX11;
-
-const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
-));
-const PRIMARY_BOLD_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Bold.ttf"
-));
-const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Italic.ttf"
-));
-const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
-));
-const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
-));
 
 type NativeTerminal = Terminal<WgpuBackend<'static, 'static>>;
 
@@ -136,9 +114,7 @@ impl ApplicationHandler for Handler {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        let (Some(window), Some(terminal)) =
-            (self.window.as_ref(), self.terminal.as_mut())
-        else {
+        let (Some(window), Some(terminal)) = (self.window.as_ref(), self.terminal.as_mut()) else {
             return;
         };
         event_loop.set_control_flow(ControlFlow::Wait);
@@ -166,7 +142,9 @@ impl ApplicationHandler for Handler {
             }
             WindowEvent::RedrawRequested => {
                 let size = window.inner_size();
-                terminal.backend_mut().resize(size.width.max(1), size.height.max(1));
+                terminal
+                    .backend_mut()
+                    .resize(size.width.max(1), size.height.max(1));
                 let rendered = build_rendered_ui(size, &self.app);
                 if let Err(err) = terminal.draw(|frame| {
                     let area = frame.area();
@@ -246,7 +224,11 @@ fn build_rendered_ui(size: winit::dpi::PhysicalSize<u32>, app: &AppState) -> Ren
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(5), Constraint::Min(1), Constraint::Length(5)])
+        .constraints([
+            Constraint::Length(5),
+            Constraint::Min(1),
+            Constraint::Length(5),
+        ])
         .split(area);
 
     let header = Paragraph::new(vec![
@@ -311,30 +293,7 @@ fn build_rendered_ui(size: winit::dpi::PhysicalSize<u32>, app: &AppState) -> Ren
 fn build_terminal(
     window: Arc<winit::window::Window>,
 ) -> Result<NativeTerminal, Box<dyn std::error::Error>> {
-    let size = window.inner_size();
-    let primary_regular =
-        Font::new(PRIMARY_REGULAR_FONT).ok_or("unable to load primary regular font")?;
-    let primary_bold = Font::new(PRIMARY_BOLD_FONT).ok_or("unable to load primary bold font")?;
-    let primary_italic =
-        Font::new(PRIMARY_ITALIC_FONT).ok_or("unable to load primary italic font")?;
-    let fallback_regular =
-        Font::new(FALLBACK_REGULAR_FONT).ok_or("unable to load fallback regular font")?;
-    let fallback_bold =
-        Font::new(FALLBACK_BOLD_FONT).ok_or("unable to load fallback bold font")?;
-    let backend = pollster::block_on(
-        Builder::from_font(primary_regular)
-            .with_font_size_px(18)
-            .with_bold_fonts([primary_bold, fallback_bold])
-            .with_italic_fonts([primary_italic])
-            .with_regular_fonts([fallback_regular])
-            .with_width_and_height(Dimensions {
-                width: NonZeroU32::new(size.width.max(1)).ok_or("window width must be non-zero")?,
-                height: NonZeroU32::new(size.height.max(1))
-                    .ok_or("window height must be non-zero")?,
-            })
-            .build_with_target(window),
-    )?;
-    Ok(Terminal::new(backend)?)
+    build_native_terminal_for_repro(window)
 }
 
 fn parse_args() -> Result<Options, Box<dyn std::error::Error>> {
@@ -350,7 +309,9 @@ fn parse_args() -> Result<Options, Box<dyn std::error::Error>> {
                     .ok_or("--backend must be one of: auto, wayland, x11")?;
             }
             "--help" | "-h" => {
-                println!("Usage: cargo run -p nc-dash --example rendered_ui_repro -- [--backend auto|wayland|x11]");
+                println!(
+                    "Usage: cargo run -p nc-dash --example rendered_ui_repro -- [--backend auto|wayland|x11]"
+                );
                 std::process::exit(0);
             }
             other => {

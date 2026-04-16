@@ -1,7 +1,7 @@
 use crate::geometry::ScreenGeometry;
 use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
-    terminal_grid_for_pixels,
+    logical_window_size_for_grid, terminal_grid_for_pixels,
 };
 use crate::rendered::RenderedUi;
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::info;
 use winit::application::ApplicationHandler;
-use winit::dpi::{LogicalSize, PhysicalPosition};
+use winit::dpi::PhysicalPosition;
 use winit::error::EventLoopError;
 use winit::event::{MouseButton as WinitMouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder};
@@ -996,11 +996,12 @@ pub fn run<T: NativeApp>(
     })?;
 
     let geometry = app.geometry();
-    let logical_width = (geometry.width() * crate::native_grid::DEFAULT_CELL_WIDTH) as f64;
-    let logical_height = (geometry.height() * crate::native_grid::DEFAULT_CELL_HEIGHT) as f64;
     let mut window_attrs = Window::default_attributes()
         .with_title(app.window_title())
-        .with_inner_size(LogicalSize::new(logical_width, logical_height))
+        .with_inner_size(logical_window_size_for_grid(
+            geometry.width(),
+            geometry.height(),
+        ))
         .with_decorations(session_backend != "wayland")
         .with_resizable(true);
     window_attrs = match native_options.window_mode {

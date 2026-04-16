@@ -57,6 +57,16 @@ pub fn main_entry() -> Result<(), Box<dyn std::error::Error>> {
     run(std::env::args())
 }
 
+#[doc(hidden)]
+pub fn build_native_terminal_for_repro(
+    window: std::sync::Arc<winit::window::Window>,
+) -> Result<
+    ratatui::Terminal<ratatui_wgpu::WgpuBackend<'static, 'static>>,
+    Box<dyn std::error::Error>,
+> {
+    native_grid::build_native_terminal(window)
+}
+
 fn run_dashboard_from_dir(
     game_dir: std::path::PathBuf,
     native_options: startup::NativeLaunchOptions,

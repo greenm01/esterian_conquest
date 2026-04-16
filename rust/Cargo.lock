@@ -3191,6 +3191,7 @@ dependencies = [
  "pollster",
  "ratatui",
  "ratatui-wgpu",
+ "rustybuzz",
  "serde_json",
  "tracing",
  "winit 0.30.13",

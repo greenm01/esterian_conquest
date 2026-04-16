@@ -1,11 +1,10 @@
-use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use nc_dash::{RenderedUi, blit_rendered_ui};
+use nc_dash::{RenderedUi, blit_rendered_ui, build_native_terminal_for_repro};
 use ratatui::Terminal;
 use ratatui::style::Style;
-use ratatui_wgpu::{Builder, Dimensions, Font, WgpuBackend};
+use ratatui_wgpu::WgpuBackend;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -29,27 +28,6 @@ use winit::platform::wayland::EventLoopBuilderExtWayland;
     target_os = "openbsd"
 ))]
 use winit::platform::x11::EventLoopBuilderExtX11;
-
-const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
-));
-const PRIMARY_BOLD_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Bold.ttf"
-));
-const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Italic.ttf"
-));
-const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
-));
-const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
-));
 
 type NativeTerminal = Terminal<WgpuBackend<'static, 'static>>;
 
@@ -118,7 +96,13 @@ pub fn run_rendered_ui_repro(
     backend: BackendPreference,
     mut render_ui: impl FnMut() -> Result<RenderedUi, Box<dyn std::error::Error>> + 'static,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    run_stateful_rendered_ui_repro(title, backend, (), move |()| render_ui(), |_state, _step| None)
+    run_stateful_rendered_ui_repro(
+        title,
+        backend,
+        (),
+        move |()| render_ui(),
+        |_state, _step| None,
+    )
 }
 
 pub fn run_stateful_rendered_ui_repro<S: 'static>(
@@ -189,8 +173,7 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
             _window_id: WindowId,
             event: WindowEvent,
         ) {
-            let (Some(window), Some(terminal)) =
-                (self.window.as_ref(), self.terminal.as_mut())
+            let (Some(window), Some(terminal)) = (self.window.as_ref(), self.terminal.as_mut())
             else {
                 return;
             };
@@ -218,7 +201,9 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
                 }
                 WindowEvent::RedrawRequested => {
                     let size = window.inner_size();
-                    terminal.backend_mut().resize(size.width.max(1), size.height.max(1));
+                    terminal
+                        .backend_mut()
+                        .resize(size.width.max(1), size.height.max(1));
                     let rendered = match (self.render_ui)(&mut self.state) {
                         Ok(rendered) => rendered,
                         Err(err) => {
@@ -265,12 +250,7 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
                 let current_step = self.next_step_index;
                 self.next_step_index += 1;
                 if let Some(label) = (self.run_step)(&mut self.state, current_step) {
-                    eprintln!(
-                        "{}: step {} -> {}",
-                        self.title,
-                        current_step + 1,
-                        label
-                    );
+                    eprintln!("{}: step {} -> {}", self.title, current_step + 1, label);
                     self.next_step_at = Some(Instant::now() + Duration::from_millis(500));
                 } else {
                     eprintln!("{}: scripted steps complete", self.title);
@@ -303,30 +283,7 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
 fn build_terminal(
     window: Arc<winit::window::Window>,
 ) -> Result<NativeTerminal, Box<dyn std::error::Error>> {
-    let size = window.inner_size();
-    let primary_regular =
-        Font::new(PRIMARY_REGULAR_FONT).ok_or("unable to load primary regular font")?;
-    let primary_bold = Font::new(PRIMARY_BOLD_FONT).ok_or("unable to load primary bold font")?;
-    let primary_italic =
-        Font::new(PRIMARY_ITALIC_FONT).ok_or("unable to load primary italic font")?;
-    let fallback_regular =
-        Font::new(FALLBACK_REGULAR_FONT).ok_or("unable to load fallback regular font")?;
-    let fallback_bold =
-        Font::new(FALLBACK_BOLD_FONT).ok_or("unable to load fallback bold font")?;
-    let backend = pollster::block_on(
-        Builder::from_font(primary_regular)
-            .with_font_size_px(18)
-            .with_bold_fonts([primary_bold, fallback_bold])
-            .with_italic_fonts([primary_italic])
-            .with_regular_fonts([fallback_regular])
-            .with_width_and_height(Dimensions {
-                width: NonZeroU32::new(size.width.max(1)).ok_or("window width must be non-zero")?,
-                height: NonZeroU32::new(size.height.max(1))
-                    .ok_or("window height must be non-zero")?,
-            })
-            .build_with_target(window),
-    )?;
-    Ok(Terminal::new(backend)?)
+    build_native_terminal_for_repro(window)
 }
 
 fn apply_backend_preference(
