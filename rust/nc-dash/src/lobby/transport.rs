@@ -4,7 +4,9 @@ use nc_client::cache::{
 };
 use nc_client::config::{ClientConfig, load_config};
 use nc_client::contacts::{resolve_contact_input, short_contact_label};
-use nc_client::hosted::live::{HostedLiveSession, HostedSessionStatus, HostedSessionUpdate};
+use nc_client::hosted::live::{
+    HostedLiveOptions, HostedLiveSession, HostedSessionStatus, HostedSessionUpdate,
+};
 use nc_client::hosted::session::{
     CatalogGame, HostedClientSession, HostedStateRequestError, PlayerEventBatch,
     SandboxJoinOutcome, compare_catalog_versions,
@@ -30,6 +32,7 @@ use super::models::{
     ThreadMessage,
 };
 use super::state::{LobbyNetworkStatus, LobbyStatusTone};
+use crate::startup::NativeLaunchOptions;
 
 const CACHE_RESET_MESSAGE: &str =
     "Local cache was reset. Relay data will repopulate after refresh.";
@@ -40,6 +43,7 @@ const HANDLE_UPDATED_LOCAL_MESSAGE: &str =
     "Handle updated locally. It will be verified when you next contact nc-host.";
 const HANDLE_VERIFIED_MESSAGE: &str = "Handle verified with nc-host.";
 const HANDLE_UPDATED_VERIFIED_MESSAGE: &str = "Handle updated and verified with nc-host.";
+const REQUEST_BOOTSTRAP_LOOKBACK_SECS: u64 = 30 * 24 * 60 * 60;
 
 fn format_catalog_created_date(created_at: Option<i64>) -> String {
     created_at
@@ -149,6 +153,9 @@ struct UnlockedClient {
 
 pub struct LobbyTransport {
     relay_override: Option<String>,
+    disable_hosted_sessions: bool,
+    disable_live_session: bool,
+    disable_live_private_stream: bool,
     unlocked: Option<UnlockedClient>,
 }
 
@@ -158,15 +165,34 @@ struct CacheLoadResult {
     status_tone: LobbyStatusTone,
 }
 
+struct OpenGameContext {
+    session: HostedClientSession,
+    player_pubkey: String,
+    handle: Option<String>,
+    hosted_store: HostedStateStore,
+    baseline: Option<GameState>,
+    draft: Option<CachedHostedDraft>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenGamePersistOutcome {
+    pub had_baseline: bool,
+    pub had_draft: bool,
+    pub cleared_stale_draft: bool,
+}
+
 enum HandleSaveMode {
     Verified,
     LocalOnly,
 }
 
 impl LobbyTransport {
-    pub fn new(relay_override: Option<String>) -> Self {
+    pub fn new(relay_override: Option<String>, native: NativeLaunchOptions) -> Self {
         Self {
             relay_override,
+            disable_hosted_sessions: native.disable_hosted_sessions,
+            disable_live_session: native.disable_live_session,
+            disable_live_private_stream: native.disable_live_private_stream,
             unlocked: None,
         }
     }
@@ -204,7 +230,14 @@ impl LobbyTransport {
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
         let (session, live_session) =
-            build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
+            build_sessions(
+                &keychain,
+                relay_url.as_deref(),
+                self.disable_hosted_sessions,
+                self.disable_live_session,
+                self.disable_live_private_stream,
+            )
+                .map_err(|err| err.to_string())?;
         let mut catalog = Vec::new();
         let handle_mode =
             validate_local_handle_before_save(session.as_ref(), &mut catalog, &cache, &keychain)?;
@@ -222,6 +255,7 @@ impl LobbyTransport {
             network_status: initial_network_status_from_session(has_session),
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
+            bootstrap_request_session(unlocked);
             Ok(build_loaded_state(
                 unlocked,
                 Some(match handle_mode {
@@ -244,7 +278,14 @@ impl LobbyTransport {
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
         let (session, live_session) =
-            build_sessions(&keychain, relay_url.as_deref()).map_err(|err| err.to_string())?;
+            build_sessions(
+                &keychain,
+                relay_url.as_deref(),
+                self.disable_hosted_sessions,
+                self.disable_live_session,
+                self.disable_live_private_stream,
+            )
+                .map_err(|err| err.to_string())?;
         let has_session = session.is_some();
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
@@ -257,6 +298,7 @@ impl LobbyTransport {
             network_status: initial_network_status_from_session(has_session),
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
+            bootstrap_request_session(unlocked);
             Ok(build_loaded_state(
                 unlocked,
                 cache_result.status_message,
@@ -273,6 +315,9 @@ impl LobbyTransport {
             .unlocked
             .as_mut()
             .ok_or_else(|| "keychain is locked".to_string())?;
+        if unlocked.live_session.is_none() {
+            bootstrap_request_session(unlocked);
+        }
         let changed = apply_live_updates(unlocked);
         if changed {
             save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
@@ -463,96 +508,60 @@ impl LobbyTransport {
             message: "keychain is locked".to_string(),
             loaded: None,
         })?;
-        let session = unlocked
-            .session
-            .as_ref()
-            .cloned()
-            .ok_or_else(|| LobbyOpenGameError {
-                code: None,
-                message: "no relay configured for the hosted lobby".to_string(),
-                loaded: None,
-            })?;
-        let handle = current_handle(&unlocked.keychain);
-        let player_pubkey =
-            current_player_pubkey(&unlocked.keychain).map_err(|err| LobbyOpenGameError {
-                code: None,
-                message: err.to_string(),
-                loaded: None,
-            })?;
-        let hosted_store = open_hosted_state_store().map_err(|err| LobbyOpenGameError {
-            code: None,
-            message: err.to_string(),
-            loaded: None,
-        })?;
-        let baseline = hosted_store
-            .load_snapshot(&unlocked.password, &player_pubkey, &row.game_id)
-            .map_err(|err| LobbyOpenGameError {
-                code: None,
-                message: err.to_string(),
-                loaded: None,
-            })?
-            .map(|cached| cached.snapshot);
-        let state = session
-            .request_state(
-                &row.game_id,
-                &row.daemon_pubkey,
-                baseline.as_ref().map(|state| state.turn),
-                baseline.as_ref().map(|state| state.state_hash.as_str()),
-                handle.as_deref(),
-                baseline.as_ref(),
-            )
+        let context = prepare_open_game(unlocked, row)?;
+        let state = fetch_open_game_state(&context, row)
             .map_err(|err| lobby_open_game_error(unlocked, row, err))?;
-        hosted_store
-            .save_snapshot(&unlocked.password, &player_pubkey, &state)
-            .map_err(|err| LobbyOpenGameError {
+        persist_open_game_state(&context, &unlocked.password, row, &state).map_err(|err| {
+            LobbyOpenGameError {
                 code: None,
                 message: err.to_string(),
                 loaded: None,
-            })?;
-        if let Some(draft) = hosted_store
-            .load_draft(&unlocked.password, &player_pubkey, &row.game_id)
-            .map_err(|err| LobbyOpenGameError {
-                code: None,
-                message: err.to_string(),
-                loaded: None,
-            })?
-        {
-            if state.turn > draft.turn {
-                hosted_store
-                    .clear_draft(&player_pubkey, &row.game_id)
-                    .map_err(|err| LobbyOpenGameError {
-                        code: None,
-                        message: err.to_string(),
-                        loaded: None,
-                    })?;
             }
-        }
-        let mut cached = cache_game_from_row(row);
-        cached.status = "joined".to_string();
-        cached.last_turn = Some(state.turn);
-        cached.last_hash = Some(state.state_hash.clone());
-        cached.updated_at = now_iso8601();
-        unlocked.cache.upsert_game(cached);
-        unlocked.cache.replace_roster(
-            &state.game_id,
-            state
-                .state
-                .roster
-                .iter()
-                .map(|entry| GameRosterEntry {
-                    game_id: state.game_id.clone(),
-                    empire_id: entry.empire_id,
-                    empire_name: entry.empire_name.clone(),
-                    is_self: entry.is_self,
-                })
-                .collect(),
-        );
-        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| LobbyOpenGameError {
+        })?;
+        update_open_game_cache(unlocked, row, &state).map_err(|err| LobbyOpenGameError {
             code: None,
             message: err.to_string(),
             loaded: None,
         })?;
         Ok(state)
+    }
+
+    #[doc(hidden)]
+    pub fn open_game_fetch_only(&mut self, row: &JoinedGameRow) -> Result<GameState, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let context = prepare_open_game(unlocked, row).map_err(|err| err.message)?;
+        fetch_open_game_state(&context, row).map_err(|err| err.message)
+    }
+
+    #[doc(hidden)]
+    pub fn persist_open_game_state_for_repro(
+        &mut self,
+        row: &JoinedGameRow,
+        state: &GameState,
+    ) -> Result<OpenGamePersistOutcome, String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        let context = prepare_open_game(unlocked, row).map_err(|err| err.message)?;
+        persist_open_game_state(&context, &unlocked.password, row, state)
+            .map_err(|err| err.to_string())
+    }
+
+    #[doc(hidden)]
+    pub fn update_open_game_cache_for_repro(
+        &mut self,
+        row: &JoinedGameRow,
+        state: &GameState,
+    ) -> Result<(), String> {
+        let unlocked = self
+            .unlocked
+            .as_mut()
+            .ok_or_else(|| "keychain is locked".to_string())?;
+        update_open_game_cache(unlocked, row, state).map_err(|err| err.to_string())
     }
 
     pub fn complete_first_join_setup(
@@ -916,6 +925,110 @@ impl LobbyTransport {
     }
 }
 
+fn prepare_open_game(
+    unlocked: &UnlockedClient,
+    row: &JoinedGameRow,
+) -> Result<OpenGameContext, LobbyOpenGameError> {
+    let session = unlocked
+        .session
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| LobbyOpenGameError {
+            code: None,
+            message: "no relay configured for the hosted lobby".to_string(),
+            loaded: None,
+        })?;
+    let handle = current_handle(&unlocked.keychain);
+    let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| LobbyOpenGameError {
+        code: None,
+        message: err.to_string(),
+        loaded: None,
+    })?;
+    let hosted_store = open_hosted_state_store().map_err(|err| LobbyOpenGameError {
+        code: None,
+        message: err.to_string(),
+        loaded: None,
+    })?;
+    let baseline = hosted_store
+        .load_snapshot(&unlocked.password, &player_pubkey, &row.game_id)
+        .map_err(|err| LobbyOpenGameError {
+            code: None,
+            message: err.to_string(),
+            loaded: None,
+        })?
+        .map(|cached| cached.snapshot);
+    let draft = hosted_store
+        .load_draft(&unlocked.password, &player_pubkey, &row.game_id)
+        .map_err(|err| LobbyOpenGameError {
+            code: None,
+            message: err.to_string(),
+            loaded: None,
+        })?;
+    Ok(OpenGameContext {
+        session,
+        player_pubkey,
+        handle,
+        hosted_store,
+        baseline,
+        draft,
+    })
+}
+
+fn fetch_open_game_state(
+    context: &OpenGameContext,
+    row: &JoinedGameRow,
+) -> Result<GameState, HostedStateRequestError> {
+    context.session.request_state(
+        &row.game_id,
+        &row.daemon_pubkey,
+        context.baseline.as_ref().map(|state| state.turn),
+        context.baseline.as_ref().map(|state| state.state_hash.as_str()),
+        context.handle.as_deref(),
+        context.baseline.as_ref(),
+    )
+}
+
+fn persist_open_game_state(
+    context: &OpenGameContext,
+    password: &str,
+    row: &JoinedGameRow,
+    state: &GameState,
+) -> Result<OpenGamePersistOutcome, Box<dyn std::error::Error>> {
+    context
+        .hosted_store
+        .save_snapshot(password, &context.player_pubkey, state)?;
+    let cleared_stale_draft = context
+        .draft
+        .as_ref()
+        .is_some_and(|draft| state.turn > draft.turn);
+    if cleared_stale_draft {
+        context
+            .hosted_store
+            .clear_draft(&context.player_pubkey, &row.game_id)?;
+    }
+    Ok(OpenGamePersistOutcome {
+        had_baseline: context.baseline.is_some(),
+        had_draft: context.draft.is_some(),
+        cleared_stale_draft,
+    })
+}
+
+fn update_open_game_cache(
+    unlocked: &mut UnlockedClient,
+    row: &JoinedGameRow,
+    state: &GameState,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cached = cache_game_from_row(row);
+    cached.status = "joined".to_string();
+    cached.last_turn = Some(state.turn);
+    cached.last_hash = Some(state.state_hash.clone());
+    cached.updated_at = now_iso8601();
+    unlocked.cache.upsert_game(cached);
+    apply_state_snapshot_to_cache(unlocked, state);
+    save_cache(&unlocked.cache, &unlocked.password)?;
+    Ok(())
+}
+
 fn load_cache_with_recovery(password: &str, path: &std::path::Path) -> CacheLoadResult {
     match load_cache_from(password, path) {
         Ok(Some(cache)) => CacheLoadResult {
@@ -1067,14 +1180,32 @@ fn open_hosted_state_store() -> Result<HostedStateStore, Box<dyn std::error::Err
 fn build_sessions(
     keychain: &Keychain,
     relay_url: Option<&str>,
+    disable_hosted_sessions: bool,
+    disable_live_session: bool,
+    disable_live_private_stream: bool,
 ) -> Result<(Option<HostedClientSession>, Option<HostedLiveSession>), Box<dyn std::error::Error>> {
     let Some(relay_url) = relay_url else {
         return Ok((None, None));
     };
+    if disable_hosted_sessions {
+        return Ok((None, None));
+    }
     let keys = active_keys(keychain)?;
     let session = HostedClientSession::new(keys.clone(), relay_url.to_string());
-    let live_session = HostedLiveSession::start(keys, relay_url.to_string());
-    Ok((Some(session), Some(live_session)))
+    let live_session = if disable_live_session {
+        None
+    } else {
+        Some(HostedLiveSession::start_with_options(
+            keys,
+            relay_url.to_string(),
+            HostedLiveOptions {
+                include_public_stream: true,
+                include_private_stream: !disable_live_private_stream,
+                enable_backfill: true,
+            },
+        ))
+    };
+    Ok((Some(session), live_session))
 }
 
 fn apply_live_updates(unlocked: &mut UnlockedClient) -> bool {
@@ -1089,6 +1220,48 @@ fn apply_live_updates(unlocked: &mut UnlockedClient) -> bool {
         apply_live_update(unlocked, update);
     }
     true
+}
+
+fn bootstrap_request_session(unlocked: &mut UnlockedClient) {
+    let Some(session) = unlocked.session.clone() else {
+        return;
+    };
+    if unlocked.live_session.is_some() {
+        return;
+    }
+
+    let mut any_success = false;
+    let mut saw_error = false;
+
+    match session.fetch_catalog() {
+        Ok(catalog) => {
+            apply_catalog(unlocked, &catalog);
+            any_success = true;
+        }
+        Err(err) => {
+            eprintln!("warning: hosted request-session catalog bootstrap failed: {err}");
+            saw_error = true;
+        }
+    }
+
+    match session.fetch_lobby_notices(REQUEST_BOOTSTRAP_LOOKBACK_SECS) {
+        Ok(notices) => {
+            apply_notices(unlocked, notices);
+            any_success = true;
+        }
+        Err(err) => {
+            eprintln!("warning: hosted request-session notice bootstrap failed: {err}");
+            saw_error = true;
+        }
+    }
+
+    unlocked.network_status = if any_success {
+        LobbyNetworkStatus::Synced
+    } else if saw_error {
+        LobbyNetworkStatus::Error
+    } else {
+        LobbyNetworkStatus::Connected
+    };
 }
 
 fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate) {
@@ -1909,7 +2082,10 @@ mod tests {
         CatalogState, GameDefinition, GameStatus, RecruitingMode, SeatSlot,
     };
     use nc_nostr::invite_request::{InviteRequestReceipt, InviteRequestReceiptStatus};
-    use nc_nostr::state_sync::StateErrorCode;
+    use nc_nostr::state_sync::{
+        GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedStarmapState,
+        HostedStatePayload, StateErrorCode,
+    };
 
     fn temp_test_path(name: &str) -> PathBuf {
         let unique = SystemTime::now()
@@ -1917,6 +2093,13 @@ mod tests {
             .expect("clock")
             .as_nanos();
         std::env::temp_dir().join(format!("nc-dash-{name}-{unique}"))
+    }
+
+    fn keychain_with_active_identity() -> Keychain {
+        let mut keychain = Keychain::empty();
+        push_new_identity(&mut keychain, now_iso8601(), Some("tester".to_string()))
+            .expect("active identity");
+        keychain
     }
 
     fn unlocked_with_game(status: &str) -> UnlockedClient {
@@ -1980,6 +2163,94 @@ mod tests {
             },
             published_at,
         }
+    }
+
+    fn sample_state(game_id: &str, turn: u32, hash: &str) -> GameState {
+        let full_year = 3000 + turn;
+        let year = u16::try_from(full_year).expect("year fits in u16");
+        GameState {
+            game_id: game_id.to_string(),
+            turn,
+            year: full_year,
+            player_seat: 1,
+            player_name: "Terran Union".to_string(),
+            state_hash: hash.to_string(),
+            state: HostedStatePayload {
+                player: HostedPlayerState {
+                    seat: 1,
+                    empire_name: "Terran Union".to_string(),
+                    handle: Some("tester".to_string()),
+                    mode: "active".to_string(),
+                    tax_rate: 50,
+                    planet_count: 1,
+                    starbase_count: 0,
+                    homeworld_planet_index: 1,
+                    last_run_year: year,
+                    diplomacy: Vec::new(),
+                },
+                roster: vec![HostedPlayerRosterEntry {
+                    empire_id: 1,
+                    empire_name: "Terran Union".to_string(),
+                    is_self: true,
+                }],
+                starmap: HostedStarmapState {
+                    map_width: 18,
+                    map_height: 18,
+                    viewer_empire_id: 1,
+                    year,
+                    worlds: Vec::new(),
+                },
+                owned_planets: Vec::new(),
+                owned_fleets: Vec::new(),
+            },
+            queued_mail: Vec::new(),
+            report_blocks: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn build_sessions_can_be_disabled_for_diagnostics() {
+        let sessions = build_sessions(
+            &Keychain::empty(),
+            Some("ws://127.0.0.1:8080"),
+            true,
+            false,
+            false,
+        )
+        .expect("disabled sessions");
+
+        assert!(sessions.0.is_none());
+        assert!(sessions.1.is_none());
+    }
+
+    #[test]
+    fn build_sessions_can_disable_only_live_session() {
+        let sessions = build_sessions(
+            &keychain_with_active_identity(),
+            Some("ws://127.0.0.1:8080"),
+            false,
+            true,
+            false,
+        )
+        .expect("request session without live session");
+
+        assert!(sessions.0.is_some());
+        assert!(sessions.1.is_none());
+    }
+
+    #[test]
+    fn build_sessions_can_disable_only_private_live_stream() {
+        let sessions = build_sessions(
+            &keychain_with_active_identity(),
+            Some("ws://127.0.0.1:8080"),
+            false,
+            false,
+            true,
+        )
+        .expect("request session with public-only live stream");
+
+        assert!(sessions.0.is_some());
+        assert!(sessions.1.is_some());
     }
 
     #[test]
@@ -2138,6 +2409,39 @@ mod tests {
             unlocked.catalog[0].definition.catalog_state,
             CatalogState::Listed
         );
+    }
+
+    #[test]
+    fn update_open_game_cache_sets_joined_row_and_roster() {
+        let mut unlocked = unlocked_with_game("requested");
+        let row = JoinedGameRow::new(
+            "sandbox-smoke",
+            "requested",
+            "Sandbox Smoke",
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(1),
+            "- -",
+        );
+        let state = sample_state("sandbox-smoke", 4, "abc123");
+
+        update_open_game_cache(&mut unlocked, &row, &state).expect("update open-game cache");
+
+        let cached = unlocked
+            .cache
+            .games
+            .iter()
+            .find(|game| game.id == "sandbox-smoke")
+            .expect("cached game row");
+        assert_eq!(cached.status, "joined");
+        assert_eq!(cached.last_turn, Some(4));
+        assert_eq!(cached.last_hash.as_deref(), Some("abc123"));
+        assert_eq!(cached.seat, Some(1));
+        assert_eq!(unlocked.cache.rosters.len(), 1);
+        assert_eq!(unlocked.cache.rosters[0].game_id, "sandbox-smoke");
+        assert_eq!(unlocked.cache.rosters[0].empire_name, "Terran Union");
+        assert!(unlocked.cache.rosters[0].is_self);
     }
 
     #[test]

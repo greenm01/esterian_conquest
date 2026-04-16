@@ -22,6 +22,23 @@ use super::session::{CatalogGame, PlayerEventBatch};
 const LOOKBACK_SECS: u64 = 30 * 24 * 60 * 60;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostedLiveOptions {
+    pub include_public_stream: bool,
+    pub include_private_stream: bool,
+    pub enable_backfill: bool,
+}
+
+impl Default for HostedLiveOptions {
+    fn default() -> Self {
+        Self {
+            include_public_stream: true,
+            include_private_stream: true,
+            enable_backfill: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostedSessionStatus {
     Connected,
     Synced,
@@ -57,6 +74,14 @@ impl Drop for HostedLiveSession {
 
 impl HostedLiveSession {
     pub fn start(keys: Keys, relay_url: impl Into<String>) -> Self {
+        Self::start_with_options(keys, relay_url, HostedLiveOptions::default())
+    }
+
+    pub fn start_with_options(
+        keys: Keys,
+        relay_url: impl Into<String>,
+        options: HostedLiveOptions,
+    ) -> Self {
         let relay_url = relay_url.into();
         let (update_tx, update_rx) = mpsc::channel::<HostedSessionUpdate>();
         let (command_tx, command_rx) = tokio_mpsc::unbounded_channel::<LiveCommand>();
@@ -70,7 +95,9 @@ impl HostedLiveSession {
                 }
             };
             runtime.block_on(async move {
-                if let Err(err) = run_live_session(keys, relay_url, update_tx, command_rx).await {
+                if let Err(err) =
+                    run_live_session(keys, relay_url, options, update_tx, command_rx).await
+                {
                     eprintln!("error: hosted live session stopped: {}", err);
                 }
             });
@@ -105,6 +132,7 @@ impl HostedLiveSession {
 async fn run_live_session(
     keys: Keys,
     relay_url: String,
+    options: HostedLiveOptions,
     update_tx: mpsc::Sender<HostedSessionUpdate>,
     mut command_rx: UnboundedReceiver<LiveCommand>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -116,38 +144,50 @@ async fn run_live_session(
     client.connect().await;
 
     let public_key_hex = keys.public_key().to_hex();
-    let public_filter = Filter::new()
-        .kinds([Kind::Custom(30500), Kind::Custom(30516)])
-        .since(Timestamp::now() - Duration::from_secs(LOOKBACK_SECS));
-    let private_filter = Filter::new()
-        .kinds([
-            Kind::Custom(30518),
-            Kind::Custom(30511),
-            Kind::Custom(30514),
-            Kind::Custom(30515),
-            Kind::Custom(30517),
-            Kind::Custom(30520),
-            Kind::Custom(30521),
-            Kind::Custom(30523),
-            Kind::Custom(30524),
-        ])
-        .custom_tag(
-            SingleLetterTag::lowercase(Alphabet::P),
-            public_key_hex.as_str(),
-        )
-        .since(Timestamp::now() - Duration::from_secs(LOOKBACK_SECS));
+    let public_filter = options.include_public_stream.then(|| {
+        Filter::new()
+            .kinds([Kind::Custom(30500), Kind::Custom(30516)])
+            .since(Timestamp::now() - Duration::from_secs(LOOKBACK_SECS))
+    });
+    let private_filter = options.include_private_stream.then(|| {
+        Filter::new()
+            .kinds([
+                Kind::Custom(30518),
+                Kind::Custom(30511),
+                Kind::Custom(30514),
+                Kind::Custom(30515),
+                Kind::Custom(30517),
+                Kind::Custom(30520),
+                Kind::Custom(30521),
+                Kind::Custom(30523),
+                Kind::Custom(30524),
+            ])
+            .custom_tag(
+                SingleLetterTag::lowercase(Alphabet::P),
+                public_key_hex.as_str(),
+            )
+            .since(Timestamp::now() - Duration::from_secs(LOOKBACK_SECS))
+    });
 
-    if let Err(err) = client.subscribe(public_filter.clone(), None).await {
-        send_status_update(&update_tx, HostedSessionStatus::Error);
-        return Err(err.into());
+    if let Some(filter) = public_filter.as_ref() {
+        if let Err(err) = client.subscribe(filter.clone(), None).await {
+            send_status_update(&update_tx, HostedSessionStatus::Error);
+            return Err(err.into());
+        }
     }
-    if let Err(err) = client.subscribe(private_filter.clone(), None).await {
-        send_status_update(&update_tx, HostedSessionStatus::Error);
-        return Err(err.into());
+    if let Some(filter) = private_filter.as_ref() {
+        if let Err(err) = client.subscribe(filter.clone(), None).await {
+            send_status_update(&update_tx, HostedSessionStatus::Error);
+            return Err(err.into());
+        }
     }
     send_status_update(&update_tx, HostedSessionStatus::Connected);
 
-    if let Err(err) = backfill(&client, &keys, &public_filter, &private_filter, &update_tx).await {
+    if options.enable_backfill
+        && let Err(err) =
+            backfill(&client, &keys, public_filter.as_ref(), private_filter.as_ref(), &update_tx)
+                .await
+    {
         send_status_update(&update_tx, HostedSessionStatus::Error);
         eprintln!("warning: hosted live initial backfill failed: {err}");
     }
@@ -158,30 +198,38 @@ async fn run_live_session(
             maybe_command = command_rx.recv() => {
                 match maybe_command {
                     Some(LiveCommand::RefreshBackfill) => {
-                        if let Err(err) = backfill(
-                            &client,
-                            &keys,
-                            &Filter::new().kinds([Kind::Custom(30500), Kind::Custom(30516)]),
-                            &Filter::new()
-                                .kinds([
-                                    Kind::Custom(30518),
-                                    Kind::Custom(30511),
-                                    Kind::Custom(30514),
-                                    Kind::Custom(30515),
-                                    Kind::Custom(30517),
-                                    Kind::Custom(30520),
-                                    Kind::Custom(30521),
-                                    Kind::Custom(30523),
-                                    Kind::Custom(30524),
-                                ])
-                                .custom_tag(
-                                    SingleLetterTag::lowercase(Alphabet::P),
-                                    public_key_hex.as_str(),
-                                ),
-                            &update_tx,
-                        ).await {
-                            send_status_update(&update_tx, HostedSessionStatus::Error);
-                            eprintln!("warning: hosted live refresh backfill failed: {err}");
+                        if options.enable_backfill {
+                            let refresh_public = options.include_public_stream.then(|| {
+                                Filter::new().kinds([Kind::Custom(30500), Kind::Custom(30516)])
+                            });
+                            let refresh_private = options.include_private_stream.then(|| {
+                                Filter::new()
+                                    .kinds([
+                                        Kind::Custom(30518),
+                                        Kind::Custom(30511),
+                                        Kind::Custom(30514),
+                                        Kind::Custom(30515),
+                                        Kind::Custom(30517),
+                                        Kind::Custom(30520),
+                                        Kind::Custom(30521),
+                                        Kind::Custom(30523),
+                                        Kind::Custom(30524),
+                                    ])
+                                    .custom_tag(
+                                        SingleLetterTag::lowercase(Alphabet::P),
+                                        public_key_hex.as_str(),
+                                    )
+                            });
+                            if let Err(err) = backfill(
+                                &client,
+                                &keys,
+                                refresh_public.as_ref(),
+                                refresh_private.as_ref(),
+                                &update_tx,
+                            ).await {
+                                send_status_update(&update_tx, HostedSessionStatus::Error);
+                                eprintln!("warning: hosted live refresh backfill failed: {err}");
+                            }
                         }
                     }
                     Some(LiveCommand::Stop) | None => {
@@ -214,22 +262,24 @@ async fn run_live_session(
 async fn backfill(
     client: &Client,
     keys: &Keys,
-    public_filter: &Filter,
-    private_filter: &Filter,
+    public_filter: Option<&Filter>,
+    private_filter: Option<&Filter>,
     update_tx: &mpsc::Sender<HostedSessionUpdate>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (public_events, private_events) = tokio::try_join!(
-        client.fetch_events(public_filter.clone(), Duration::from_secs(8)),
-        client.fetch_events(private_filter.clone(), Duration::from_secs(8)),
-    )?;
-    for event in public_events.iter() {
-        if let Some(update) = parse_event(keys, event) {
-            let _ = update_tx.send(update);
+    if let Some(filter) = public_filter {
+        let events = client.fetch_events(filter.clone(), Duration::from_secs(8)).await?;
+        for event in events.iter() {
+            if let Some(update) = parse_event(keys, event) {
+                let _ = update_tx.send(update);
+            }
         }
     }
-    for event in private_events.iter() {
-        if let Some(update) = parse_event(keys, event) {
-            let _ = update_tx.send(update);
+    if let Some(filter) = private_filter {
+        let events = client.fetch_events(filter.clone(), Duration::from_secs(8)).await?;
+        for event in events.iter() {
+            if let Some(update) = parse_event(keys, event) {
+                let _ = update_tx.send(update);
+            }
         }
     }
     send_status_update(update_tx, HostedSessionStatus::Synced);

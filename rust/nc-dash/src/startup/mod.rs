@@ -18,10 +18,51 @@ impl NativeWindowMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NativeBackendPreference {
+    #[default]
+    Auto,
+    Wayland,
+    X11,
+}
+
+impl NativeBackendPreference {
+    pub fn cli_label(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Wayland => "wayland",
+            Self::X11 => "x11",
+        }
+    }
+
+    fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "auto" => Ok(Self::Auto),
+            "wayland" => Ok(Self::Wayland),
+            "x11" => Ok(Self::X11),
+            _ => Err(format!(
+                "unknown backend '{value}'; expected auto, wayland, or x11"
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NativeLaunchOptions {
+    pub window_mode: NativeWindowMode,
+    pub backend_preference: NativeBackendPreference,
+    pub diagnostic_mode: bool,
+    pub serialize_redraws: bool,
+    pub freeze_live_updates: bool,
+    pub disable_hosted_sessions: bool,
+    pub disable_live_session: bool,
+    pub disable_live_private_stream: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LobbyStartupOptions {
     pub relay_override: Option<String>,
-    pub window_mode: NativeWindowMode,
+    pub native: NativeLaunchOptions,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,7 +70,7 @@ pub enum LaunchTarget {
     Lobby(LobbyStartupOptions),
     Dashboard {
         game_dir: PathBuf,
-        window_mode: NativeWindowMode,
+        native: NativeLaunchOptions,
     },
 }
 
@@ -51,7 +92,7 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
     let mut explicit_lobby = false;
     let mut dashboard_dir: Option<PathBuf> = None;
     let mut positional_game_dir: Option<PathBuf> = None;
-    let mut window_mode = NativeWindowMode::MaximizedWindow;
+    let mut native = NativeLaunchOptions::default();
     let mut explicit_windowed = false;
     let mut explicit_fullscreen = false;
     let mut i = 0;
@@ -67,7 +108,7 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
                     return Err("cannot combine --windowed and --fullscreen".into());
                 }
                 explicit_windowed = true;
-                window_mode = NativeWindowMode::MaximizedWindow;
+                native.window_mode = NativeWindowMode::MaximizedWindow;
                 i += 1;
             }
             "--fullscreen" => {
@@ -75,8 +116,38 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
                     return Err("cannot combine --windowed and --fullscreen".into());
                 }
                 explicit_fullscreen = true;
-                window_mode = NativeWindowMode::BorderlessFullscreen;
+                native.window_mode = NativeWindowMode::BorderlessFullscreen;
                 i += 1;
+            }
+            "--diagnostic" => {
+                native.diagnostic_mode = true;
+                i += 1;
+            }
+            "--serialize-redraws" => {
+                native.serialize_redraws = true;
+                i += 1;
+            }
+            "--freeze-live-updates" => {
+                native.freeze_live_updates = true;
+                i += 1;
+            }
+            "--no-hosted-sessions" => {
+                native.disable_hosted_sessions = true;
+                i += 1;
+            }
+            "--no-live-session" => {
+                native.disable_live_session = true;
+                i += 1;
+            }
+            "--live-no-private" => {
+                native.disable_live_private_stream = true;
+                i += 1;
+            }
+            "--backend" => {
+                let value = args.get(i + 1).ok_or("--backend requires a value")?;
+                native.backend_preference = NativeBackendPreference::parse(value)
+                    .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
+                i += 2;
             }
             "--relay" => {
                 let value = args.get(i + 1).ok_or("--relay requires a value")?;
@@ -108,14 +179,14 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
     if let Some(game_dir) = dashboard_dir.or(positional_game_dir) {
         return Ok(LaunchCommand::Launch(LaunchTarget::Dashboard {
             game_dir,
-            window_mode,
+            native,
         }));
     }
 
     Ok(LaunchCommand::Launch(LaunchTarget::Lobby(
         LobbyStartupOptions {
             relay_override,
-            window_mode,
+            native,
         },
     )))
 }
@@ -124,7 +195,9 @@ pub fn print_usage() {
     eprintln!("nc-dash — Nostrian Conquest hosted lobby and dashboard");
     eprintln!();
     eprintln!("USAGE:");
-    eprintln!("    nc-dash [--lobby] [--relay <url>] [--windowed | --fullscreen]");
+    eprintln!(
+        "    nc-dash [--lobby] [--relay <url>] [--windowed | --fullscreen] [--backend <auto|wayland|x11>] [--diagnostic] [--serialize-redraws] [--freeze-live-updates] [--live-no-private] [--no-live-session] [--no-hosted-sessions]"
+    );
     eprintln!();
     eprintln!("OPTIONS:");
     eprintln!("    --help, -h       Show this help");
@@ -132,16 +205,28 @@ pub fn print_usage() {
     eprintln!("    --relay <url>    Override the hosted relay for this session");
     eprintln!("    --windowed       Open in a maximized window (default)");
     eprintln!("    --fullscreen     Force borderless fullscreen");
+    eprintln!("    --backend <...>  Select native backend: auto (default), wayland, or x11");
+    eprintln!(
+        "    --diagnostic     Write detailed native startup diagnostics to ~/.local/share/nc/nc-dash.log"
+    );
+    eprintln!("    --serialize-redraws  Defer redraw requests to the event-loop wait phase for race diagnostics");
+    eprintln!("    --freeze-live-updates  Disable lobby poll/update churn for diagnostic isolation");
+    eprintln!("    --live-no-private      Keep public catalog/notices, but suppress private hosted live traffic");
+    eprintln!("    --no-live-session      Keep hosted request/open support but skip the hosted live-session stream");
+    eprintln!("    --no-hosted-sessions   Skip creating hosted session/live-session objects for diagnostic isolation");
     eprintln!();
     eprintln!("DEVELOPER:");
-    eprintln!("    nc-dash --dir <path> [--windowed | --fullscreen]");
+    eprintln!(
+        "    nc-dash --dir <path> [--windowed | --fullscreen] [--backend <auto|wayland|x11>] [--diagnostic] [--serialize-redraws] [--freeze-live-updates] [--live-no-private] [--no-live-session] [--no-hosted-sessions]"
+    );
     eprintln!("                         Open a local dashboard directly");
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        LaunchCommand, LaunchTarget, LobbyStartupOptions, NativeWindowMode, parse_launch_args,
+        LaunchCommand, LaunchTarget, LobbyStartupOptions, NativeBackendPreference,
+        NativeLaunchOptions, NativeWindowMode, parse_launch_args,
     };
     use std::path::PathBuf;
 
@@ -164,7 +249,7 @@ mod tests {
             parse(&["--dir", "/tmp/game"]),
             LaunchCommand::Launch(LaunchTarget::Dashboard {
                 game_dir: PathBuf::from("/tmp/game"),
-                window_mode: NativeWindowMode::MaximizedWindow,
+                native: NativeLaunchOptions::default(),
             })
         );
     }
@@ -175,7 +260,7 @@ mod tests {
             parse(&["/tmp/game"]),
             LaunchCommand::Launch(LaunchTarget::Dashboard {
                 game_dir: PathBuf::from("/tmp/game"),
-                window_mode: NativeWindowMode::MaximizedWindow,
+                native: NativeLaunchOptions::default(),
             })
         );
     }
@@ -186,7 +271,7 @@ mod tests {
             parse(&["--relay", "wss://relay.example.com"]),
             LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
                 relay_override: Some("wss://relay.example.com".to_string()),
-                window_mode: NativeWindowMode::MaximizedWindow,
+                native: NativeLaunchOptions::default(),
             }))
         );
     }
@@ -197,7 +282,10 @@ mod tests {
             parse(&["--fullscreen"]),
             LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
                 relay_override: None,
-                window_mode: NativeWindowMode::BorderlessFullscreen,
+                native: NativeLaunchOptions {
+                    window_mode: NativeWindowMode::BorderlessFullscreen,
+                    ..NativeLaunchOptions::default()
+                },
             }))
         );
     }
@@ -208,7 +296,10 @@ mod tests {
             parse(&["--dir", "/tmp/game", "--fullscreen"]),
             LaunchCommand::Launch(LaunchTarget::Dashboard {
                 game_dir: PathBuf::from("/tmp/game"),
-                window_mode: NativeWindowMode::BorderlessFullscreen,
+                native: NativeLaunchOptions {
+                    window_mode: NativeWindowMode::BorderlessFullscreen,
+                    ..NativeLaunchOptions::default()
+                },
             })
         );
     }
@@ -232,8 +323,119 @@ mod tests {
             parse(&["--dir", "/tmp/game", "--windowed"]),
             LaunchCommand::Launch(LaunchTarget::Dashboard {
                 game_dir: PathBuf::from("/tmp/game"),
-                window_mode: NativeWindowMode::MaximizedWindow,
+                native: NativeLaunchOptions::default(),
             })
+        );
+    }
+
+    #[test]
+    fn backend_flag_attaches_to_lobby() {
+        assert_eq!(
+            parse(&["--backend", "wayland"]),
+            LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
+                relay_override: None,
+                native: NativeLaunchOptions {
+                    backend_preference: NativeBackendPreference::Wayland,
+                    ..NativeLaunchOptions::default()
+                },
+            }))
+        );
+    }
+
+    #[test]
+    fn freeze_live_updates_flag_attaches_to_lobby() {
+        assert_eq!(
+            parse(&["--freeze-live-updates"]),
+            LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
+                relay_override: None,
+                native: NativeLaunchOptions {
+                    freeze_live_updates: true,
+                    ..NativeLaunchOptions::default()
+                },
+            }))
+        );
+    }
+
+    #[test]
+    fn diagnostic_flag_attaches_to_dashboard() {
+        assert_eq!(
+            parse(&["--dir", "/tmp/game", "--diagnostic"]),
+            LaunchCommand::Launch(LaunchTarget::Dashboard {
+                game_dir: PathBuf::from("/tmp/game"),
+                native: NativeLaunchOptions {
+                    diagnostic_mode: true,
+                    ..NativeLaunchOptions::default()
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn serialize_redraws_flag_attaches_to_lobby() {
+        assert_eq!(
+            parse(&["--serialize-redraws"]),
+            LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
+                relay_override: None,
+                native: NativeLaunchOptions {
+                    serialize_redraws: true,
+                    ..NativeLaunchOptions::default()
+                },
+            }))
+        );
+    }
+
+    #[test]
+    fn no_hosted_sessions_flag_attaches_to_lobby() {
+        assert_eq!(
+            parse(&["--no-hosted-sessions"]),
+            LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
+                relay_override: None,
+                native: NativeLaunchOptions {
+                    disable_hosted_sessions: true,
+                    ..NativeLaunchOptions::default()
+                },
+            }))
+        );
+    }
+
+    #[test]
+    fn no_live_session_flag_attaches_to_lobby() {
+        assert_eq!(
+            parse(&["--no-live-session"]),
+            LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
+                relay_override: None,
+                native: NativeLaunchOptions {
+                    disable_live_session: true,
+                    ..NativeLaunchOptions::default()
+                },
+            }))
+        );
+    }
+
+    #[test]
+    fn live_no_private_flag_attaches_to_lobby() {
+        assert_eq!(
+            parse(&["--live-no-private"]),
+            LaunchCommand::Launch(LaunchTarget::Lobby(LobbyStartupOptions {
+                relay_override: None,
+                native: NativeLaunchOptions {
+                    disable_live_private_stream: true,
+                    ..NativeLaunchOptions::default()
+                },
+            }))
+        );
+    }
+
+    #[test]
+    fn invalid_backend_value_fails() {
+        let args = ["--backend", "bogus"]
+            .iter()
+            .map(|arg| arg.to_string())
+            .collect::<Vec<_>>();
+        let err = parse_launch_args(&args).expect_err("invalid backend should fail");
+        assert!(
+            err.to_string()
+                .contains("unknown backend 'bogus'; expected auto, wayland, or x11")
         );
     }
 }

@@ -198,10 +198,12 @@ async fn run_tui(args: Args) -> Result<()> {
                             match update::handle_input(&mut app, key) {
                                 UpdateResult::Quit => break,
                                 UpdateResult::MessageSent(content) => {
-                                    if let Err(err) = client.send_text(&content).await {
+                                    let channel = app.active_channel().clone();
+                                    if let Err(err) = client.send_text(&channel, &content).await {
                                         app.status_line = format!("Send Error: {}", err);
                                     }
                                 }
+
                                 _ => {}
                             }
                         }

@@ -6,8 +6,9 @@ use crate::buffer::PlayfieldBuffer;
 use crate::coords::{format_sector_coords_default, format_sector_coords_table};
 use crate::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
-    centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
-    write_stacked_table_window_with_theme_at, write_table_window_with_theme_at,
+    centered_table_start_col, resolve_table_columns, table_render_width, with_command_line_toast,
+    write_split_table_at, write_stacked_table_window_with_theme_at,
+    write_table_window_with_theme_at,
 };
 use crate::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use crate::table_selection;
@@ -134,6 +135,10 @@ fn overlay_parent_rect(app: &DashApp) -> Rect {
     dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets)
 }
 
+fn command_line_footer<'a>(app: &'a DashApp, footer: TableFooter<'a>) -> TableFooter<'a> {
+    with_command_line_toast(footer, app.active_command_line_toast())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PlanetOverlayRow {
     pub planet_record_index_1_based: usize,
@@ -183,26 +188,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         default: selected_default.as_deref(),
         input: &app.planet_overlay.jump_input,
     };
-    let notice_footer_rows;
-    let mut filter_prompt;
+    let filter_prompt;
     let footer = match app.planet_overlay.prompt_mode {
-        PlanetOverlayPromptMode::None => {
-            if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
-                notice_footer_rows = [
-                    TableFooter::CommandText {
-                        label: "COMMAND",
-                        text: notice,
-                    },
-                    command_bar,
-                ];
-                TableFooter::Stacked {
-                    rows: &notice_footer_rows,
-                    active_row: 1,
-                }
-            } else {
-                command_bar
-            }
-        }
+        PlanetOverlayPromptMode::None => command_line_footer(app, command_bar),
         PlanetOverlayPromptMode::BuildAbortConfirm => TableFooter::CommandPrompt {
             label: "COMMAND",
             prompt: "Abort queued builds? Y/[N] -> ",
@@ -226,9 +214,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             label: "COMMAND",
             prompt: {
                 filter_prompt = "Filter column [?] ".to_string();
-                if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
-                    filter_prompt.push_str(status);
-                }
                 filter_prompt.as_str()
             },
             default: &app.planet_overlay.prompt_default,
@@ -242,9 +227,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
-            if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
-                filter_prompt.push_str(status);
-            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -258,6 +240,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             unreachable!("build flows render separately")
         }
     };
+    let footer = command_line_footer(app, footer);
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let natural_visible_rows = table_cells.len().max(1);
     let columns = resolve_table_columns(
@@ -351,26 +334,9 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         default: selected_default.as_deref(),
         input: &app.planet_overlay.jump_input,
     };
-    let notice_footer_rows;
-    let mut filter_prompt;
+    let filter_prompt;
     let footer = match app.planet_overlay.prompt_mode {
-        PlanetOverlayPromptMode::None => {
-            if let Some(notice) = app.planet_overlay.footer_notice.as_deref() {
-                notice_footer_rows = [
-                    TableFooter::CommandText {
-                        label: "COMMAND",
-                        text: notice,
-                    },
-                    command_bar,
-                ];
-                TableFooter::Stacked {
-                    rows: &notice_footer_rows,
-                    active_row: 1,
-                }
-            } else {
-                command_bar
-            }
-        }
+        PlanetOverlayPromptMode::None => command_line_footer(app, command_bar),
         PlanetOverlayPromptMode::BuildAbortConfirm => TableFooter::CommandPrompt {
             label: "COMMAND",
             prompt: "Abort queued builds? Y/[N] -> ",
@@ -394,9 +360,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             label: "COMMAND",
             prompt: {
                 filter_prompt = "Filter column [?] ".to_string();
-                if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
-                    filter_prompt.push_str(status);
-                }
                 filter_prompt.as_str()
             },
             default: &app.planet_overlay.prompt_default,
@@ -410,9 +373,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
-            if let Some(status) = app.planet_overlay.prompt_status.as_deref() {
-                filter_prompt.push_str(status);
-            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -426,6 +386,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             unreachable!("build flows are not draggable")
         }
     };
+    let footer = command_line_footer(app, footer);
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let natural_visible_rows = table_cells.len().max(1);
     let columns = resolve_table_columns(
@@ -453,28 +414,30 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapW
     let entries = app.planet_build_specify_entries();
     let split_rows = build_specify_split_rows(&entries);
     let table_width = build_specify_table_width();
-    let status_rows = usize::from(app.planet_overlay.build_unit_status.is_some());
     let max_unit_num = app.planet_build_max_selectable_unit_number();
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         overlay_parent_rect(app),
         "SPECIFY BUILD ORDERS",
         table_width,
-        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        1 + standard_table_body_height(split_rows.len()),
         OverlaySizePolicy::default(),
-        TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
-            default: "0",
-            input: &app.planet_overlay.build_unit_input,
-        },
+        command_line_footer(
+            app,
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
+                default: "0",
+                input: &app.planet_overlay.build_unit_input,
+            },
+        ),
         app.overlay_position_for(ActiveOverlay::PlanetList),
     );
     assert_overlay_body_write_fits(
         frame,
         "SPECIFY BUILD ORDERS",
         table_width,
-        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        1 + standard_table_body_height(split_rows.len()),
     );
 
     let Some(view) = view else {
@@ -501,16 +464,6 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapW
         &split_rows,
         theme::value_style(),
     );
-    if let Some(status) = app.planet_overlay.build_unit_status.as_deref() {
-        write_clipped(
-            buf,
-            frame.body_row + 1 + standard_table_body_height(split_rows.len()),
-            frame.body_col,
-            frame.body_width,
-            status,
-            theme::error_style(),
-        );
-    }
 }
 
 fn draw_build_list(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
@@ -556,10 +509,13 @@ fn draw_build_list(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidg
         table_width,
         1 + standard_table_body_height(table_cells.len()),
         OverlaySizePolicy::default(),
-        TableFooter::CommandPrompt {
-            label: "COMMAND",
-            prompt: "? <ESC> -> ",
-        },
+        command_line_footer(
+            app,
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: "? <ESC> -> ",
+            },
+        ),
         app.overlay_position_for(ActiveOverlay::PlanetList),
     );
     assert_overlay_body_write_fits(
@@ -625,10 +581,13 @@ fn build_list_popup_rect(app: &DashApp) -> Rect {
         table_width,
         1 + standard_table_body_height(table_cells.len()),
         OverlaySizePolicy::default(),
-        TableFooter::CommandPrompt {
-            label: "COMMAND",
-            prompt: "? <ESC> -> ",
-        },
+        command_line_footer(
+            app,
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: "? <ESC> -> ",
+            },
+        ),
         app.overlay_position_for(ActiveOverlay::PlanetList),
     )
 }
@@ -647,7 +606,6 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
     let entries = app.planet_build_specify_entries();
     let split_rows = build_specify_split_rows(&entries);
     let table_width = build_specify_table_width();
-    let status_rows = usize::from(app.planet_overlay.build_quantity_status.is_some());
     let default_qty = max_qty.to_string();
     let prompt = format!(
         "How many new {} to build (0 - {}) ",
@@ -658,21 +616,24 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         overlay_parent_rect(app),
         "BUILD QUANTITY",
         table_width,
-        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        1 + standard_table_body_height(split_rows.len()),
         OverlaySizePolicy::default(),
-        TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: &prompt,
-            default: &default_qty,
-            input: &app.planet_overlay.build_quantity_input,
-        },
+        command_line_footer(
+            app,
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt,
+                default: &default_qty,
+                input: &app.planet_overlay.build_quantity_input,
+            },
+        ),
         app.overlay_position_for(ActiveOverlay::PlanetList),
     );
     assert_overlay_body_write_fits(
         frame,
         "BUILD QUANTITY",
         table_width,
-        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        1 + standard_table_body_height(split_rows.len()),
     );
 
     let Some(view) = view else {
@@ -699,37 +660,29 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         &split_rows,
         theme::value_style(),
     );
-    if let Some(status) = app.planet_overlay.build_quantity_status.as_deref() {
-        write_clipped(
-            buf,
-            frame.body_row + 1 + standard_table_body_height(split_rows.len()),
-            frame.body_col,
-            frame.body_width,
-            status,
-            theme::error_style(),
-        );
-    }
 }
 
 fn build_specify_popup_rect(app: &DashApp) -> Rect {
     let entries = app.planet_build_specify_entries();
     let split_rows = build_specify_split_rows(&entries);
     let table_width = build_specify_table_width();
-    let status_rows = usize::from(app.planet_overlay.build_unit_status.is_some());
     let max_unit_num = app.planet_build_max_selectable_unit_number();
     let prompt = format!("Unit number or 0 if done (0 - {}) ", max_unit_num);
     overlay_popup_rect_for_body_in_parent(
         overlay_parent_rect(app),
         "SPECIFY BUILD ORDERS",
         table_width,
-        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        1 + standard_table_body_height(split_rows.len()),
         OverlaySizePolicy::default(),
-        TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: &prompt,
-            default: "0",
-            input: &app.planet_overlay.build_unit_input,
-        },
+        command_line_footer(
+            app,
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt,
+                default: "0",
+                input: &app.planet_overlay.build_unit_input,
+            },
+        ),
         app.overlay_position_for(ActiveOverlay::PlanetList),
     )
 }
@@ -745,7 +698,6 @@ fn build_quantity_popup_rect(app: &DashApp) -> Rect {
     let entries = app.planet_build_specify_entries();
     let split_rows = build_specify_split_rows(&entries);
     let table_width = build_specify_table_width();
-    let status_rows = usize::from(app.planet_overlay.build_quantity_status.is_some());
     let default_qty = max_qty.to_string();
     let prompt = format!(
         "How many new {} to build (0 - {}) ",
@@ -755,14 +707,17 @@ fn build_quantity_popup_rect(app: &DashApp) -> Rect {
         overlay_parent_rect(app),
         "BUILD QUANTITY",
         table_width,
-        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        1 + standard_table_body_height(split_rows.len()),
         OverlaySizePolicy::default(),
-        TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: &prompt,
-            default: &default_qty,
-            input: &app.planet_overlay.build_quantity_input,
-        },
+        command_line_footer(
+            app,
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt,
+                default: &default_qty,
+                input: &app.planet_overlay.build_quantity_input,
+            },
+        ),
         app.overlay_position_for(ActiveOverlay::PlanetList),
     )
 }

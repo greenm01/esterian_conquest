@@ -7,7 +7,7 @@ use crate::buffer::PlayfieldBuffer;
 use crate::coords::{format_sector_coords_default, format_sector_coords_table};
 use crate::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
-    table_render_width, write_stacked_table_window_with_theme_at,
+    table_render_width, with_command_line_toast, write_stacked_table_window_with_theme_at,
 };
 use crate::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use crate::table_selection;
@@ -137,7 +137,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
-    let mut filter_prompt;
+    let filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -169,9 +169,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             label: "COMMAND",
             prompt: {
                 filter_prompt = "Filter column [?] ".to_string();
-                if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
-                    filter_prompt.push_str(status);
-                }
                 filter_prompt.as_str()
             },
             default: &app.intel_overlay.prompt_default,
@@ -185,9 +182,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
-            if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
-                filter_prompt.push_str(status);
-            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -196,6 +190,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             }
         }
     };
+    let footer = with_command_line_toast(footer, app.active_command_line_toast());
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let natural_visible_rows = table_cells.len().max(1);
     let columns = resolve_table_columns(
@@ -264,7 +259,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
     let title = overlay_title(app);
-    let mut filter_prompt;
+    let filter_prompt;
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -296,9 +291,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             label: "COMMAND",
             prompt: {
                 filter_prompt = "Filter column [?] ".to_string();
-                if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
-                    filter_prompt.push_str(status);
-                }
                 filter_prompt.as_str()
             },
             default: &app.intel_overlay.prompt_default,
@@ -312,9 +304,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
-            if let Some(status) = app.intel_overlay.prompt_status.as_deref() {
-                filter_prompt.push_str(status);
-            }
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -323,6 +312,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             }
         }
     };
+    let footer = with_command_line_toast(footer, app.active_command_line_toast());
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let natural_visible_rows = table_cells.len().max(1);
     let columns = resolve_table_columns(

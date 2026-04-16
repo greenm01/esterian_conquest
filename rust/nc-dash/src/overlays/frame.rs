@@ -82,6 +82,12 @@ pub fn max_overlay_body_width(map_frame: MapWidgetFrame) -> usize {
     map_frame.outer.width.saturating_sub(8).max(1)
 }
 
+pub fn max_overlay_body_height_in_parent(parent: Rect, footer: TableFooter<'_>) -> usize {
+    parent
+        .height
+        .saturating_sub(5 + table_footer_row_count(footer) as u16) as usize
+}
+
 #[cfg(test)]
 pub fn max_overlay_body_height(map_frame: MapWidgetFrame) -> usize {
     map_frame.outer.height.saturating_sub(8).max(1)

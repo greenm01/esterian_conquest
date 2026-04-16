@@ -1,6 +1,7 @@
 use anyhow::Result;
 use nostr_sdk::prelude::*;
 use tokio::sync::mpsc;
+use chrono::Utc;
 
 pub struct SysopClient {
     pub client: Client,
@@ -51,6 +52,15 @@ impl SysopClient {
             .pubkey(sysop_pubkey)
             .limit(50); // Get last 50 DMs
 
+        let thread_filter = Filter::new()
+            .kind(Kind::Custom(30517))
+            .pubkey(sysop_pubkey)
+            .limit(50);
+
+        let invite_filter = Filter::new()
+            .kind(Kind::Custom(30515))
+            .pubkey(sysop_pubkey);
+
         let game_def_filter = Filter::new()
             .kind(Kind::Custom(30500))
             .limit(20);
@@ -60,17 +70,58 @@ impl SysopClient {
             .limit(50); // Get last 50 global messages
 
         // In nostr-sdk 0.44, we can pass multiple filters to subscribe
-        self.client.subscribe(dm_filter, None).await;
-        self.client.subscribe(game_def_filter, None).await;
-        self.client.subscribe(global_chat_filter, None).await;
+        let _ = self.client.subscribe(dm_filter, None).await;
+        let _ = self.client.subscribe(thread_filter, None).await;
+        let _ = self.client.subscribe(invite_filter, None).await;
+        let _ = self.client.subscribe(game_def_filter, None).await;
+        let _ = self.client.subscribe(global_chat_filter, None).await;
         
         Ok(())
     }
 
-    pub async fn send_text(&self, content: &str) -> Result<()> {
-        let builder = EventBuilder::text_note(content);
-        self.client.send_event_builder(builder).await?;
+    pub async fn send_text(&self, channel: &crate::app::SysopChannel, content: &str) -> Result<()> {
+        match channel {
+            crate::app::SysopChannel::Global => {
+                let builder = EventBuilder::text_note(content);
+                self.client.send_event_builder(builder).await?;
+            }
+            crate::app::SysopChannel::Game(game_id) => {
+                let tag = Tag::custom(TagKind::Custom(std::borrow::Cow::Borrowed("g")), [game_id]);
+                let builder = EventBuilder::text_note(content).tag(tag);
+                self.client.send_event_builder(builder).await?;
+            }
+            crate::app::SysopChannel::Direct(npub) => {
+                let recipient_pubkey = PublicKey::from_bech32(npub)?;
+                let message_id = self.random_nonce_hex();
+                let payload = nc_nostr::contact_message::ContactMessage {
+                    message_id: message_id.clone(),
+                    sender_pubkey: self.keys.public_key().to_hex(),
+                    sender_npub: self.keys.public_key().to_bech32()?,
+                    sender_label: Some("sysop".to_string()),
+                    body: content.to_string(),
+                    created_at: Utc::now().timestamp(),
+                };
+                
+                let encrypted = nc_nostr::private_payload::encrypt_private_json(&self.keys, &recipient_pubkey, &payload)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                
+                let tags = vec![
+                    Tag::custom(TagKind::d(), [message_id]),
+                    Tag::public_key(recipient_pubkey),
+                ];
+                
+                let builder = EventBuilder::new(Kind::Custom(30518), encrypted).tags(tags);
+                self.client.send_event_builder(builder).await?;
+            }
+        }
         Ok(())
+    }
+
+    fn random_nonce_hex(&self) -> String {
+        use rand::RngCore;
+        let mut bytes = [0u8; 16];
+        rand::thread_rng().fill_bytes(&mut bytes);
+        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 
     pub async fn start_listening(&self, tx: mpsc::UnboundedSender<NetworkEvent>) -> Result<()> {
@@ -104,6 +155,28 @@ impl SysopClient {
                                     sender: msg.sender_label.unwrap_or_else(|| msg.sender_npub[..12].to_string()),
                                     content: msg.body,
                                     channel: crate::app::SysopChannel::Direct(msg.sender_npub),
+                                    is_direct: true,
+                                });
+                            }
+                        }
+                        Kind::Custom(30517) => {
+                            // Decrypt Sysop Thread Message (Game Inbox)
+                            if let Some(msg) = nc_nostr::thread_message::decrypt_thread_message(&secret_key, &event) {
+                                let _ = tx.send(NetworkEvent::MessageReceived {
+                                    sender: msg.sender_handle.unwrap_or_else(|| msg.sender_npub[..12].to_string()),
+                                    content: format!("[INBOX] {}", msg.body),
+                                    channel: crate::app::SysopChannel::Game(msg.game_id),
+                                    is_direct: true,
+                                });
+                            }
+                        }
+                        Kind::Custom(30515) => {
+                            // Decrypt Invite Request
+                            if let Some(req) = nc_nostr::invite_request::parse_invite_request(&secret_key, &event) {
+                                let _ = tx.send(NetworkEvent::MessageReceived {
+                                    sender: req.handle.unwrap_or_else(|| req.player_pubkey[..12].to_string()),
+                                    content: format!("[REQUEST] {}", req.message),
+                                    channel: crate::app::SysopChannel::Game(req.game_id),
                                     is_direct: true,
                                 });
                             }

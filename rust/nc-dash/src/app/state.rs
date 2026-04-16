@@ -4,12 +4,14 @@ use crate::geometry::ScreenGeometry;
 use crate::table_filter::{TableFilterClause, TableFilterColumn};
 use nc_data::FleetDetachSelection;
 use nc_data::{
-    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, PlayerLifecycleState,
-    ProductionItemKind, QueuedPlayerMail, ReportBlockRow, TurnSubmission, WinnerState,
+    CampaignStore, CoreGameData, GameStateBuilder, PlanetIntelSnapshot, PlayerActivityState,
+    PlayerLifecycleState, ProductionItemKind, QueuedPlayerMail, ReportBlockRow, TurnSubmission,
+    WinnerState,
 };
 use nc_engine::ArmyTransportMode;
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use std::collections::{BTreeMap, BTreeSet};
+use std::time::Instant;
 
 use crate::client_settings::DashClientSettings;
 use crate::overlays::frame::RelativePopupOrigin;
@@ -845,6 +847,8 @@ pub struct DashApp {
 
     pub is_terminal_too_small: bool,
     pub should_quit: bool,
+    pub command_line_toast_message: Option<String>,
+    pub command_line_toast_deadline: Option<Instant>,
 }
 
 impl DashApp {
@@ -921,6 +925,8 @@ impl DashApp {
             owned_planet_popup: OwnedPlanetPopupState::default(),
             is_terminal_too_small: false,
             should_quit: false,
+            command_line_toast_message: None,
+            command_line_toast_deadline: None,
         }
     }
 
@@ -952,6 +958,29 @@ impl DashApp {
             geometry,
             frame,
             player_record_index_1_based,
+        )
+    }
+
+    #[doc(hidden)]
+    pub fn new_for_repro(geometry: ScreenGeometry, frame: ScreenGeometry) -> Self {
+        Self::new(
+            std::path::PathBuf::from("."),
+            None,
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            WinnerState::default(),
+            geometry,
+            frame,
+            1,
         )
     }
 

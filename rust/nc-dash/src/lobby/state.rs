@@ -869,6 +869,8 @@ pub struct LobbyApp {
     pub gate_reset_action: Option<GateResetAction>,
     pub matrix_rain: MatrixRain,
     pub next_matrix_frame_at: Instant,
+    pub diagnostic_mode: bool,
+    pub freeze_live_updates: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

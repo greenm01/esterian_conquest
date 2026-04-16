@@ -1,7 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use nc_client::hosted::store::HostedDraftStatus;
+use nc_client::paths::data_root;
 use nc_client::password::validate_new_password;
 use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
+use std::fs;
 use std::time::Instant;
 
 use super::hosted::dashboard::{build_hosted_dash_app, replay_hosted_draft};
@@ -1177,6 +1179,7 @@ fn open_hosted_dashboard(
     row: super::models::JoinedGameRow,
     snapshot: nc_nostr::state_sync::GameState,
 ) {
+    maybe_dump_hosted_snapshot(app, &snapshot);
     if let Some(setup) = first_join_setup_view(row.clone(), &snapshot) {
         app.state.first_join_setup = Some(setup);
         open_popup_route(app, LobbyRoute::FirstJoinSetup);
@@ -1204,6 +1207,19 @@ fn open_hosted_dashboard(
                 format!("Unable to build hosted dashboard: {err}"),
             );
         }
+    }
+}
+
+fn maybe_dump_hosted_snapshot(app: &LobbyApp, snapshot: &nc_nostr::state_sync::GameState) {
+    if !app.diagnostic_mode {
+        return;
+    }
+    let path = data_root().join("last-hosted-snapshot.json");
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_vec_pretty(snapshot) {
+        let _ = fs::write(path, json);
     }
 }
 

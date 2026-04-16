@@ -9,25 +9,30 @@ use crate::layout::dashboard;
 use crate::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
-    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_parent, write_clipped,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_height_in_parent,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, write_clipped,
 };
 use crate::theme;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let body_height = wrapped
+        .lines
+        .len()
+        .min(max_overlay_body_height_in_parent(parent, TableFooter::Dismiss));
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         "HELP",
         wrapped.content_width,
-        wrapped.lines.len(),
+        body_height,
         OverlaySizePolicy::default(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Help),
     );
-    assert_overlay_body_write_fits(frame, "HELP", wrapped.content_width, wrapped.lines.len());
+    assert_overlay_body_write_fits(frame, "HELP", wrapped.content_width, body_height);
 
     for (idx, line) in wrapped.lines.iter().enumerate().take(frame.body_height) {
         write_clipped(
@@ -44,11 +49,16 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let body_height = wrapped
+        .lines
+        .len()
+        .min(max_overlay_body_height_in_parent(parent, TableFooter::Dismiss));
     overlay_popup_rect_for_body_in_parent(
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         "HELP",
         wrapped.content_width,
-        wrapped.lines.len(),
+        body_height,
         OverlaySizePolicy::default(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Help),
@@ -312,8 +322,12 @@ fn help_lines(context: HelpContext) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::help_lines;
-    use crate::app::state::HelpContext;
+    use super::{draw, help_lines, popup_rect};
+    use crate::app::state::{ActiveOverlay, DashApp, HelpContext};
+    use crate::geometry::ScreenGeometry;
+    use crate::layout::dashboard::dashboard_layout;
+    use crate::native::NativeApp;
+    use crate::theme;
 
     #[test]
     fn fleet_help_mentions_typed_jump_and_real_actions() {
@@ -407,5 +421,22 @@ mod tests {
         assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));
+    }
+
+    #[test]
+    fn help_overlay_clamps_to_available_dashboard_height() {
+        let mut app =
+            DashApp::new_for_repro(ScreenGeometry::new(120, 40), ScreenGeometry::new(108, 26));
+        app.overlay = ActiveOverlay::Help;
+        app.help_context = HelpContext::Global;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let mut buffer = <DashApp as NativeApp>::render_ui(&app)
+            .expect("rendered ui")
+            .to_playfield(theme::body_style());
+
+        draw(&mut buffer, &app, map_frame);
+
+        let rect = popup_rect(&app, map_frame);
+        assert!(rect.height > 0);
     }
 }

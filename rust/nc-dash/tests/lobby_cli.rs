@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use nc_dash::startup::{LaunchCommand, LaunchTarget, LobbyStartupOptions, parse_launch_command};
+use nc_dash::startup::{
+    LaunchCommand, LaunchTarget, LobbyStartupOptions, NativeLaunchOptions, NativeWindowMode,
+    parse_launch_command,
+};
 
 fn parse(args: &[&str]) -> LaunchCommand {
     let argv = std::iter::once("nc-dash".to_string())
@@ -23,6 +26,10 @@ fn explicit_dir_opens_dashboard_path() {
         parse(&["--dir", "/tmp/example-game"]),
         LaunchCommand::Launch(LaunchTarget::Dashboard {
             game_dir: PathBuf::from("/tmp/example-game"),
+            native: NativeLaunchOptions {
+                window_mode: NativeWindowMode::MaximizedWindow,
+                ..NativeLaunchOptions::default()
+            },
         })
     );
 }
@@ -33,6 +40,10 @@ fn positional_path_keeps_dashboard_compatibility() {
         parse(&["/tmp/legacy-game"]),
         LaunchCommand::Launch(LaunchTarget::Dashboard {
             game_dir: PathBuf::from("/tmp/legacy-game"),
+            native: NativeLaunchOptions {
+                window_mode: NativeWindowMode::MaximizedWindow,
+                ..NativeLaunchOptions::default()
+            },
         })
     );
 }

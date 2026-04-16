@@ -35,6 +35,21 @@ use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
 use crate::rendered::RenderedUi;
+use std::time::{Duration, Instant};
+
+const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MouseRenderState {
+    overlay: ActiveOverlay,
+    popup: ActivePopup,
+    overlay_position: Option<crate::overlays::frame::RelativePopupOrigin>,
+    popup_position: Option<crate::overlays::frame::RelativePopupOrigin>,
+    mouse_gesture: ActiveMouseGesture,
+    focus: state::PanelFocus,
+    crosshair_x: u8,
+    crosshair_y: u8,
+}
 
 const fn planet_sort_code(sort: PlanetOverlaySort) -> &'static str {
     match sort {
@@ -153,9 +168,26 @@ impl DashApp {
         }
     }
 
-    pub(crate) fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
+    fn mouse_render_state(&self) -> MouseRenderState {
+        MouseRenderState {
+            overlay: self.overlay,
+            popup: self.popup,
+            overlay_position: self.overlay_position,
+            popup_position: self.popup_position,
+            mouse_gesture: self.mouse_gesture,
+            focus: self.focus,
+            crosshair_x: self.crosshair_x,
+            crosshair_y: self.crosshair_y,
+        }
+    }
+
+    pub(crate) fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool {
         if !self.is_terminal_too_small {
+            let before = self.mouse_render_state();
             self.handle_mouse(mouse);
+            before != self.mouse_render_state()
+        } else {
+            false
         }
     }
 
@@ -166,6 +198,181 @@ impl DashApp {
 
     pub(crate) fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         render::render(self)
+    }
+
+    #[doc(hidden)]
+    pub fn render_ui_for_repro(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
+        <Self as NativeApp>::render_ui(self)
+    }
+
+    #[doc(hidden)]
+    pub fn dispatch_key_event_for_repro(&mut self, key: crossterm::event::KeyEvent) {
+        Self::dispatch_key_event(self, key);
+    }
+
+    #[doc(hidden)]
+    pub fn dispatch_mouse_event_for_repro(&mut self, mouse: MouseEvent) -> bool {
+        Self::dispatch_mouse_event(self, mouse)
+    }
+
+    #[doc(hidden)]
+    pub fn screen_point_for_sector_for_repro(&self, target: [u8; 2]) -> Option<(u16, u16)> {
+        let map_frame = crate::layout::dashboard::dashboard_layout(self).widgets.center_map;
+        for row in map_frame.grid.row..map_frame.grid.row + map_frame.grid.height {
+            for col in map_frame.grid.col..map_frame.grid.col + map_frame.grid.width {
+                if crate::panels::starmap::screen_sector_at_point(self, map_frame, col, row)
+                    == Some(target)
+                {
+                    return Some((col as u16, row as u16));
+                }
+            }
+        }
+        None
+    }
+
+    #[doc(hidden)]
+    pub fn first_owned_planet_coords_for_repro(&self) -> Option<[u8; 2]> {
+        self.game_data
+            .planets
+            .records
+            .iter()
+            .find(|planet| planet.owner_empire_slot_raw() == 1 && planet.coords_raw() != [0, 0])
+            .map(|planet| planet.coords_raw())
+    }
+
+    pub(crate) fn active_command_line_toast(&self) -> Option<&str> {
+        match self.popup {
+            ActivePopup::OwnedPlanet { .. } => self.owned_planet_popup.status.as_deref(),
+            ActivePopup::QuitConfirm | ActivePopup::PlanetDetail { .. } => None,
+            ActivePopup::None => match self.overlay {
+                ActiveOverlay::None => None,
+                ActiveOverlay::PlanetList => match self.planet_overlay.prompt_mode {
+                    PlanetOverlayPromptMode::None => self.planet_overlay.footer_notice.as_deref(),
+                    PlanetOverlayPromptMode::SortMenu
+                    | PlanetOverlayPromptMode::FilterMenu
+                    | PlanetOverlayPromptMode::FilterValueInput => {
+                        self.planet_overlay.prompt_status.as_deref()
+                    }
+                    PlanetOverlayPromptMode::BuildSpecify => {
+                        self.planet_overlay.build_unit_status.as_deref()
+                    }
+                    PlanetOverlayPromptMode::BuildQuantity => {
+                        self.planet_overlay.build_quantity_status.as_deref()
+                    }
+                    PlanetOverlayPromptMode::BuildList
+                    | PlanetOverlayPromptMode::BuildAbortConfirm => None,
+                },
+                ActiveOverlay::FleetList => match self.fleet_overlay.prompt_mode {
+                    FleetOverlayPromptMode::None
+                    | FleetOverlayPromptMode::SortMenu
+                    | FleetOverlayPromptMode::FilterMenu
+                    | FleetOverlayPromptMode::FilterValueInput => {
+                        self.fleet_overlay.filter_prompt_status.as_deref()
+                    }
+                    FleetOverlayPromptMode::ChangeField
+                    | FleetOverlayPromptMode::ChangeValue
+                    | FleetOverlayPromptMode::MergeHost
+                    | FleetOverlayPromptMode::MergeConfirm
+                    | FleetOverlayPromptMode::TransferHost
+                    | FleetOverlayPromptMode::TransferStage => {
+                        self.fleet_overlay.aux_status.as_deref()
+                    }
+                    FleetOverlayPromptMode::MissionPicker => {
+                        self.fleet_overlay.mission_picker_status.as_deref()
+                    }
+                    FleetOverlayPromptMode::OrderTarget
+                    | FleetOverlayPromptMode::OrderTargetX
+                    | FleetOverlayPromptMode::OrderTargetY
+                    | FleetOverlayPromptMode::OrderConfirm => {
+                        self.fleet_overlay.order_status.as_deref()
+                    }
+                    FleetOverlayPromptMode::StarbaseMoveDecision
+                    | FleetOverlayPromptMode::StarbaseMoveDestination
+                    | FleetOverlayPromptMode::StarbaseHaltConfirm => {
+                        self.fleet_overlay.starbase_move_status.as_deref()
+                    }
+                },
+                ActiveOverlay::IntelDatabase => self.intel_overlay.prompt_status.as_deref(),
+                ActiveOverlay::Settings => self.settings_overlay.status_message.as_deref(),
+                ActiveOverlay::Inbox | ActiveOverlay::Diplomacy | ActiveOverlay::Help => None,
+            },
+        }
+    }
+
+    fn any_command_line_toast_present(&self) -> bool {
+        self.planet_overlay.footer_notice.is_some()
+            || self.planet_overlay.prompt_status.is_some()
+            || self
+                .planet_overlay
+                .prompt_stack
+                .iter()
+                .any(|frame| frame.prompt_status.is_some())
+            || self.planet_overlay.build_unit_status.is_some()
+            || self.planet_overlay.build_quantity_status.is_some()
+            || self.fleet_overlay.filter_prompt_status.is_some()
+            || self.fleet_overlay.aux_status.is_some()
+            || self.fleet_overlay.mission_picker_status.is_some()
+            || self.fleet_overlay.order_status.is_some()
+            || self.fleet_overlay.starbase_move_status.is_some()
+            || self.intel_overlay.prompt_status.is_some()
+            || self
+                .intel_overlay
+                .prompt_stack
+                .iter()
+                .any(|frame| frame.prompt_status.is_some())
+            || self.settings_overlay.status_message.is_some()
+            || self.owned_planet_popup.status.is_some()
+    }
+
+    fn clear_all_command_line_toasts(&mut self) {
+        self.command_line_toast_message = None;
+        self.command_line_toast_deadline = None;
+        self.planet_overlay.footer_notice = None;
+        self.planet_overlay.prompt_status = None;
+        for frame in &mut self.planet_overlay.prompt_stack {
+            frame.prompt_status = None;
+        }
+        self.planet_overlay.build_unit_status = None;
+        self.planet_overlay.build_quantity_status = None;
+        self.fleet_overlay.filter_prompt_status = None;
+        self.fleet_overlay.aux_status = None;
+        self.fleet_overlay.mission_picker_status = None;
+        self.fleet_overlay.order_status = None;
+        self.fleet_overlay.starbase_move_status = None;
+        self.intel_overlay.prompt_status = None;
+        for frame in &mut self.intel_overlay.prompt_stack {
+            frame.prompt_status = None;
+        }
+        self.settings_overlay.status_message = None;
+        self.owned_planet_popup.status = None;
+    }
+
+    fn update_command_line_toast_state(&mut self, now: Instant) -> bool {
+        let active = self.active_command_line_toast().map(str::to_string);
+        if active != self.command_line_toast_message {
+            self.command_line_toast_message = active.clone();
+            self.command_line_toast_deadline =
+                active.as_ref().map(|_| now + COMMAND_LINE_TOAST_STEP);
+            return true;
+        }
+        if active.is_some() || self.any_command_line_toast_present() {
+            if let Some(deadline) = self.command_line_toast_deadline {
+                if deadline <= now {
+                    self.clear_all_command_line_toasts();
+                    return true;
+                }
+            } else {
+                self.command_line_toast_deadline = Some(now + COMMAND_LINE_TOAST_STEP);
+                return true;
+            }
+        } else if self.command_line_toast_deadline.is_some()
+            || self.command_line_toast_message.is_some()
+        {
+            self.command_line_toast_deadline = None;
+            self.command_line_toast_message = None;
+            return true;
+        }
+        false
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
@@ -1849,8 +2056,8 @@ impl NativeApp for DashApp {
         Self::dispatch_key_event(self, key);
     }
 
-    fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
-        Self::dispatch_mouse_event(self, mouse);
+    fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool {
+        Self::dispatch_mouse_event(self, mouse)
     }
 
     fn resize_canvas(&mut self, cols: u16, rows: u16) {
@@ -1862,6 +2069,34 @@ impl NativeApp for DashApp {
             &Self::render_playfield(self)?,
             crate::theme::tui_theme().cursor,
         ))
+    }
+
+    fn debug_render_signature(&self) -> Option<String> {
+        Some(format!(
+            "focus={:?} overlay={:?} popup={:?} crosshair={},{} zoom={} map_view={:?} popup_pos={} overlay_pos={} gesture={:?} toast={} report_blocks={} mail={} too_small={}",
+            self.focus,
+            self.overlay,
+            self.popup,
+            self.crosshair_x,
+            self.crosshair_y,
+            self.map_zoom_level,
+            self.map_view_mode,
+            self.popup_position.is_some(),
+            self.overlay_position.is_some(),
+            self.mouse_gesture,
+            self.active_command_line_toast().unwrap_or("-"),
+            self.report_block_rows.len(),
+            self.queued_mail.len(),
+            self.is_terminal_too_small,
+        ))
+    }
+
+    fn on_idle(&mut self) -> bool {
+        self.update_command_line_toast_state(Instant::now())
+    }
+
+    fn next_wakeup(&self) -> Option<Instant> {
+        self.command_line_toast_deadline
     }
 
     fn is_dragging_surface(&self) -> bool {
@@ -2364,7 +2599,7 @@ mod tests {
     };
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn wrap_prev_goes_from_first_to_last() {
@@ -2761,8 +2996,8 @@ mod tests {
             Some(" Ambiguous: sbs/sta")
         );
         assert!(
-            render_planet_footer_line(&app, "COMMAND <- Filter column [?] ")
-                .contains("Ambiguous: sbs/sta")
+            render_planet_footer_line(&app, "Ambiguous: sbs/sta")
+                .contains("COMMAND <-  Ambiguous: sbs/sta")
         );
 
         app.handle_key(key(KeyCode::Backspace));
@@ -3553,8 +3788,8 @@ mod tests {
             Some(" Ambiguous: sel/shi/spd")
         );
         assert!(
-            render_fleet_footer_line(&app, "COMMAND <- Filter column [?] ")
-                .contains("Ambiguous: sel/shi/spd")
+            render_fleet_footer_line(&app, "Ambiguous: sel/shi/spd")
+                .contains("COMMAND <-  Ambiguous: sel/shi/spd")
         );
 
         app.handle_key(key(KeyCode::Char('p')));
@@ -3592,8 +3827,8 @@ mod tests {
             Some(" Ambiguous: sbs/sco/see")
         );
         assert!(
-            render_intel_footer_line(&app, "COMMAND <- Filter column [?] ")
-                .contains("Ambiguous: sbs/sco/see")
+            render_intel_footer_line(&app, "Ambiguous: sbs/sco/see")
+                .contains("COMMAND <-  Ambiguous: sbs/sco/see")
         );
 
         app.handle_key(key(KeyCode::Char('c')));
@@ -4503,6 +4738,25 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_mouse_move_without_visible_change_reports_no_redraw() {
+        let mut app = dash_app();
+        app.client_settings.follow_mouse_on_map = false;
+        let target = [4, 7];
+        let (column, row) = screen_point_for_sector(&app, target);
+
+        assert!(!app.dispatch_mouse_event(mouse(MouseEventKind::Moved, column, row)));
+    }
+
+    #[test]
+    fn dispatch_mouse_move_with_crosshair_change_reports_redraw() {
+        let mut app = dash_app();
+        let target = [4, 7];
+        let (column, row) = screen_point_for_sector(&app, target);
+
+        assert!(app.dispatch_mouse_event(mouse(MouseEventKind::Moved, column, row)));
+    }
+
+    #[test]
     fn hovering_visible_sector_does_not_move_crosshair_when_hover_follow_is_disabled() {
         let mut app = dash_app();
         let starting = [app.crosshair_x, app.crosshair_y];
@@ -4729,13 +4983,13 @@ mod tests {
             OwnedPlanetPopupMode::BuildSpecify
         );
         assert!(
-            render_owned_planet_popup_line(&app, "Unit number or 0 if done")
-                .contains("Unit number or 0 if done")
+            render_owned_planet_popup_line(&app, "COMMAND <- Unit [0] <ESC> ->")
+                .contains("COMMAND <- Unit [0] <ESC> ->")
         );
     }
 
     #[test]
-    fn owned_planet_build_popup_uses_build_title_budget_and_bordered_table() {
+    fn owned_planet_build_popup_uses_build_title_budget_and_full_bordered_table() {
         let mut app = dash_app();
         let owned_coords = first_owned_planet_coords(&app);
         let expected_record = app
@@ -4779,11 +5033,94 @@ mod tests {
         );
         assert!(render_owned_planet_popup_line(&app, "BUDGET: ").contains("BUDGET: "));
         assert!(render_owned_planet_popup_line(&app, "┌").contains("┌"));
-        assert!(render_owned_planet_popup_line(&app, "│ │#").contains("│ │#"));
+        let header_line = render_owned_planet_popup_line(&app, "Queue");
+        assert!(header_line.contains("Queue"));
+        assert!(header_line.contains("Status"));
+        assert!(render_owned_planet_popup_line(&app, "┼").contains("┼"));
+        assert!(header_line.contains("Unit"));
+    }
+
+    #[test]
+    fn owned_planet_build_quantity_prompt_defaults_to_max() {
+        let mut app = dash_app();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
+            })
+            .map(|(idx, _)| idx + 1)
+            .expect("owned planet");
+        let planet = app
+            .game_data
+            .planets
+            .records
+            .get_mut(expected_record.saturating_sub(1))
+            .expect("owned planet record");
+        let _ = planet.set_present_production_points(80);
+        planet.set_stored_production_points(80);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+        app.handle_key(key(KeyCode::Char('b')));
+        app.handle_key(key(KeyCode::Char('1')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.owned_planet_popup.mode,
+            OwnedPlanetPopupMode::BuildQuantity
+        );
         assert!(
-            render_owned_planet_popup_line(&app, "Unit").contains("Unit")
-                && render_owned_planet_popup_line(&app, "Queued").contains("Queued")
-                && render_owned_planet_popup_line(&app, "Status").contains("Status")
+            render_owned_planet_popup_line(&app, "COMMAND <- Qty [MAX] <ESC> ->")
+                .contains("COMMAND <- Qty [MAX] <ESC> ->")
+        );
+    }
+
+    #[test]
+    fn owned_planet_no_budget_toast_replaces_footer_then_restores_command_line() {
+        let mut app = dash_app();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
+            })
+            .map(|(idx, _)| idx + 1)
+            .expect("owned planet");
+        let planet = app
+            .game_data
+            .planets
+            .records
+            .get_mut(expected_record.saturating_sub(1))
+            .expect("owned planet record");
+        let _ = planet.set_present_production_points(1);
+        planet.set_stored_production_points(1);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+        app.handle_key(key(KeyCode::Char('b')));
+
+        assert_eq!(app.owned_planet_popup.mode, OwnedPlanetPopupMode::Browse);
+        assert!(
+            render_owned_planet_popup_line(&app, "No available budget.")
+                .contains("No available budget.")
+        );
+
+        let start = Instant::now();
+        assert!(app.update_command_line_toast_state(start));
+        assert!(app.update_command_line_toast_state(start + Duration::from_secs(2)));
+        assert_eq!(app.owned_planet_popup.status, None);
+        assert!(
+            render_owned_planet_popup_line(&app, "COMMAND <- ? B D A C M L U X <ESC> ->")
+                .contains("COMMAND <- ? B D A C M L U X <ESC> ->")
         );
     }
 
@@ -5350,6 +5687,20 @@ mod tests {
             .expect("intel title")
     }
 
+    fn render_settings_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        crate::overlays::settings::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("settings line")
+    }
+
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
     }
@@ -5361,5 +5712,17 @@ mod tests {
             row,
             modifiers: KeyModifiers::NONE,
         }
+    }
+
+    #[test]
+    fn settings_status_uses_command_line_toast_instead_of_body_row() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Settings;
+        app.settings_overlay.status_message = Some("Saved local settings".to_string());
+
+        assert!(
+            render_settings_line(&app, "Saved local settings")
+                .contains("COMMAND <- Saved local settings")
+        );
     }
 }

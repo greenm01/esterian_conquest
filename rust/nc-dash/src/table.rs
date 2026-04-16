@@ -131,6 +131,19 @@ pub enum TableFooter<'a> {
     },
 }
 
+pub fn with_command_line_toast<'a>(
+    footer: TableFooter<'a>,
+    toast: Option<&'a str>,
+) -> TableFooter<'a> {
+    match toast {
+        Some(text) => TableFooter::CommandText {
+            label: "COMMAND",
+            text,
+        },
+        None => footer,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SplitTableRow {
     pub left_cells: Vec<String>,

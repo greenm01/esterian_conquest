@@ -78,6 +78,51 @@ impl RenderedUi {
     }
 }
 
+pub fn blit_rendered_ui(target: &mut Buffer, area: Rect, rendered: &RenderedUi, base_style: Style) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+
+    for y in 0..area.height {
+        for x in 0..area.width {
+            if let Some(cell) = target.cell_mut((area.x + x, area.y + y)) {
+                cell.set_char(' ').set_style(base_style);
+            }
+        }
+    }
+
+    let src_area = rendered.buffer.area;
+    let x_offset = area.width.saturating_sub(src_area.width) / 2;
+    let y_offset = area.height.saturating_sub(src_area.height) / 2;
+    let visible_width = src_area.width.min(area.width);
+    let visible_height = src_area.height.min(area.height);
+
+    for y in 0..visible_height {
+        for x in 0..visible_width {
+            let Some(source) = rendered.buffer.cell((src_area.x + x, src_area.y + y)) else {
+                continue;
+            };
+            let Some(target_cell) = target.cell_mut((area.x + x_offset + x, area.y + y_offset + y))
+            else {
+                continue;
+            };
+            *target_cell = source.clone();
+        }
+    }
+
+    let Some((cursor_x, cursor_y)) = rendered.cursor else {
+        return;
+    };
+    if cursor_x >= visible_width || cursor_y >= visible_height {
+        return;
+    }
+    let Some(cell) = target.cell_mut((area.x + x_offset + cursor_x, area.y + y_offset + cursor_y))
+    else {
+        return;
+    };
+    cell.set_style(cell.style().patch(rendered.cursor_style));
+}
+
 pub fn render_tui_area_into_playfield(
     playfield: &mut PlayfieldBuffer,
     row: usize,

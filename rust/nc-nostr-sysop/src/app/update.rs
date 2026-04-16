@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use super::{App, SysopMessage};
 use chrono::Utc;
 
@@ -112,6 +112,9 @@ pub fn handle_mouse(app: &mut App, mouse: crossterm::event::MouseEvent) -> Updat
 
 fn handle_command(app: &mut App, input: &str) -> UpdateResult {
     let parts: Vec<&str> = input.split_whitespace().collect();
+    if parts.is_empty() {
+        return UpdateResult::None;
+    }
     let cmd = parts[0].to_lowercase();
 
     match cmd.as_str() {
@@ -121,6 +124,75 @@ fn handle_command(app: &mut App, input: &str) -> UpdateResult {
         }
         "/clear" => {
             app.messages.clear();
+            UpdateResult::None
+        }
+        "/join" => {
+            if parts.len() < 2 {
+                app.push_message(SysopMessage {
+                    timestamp: Utc::now(),
+                    channel: super::SysopChannel::Global,
+                    sender: "SYSTEM".to_string(),
+                    content: "Usage: /join <game_id>".to_string(),
+                    is_own: false,
+                });
+                return UpdateResult::None;
+            }
+            let game_id = parts[1].to_string();
+            let channel = super::SysopChannel::Game(game_id.clone());
+            if !app.channels.contains(&channel) {
+                app.channels.push(channel);
+                app.active_channel_index = app.channels.len() - 1;
+                app.scroll_offset = 0;
+            }
+            UpdateResult::None
+        }
+        "/msg" => {
+            if parts.len() < 2 {
+                app.push_message(SysopMessage {
+                    timestamp: Utc::now(),
+                    channel: super::SysopChannel::Global,
+                    sender: "SYSTEM".to_string(),
+                    content: "Usage: /msg <npub> [message]".to_string(),
+                    is_own: false,
+                });
+                return UpdateResult::None;
+            }
+            let npub = parts[1].to_string();
+            let channel = super::SysopChannel::Direct(npub.clone());
+            
+            if !app.channels.contains(&channel) {
+                app.channels.push(channel);
+            }
+            
+            // Switch to that channel
+            if let Some(idx) = app.channels.iter().position(|c| c == &super::SysopChannel::Direct(npub.clone())) {
+                app.active_channel_index = idx;
+                app.scroll_offset = 0;
+            }
+
+            if parts.len() > 2 {
+                let message = parts[2..].join(" ");
+                app.push_message(SysopMessage {
+                    timestamp: Utc::now(),
+                    channel: super::SysopChannel::Direct(npub),
+                    sender: "You".to_string(),
+                    content: message.clone(),
+                    is_own: true,
+                });
+                UpdateResult::MessageSent(message)
+            } else {
+                UpdateResult::None
+            }
+        }
+        "/help" => {
+            let help_text = "Available commands: /join <id>, /msg <npub>, /clear, /quit";
+            app.push_message(SysopMessage {
+                timestamp: Utc::now(),
+                channel: app.active_channel().clone(),
+                sender: "SYSTEM".to_string(),
+                content: help_text.to_string(),
+                is_own: false,
+            });
             UpdateResult::None
         }
         _ => {

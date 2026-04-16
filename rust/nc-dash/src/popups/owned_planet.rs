@@ -9,7 +9,7 @@ use crate::overlays::frame::{
 };
 use crate::planet_view::selected_planet_detail;
 use crate::rendered::render_tui_area_into_playfield;
-use crate::table::TableFooter;
+use crate::table::{TableFooter, with_command_line_toast};
 use crate::theme;
 use nc_data::ProductionItemKind;
 use nc_engine::{
@@ -17,16 +17,17 @@ use nc_engine::{
     transport_fleet_candidates_for_planet,
 };
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Layout, Rect as TuiRect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect as TuiRect};
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Widget};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Borders, Cell, Row, Table, Widget};
 
 const BUILD_TABLE_NUMBER_WIDTH: usize = 2;
 const BUILD_TABLE_COST_WIDTH: usize = 4;
-const BUILD_TABLE_QUEUED_WIDTH: usize = 6;
+const BUILD_TABLE_QUEUE_WIDTH: usize = 5;
 const BUILD_TABLE_STATUS_WIDTH: usize = 6;
 const BUILD_TABLE_MIN_UNIT_WIDTH: usize = 4;
-const BUILD_TABLE_COLUMN_SPACING: usize = 1;
+const BUILD_TABLE_SEPARATOR_WIDTH: usize = 1;
 
 pub fn draw(
     buf: &mut PlayfieldBuffer,
@@ -86,12 +87,11 @@ enum PopupBody {
 
 #[derive(Debug, Clone)]
 struct BuildSpecifyPopupLayout {
-    budget_line: String,
+    budget_title: String,
     body_width: usize,
     table_total_width: usize,
     table_height: usize,
     entries: Vec<PlanetBuildSpecifyEntry>,
-    status_lines: Vec<String>,
 }
 
 fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> {
@@ -101,27 +101,36 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             plain_popup_layout(
                 String::from("PLANET STATUS"),
                 lines,
-                TableFooter::CommandPrompt {
-                    label: "COMMAND",
-                    prompt: "? B D A C M L U X <ESC> ->",
-                },
+                command_line_toast_footer(
+                    app,
+                    TableFooter::CommandPrompt {
+                        label: "COMMAND",
+                        prompt: "? B D A C M L U X <ESC> ->",
+                    },
+                ),
             )
         }
         OwnedPlanetPopupMode::BuildList => plain_popup_layout(
             build_popup_title(app),
             wrap_plain_lines(&build_list_lines(app), max_body_width),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "<ESC> ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "<ESC> ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::BuildAbortConfirm => plain_popup_layout(
             build_popup_title(app),
             vec![String::from("Abort all queued builds for this planet?")],
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "Abort queued builds? Y/[N] ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "Abort queued builds? Y/[N] ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::BuildSpecify => {
             let build = build_specify_popup_layout(app, max_body_width);
@@ -129,32 +138,31 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
                 title: build_popup_title(app),
                 body_width: build.body_width,
                 body_height: build_specify_body_height(&build),
-                footer: TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt: "Unit number or 0 if done",
-                    default: "0",
-                    input: &app.owned_planet_popup.input,
-                },
+                footer: command_line_toast_footer(
+                    app,
+                    TableFooter::CommandInput {
+                        label: "COMMAND",
+                        prompt: "Unit ",
+                        default: "0",
+                        input: &app.owned_planet_popup.input,
+                    },
+                ),
                 body: PopupBody::BuildSpecify(build),
             }
         }
-        OwnedPlanetPopupMode::BuildQuantity => {
-            let default = if app.owned_planet_popup.default.is_empty() {
-                "0"
-            } else {
-                app.owned_planet_popup.default.as_str()
-            };
-            plain_popup_layout(
-                build_popup_title(app),
-                wrap_plain_lines(&build_quantity_lines(app), max_body_width),
+        OwnedPlanetPopupMode::BuildQuantity => plain_popup_layout(
+            build_popup_title(app),
+            wrap_plain_lines(&build_quantity_lines(app), max_body_width),
+            command_line_toast_footer(
+                app,
                 TableFooter::CommandInput {
                     label: "COMMAND",
-                    prompt: "Qty",
-                    default,
+                    prompt: "Qty ",
+                    default: "MAX",
                     input: &app.owned_planet_popup.input,
                 },
-            )
-        }
+            ),
+        ),
         OwnedPlanetPopupMode::CommissionSelect => {
             let default = if app.owned_planet_popup.default.is_empty() {
                 "01"
@@ -164,21 +172,27 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             plain_popup_layout(
                 String::from("PLANET STATUS"),
                 wrap_plain_lines(&commission_lines(app), max_body_width),
-                TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt: "Commission slot #",
-                    default,
-                    input: &app.owned_planet_popup.input,
-                },
+                command_line_toast_footer(
+                    app,
+                    TableFooter::CommandInput {
+                        label: "COMMAND",
+                        prompt: "Commission slot #",
+                        default,
+                        input: &app.owned_planet_popup.input,
+                    },
+                ),
             )
         }
         OwnedPlanetPopupMode::CommissionResult => plain_popup_layout(
             String::from("PLANET STATUS"),
             wrap_plain_lines(&app.owned_planet_popup.report_lines, max_body_width),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "<ESC> ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "<ESC> ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::MassCommissionConfirm => plain_popup_layout(
             String::from("PLANET STATUS"),
@@ -188,18 +202,24 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
                 )],
                 max_body_width,
             ),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "Mass commission? Y/[N] ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "Mass commission? Y/[N] ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::MassCommissionReport => plain_popup_layout(
             String::from("PLANET STATUS"),
             wrap_plain_lines(&app.owned_planet_popup.report_lines, max_body_width),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "<ESC> ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "<ESC> ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::TransportFleetSelect { mode } => {
             let prompt = match mode {
@@ -214,12 +234,15 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             plain_popup_layout(
                 String::from("PLANET STATUS"),
                 wrap_plain_lines(&transport_fleet_lines(app, mode), max_body_width),
-                TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt,
-                    default,
-                    input: &app.owned_planet_popup.input,
-                },
+                command_line_toast_footer(
+                    app,
+                    TableFooter::CommandInput {
+                        label: "COMMAND",
+                        prompt,
+                        default,
+                        input: &app.owned_planet_popup.input,
+                    },
+                ),
             )
         }
         OwnedPlanetPopupMode::TransportQuantity { mode } => {
@@ -235,39 +258,55 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             plain_popup_layout(
                 String::from("PLANET STATUS"),
                 wrap_plain_lines(&transport_quantity_lines(app, mode), max_body_width),
-                TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt,
-                    default,
-                    input: &app.owned_planet_popup.input,
-                },
+                command_line_toast_footer(
+                    app,
+                    TableFooter::CommandInput {
+                        label: "COMMAND",
+                        prompt,
+                        default,
+                        input: &app.owned_planet_popup.input,
+                    },
+                ),
             )
         }
         OwnedPlanetPopupMode::ScorchConfirm1 => plain_popup_layout(
             String::from("PLANET STATUS"),
             wrap_plain_lines(&scorch_lines(app), max_body_width),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "Are you sure? Y/[N] ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "Are you sure? Y/[N] ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::ScorchConfirm2 => plain_popup_layout(
             String::from("PLANET STATUS"),
             wrap_plain_lines(&scorch_lines(app), max_body_width),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "Are you really sure? Y/[N] ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "Are you really sure? Y/[N] ->",
+                },
+            ),
         ),
         OwnedPlanetPopupMode::ScorchConfirm3 => plain_popup_layout(
             String::from("PLANET STATUS"),
             wrap_plain_lines(&scorch_lines(app), max_body_width),
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: "Are you sure-sure? Last chance to bail! Y/[N] ->",
-            },
+            command_line_toast_footer(
+                app,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "Are you sure-sure? Last chance to bail! Y/[N] ->",
+                },
+            ),
         ),
     }
+}
+
+fn command_line_toast_footer<'a>(app: &'a DashApp, footer: TableFooter<'a>) -> TableFooter<'a> {
+    with_command_line_toast(footer, app.active_command_line_toast())
 }
 
 fn plain_popup_layout<'a>(
@@ -316,34 +355,36 @@ fn render_build_specify_buffer(
     area: TuiRect,
     layout: &BuildSpecifyPopupLayout,
 ) {
-    let mut constraints = vec![
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(layout.table_height as u16),
-    ];
-    if !layout.status_lines.is_empty() {
-        constraints.push(Constraint::Length(1));
-        constraints.push(Constraint::Length(layout.status_lines.len() as u16));
-    }
-    let rows = Layout::vertical(constraints).split(area);
-    Paragraph::new(layout.budget_line.as_str())
-        .style(cell_style_to_tui_style(theme::label_style()).add_modifier(Modifier::BOLD))
-        .render(rows[0], buffer);
-
+    let rows = Layout::vertical([Constraint::Length(layout.table_height as u16)]).split(area);
     let unit_width = layout
         .table_total_width
         .saturating_sub(
             BUILD_TABLE_NUMBER_WIDTH
+                + BUILD_TABLE_SEPARATOR_WIDTH
+                + BUILD_TABLE_SEPARATOR_WIDTH
                 + BUILD_TABLE_COST_WIDTH
-                + BUILD_TABLE_QUEUED_WIDTH
+                + BUILD_TABLE_SEPARATOR_WIDTH
+                + BUILD_TABLE_QUEUE_WIDTH
+                + BUILD_TABLE_SEPARATOR_WIDTH
                 + BUILD_TABLE_STATUS_WIDTH
-                + 2
-                + 4 * BUILD_TABLE_COLUMN_SPACING,
+                + 2,
         )
         .max(BUILD_TABLE_MIN_UNIT_WIDTH);
-    let header = Row::new(["#", "Unit", "Cost", "Queued", "Status"])
+    let header = Row::new(["#", "│", "Unit", "│", "Cost", "│", "Queue", "│", "Status"])
         .style(cell_style_to_tui_style(theme::table_header_style()));
-    let table_rows = layout.entries.iter().map(|entry| {
+    let divider = Row::new(vec![
+        Cell::from("─".repeat(BUILD_TABLE_NUMBER_WIDTH)),
+        Cell::from("┼"),
+        Cell::from("─".repeat(unit_width)),
+        Cell::from("┼"),
+        Cell::from("─".repeat(BUILD_TABLE_COST_WIDTH)),
+        Cell::from("┼"),
+        Cell::from("─".repeat(BUILD_TABLE_QUEUE_WIDTH)),
+        Cell::from("┼"),
+        Cell::from("─".repeat(BUILD_TABLE_STATUS_WIDTH)),
+    ])
+    .style(cell_style_to_tui_style(theme::table_chrome_style()));
+    let table_rows = std::iter::once(divider).chain(layout.entries.iter().map(|entry| {
         let status = if entry.selectable { "" } else { "FULL" };
         let style = if entry.selectable {
             cell_style_to_tui_style(theme::table_body_style())
@@ -352,48 +393,59 @@ fn render_build_specify_buffer(
         };
         Row::new(vec![
             Cell::from(format!("{:02}", entry.number)),
+            Cell::from("│"),
             Cell::from(entry.label),
+            Cell::from("│"),
             Cell::from(entry.cost.to_string()),
+            Cell::from("│"),
             Cell::from(entry.queued_qty.to_string()),
+            Cell::from("│"),
             Cell::from(status),
         ])
         .style(style)
-    });
+    }));
     Table::new(
         table_rows,
         [
             Constraint::Length(BUILD_TABLE_NUMBER_WIDTH as u16),
+            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
             Constraint::Length(unit_width as u16),
+            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
             Constraint::Length(BUILD_TABLE_COST_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_QUEUED_WIDTH as u16),
+            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
+            Constraint::Length(BUILD_TABLE_QUEUE_WIDTH as u16),
+            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
             Constraint::Length(BUILD_TABLE_STATUS_WIDTH as u16),
         ],
     )
-    .column_spacing(BUILD_TABLE_COLUMN_SPACING as u16)
     .header(header)
     .block(
         Block::default()
             .borders(Borders::ALL)
+            .title(
+                Line::from(layout.budget_title.as_str())
+                    .style(
+                        cell_style_to_tui_style(theme::label_style()).add_modifier(Modifier::BOLD),
+                    )
+                    .alignment(Alignment::Right),
+            )
             .border_style(cell_style_to_tui_style(theme::table_chrome_style()))
             .style(cell_style_to_tui_style(theme::body_style())),
     )
-    .render(rows[2], buffer);
-
-    if !layout.status_lines.is_empty() {
-        Paragraph::new(layout.status_lines.join("\n"))
-            .style(cell_style_to_tui_style(theme::error_style()))
-            .render(*rows.last().expect("status row"), buffer);
-    }
+    .render(rows[0], buffer);
 }
 
 fn build_specify_popup_layout(app: &DashApp, max_body_width: usize) -> BuildSpecifyPopupLayout {
     let entries = app.owned_planet_build_entries();
     let fixed_width = BUILD_TABLE_NUMBER_WIDTH
+        + BUILD_TABLE_SEPARATOR_WIDTH
+        + BUILD_TABLE_SEPARATOR_WIDTH
         + BUILD_TABLE_COST_WIDTH
-        + BUILD_TABLE_QUEUED_WIDTH
+        + BUILD_TABLE_SEPARATOR_WIDTH
+        + BUILD_TABLE_QUEUE_WIDTH
+        + BUILD_TABLE_SEPARATOR_WIDTH
         + BUILD_TABLE_STATUS_WIDTH
-        + 2
-        + 4 * BUILD_TABLE_COLUMN_SPACING;
+        + 2;
     let natural_unit_width = entries
         .iter()
         .map(|entry| entry.label.chars().count())
@@ -403,34 +455,23 @@ fn build_specify_popup_layout(app: &DashApp, max_body_width: usize) -> BuildSpec
     let unit_width = natural_unit_width
         .min(max_body_width.saturating_sub(fixed_width))
         .max(BUILD_TABLE_MIN_UNIT_WIDTH);
-    let budget_line = format!("BUDGET: {}", app.owned_planet_build_budget());
+    let budget_title = format!("BUDGET: {}", app.owned_planet_build_budget());
     let title_width = build_popup_title(app).chars().count().min(max_body_width);
     let table_total_width = (fixed_width + unit_width).min(max_body_width.max(fixed_width));
     let body_width = table_total_width
-        .max(budget_line.chars().count())
+        .max(budget_title.chars().count())
         .max(title_width);
-    let status_lines = app
-        .owned_planet_popup
-        .status
-        .as_deref()
-        .map(|status| wrap_plain_lines(&[status.to_string()], body_width))
-        .unwrap_or_default();
     BuildSpecifyPopupLayout {
-        budget_line,
+        budget_title,
         body_width,
         table_total_width: body_width,
-        table_height: entries.len() + 3,
+        table_height: entries.len() + 4,
         entries,
-        status_lines,
     }
 }
 
 fn build_specify_body_height(layout: &BuildSpecifyPopupLayout) -> usize {
-    let mut height = 2 + layout.table_height;
-    if !layout.status_lines.is_empty() {
-        height += 1 + layout.status_lines.len();
-    }
-    height
+    layout.table_height
 }
 
 fn build_popup_title(app: &DashApp) -> String {
@@ -466,16 +507,11 @@ fn max_line_width(lines: &[String]) -> usize {
 }
 
 fn browse_lines(app: &DashApp, max_body_width: usize) -> Vec<String> {
-    let mut lines = selected_planet_detail(app)
+    selected_planet_detail(app)
         .map(|detail| {
             crate::popups::planet_detail::popup_lines(&detail.popup_lines, max_body_width)
         })
-        .unwrap_or_else(|| vec![String::from("No planet selected.")]);
-    if let Some(status) = app.owned_planet_popup.status.as_deref() {
-        lines.push(String::new());
-        lines.extend(wrap_plain_lines(&[status.to_string()], max_body_width));
-    }
-    lines
+        .unwrap_or_else(|| vec![String::from("No planet selected.")])
 }
 
 fn build_list_lines(app: &DashApp) -> Vec<String> {
@@ -497,15 +533,10 @@ fn build_quantity_lines(app: &DashApp) -> Vec<String> {
         .build_selected_kind
         .unwrap_or(ProductionItemKind::Destroyer);
     let label = build_item_label(kind);
-    let mut lines = vec![
+    vec![
         format!("Selected unit: {label}"),
         format!("Maximum quantity: {}", app.owned_planet_popup.default),
-    ];
-    if let Some(status) = app.owned_planet_popup.status.as_deref() {
-        lines.push(String::new());
-        lines.push(status.to_string());
-    }
-    lines
+    ]
 }
 
 fn commission_lines(app: &DashApp) -> Vec<String> {
@@ -517,10 +548,6 @@ fn commission_lines(app: &DashApp) -> Vec<String> {
             build_item_label(row.kind),
             row.qty
         ));
-    }
-    if let Some(status) = app.owned_planet_popup.status.as_deref() {
-        lines.push(String::new());
-        lines.push(status.to_string());
     }
     lines
 }
@@ -547,10 +574,6 @@ fn transport_fleet_lines(app: &DashApp, mode: ArmyTransportMode) -> Vec<String> 
             fleet.fleet_number, fleet.troop_transports, fleet.loaded_armies, fleet.available_qty
         ));
     }
-    if let Some(status) = app.owned_planet_popup.status.as_deref() {
-        lines.push(String::new());
-        lines.push(status.to_string());
-    }
     lines
 }
 
@@ -563,17 +586,13 @@ fn transport_quantity_lines(app: &DashApp, mode: ArmyTransportMode) -> Vec<Strin
         .owned_planet_popup
         .transport_selected_fleet_number
         .unwrap_or_default();
-    let mut lines = vec![
+    let lines = vec![
         format!("Fleet {:02} selected.", fleet_number),
         format!(
             "Available armies to {action}: {}",
             app.owned_planet_popup.transport_available_qty
         ),
     ];
-    if let Some(status) = app.owned_planet_popup.status.as_deref() {
-        lines.push(String::new());
-        lines.push(status.to_string());
-    }
     lines
 }
 

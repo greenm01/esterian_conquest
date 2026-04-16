@@ -1,7 +1,7 @@
 //! S overlay: settings — local map behavior toggles.
 
 use crate::buffer::PlayfieldBuffer;
-use crate::table::TableFooter;
+use crate::table::{TableFooter, with_command_line_toast};
 
 use crate::app::state::{ActiveOverlay, DashApp};
 use crate::layout;
@@ -30,7 +30,7 @@ fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidg
         wrapped.content_width,
         wrapped.lines.len(),
         OverlaySizePolicy::default(),
-        TableFooter::Dismiss,
+        with_command_line_toast(TableFooter::Dismiss, app.active_command_line_toast()),
         app.overlay_position_for(ActiveOverlay::Settings),
     );
     assert_overlay_body_write_fits(
@@ -61,7 +61,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         wrapped.content_width,
         wrapped.lines.len(),
         OverlaySizePolicy::default(),
-        TableFooter::Dismiss,
+        with_command_line_toast(TableFooter::Dismiss, app.active_command_line_toast()),
         app.overlay_position_for(ActiveOverlay::Settings),
     )
 }
@@ -77,7 +77,7 @@ fn wrapped_settings_lines(app: &DashApp, parent: Rect) -> WrappedTextLines {
 }
 
 fn settings_lines(app: &DashApp) -> Vec<(String, String)> {
-    let mut lines = vec![
+    let lines = vec![
         (
             String::from("Mouse Follow"),
             format!(
@@ -97,9 +97,6 @@ fn settings_lines(app: &DashApp) -> Vec<(String, String)> {
             String::from("Always move crosshair and open sector actions"),
         ),
     ];
-    if let Some(status) = app.settings_overlay.status_message.as_ref() {
-        lines.push((String::from("Status"), status.clone()));
-    }
     lines
 }
 

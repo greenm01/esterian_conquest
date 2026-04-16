@@ -14,6 +14,7 @@ use crate::geometry::ScreenGeometry;
 use crossterm::event::KeyEvent;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
+use tracing::info;
 
 use crate::modal::{ModalTheme, render_modal_box};
 use crate::native::NativeApp;
@@ -29,6 +30,37 @@ const MATRIX_FRAME_STEP: Duration = Duration::from_millis(80);
 const COMMS_CURSOR_BLINK_STEP: Duration = Duration::from_millis(500);
 const GATE_ERROR_RESET_STEP: Duration = Duration::from_secs(1);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LobbyMouseRenderState {
+    route: LobbyRoute,
+    active_tab: LobbyTab,
+    relay_label: Option<String>,
+    player_handle: Option<String>,
+    joined_games: Vec<self::models::JoinedGameRow>,
+    open_games: Vec<self::models::OpenGameRow>,
+    game_inbox: Vec<self::models::GameInboxRow>,
+    notices: Vec<self::models::LobbyNotice>,
+    direct_contacts: Vec<self::models::DirectContactRow>,
+    thread_messages: Vec<self::models::ThreadMessage>,
+    game_inbox_messages: Vec<self::models::GameInboxMessage>,
+    joined_selected: usize,
+    open_selected: usize,
+    comms_selected: usize,
+    comms_new_selected: usize,
+    active_comms: Option<self::models::CommsConversationKey>,
+    thread_pane_focus: ThreadPaneFocus,
+    popup_position: Option<crate::overlays::frame::RelativePopupOrigin>,
+    mouse_gesture: LobbyMouseGesture,
+    status_message: Option<String>,
+    status_tone: state::LobbyStatusTone,
+    show_manual: bool,
+    show_help: bool,
+    show_resume_sync_overlay: bool,
+    sandbox_join_notice: Option<String>,
+    network_status: state::LobbyNetworkStatus,
+    should_quit: bool,
+}
+
 impl LobbyApp {
     pub fn new(options: LobbyStartupOptions) -> Self {
         let route = onboarding::initial_route(nc_client::keychain::keychain_path().exists());
@@ -42,7 +74,7 @@ impl LobbyApp {
             geometry: ScreenGeometry::new(120, 40),
             should_quit: false,
             state: state::LobbyState::new(options.clone(), route, settings),
-            transport: transport::LobbyTransport::new(options.relay_override),
+            transport: transport::LobbyTransport::new(options.relay_override, options.native),
             settings_path,
             clipboard: clipboard::Clipboard::new(),
             popup_position: None,
@@ -54,6 +86,8 @@ impl LobbyApp {
             gate_reset_action: None,
             matrix_rain: onboarding::MatrixRain::new(120, 40),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
+            diagnostic_mode: options.native.diagnostic_mode,
+            freeze_live_updates: options.native.freeze_live_updates,
         }
     }
 
@@ -67,7 +101,7 @@ impl LobbyApp {
             geometry,
             should_quit: false,
             state: state::LobbyState::new(LobbyStartupOptions::default(), route, settings),
-            transport: transport::LobbyTransport::new(None),
+            transport: transport::LobbyTransport::new(None, LobbyStartupOptions::default().native),
             settings_path: storage::settings::settings_path(),
             clipboard: clipboard::Clipboard::new(),
             popup_position: None,
@@ -79,6 +113,8 @@ impl LobbyApp {
             gate_reset_action: None,
             matrix_rain: onboarding::MatrixRain::new(matrix_width, matrix_height),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
+            diagnostic_mode: false,
+            freeze_live_updates: false,
         };
         app.state.show_manual = false;
         app.state.manual_seen_this_session = route == LobbyRoute::Home;
@@ -93,8 +129,13 @@ impl LobbyApp {
         Ok(<Self as NativeApp>::render_ui(self)?.to_playfield(theme::body_style()))
     }
 
-    pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) {
-        <Self as NativeApp>::dispatch_mouse_event(self, mouse);
+    #[doc(hidden)]
+    pub fn render_ui_for_repro(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
+        <Self as NativeApp>::render_ui(self)
+    }
+
+    pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) -> bool {
+        <Self as NativeApp>::dispatch_mouse_event(self, mouse)
     }
 
     pub fn dispatch_key_event_for_test(&mut self, key: KeyEvent) {
@@ -184,6 +225,85 @@ impl LobbyApp {
     fn dismiss_resume_sync_overlay(&mut self) {
         self.state.show_resume_sync_overlay = false;
         update::maybe_open_home_manual(self);
+    }
+
+    fn mouse_render_state(&self) -> LobbyMouseRenderState {
+        LobbyMouseRenderState {
+            route: self.state.route,
+            active_tab: self.state.active_tab,
+            relay_label: self.state.relay_label.clone(),
+            player_handle: self.state.player_handle.clone(),
+            joined_games: self.state.joined_games.clone(),
+            open_games: self.state.open_games.clone(),
+            game_inbox: self.state.game_inbox.clone(),
+            notices: self.state.notices.clone(),
+            direct_contacts: self.state.direct_contacts.clone(),
+            thread_messages: self.state.thread_messages.clone(),
+            game_inbox_messages: self.state.game_inbox_messages.clone(),
+            joined_selected: self.state.joined_selected,
+            open_selected: self.state.open_selected,
+            comms_selected: self.state.comms_selected,
+            comms_new_selected: self.state.comms_new_selected,
+            active_comms: self.state.active_comms.clone(),
+            thread_pane_focus: self.state.thread_pane_focus,
+            popup_position: self.popup_position,
+            mouse_gesture: self.mouse_gesture,
+            status_message: self.state.status_message.clone(),
+            status_tone: self.state.status_tone,
+            show_manual: self.state.show_manual,
+            show_help: self.state.show_help,
+            show_resume_sync_overlay: self.state.show_resume_sync_overlay,
+            sandbox_join_notice: self.state.sandbox_join_notice.clone(),
+            network_status: self.state.network_status,
+            should_quit: self.should_quit,
+        }
+    }
+
+    fn debug_render_signature_text(&self) -> String {
+        let hosted_signature = self
+            .state
+            .hosted_game
+            .as_ref()
+            .and_then(|hosted| hosted.dashboard.debug_render_signature())
+            .unwrap_or_else(|| "-".to_string());
+        format!(
+            "route={:?} tab={:?} net={:?} joined={} open={} notices={} contacts={} threads={} inbox={} help={} manual={} resume_sync={} hosted={} hosted_sig={} popup_pos={} gesture={:?} status={}",
+            self.state.route,
+            self.state.active_tab,
+            self.state.network_status,
+            self.state.joined_games.len(),
+            self.state.open_games.len(),
+            self.state.notices.len(),
+            self.state.direct_contacts.len(),
+            self.state.thread_messages.len(),
+            self.state.game_inbox_messages.len(),
+            self.state.show_help,
+            self.state.show_manual,
+            self.state.show_resume_sync_overlay,
+            self.state.hosted_game.is_some(),
+            hosted_signature,
+            self.popup_position.is_some(),
+            self.mouse_gesture,
+            self.state.status_message.as_deref().unwrap_or("-"),
+        )
+    }
+
+    fn log_diagnostic_state_change(
+        &self,
+        source: &str,
+        before: &LobbyMouseRenderState,
+        after: &LobbyMouseRenderState,
+    ) {
+        if !self.diagnostic_mode || before == after {
+            return;
+        }
+        info!(
+            target: "nc_dash::lobby",
+            source,
+            before = ?before,
+            after = ?after,
+            "lobby visible state changed"
+        );
     }
 
     fn render_resume_sync_overlay(&self, buffer: &mut PlayfieldBuffer) {
@@ -332,12 +452,21 @@ impl LobbyApp {
                 return true;
             }
         }
+        if self.freeze_live_updates {
+            return false;
+        }
         match self.transport.poll_updates() {
             Ok(Some(loaded)) => {
+                let before = self.mouse_render_state();
                 self.state.apply_loaded(loaded);
                 if self.state.route == LobbyRoute::HostedGame
                     && update::reload_hosted_dashboard_from_cached_snapshot(self)
                 {
+                    self.log_diagnostic_state_change(
+                        "poll_updates.hosted_reload",
+                        &before,
+                        &self.mouse_render_state(),
+                    );
                     return true;
                 }
                 if self.state.route == LobbyRoute::Home
@@ -348,9 +477,9 @@ impl LobbyApp {
                         .state
                         .active_direct_contact()
                         .is_some_and(|contact| contact.unread_count > 0)
-                {
-                    if let Some(contact_npub) = self
-                        .state
+                    {
+                        if let Some(contact_npub) = self
+                            .state
                         .active_direct_contact()
                         .map(|contact| contact.npub.clone())
                     {
@@ -364,7 +493,9 @@ impl LobbyApp {
                 {
                     self.dismiss_resume_sync_overlay();
                 }
-                true
+                let after = self.mouse_render_state();
+                self.log_diagnostic_state_change("poll_updates.apply_loaded", &before, &after);
+                before != after
             }
             Ok(None) => false,
             Err(err) => {
@@ -611,24 +742,29 @@ impl NativeApp for LobbyApp {
         update::apply_key(self, key);
     }
 
-    fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
+    fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool {
         if self.state.show_resume_sync_overlay {
             if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
+                let before = self.mouse_render_state();
                 self.dismiss_resume_sync_overlay();
+                return before != self.mouse_render_state();
             }
-            return;
+            return false;
         }
         if self.state.route == LobbyRoute::HostedGame {
+            let before = self.mouse_render_state();
+            let mut changed = false;
             if let Some(hosted) = self.state.hosted_game.as_mut() {
-                hosted.dashboard.dispatch_mouse_event(mouse);
+                changed = hosted.dashboard.dispatch_mouse_event(mouse);
                 if hosted.dashboard.should_quit {
                     self.should_quit = true;
                 }
             }
             update::sync_hosted_dashboard_draft(self);
-            return;
+            return changed || before != self.mouse_render_state();
         }
 
+        let before = self.mouse_render_state();
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => self.handle_lobby_mouse_down(mouse),
             MouseEventKind::Drag(MouseButton::Left) => self.handle_lobby_mouse_drag(mouse),
@@ -642,6 +778,7 @@ impl NativeApp for LobbyApp {
             }
             _ => {}
         }
+        before != self.mouse_render_state()
     }
 
     fn resize_canvas(&mut self, cols: u16, rows: u16) {
@@ -658,6 +795,10 @@ impl NativeApp for LobbyApp {
             &self.render_lobby_playfield()?,
             theme::tui_theme().cursor,
         ))
+    }
+
+    fn debug_render_signature(&self) -> Option<String> {
+        Some(self.debug_render_signature_text())
     }
 
     fn on_idle(&mut self) -> bool {
@@ -738,5 +879,43 @@ mod tests {
             modifiers: KeyModifiers::empty(),
         });
         assert!(!<LobbyApp as NativeApp>::is_dragging_surface(&app));
+    }
+
+    #[test]
+    fn passive_home_mouse_move_without_drag_reports_no_redraw() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+        assert!(!app.dispatch_mouse_event_for_test(MouseEvent {
+            kind: MouseEventKind::Moved,
+            column: 10,
+            row: 10,
+            modifiers: KeyModifiers::empty(),
+        }));
+    }
+
+    #[test]
+    fn popup_drag_reports_redraw_when_position_changes() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+        let buffer = app.render_for_test().expect("render settings");
+        let row = (0..buffer.height())
+            .find(|&idx| buffer.plain_line(idx).contains(" LOBBY SETTINGS "))
+            .expect("settings title row");
+        let column = buffer
+            .plain_line(row)
+            .find("LOBBY SETTINGS")
+            .expect("settings title") as u16;
+
+        assert!(app.dispatch_mouse_event_for_test(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row: row as u16,
+            modifiers: KeyModifiers::empty(),
+        }));
+        assert!(app.dispatch_mouse_event_for_test(MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: column + 10,
+            row: row as u16 + 2,
+            modifiers: KeyModifiers::empty(),
+        }));
     }
 }

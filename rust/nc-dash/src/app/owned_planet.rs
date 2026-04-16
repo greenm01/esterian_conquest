@@ -113,7 +113,7 @@ impl DashApp {
     pub(crate) fn open_owned_planet_build_specify(&mut self) {
         self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::BuildSpecify);
         if !self.owned_planet_can_afford_any_build() {
-            self.owned_planet_popup.status = Some("No build budget remains.".to_string());
+            self.owned_planet_popup.status = Some("No available budget.".to_string());
             self.owned_planet_popup.mode = OwnedPlanetPopupMode::Browse;
             return;
         }
@@ -196,10 +196,11 @@ impl DashApp {
                 Some(self.owned_planet_build_unavailable_message(kind));
             return Ok(());
         }
-        let qty = if self.owned_planet_popup.input.trim().is_empty() {
+        let raw = self.owned_planet_popup.input.trim();
+        let qty = if raw.is_empty() || raw.eq_ignore_ascii_case("max") {
             max_qty
         } else {
-            match self.owned_planet_popup.input.trim().parse::<u32>() {
+            match raw.parse::<u32>() {
                 Ok(value) => value,
                 Err(_) => {
                     self.owned_planet_popup.status = Some("Enter a valid quantity.".to_string());
