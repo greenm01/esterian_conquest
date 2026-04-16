@@ -7,11 +7,12 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui_wgpu::{Builder, Dimensions, Font, WgpuBackend};
+use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
-use winit::event::{ElementState, Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoopBuilder};
+use winit::event::{ElementState, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder};
 use winit::keyboard::{Key, NamedKey};
-use winit::window::WindowBuilder;
+use winit::window::{Window, WindowAttributes, WindowId};
 
 #[cfg(any(
     target_os = "linux",
@@ -91,6 +92,101 @@ struct AppState {
     last_pos: Option<PhysicalPosition<f64>>,
 }
 
+struct Handler {
+    window_attrs: WindowAttributes,
+    window: Option<Arc<Window>>,
+    terminal: Option<NativeTerminal>,
+    app: AppState,
+}
+
+impl ApplicationHandler for Handler {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_some() {
+            return;
+        }
+        let window = match event_loop.create_window(self.window_attrs.clone()) {
+            Ok(w) => Arc::new(w),
+            Err(err) => {
+                eprintln!("cursor_motion_native_repro: failed to create window: {err}");
+                event_loop.exit();
+                return;
+            }
+        };
+        let terminal = match build_terminal(window.clone()) {
+            Ok(t) => t,
+            Err(err) => {
+                eprintln!("cursor_motion_native_repro: failed to build terminal: {err}");
+                event_loop.exit();
+                return;
+            }
+        };
+        self.window = Some(window);
+        self.terminal = Some(terminal);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        let (Some(window), Some(terminal)) =
+            (self.window.as_ref(), self.terminal.as_mut())
+        else {
+            return;
+        };
+        event_loop.set_control_flow(ControlFlow::Wait);
+        match event {
+            WindowEvent::CloseRequested => {
+                eprintln!("cursor_motion_native_repro: close requested");
+                event_loop.exit();
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == ElementState::Pressed
+                    && matches!(event.logical_key, Key::Named(NamedKey::Escape))
+                {
+                    eprintln!("cursor_motion_native_repro: escape pressed");
+                    event_loop.exit();
+                }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.app.motion_count += 1;
+                self.app.last_pos = Some(position);
+                eprintln!(
+                    "cursor_motion_native_repro: motion #{}, x={:.3}, y={:.3}",
+                    self.app.motion_count, position.x, position.y
+                );
+                window.request_redraw();
+            }
+            WindowEvent::RedrawRequested => {
+                let size = window.inner_size();
+                terminal.backend_mut().resize(size.width.max(1), size.height.max(1));
+                if let Err(err) = terminal.draw(|frame| render_frame(frame, &self.app)) {
+                    eprintln!("cursor_motion_native_repro: draw failed: {err}");
+                    event_loop.exit();
+                    return;
+                }
+                self.app.frame_count += 1;
+                self.app.redraw_count += 1;
+                eprintln!(
+                    "cursor_motion_native_repro: frame {} rendered",
+                    self.app.frame_count
+                );
+            }
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        if self.app.frame_count == 0 {
+            window.request_redraw();
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_args()?;
     eprintln!(
@@ -99,71 +195,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::id()
     );
 
-    let mut builder = EventLoopBuilder::new();
-    apply_backend_preference(&mut builder, options.backend)?;
-    let event_loop = builder.build()?;
+    let mut event_loop_builder = EventLoop::builder();
+    apply_backend_preference(&mut event_loop_builder, options.backend)?;
+    let event_loop = event_loop_builder.build()?;
 
-    let window = Arc::new(
-        WindowBuilder::new()
-            .with_title("nc-dash cursor motion repro")
-            .with_inner_size(LogicalSize::new(1200.0, 720.0))
-            .with_resizable(true)
-            .build(&event_loop)?,
-    );
+    let window_attrs = Window::default_attributes()
+        .with_title("nc-dash cursor motion repro")
+        .with_inner_size(LogicalSize::new(1200.0, 720.0))
+        .with_resizable(true);
 
-    let mut terminal = build_terminal(window.clone())?;
-    let mut app = AppState::default();
-
-    event_loop.run(move |event, elwt| {
-        elwt.set_control_flow(ControlFlow::Wait);
-        match event {
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => {
-                    eprintln!("cursor_motion_native_repro: close requested");
-                    elwt.exit();
-                }
-                WindowEvent::KeyboardInput { event, .. } => {
-                    if event.state == ElementState::Pressed
-                        && matches!(event.logical_key, Key::Named(NamedKey::Escape))
-                    {
-                        eprintln!("cursor_motion_native_repro: escape pressed");
-                        elwt.exit();
-                    }
-                }
-                WindowEvent::CursorMoved { position, .. } => {
-                    app.motion_count += 1;
-                    app.last_pos = Some(position);
-                    eprintln!(
-                        "cursor_motion_native_repro: motion #{}, x={:.3}, y={:.3}",
-                        app.motion_count, position.x, position.y
-                    );
-                    window.request_redraw();
-                }
-                WindowEvent::RedrawRequested => {
-                    let size = window.inner_size();
-                    terminal.backend_mut().resize(size.width.max(1), size.height.max(1));
-                    if let Err(err) = terminal.draw(|frame| render_frame(frame, &app)) {
-                        eprintln!("cursor_motion_native_repro: draw failed: {err}");
-                        elwt.exit();
-                        return;
-                    }
-                    app.frame_count += 1;
-                    app.redraw_count += 1;
-                    eprintln!(
-                        "cursor_motion_native_repro: frame {} rendered",
-                        app.frame_count
-                    );
-                }
-                _ => {}
-            },
-            Event::AboutToWait => {
-                if app.frame_count == 0 {
-                    window.request_redraw();
-                }
-            }
-            _ => {}
-        }
-    })?;
+    let mut handler = Handler {
+        window_attrs,
+        window: None,
+        terminal: None,
+        app: AppState::default(),
+    };
+    event_loop.run_app(&mut handler)?;
 
     Ok(())
 }

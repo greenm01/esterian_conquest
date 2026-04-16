@@ -6,11 +6,12 @@ use nc_dash::{RenderedUi, blit_rendered_ui};
 use ratatui::Terminal;
 use ratatui::style::Style;
 use ratatui_wgpu::{Builder, Dimensions, Font, WgpuBackend};
+use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, Event, MouseButton, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoopBuilder};
+use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder};
 use winit::keyboard::{Key, NamedKey};
-use winit::window::WindowBuilder;
+use winit::window::{Window, WindowAttributes, WindowId};
 
 #[cfg(any(
     target_os = "linux",
@@ -123,9 +124,9 @@ pub fn run_rendered_ui_repro(
 pub fn run_stateful_rendered_ui_repro<S: 'static>(
     title: &str,
     backend: BackendPreference,
-    mut state: S,
-    mut render_ui: impl FnMut(&mut S) -> Result<RenderedUi, Box<dyn std::error::Error>> + 'static,
-    mut run_step: impl FnMut(&mut S, usize) -> Option<&'static str> + 'static,
+    state: S,
+    render_ui: impl FnMut(&mut S) -> Result<RenderedUi, Box<dyn std::error::Error>> + 'static,
+    run_step: impl FnMut(&mut S, usize) -> Option<&'static str> + 'static,
 ) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!(
         "{}: backend={}, pid={}",
@@ -134,38 +135,77 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
         std::process::id()
     );
 
-    let mut builder = EventLoopBuilder::new();
-    apply_backend_preference(&mut builder, backend)?;
-    let event_loop = builder.build()?;
+    let mut event_loop_builder = EventLoop::builder();
+    apply_backend_preference(&mut event_loop_builder, backend)?;
+    let event_loop = event_loop_builder.build()?;
 
-    let window = Arc::new(
-        WindowBuilder::new()
-            .with_title(title)
-            .with_inner_size(LogicalSize::new(1200.0, 720.0))
-            .with_resizable(true)
-            .build(&event_loop)?,
-    );
+    let window_attrs = Window::default_attributes()
+        .with_title(title.to_string())
+        .with_inner_size(LogicalSize::new(1200.0, 720.0))
+        .with_resizable(true);
 
-    let mut terminal = build_terminal(window.clone())?;
-    let mut first_frame_at: Option<Instant> = None;
-    let mut next_step_at: Option<Instant> = None;
-    let mut next_step_index = 0usize;
-    let mut frame_count = 0u32;
+    struct ReproHandler<S: 'static> {
+        title: String,
+        window_attrs: WindowAttributes,
+        state: S,
+        render_ui: Box<dyn FnMut(&mut S) -> Result<RenderedUi, Box<dyn std::error::Error>>>,
+        run_step: Box<dyn FnMut(&mut S, usize) -> Option<&'static str>>,
+        window: Option<Arc<Window>>,
+        terminal: Option<NativeTerminal>,
+        first_frame_at: Option<Instant>,
+        next_step_at: Option<Instant>,
+        next_step_index: usize,
+        frame_count: u32,
+    }
 
-    event_loop.run(move |event, elwt| {
-        elwt.set_control_flow(ControlFlow::Wait);
-        match event {
-            Event::WindowEvent { event, .. } => match event {
+    impl<S: 'static> ApplicationHandler for ReproHandler<S> {
+        fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+            if self.window.is_some() {
+                return;
+            }
+            let window = match event_loop.create_window(self.window_attrs.clone()) {
+                Ok(w) => Arc::new(w),
+                Err(err) => {
+                    eprintln!("{}: failed to create window: {err}", self.title);
+                    event_loop.exit();
+                    return;
+                }
+            };
+            let terminal = match build_terminal(window.clone()) {
+                Ok(t) => t,
+                Err(err) => {
+                    eprintln!("{}: failed to build terminal: {err}", self.title);
+                    event_loop.exit();
+                    return;
+                }
+            };
+            self.window = Some(window);
+            self.terminal = Some(terminal);
+        }
+
+        fn window_event(
+            &mut self,
+            event_loop: &ActiveEventLoop,
+            _window_id: WindowId,
+            event: WindowEvent,
+        ) {
+            let (Some(window), Some(terminal)) =
+                (self.window.as_ref(), self.terminal.as_mut())
+            else {
+                return;
+            };
+            event_loop.set_control_flow(ControlFlow::Wait);
+            match event {
                 WindowEvent::CloseRequested => {
-                    eprintln!("{title}: close requested");
-                    elwt.exit();
+                    eprintln!("{}: close requested", self.title);
+                    event_loop.exit();
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
                     if event.state == ElementState::Pressed
                         && matches!(event.logical_key, Key::Named(NamedKey::Escape))
                     {
-                        eprintln!("{title}: escape pressed");
-                        elwt.exit();
+                        eprintln!("{}: escape pressed", self.title);
+                        event_loop.exit();
                     }
                 }
                 WindowEvent::MouseInput {
@@ -173,17 +213,17 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
                     button: MouseButton::Left,
                     ..
                 } => {
-                    eprintln!("{title}: left click released, requesting redraw");
+                    eprintln!("{}: left click released, requesting redraw", self.title);
                     window.request_redraw();
                 }
                 WindowEvent::RedrawRequested => {
                     let size = window.inner_size();
                     terminal.backend_mut().resize(size.width.max(1), size.height.max(1));
-                    let rendered = match render_ui(&mut state) {
+                    let rendered = match (self.render_ui)(&mut self.state) {
                         Ok(rendered) => rendered,
                         Err(err) => {
-                            eprintln!("{title}: render_ui failed: {err}");
-                            elwt.exit();
+                            eprintln!("{}: render_ui failed: {err}", self.title);
+                            event_loop.exit();
                             return;
                         }
                     };
@@ -191,42 +231,71 @@ pub fn run_stateful_rendered_ui_repro<S: 'static>(
                         let area = frame.area();
                         blit_rendered_ui(frame.buffer_mut(), area, &rendered, Style::default())
                     }) {
-                        eprintln!("{title}: draw failed: {err}");
-                        elwt.exit();
+                        eprintln!("{}: draw failed: {err}", self.title);
+                        event_loop.exit();
                         return;
                     }
-                    frame_count += 1;
-                    if first_frame_at.is_none() {
-                        first_frame_at = Some(Instant::now());
-                        next_step_at = first_frame_at.map(|started| started + Duration::from_millis(500));
-                        eprintln!("{title}: first frame rendered");
+                    self.frame_count += 1;
+                    if self.first_frame_at.is_none() {
+                        self.first_frame_at = Some(Instant::now());
+                        self.next_step_at = self
+                            .first_frame_at
+                            .map(|started| started + Duration::from_millis(500));
+                        eprintln!("{}: first frame rendered", self.title);
                     } else {
-                        eprintln!("{title}: frame {frame_count} rendered");
+                        eprintln!("{}: frame {} rendered", self.title, self.frame_count);
                     }
                 }
                 _ => {}
-            },
-            Event::AboutToWait => {
-                if first_frame_at.is_none() {
-                    window.request_redraw();
-                    return;
-                }
-                if next_step_at.is_some_and(|deadline| Instant::now() >= deadline) {
-                    let current_step = next_step_index;
-                    next_step_index += 1;
-                    if let Some(label) = run_step(&mut state, current_step) {
-                        eprintln!("{title}: step {} -> {}", current_step + 1, label);
-                        next_step_at = Some(Instant::now() + Duration::from_millis(500));
-                    } else {
-                        eprintln!("{title}: scripted steps complete");
-                        next_step_at = None;
-                    }
-                    window.request_redraw();
-                }
             }
-            _ => {}
         }
-    })?;
+
+        fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+            let Some(window) = self.window.as_ref() else {
+                return;
+            };
+            if self.first_frame_at.is_none() {
+                window.request_redraw();
+                return;
+            }
+            if self
+                .next_step_at
+                .is_some_and(|deadline| Instant::now() >= deadline)
+            {
+                let current_step = self.next_step_index;
+                self.next_step_index += 1;
+                if let Some(label) = (self.run_step)(&mut self.state, current_step) {
+                    eprintln!(
+                        "{}: step {} -> {}",
+                        self.title,
+                        current_step + 1,
+                        label
+                    );
+                    self.next_step_at = Some(Instant::now() + Duration::from_millis(500));
+                } else {
+                    eprintln!("{}: scripted steps complete", self.title);
+                    self.next_step_at = None;
+                }
+                window.request_redraw();
+            }
+            let _ = event_loop;
+        }
+    }
+
+    let mut handler = ReproHandler {
+        title: title.to_string(),
+        window_attrs,
+        state,
+        render_ui: Box::new(render_ui),
+        run_step: Box::new(run_step),
+        window: None,
+        terminal: None,
+        first_frame_at: None,
+        next_step_at: None,
+        next_step_index: 0,
+        frame_count: 0,
+    };
+    event_loop.run_app(&mut handler)?;
 
     Ok(())
 }

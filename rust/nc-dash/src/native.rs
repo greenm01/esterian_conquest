@@ -12,12 +12,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::info;
+use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::error::EventLoopError;
-use winit::event::{Event, MouseButton as WinitMouseButton, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoopBuilder};
+use winit::event::{MouseButton as WinitMouseButton, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder};
 use winit::keyboard::ModifiersState;
-use winit::window::{Fullscreen, WindowBuilder};
+use winit::window::{Fullscreen, Window, WindowAttributes, WindowId};
 
 #[cfg(any(
     target_os = "linux",
@@ -530,6 +531,430 @@ fn capture_signature<T: NativeApp>(app: &T) -> String {
         .unwrap_or_else(|| "<no-signature>".to_string())
 }
 
+struct NativeEventHandler<T: NativeApp> {
+    native_options: NativeLaunchOptions,
+    session_backend: &'static str,
+    window_attrs: WindowAttributes,
+    diagnostics: Rc<RefCell<NativeDiagnostics>>,
+    window: Option<Arc<Window>>,
+    renderer: Option<CellGridWindowRenderer>,
+    shell: Option<NativeShell<T>>,
+    app_factory: Option<T>,
+}
+
+impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_some() {
+            return;
+        }
+        let app = self
+            .app_factory
+            .take()
+            .expect("app_factory consumed in resumed");
+        self.diagnostics
+            .borrow_mut()
+            .set_stage(NativeStage::WindowCreate);
+        let window = match event_loop.create_window(self.window_attrs.clone()) {
+            Ok(w) => Arc::new(w),
+            Err(err) => {
+                crate::show_fatal_error(&native_error(
+                    "unable to create nc-dash window",
+                    self.native_options,
+                    self.session_backend,
+                    &self.diagnostics.borrow(),
+                    &err.to_string(),
+                ));
+                event_loop.exit();
+                return;
+            }
+        };
+        self.diagnostics
+            .borrow_mut()
+            .set_stage(NativeStage::RendererInit);
+        let renderer = match CellGridWindowRenderer::new(window.clone()) {
+            Ok(r) => r,
+            Err(err) => {
+                crate::show_fatal_error(&native_error(
+                    "unable to initialize nc-dash renderer",
+                    self.native_options,
+                    self.session_backend,
+                    &self.diagnostics.borrow(),
+                    &err.to_string(),
+                ));
+                event_loop.exit();
+                return;
+            }
+        };
+        let initial_size = window.inner_size();
+        let mut shell = NativeShell::new(app, initial_size.width, initial_size.height);
+        shell.suppress_passive_hover_redraws = self.session_backend == "wayland";
+        shell.serialize_redraws = self.native_options.serialize_redraws;
+        if shell.suppress_passive_hover_redraws && self.native_options.diagnostic_mode {
+            info!(
+                target: "nc_dash::native",
+                "passive hover redraws suppressed on wayland"
+            );
+        }
+        if shell.serialize_redraws && self.native_options.diagnostic_mode {
+            info!(
+                target: "nc_dash::native",
+                "serialize_redraws diagnostic mode enabled"
+            );
+        }
+        self.diagnostics
+            .borrow_mut()
+            .set_stage(NativeStage::InitialResize);
+        dispatch(
+            &mut shell,
+            window.as_ref(),
+            &self.diagnostics,
+            NativeMsg::WindowResized {
+                pixel_width: initial_size.width,
+                pixel_height: initial_size.height,
+            },
+            false,
+        );
+        self.window = Some(window);
+        self.renderer = Some(renderer);
+        self.shell = Some(shell);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        let Some(shell) = self.shell.as_mut() else {
+            return;
+        };
+        match event {
+            WindowEvent::CloseRequested => {
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::CloseRequested,
+                    true,
+                );
+            }
+            WindowEvent::ModifiersChanged(modifiers) => {
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::ModifiersChanged(modifiers.state()),
+                    false,
+                );
+            }
+            WindowEvent::Resized(size) => {
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::WindowResized {
+                        pixel_width: size.width,
+                        pixel_height: size.height,
+                    },
+                    false,
+                );
+            }
+            WindowEvent::ScaleFactorChanged { .. } => {
+                let size = window.inner_size();
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::WindowResized {
+                        pixel_width: size.width,
+                        pixel_height: size.height,
+                    },
+                    false,
+                );
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.diagnostics
+                    .borrow_mut()
+                    .set_last_input_cause(NativeInputCause::MouseMove);
+                shell.app.note_user_activity(Instant::now());
+                let pointer = pointer_from_position(shell, position);
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::QueuePointer(pointer),
+                    false,
+                );
+            }
+            WindowEvent::CursorLeft { .. } => {
+                self.diagnostics
+                    .borrow_mut()
+                    .set_last_input_cause(NativeInputCause::MouseMove);
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::QueuePointer(PendingPointer::Outside),
+                    false,
+                );
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.diagnostics.borrow_mut().set_last_input_cause(
+                    match (button, state.is_pressed()) {
+                        (WinitMouseButton::Left, true) => NativeInputCause::MouseDownLeft,
+                        (WinitMouseButton::Left, false) => NativeInputCause::MouseUpLeft,
+                        (WinitMouseButton::Right, true) => NativeInputCause::MouseDownRight,
+                        (WinitMouseButton::Right, false) => NativeInputCause::MouseUpRight,
+                        (_, true) => NativeInputCause::MouseDownOther,
+                        (_, false) => NativeInputCause::MouseUpOther,
+                    },
+                );
+                shell.app.note_user_activity(Instant::now());
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::MouseButton {
+                        button,
+                        pressed: state.is_pressed(),
+                    },
+                    true,
+                );
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                let Some(key) = crossterm_key_event_from_winit(&event, shell.modifiers) else {
+                    return;
+                };
+                self.diagnostics
+                    .borrow_mut()
+                    .set_last_input_cause(NativeInputCause::Key);
+                shell.app.note_user_activity(Instant::now());
+                dispatch(
+                    shell,
+                    window.as_ref(),
+                    &self.diagnostics,
+                    NativeMsg::KeyInput(key),
+                    true,
+                );
+            }
+            WindowEvent::RedrawRequested => {
+                shell.redraw_requested = false;
+                sync_window_size(shell, window.as_ref());
+                let was_drag_redraw = shell.drag_redraw_pending;
+                let _ = shell.flush_pointer(false);
+                if shell.app.should_quit() {
+                    event_loop.exit();
+                    return;
+                }
+                let size = window.inner_size();
+                let Some(renderer) = self.renderer.as_mut() else {
+                    return;
+                };
+                match shell.app.render_ui() {
+                    Ok(rendered) => {
+                        shell.render_count += 1;
+                        let render_seq = {
+                            let mut diagnostics = self.diagnostics.borrow_mut();
+                            diagnostics.next_render_seq()
+                        };
+                        if self.native_options.diagnostic_mode {
+                            let signature = capture_signature(&shell.app);
+                            info!(
+                                target: "nc_dash::native",
+                                render_seq,
+                                render_count = shell.render_count,
+                                cause = shell.pending_redraw_cause.map(NativeRedrawCause::label),
+                                signature = %signature,
+                                "native render begin"
+                            );
+                        }
+                        self.diagnostics
+                            .borrow_mut()
+                            .set_stage(NativeStage::FirstFrameRender);
+                        if let Err(err) = renderer.render(&rendered, size.width, size.height) {
+                            crate::show_fatal_error(&native_error(
+                                "unable to render nc-dash window",
+                                self.native_options,
+                                self.session_backend,
+                                &self.diagnostics.borrow(),
+                                &err.to_string(),
+                            ));
+                            event_loop.exit();
+                        } else {
+                            if was_drag_redraw || shell.hover_redraw_pending_since.is_some() {
+                                shell.note_rendered_frame(Instant::now());
+                            }
+                            let mut diagnostics = self.diagnostics.borrow_mut();
+                            diagnostics.first_frame_rendered = true;
+                            diagnostics.set_stage(NativeStage::FirstFrameRendered);
+                            shell.pending_redraw_cause = None;
+                            shell.needs_redraw = false;
+                            if self.native_options.diagnostic_mode {
+                                let signature = capture_signature(&shell.app);
+                                info!(
+                                    target: "nc_dash::native",
+                                    render_seq,
+                                    render_count = shell.render_count,
+                                    signature = %signature,
+                                    "native render end"
+                                );
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        crate::show_fatal_error(&err.to_string());
+                        event_loop.exit();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        event_loop.set_control_flow(ControlFlow::Wait);
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        let Some(shell) = self.shell.as_mut() else {
+            return;
+        };
+        if !self.diagnostics.borrow().first_frame_rendered {
+            self.diagnostics
+                .borrow_mut()
+                .set_stage(NativeStage::EventLoopWait);
+        }
+        sync_window_size(shell, window.as_ref());
+        if !shell.redraw_requested
+            && !shell.is_dragging_surface()
+            && shell.pending_pointer.is_some()
+        {
+            dispatch(
+                shell,
+                window.as_ref(),
+                &self.diagnostics,
+                NativeMsg::FlushPointer,
+                false,
+            );
+        }
+        let skip_idle =
+            shell.serialize_redraws && (shell.needs_redraw || shell.redraw_requested);
+        if skip_idle && self.native_options.diagnostic_mode {
+            info!(
+                target: "nc_dash::native",
+                needs_redraw = shell.needs_redraw,
+                redraw_requested = shell.redraw_requested,
+                "native idle skipped by serialize_redraws"
+            );
+        } else {
+            let before_signature = if self.native_options.diagnostic_mode {
+                Some(capture_signature(&shell.app))
+            } else {
+                None
+            };
+            let idle_changed = shell.app.on_idle();
+            if idle_changed {
+                let idle_seq = {
+                    let mut diagnostics = self.diagnostics.borrow_mut();
+                    diagnostics.set_last_input_cause(NativeInputCause::Idle);
+                    diagnostics.next_idle_seq()
+                };
+                shell.needs_redraw = true;
+                shell.pending_redraw_cause = Some(NativeRedrawCause::Idle);
+                if self.native_options.diagnostic_mode {
+                    let after_signature = capture_signature(&shell.app);
+                    info!(
+                        target: "nc_dash::native",
+                        idle_seq,
+                        before = before_signature.as_deref().unwrap_or("<no-signature>"),
+                        after = %after_signature,
+                        "native idle changed state"
+                    );
+                }
+            } else if self.native_options.diagnostic_mode {
+                let idle_seq = self.diagnostics.borrow_mut().next_idle_seq();
+                let after_signature = capture_signature(&shell.app);
+                info!(
+                    target: "nc_dash::native",
+                    idle_seq,
+                    before = before_signature.as_deref().unwrap_or("<no-signature>"),
+                    after = %after_signature,
+                    "native idle no-op"
+                );
+            }
+        }
+        if shell.app.should_quit() {
+            event_loop.exit();
+        } else {
+            let now = Instant::now();
+            match shell.next_redraw_schedule(now) {
+                RedrawSchedule::Immediate => {
+                    if !self.diagnostics.borrow().first_frame_rendered {
+                        self.diagnostics
+                            .borrow_mut()
+                            .set_stage(NativeStage::FirstRedrawRequested);
+                    }
+                    if let Some(cause) = shell.pending_redraw_cause {
+                        self.diagnostics.borrow_mut().set_last_redraw_cause(cause);
+                    }
+                    if self.native_options.diagnostic_mode {
+                        let redraw_seq = self.diagnostics.borrow_mut().next_redraw_seq();
+                        info!(
+                            target: "nc_dash::native",
+                            redraw_seq,
+                            source = "about_to_wait_immediate",
+                            cause = shell.pending_redraw_cause.map(NativeRedrawCause::label),
+                            "native redraw requested"
+                        );
+                    }
+                    window.request_redraw();
+                    shell.redraw_requested = true;
+                }
+                RedrawSchedule::Deferred(deadline) => {
+                    event_loop.set_control_flow(ControlFlow::WaitUntil(
+                        combine_deadlines(Some(deadline), shell.app.next_wakeup())
+                            .expect("deferred redraw has a deadline"),
+                    ));
+                }
+                RedrawSchedule::None => {
+                    if let Some(deadline) = shell.app.next_wakeup() {
+                        if deadline <= now {
+                            if !self.diagnostics.borrow().first_frame_rendered {
+                                self.diagnostics
+                                    .borrow_mut()
+                                    .set_stage(NativeStage::FirstRedrawRequested);
+                            }
+                            if let Some(cause) = shell.pending_redraw_cause {
+                                self.diagnostics.borrow_mut().set_last_redraw_cause(cause);
+                            }
+                            if self.native_options.diagnostic_mode {
+                                let redraw_seq =
+                                    self.diagnostics.borrow_mut().next_redraw_seq();
+                                info!(
+                                    target: "nc_dash::native",
+                                    redraw_seq,
+                                    source = "about_to_wait_wakeup",
+                                    cause = shell
+                                        .pending_redraw_cause
+                                        .map(NativeRedrawCause::label),
+                                    "native redraw requested"
+                                );
+                            }
+                            window.request_redraw();
+                            shell.redraw_requested = true;
+                        } else {
+                            event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub fn run<T: NativeApp>(
     app: T,
     native_options: NativeLaunchOptions,
@@ -558,7 +983,7 @@ pub fn run<T: NativeApp>(
     diagnostics
         .borrow_mut()
         .set_stage(NativeStage::EventLoopBuild);
-    let mut event_loop_builder = EventLoopBuilder::new();
+    let mut event_loop_builder = EventLoop::builder();
     apply_backend_preference(&mut event_loop_builder, native_options.backend_preference)?;
     let event_loop = event_loop_builder.build().map_err(|err| {
         native_error(
@@ -569,404 +994,35 @@ pub fn run<T: NativeApp>(
             &err.to_string(),
         )
     })?;
+
     let geometry = app.geometry();
     let logical_width = (geometry.width() * crate::native_grid::DEFAULT_CELL_WIDTH) as f64;
     let logical_height = (geometry.height() * crate::native_grid::DEFAULT_CELL_HEIGHT) as f64;
-    let builder = WindowBuilder::new()
+    let mut window_attrs = Window::default_attributes()
         .with_title(app.window_title())
         .with_inner_size(LogicalSize::new(logical_width, logical_height))
         .with_decorations(session_backend != "wayland")
         .with_resizable(true);
-    let builder = match native_options.window_mode {
-        NativeWindowMode::MaximizedWindow => builder.with_maximized(true),
+    window_attrs = match native_options.window_mode {
+        NativeWindowMode::MaximizedWindow => window_attrs.with_maximized(true),
         NativeWindowMode::BorderlessFullscreen => {
-            builder.with_fullscreen(Some(Fullscreen::Borderless(None)))
+            window_attrs.with_fullscreen(Some(Fullscreen::Borderless(None)))
         }
     };
-    diagnostics
-        .borrow_mut()
-        .set_stage(NativeStage::WindowCreate);
-    let window = Arc::new(builder.build(&event_loop).map_err(|err| {
-        native_error(
-            "unable to create nc-dash window",
-            native_options,
-            session_backend,
-            &diagnostics.borrow(),
-            &err.to_string(),
-        )
-    })?);
-    diagnostics
-        .borrow_mut()
-        .set_stage(NativeStage::RendererInit);
-    let mut renderer = CellGridWindowRenderer::new(window.clone()).map_err(|err| {
-        native_error(
-            "unable to initialize nc-dash renderer",
-            native_options,
-            session_backend,
-            &diagnostics.borrow(),
-            &err.to_string(),
-        )
-    })?;
-    let initial_size = window.inner_size();
-    let mut shell = NativeShell::new(app, initial_size.width, initial_size.height);
-    shell.suppress_passive_hover_redraws = session_backend == "wayland";
-    shell.serialize_redraws = native_options.serialize_redraws;
-    if shell.suppress_passive_hover_redraws && native_options.diagnostic_mode {
-        info!(
-            target: "nc_dash::native",
-            "passive hover redraws suppressed on wayland"
-        );
-    }
-    if shell.serialize_redraws && native_options.diagnostic_mode {
-        info!(
-            target: "nc_dash::native",
-            "serialize_redraws diagnostic mode enabled"
-        );
-    }
-    diagnostics
-        .borrow_mut()
-        .set_stage(NativeStage::InitialResize);
-    dispatch(
-        &mut shell,
-        window.as_ref(),
-        &diagnostics,
-        NativeMsg::WindowResized {
-            pixel_width: initial_size.width,
-            pixel_height: initial_size.height,
-        },
-        false,
-    );
 
-    let run_diagnostics = diagnostics.clone();
-    event_loop
-        .run(move |event, elwt| {
-            elwt.set_control_flow(ControlFlow::Wait);
-            match event {
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => {
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::CloseRequested,
-                            true,
-                        );
-                    }
-                    WindowEvent::ModifiersChanged(modifiers) => {
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::ModifiersChanged(modifiers.state()),
-                            false,
-                        );
-                    }
-                    WindowEvent::Resized(size) => {
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::WindowResized {
-                                pixel_width: size.width,
-                                pixel_height: size.height,
-                            },
-                            false,
-                        );
-                    }
-                    WindowEvent::ScaleFactorChanged { .. } => {
-                        let size = window.inner_size();
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::WindowResized {
-                                pixel_width: size.width,
-                                pixel_height: size.height,
-                            },
-                            false,
-                        );
-                    }
-                    WindowEvent::CursorMoved { position, .. } => {
-                        run_diagnostics
-                            .borrow_mut()
-                            .set_last_input_cause(NativeInputCause::MouseMove);
-                        shell.app.note_user_activity(Instant::now());
-                        let pointer = pointer_from_position(&shell, position);
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::QueuePointer(pointer),
-                            false,
-                        );
-                    }
-                    WindowEvent::CursorLeft { .. } => {
-                        run_diagnostics
-                            .borrow_mut()
-                            .set_last_input_cause(NativeInputCause::MouseMove);
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::QueuePointer(PendingPointer::Outside),
-                            false,
-                        );
-                    }
-                    WindowEvent::MouseInput { state, button, .. } => {
-                        run_diagnostics.borrow_mut().set_last_input_cause(
-                            match (button, state.is_pressed()) {
-                                (WinitMouseButton::Left, true) => NativeInputCause::MouseDownLeft,
-                                (WinitMouseButton::Left, false) => NativeInputCause::MouseUpLeft,
-                                (WinitMouseButton::Right, true) => {
-                                    NativeInputCause::MouseDownRight
-                                }
-                                (WinitMouseButton::Right, false) => {
-                                    NativeInputCause::MouseUpRight
-                                }
-                                (_, true) => NativeInputCause::MouseDownOther,
-                                (_, false) => NativeInputCause::MouseUpOther,
-                            },
-                        );
-                        shell.app.note_user_activity(Instant::now());
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::MouseButton {
-                                button,
-                                pressed: state.is_pressed(),
-                            },
-                            true,
-                        );
-                    }
-                    WindowEvent::KeyboardInput { event, .. } => {
-                        let Some(key) = crossterm_key_event_from_winit(&event, shell.modifiers)
-                        else {
-                            return;
-                        };
-                        run_diagnostics
-                            .borrow_mut()
-                            .set_last_input_cause(NativeInputCause::Key);
-                        shell.app.note_user_activity(Instant::now());
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::KeyInput(key),
-                            true,
-                        );
-                    }
-                    WindowEvent::RedrawRequested => {
-                        shell.redraw_requested = false;
-                        sync_window_size(&mut shell, window.as_ref());
-                        let was_drag_redraw = shell.drag_redraw_pending;
-                        let _ = shell.flush_pointer(false);
-                        if shell.app.should_quit() {
-                            elwt.exit();
-                            return;
-                        }
-                        let size = window.inner_size();
-                        match shell.app.render_ui() {
-                            Ok(rendered) => {
-                                shell.render_count += 1;
-                                let render_seq = {
-                                    let mut diagnostics = run_diagnostics.borrow_mut();
-                                    diagnostics.next_render_seq()
-                                };
-                                if native_options.diagnostic_mode {
-                                    let signature = capture_signature(&shell.app);
-                                    info!(
-                                        target: "nc_dash::native",
-                                        render_seq,
-                                        render_count = shell.render_count,
-                                        cause = shell.pending_redraw_cause.map(NativeRedrawCause::label),
-                                        signature = %signature,
-                                        "native render begin"
-                                    );
-                                }
-                                run_diagnostics
-                                    .borrow_mut()
-                                    .set_stage(NativeStage::FirstFrameRender);
-                                if let Err(err) =
-                                    renderer.render(&rendered, size.width, size.height)
-                                {
-                                    crate::show_fatal_error(&native_error(
-                                        "unable to render nc-dash window",
-                                        native_options,
-                                        session_backend,
-                                        &run_diagnostics.borrow(),
-                                        &err.to_string(),
-                                    ));
-                                    elwt.exit();
-                                } else {
-                                    if was_drag_redraw || shell.hover_redraw_pending_since.is_some()
-                                    {
-                                        shell.note_rendered_frame(Instant::now());
-                                    }
-                                    let mut diagnostics = run_diagnostics.borrow_mut();
-                                    diagnostics.first_frame_rendered = true;
-                                    diagnostics.set_stage(NativeStage::FirstFrameRendered);
-                                    shell.pending_redraw_cause = None;
-                                    shell.needs_redraw = false;
-                                    if native_options.diagnostic_mode {
-                                        let signature = capture_signature(&shell.app);
-                                        info!(
-                                            target: "nc_dash::native",
-                                            render_seq,
-                                            render_count = shell.render_count,
-                                            signature = %signature,
-                                            "native render end"
-                                        );
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                crate::show_fatal_error(&err.to_string());
-                                elwt.exit();
-                            }
-                        }
-                    }
-                    _ => {}
-                },
-                Event::AboutToWait => {
-                    if !run_diagnostics.borrow().first_frame_rendered {
-                        run_diagnostics
-                            .borrow_mut()
-                            .set_stage(NativeStage::EventLoopWait);
-                    }
-                    sync_window_size(&mut shell, window.as_ref());
-                    if !shell.redraw_requested
-                        && !shell.is_dragging_surface()
-                        && shell.pending_pointer.is_some()
-                    {
-                        dispatch(
-                            &mut shell,
-                            window.as_ref(),
-                            &run_diagnostics,
-                            NativeMsg::FlushPointer,
-                            false,
-                        );
-                    }
-                    let skip_idle = shell.serialize_redraws && (shell.needs_redraw || shell.redraw_requested);
-                    if skip_idle && native_options.diagnostic_mode {
-                        info!(
-                            target: "nc_dash::native",
-                            needs_redraw = shell.needs_redraw,
-                            redraw_requested = shell.redraw_requested,
-                            "native idle skipped by serialize_redraws"
-                        );
-                    } else {
-                        let before_signature = if native_options.diagnostic_mode {
-                            Some(capture_signature(&shell.app))
-                        } else {
-                            None
-                        };
-                        let idle_changed = shell.app.on_idle();
-                        if idle_changed {
-                            let idle_seq = {
-                                let mut diagnostics = run_diagnostics.borrow_mut();
-                                diagnostics.set_last_input_cause(NativeInputCause::Idle);
-                                diagnostics.next_idle_seq()
-                            };
-                            shell.needs_redraw = true;
-                            shell.pending_redraw_cause = Some(NativeRedrawCause::Idle);
-                            if native_options.diagnostic_mode {
-                                let after_signature = capture_signature(&shell.app);
-                                info!(
-                                    target: "nc_dash::native",
-                                    idle_seq,
-                                    before = before_signature.as_deref().unwrap_or("<no-signature>"),
-                                    after = %after_signature,
-                                    "native idle changed state"
-                                );
-                            }
-                        } else if native_options.diagnostic_mode {
-                            let idle_seq = run_diagnostics.borrow_mut().next_idle_seq();
-                            let after_signature = capture_signature(&shell.app);
-                            info!(
-                                target: "nc_dash::native",
-                                idle_seq,
-                                before = before_signature.as_deref().unwrap_or("<no-signature>"),
-                                after = %after_signature,
-                                "native idle no-op"
-                            );
-                        }
-                    }
-                    if shell.app.should_quit() {
-                        elwt.exit();
-                    } else {
-                        let now = Instant::now();
-                        match shell.next_redraw_schedule(now) {
-                            RedrawSchedule::Immediate => {
-                                if !run_diagnostics.borrow().first_frame_rendered {
-                                    run_diagnostics
-                                        .borrow_mut()
-                                        .set_stage(NativeStage::FirstRedrawRequested);
-                                }
-                                if let Some(cause) = shell.pending_redraw_cause {
-                                    run_diagnostics.borrow_mut().set_last_redraw_cause(cause);
-                                }
-                                if native_options.diagnostic_mode {
-                                    let redraw_seq = run_diagnostics.borrow_mut().next_redraw_seq();
-                                    info!(
-                                        target: "nc_dash::native",
-                                        redraw_seq,
-                                        source = "about_to_wait_immediate",
-                                        cause = shell.pending_redraw_cause.map(NativeRedrawCause::label),
-                                        "native redraw requested"
-                                    );
-                                }
-                                window.request_redraw();
-                                shell.redraw_requested = true;
-                            }
-                            RedrawSchedule::Deferred(deadline) => {
-                                elwt.set_control_flow(ControlFlow::WaitUntil(
-                                    combine_deadlines(Some(deadline), shell.app.next_wakeup())
-                                        .expect("deferred redraw has a deadline"),
-                                ));
-                            }
-                            RedrawSchedule::None => {
-                                if let Some(deadline) = shell.app.next_wakeup() {
-                                    if deadline <= now {
-                                        if !run_diagnostics.borrow().first_frame_rendered {
-                                            run_diagnostics
-                                                .borrow_mut()
-                                                .set_stage(NativeStage::FirstRedrawRequested);
-                                        }
-                                        if let Some(cause) = shell.pending_redraw_cause {
-                                            run_diagnostics
-                                                .borrow_mut()
-                                                .set_last_redraw_cause(cause);
-                                        }
-                                        if native_options.diagnostic_mode {
-                                            let redraw_seq =
-                                                run_diagnostics.borrow_mut().next_redraw_seq();
-                                            info!(
-                                                target: "nc_dash::native",
-                                                redraw_seq,
-                                                source = "about_to_wait_wakeup",
-                                                cause = shell
-                                                    .pending_redraw_cause
-                                                    .map(NativeRedrawCause::label),
-                                                "native redraw requested"
-                                            );
-                                        }
-                                        window.request_redraw();
-                                        shell.redraw_requested = true;
-                                    } else {
-                                        elwt.set_control_flow(ControlFlow::WaitUntil(deadline));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        })
-        .map_err(|err| {
-            map_event_loop_error(err, native_options, session_backend, &diagnostics.borrow())
-        })?;
+    let mut handler = NativeEventHandler {
+        native_options,
+        session_backend,
+        window_attrs,
+        diagnostics: diagnostics.clone(),
+        window: None,
+        renderer: None,
+        shell: None,
+        app_factory: Some(app),
+    };
+    event_loop.run_app(&mut handler).map_err(|err| {
+        map_event_loop_error(err, native_options, session_backend, &diagnostics.borrow())
+    })?;
 
     Ok(())
 }
