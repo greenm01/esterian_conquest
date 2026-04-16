@@ -563,7 +563,7 @@ fn marker_for_world(
             theme::empire_slot_style(world.known_owner_empire_id.unwrap_or(viewer_empire_id)),
         ),
         StarmapMarkerKind::Partial => ('*', theme::value_style()),
-        StarmapMarkerKind::Unknown => ('?', theme::dim_style()),
+        StarmapMarkerKind::Unknown => ('?', theme::value_style()),
     }
 }
 
@@ -604,8 +604,16 @@ mod tests {
             StarmapMarkerKind::Enemy => ('#', theme::empire_slot_style(owner.unwrap())),
             StarmapMarkerKind::Neutral => ('#', theme::empire_slot_style(owner.unwrap())),
             StarmapMarkerKind::Partial => ('*', theme::value_style()),
-            StarmapMarkerKind::Unknown => ('?', theme::dim_style()),
+            StarmapMarkerKind::Unknown => ('?', theme::value_style()),
         }
+    }
+
+    #[test]
+    fn unknown_markers_use_bright_neutral_value_color() {
+        let (_, style) = marker_for_world_kind(None, StarmapMarkerKind::Unknown);
+
+        assert_eq!(style, theme::value_style());
+        assert_ne!(style, theme::dim_style());
     }
 
     #[test]
