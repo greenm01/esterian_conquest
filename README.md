@@ -131,9 +131,10 @@ the player client. That stack is still under construction, but it is the
 intended long-term way to host and join NC over the network without direct BBS
 or localhost access.
 
-`nc-dash` now opens in a maximized native window by default. Use
-`--fullscreen` to force borderless fullscreen if you want the app to request
-that mode directly.
+`nc-dash` now opens in a decorated native window and restores the last saved
+windowed size/state when available. If no saved window state exists yet, it
+falls back to a maximized window. Use `--fullscreen` to force borderless
+fullscreen for that session only.
 
 ## Operator Docs
 

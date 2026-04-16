@@ -217,7 +217,9 @@ impl DashApp {
 
     #[doc(hidden)]
     pub fn screen_point_for_sector_for_repro(&self, target: [u8; 2]) -> Option<(u16, u16)> {
-        let map_frame = crate::layout::dashboard::dashboard_layout(self).widgets.center_map;
+        let map_frame = crate::layout::dashboard::dashboard_layout(self)
+            .widgets
+            .center_map;
         for row in map_frame.grid.row..map_frame.grid.row + map_frame.grid.height {
             for col in map_frame.grid.col..map_frame.grid.col + map_frame.grid.width {
                 if crate::panels::starmap::screen_sector_at_point(self, map_frame, col, row)
@@ -2050,6 +2052,22 @@ impl NativeApp for DashApp {
 
     fn geometry(&self) -> ScreenGeometry {
         self.geometry
+    }
+
+    fn saved_window_state(&self) -> Option<crate::lobby::storage::settings::PersistedWindowState> {
+        self.client_settings.persisted_window_state()
+    }
+
+    fn persist_window_state(
+        &mut self,
+        state: crate::lobby::storage::settings::PersistedWindowState,
+    ) -> Result<(), String> {
+        let Some(path) = self.client_settings_path.as_deref() else {
+            return Ok(());
+        };
+        self.client_settings.set_persisted_window_state(state);
+        crate::client_settings::save_client_settings_to(&self.client_settings, path)
+            .map_err(|err| err.to_string())
     }
 
     fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {

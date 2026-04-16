@@ -477,9 +477,9 @@ impl LobbyApp {
                         .state
                         .active_direct_contact()
                         .is_some_and(|contact| contact.unread_count > 0)
-                    {
-                        if let Some(contact_npub) = self
-                            .state
+                {
+                    if let Some(contact_npub) = self
+                        .state
                         .active_direct_contact()
                         .map(|contact| contact.npub.clone())
                     {
@@ -727,6 +727,20 @@ impl NativeApp for LobbyApp {
 
     fn geometry(&self) -> ScreenGeometry {
         self.geometry
+    }
+
+    fn saved_window_state(&self) -> Option<self::storage::settings::PersistedWindowState> {
+        self.state.settings.persisted_window_state()
+    }
+
+    fn persist_window_state(
+        &mut self,
+        state: self::storage::settings::PersistedWindowState,
+    ) -> Result<(), String> {
+        self.state.settings.set_persisted_window_state(state);
+        self.state.settings_draft.set_persisted_window_state(state);
+        self::storage::settings::save_settings_to(&self.state.settings, &self.settings_path)
+            .map_err(|err| err.to_string())
     }
 
     fn dispatch_key_event(&mut self, key: KeyEvent) {

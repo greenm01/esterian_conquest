@@ -12,7 +12,7 @@ pub enum NativeWindowMode {
 impl NativeWindowMode {
     pub fn cli_label(self) -> &'static str {
         match self {
-            Self::MaximizedWindow => "maximized",
+            Self::MaximizedWindow => "windowed",
             Self::BorderlessFullscreen => "fullscreen",
         }
     }
@@ -203,17 +203,29 @@ pub fn print_usage() {
     eprintln!("    --help, -h       Show this help");
     eprintln!("    --lobby          Open the hosted lobby explicitly");
     eprintln!("    --relay <url>    Override the hosted relay for this session");
-    eprintln!("    --windowed       Open in a maximized window (default)");
-    eprintln!("    --fullscreen     Force borderless fullscreen");
+    eprintln!(
+        "    --windowed       Open in a decorated system window and restore the last saved size/state"
+    );
+    eprintln!("    --fullscreen     Force borderless fullscreen for this session only");
     eprintln!("    --backend <...>  Select native backend: auto (default), wayland, or x11");
     eprintln!(
         "    --diagnostic     Write detailed native startup diagnostics to ~/.local/share/nc/nc-dash.log"
     );
-    eprintln!("    --serialize-redraws  Defer redraw requests to the event-loop wait phase for race diagnostics");
-    eprintln!("    --freeze-live-updates  Disable lobby poll/update churn for diagnostic isolation");
-    eprintln!("    --live-no-private      Keep public catalog/notices, but suppress private hosted live traffic");
-    eprintln!("    --no-live-session      Keep hosted request/open support but skip the hosted live-session stream");
-    eprintln!("    --no-hosted-sessions   Skip creating hosted session/live-session objects for diagnostic isolation");
+    eprintln!(
+        "    --serialize-redraws  Defer redraw requests to the event-loop wait phase for race diagnostics"
+    );
+    eprintln!(
+        "    --freeze-live-updates  Disable lobby poll/update churn for diagnostic isolation"
+    );
+    eprintln!(
+        "    --live-no-private      Keep public catalog/notices, but suppress private hosted live traffic"
+    );
+    eprintln!(
+        "    --no-live-session      Keep hosted request/open support but skip the hosted live-session stream"
+    );
+    eprintln!(
+        "    --no-hosted-sessions   Skip creating hosted session/live-session objects for diagnostic isolation"
+    );
     eprintln!();
     eprintln!("DEVELOPER:");
     eprintln!(

@@ -12,10 +12,20 @@ pub struct LobbySettingsRecord {
     pub follow_mouse_on_map: bool,
     pub dense_empty_sector_dots: bool,
     pub theme_key: String,
+    pub window_width: Option<u16>,
+    pub window_height: Option<u16>,
+    pub window_maximized: bool,
 }
 
 pub const DEFAULT_LOCK_TIMEOUT_MINUTES: u16 = 10;
 pub const LOCK_TIMEOUT_OPTIONS: [u16; 5] = [0, 5, 10, 15, 30];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PersistedWindowState {
+    pub width: u16,
+    pub height: u16,
+    pub maximized: bool,
+}
 
 impl Default for LobbySettingsRecord {
     fn default() -> Self {
@@ -24,6 +34,9 @@ impl Default for LobbySettingsRecord {
             follow_mouse_on_map: true,
             dense_empty_sector_dots: false,
             theme_key: "tokyo-night".to_string(),
+            window_width: None,
+            window_height: None,
+            window_maximized: false,
         }
     }
 }
@@ -92,16 +105,29 @@ pub fn parse_settings_kdl(raw: &str) -> Result<LobbySettingsRecord, Box<dyn std:
             .and_then(|value| value.as_string())
             .map(normalize_theme_key)
             .unwrap_or(defaults.theme_key),
+        window_width: settings
+            .get("window-width")
+            .and_then(setting_dimension_u16_value),
+        window_height: settings
+            .get("window-height")
+            .and_then(setting_dimension_u16_value),
+        window_maximized: settings
+            .get("window-maximized")
+            .and_then(setting_bool_value)
+            .unwrap_or(defaults.window_maximized),
     })
 }
 
 pub fn render_settings_kdl(settings: &LobbySettingsRecord) -> String {
     format!(
-        "settings lock-timeout-minutes={} follow-mouse=#{} dense-empty-sector-dots=#{} theme-key=\"{}\"\n",
+        "settings lock-timeout-minutes={} follow-mouse=#{} dense-empty-sector-dots=#{} theme-key=\"{}\"{}{} window-maximized=#{}\n",
         settings.lock_timeout_minutes,
         settings.follow_mouse_on_map,
         settings.dense_empty_sector_dots,
-        escape(&settings.theme_key)
+        escape(&settings.theme_key),
+        render_optional_u16_field("window-width", settings.window_width),
+        render_optional_u16_field("window-height", settings.window_height),
+        settings.window_maximized,
     )
 }
 
@@ -127,6 +153,19 @@ fn setting_u16_value(value: &KdlValue) -> Option<u16> {
         })
 }
 
+fn setting_dimension_u16_value(value: &KdlValue) -> Option<u16> {
+    value
+        .as_integer()
+        .and_then(|dimension| u16::try_from(dimension).ok())
+        .filter(|dimension| *dimension > 0)
+        .or_else(|| {
+            value
+                .as_string()
+                .and_then(|dimension| dimension.parse::<u16>().ok())
+                .filter(|dimension| *dimension > 0)
+        })
+}
+
 fn normalize_theme_key(value: &str) -> String {
     value.trim().to_ascii_lowercase().replace('_', "-")
 }
@@ -149,4 +188,97 @@ pub fn lock_timeout_label(value: u16) -> String {
 
 fn escape(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn render_optional_u16_field(name: &str, value: Option<u16>) -> String {
+    match value {
+        Some(value) => format!(" {name}={value}"),
+        None => String::new(),
+    }
+}
+
+impl LobbySettingsRecord {
+    pub fn persisted_window_state(&self) -> Option<PersistedWindowState> {
+        let (Some(width), Some(height)) = (self.window_width, self.window_height) else {
+            return None;
+        };
+        Some(PersistedWindowState {
+            width,
+            height,
+            maximized: self.window_maximized,
+        })
+    }
+
+    pub fn set_persisted_window_state(&mut self, state: PersistedWindowState) {
+        self.window_width = Some(state.width);
+        self.window_height = Some(state.height);
+        self.window_maximized = state.maximized;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        LobbySettingsRecord, PersistedWindowState, parse_settings_kdl, render_settings_kdl,
+    };
+
+    #[test]
+    fn legacy_settings_without_window_state_use_defaults() {
+        let settings = parse_settings_kdl(
+            "settings lock-timeout-minutes=15 follow-mouse=#false dense-empty-sector-dots=#true theme-key=\"Amber_Dawn\"\n",
+        )
+        .expect("parse settings");
+
+        assert_eq!(
+            settings,
+            LobbySettingsRecord {
+                lock_timeout_minutes: 15,
+                follow_mouse_on_map: false,
+                dense_empty_sector_dots: true,
+                theme_key: "amber-dawn".to_string(),
+                window_width: None,
+                window_height: None,
+                window_maximized: false,
+            }
+        );
+        assert_eq!(settings.persisted_window_state(), None);
+    }
+
+    #[test]
+    fn settings_round_trip_with_window_state() {
+        let settings = LobbySettingsRecord {
+            lock_timeout_minutes: 5,
+            follow_mouse_on_map: false,
+            dense_empty_sector_dots: true,
+            theme_key: "phosphor".to_string(),
+            window_width: Some(1440),
+            window_height: Some(900),
+            window_maximized: true,
+        };
+
+        let rendered = render_settings_kdl(&settings);
+        let reparsed = parse_settings_kdl(&rendered).expect("parse rendered settings");
+
+        assert_eq!(reparsed, settings);
+        assert_eq!(
+            reparsed.persisted_window_state(),
+            Some(PersistedWindowState {
+                width: 1440,
+                height: 900,
+                maximized: true,
+            })
+        );
+    }
+
+    #[test]
+    fn incomplete_window_state_is_ignored() {
+        let settings = parse_settings_kdl(
+            "settings window-width=1280 window-maximized=#true theme-key=\"tokyo-night\"\n",
+        )
+        .expect("parse settings");
+
+        assert_eq!(settings.window_width, Some(1280));
+        assert_eq!(settings.window_height, None);
+        assert_eq!(settings.persisted_window_state(), None);
+    }
 }

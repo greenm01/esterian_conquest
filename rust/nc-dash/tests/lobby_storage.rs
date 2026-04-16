@@ -61,6 +61,9 @@ fn config_and_settings_round_trip_through_kdl() {
         follow_mouse_on_map: false,
         dense_empty_sector_dots: true,
         theme_key: "rose-pine".to_string(),
+        window_width: None,
+        window_height: None,
+        window_maximized: false,
     };
 
     let reparsed_config = parse_config_kdl(&render_config_kdl(&config)).expect("config");

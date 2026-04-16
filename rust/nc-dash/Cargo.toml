@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 crossterm = "0.29"
 dirs = "5"
+image = { version = "0.25", default-features = false, features = ["ico"] }
 kdl = "6"
 nc-client = { path = "../nc-client" }
 nc-data = { path = "../nc-data" }

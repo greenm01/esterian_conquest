@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use nc_client::hosted::store::HostedDraftStatus;
-use nc_client::paths::data_root;
 use nc_client::password::validate_new_password;
+use nc_client::paths::data_root;
 use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use std::fs;
 use std::time::Instant;
@@ -1702,10 +1702,11 @@ fn open_manual_popup(app: &mut LobbyApp) {
 }
 
 pub(crate) fn maybe_open_home_manual(app: &mut LobbyApp) {
-    if app.state.route != LobbyRoute::Home
-        || !app.state.auto_open_manual_after_onboarding
-        || app.state.show_resume_sync_overlay
-    {
+    if app.state.route != LobbyRoute::Home || app.state.show_resume_sync_overlay {
+        return;
+    }
+    if app.state.manual_seen_this_session {
+        app.state.auto_open_manual_after_onboarding = false;
         return;
     }
     app.state.auto_open_manual_after_onboarding = false;
@@ -1781,12 +1782,13 @@ mod tests {
     }
 
     #[test]
-    fn home_manual_does_not_auto_open_without_onboarding_flag() {
+    fn home_manual_auto_opens_first_time_home_is_eligible() {
         let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
 
         maybe_open_home_manual(&mut app);
 
-        assert!(!app.state.show_manual);
+        assert!(app.state.show_manual);
+        assert!(app.state.manual_seen_this_session);
     }
 
     #[test]

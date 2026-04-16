@@ -1,4 +1,5 @@
 use crate::geometry::ScreenGeometry;
+use crate::lobby::storage::settings::PersistedWindowState;
 use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     logical_window_size_for_grid, terminal_grid_for_pixels,
@@ -11,14 +12,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::info;
+use tracing::{info, warn};
 use winit::application::ApplicationHandler;
+use winit::dpi::LogicalSize;
 use winit::dpi::PhysicalPosition;
 use winit::error::EventLoopError;
 use winit::event::{MouseButton as WinitMouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder};
 use winit::keyboard::ModifiersState;
-use winit::window::{Fullscreen, Window, WindowAttributes, WindowId};
+use winit::window::{Fullscreen, Icon, Window, WindowAttributes, WindowId};
 
 #[cfg(any(
     target_os = "linux",
@@ -28,6 +30,8 @@ use winit::window::{Fullscreen, Window, WindowAttributes, WindowId};
     target_os = "openbsd"
 ))]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
+#[cfg(target_os = "windows")]
+use winit::platform::windows::WindowAttributesExtWindows;
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -40,6 +44,12 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 pub(crate) trait NativeApp {
     fn window_title(&self) -> &'static str;
     fn geometry(&self) -> ScreenGeometry;
+    fn saved_window_state(&self) -> Option<PersistedWindowState> {
+        None
+    }
+    fn persist_window_state(&mut self, _state: PersistedWindowState) -> Result<(), String> {
+        Ok(())
+    }
     fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent);
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool;
     fn resize_canvas(&mut self, cols: u16, rows: u16);
@@ -64,6 +74,17 @@ pub(crate) trait NativeApp {
 const OUTSIDE_MOUSE_COORD: u16 = u16::MAX;
 const DRAG_REDRAW_INTERVAL: Duration = Duration::from_millis(16);
 const HOVER_REDRAW_INTERVAL: Duration = Duration::from_millis(16);
+const NC_ICON_BYTES: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/nc.ico"));
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ResolvedWindowPolicy {
+    inner_width: u16,
+    inner_height: u16,
+    maximized: bool,
+    fullscreen: bool,
+    decorations: bool,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum PendingPointer {
@@ -280,6 +301,8 @@ struct NativeShell<T: NativeApp> {
     app: T,
     window_pixel_width: u32,
     window_pixel_height: u32,
+    persist_window_state: bool,
+    last_persisted_window_state: Option<PersistedWindowState>,
     modifiers: ModifiersState,
     pending_pointer: Option<PendingPointer>,
     current_pointer: Option<PendingPointer>,
@@ -295,11 +318,19 @@ struct NativeShell<T: NativeApp> {
 }
 
 impl<T: NativeApp> NativeShell<T> {
-    fn new(app: T, window_pixel_width: u32, window_pixel_height: u32) -> Self {
+    fn new(
+        app: T,
+        window_pixel_width: u32,
+        window_pixel_height: u32,
+        persist_window_state: bool,
+    ) -> Self {
+        let last_persisted_window_state = app.saved_window_state();
         Self {
             app,
             window_pixel_width: window_pixel_width.max(1),
             window_pixel_height: window_pixel_height.max(1),
+            persist_window_state,
+            last_persisted_window_state,
             modifiers: ModifiersState::empty(),
             pending_pointer: None,
             current_pointer: None,
@@ -313,6 +344,27 @@ impl<T: NativeApp> NativeShell<T> {
             serialize_redraws: false,
             render_count: 0,
         }
+    }
+
+    fn sync_persisted_window_state(
+        &mut self,
+        window: &winit::window::Window,
+    ) -> Result<(), String> {
+        if !self.persist_window_state || window.fullscreen().is_some() {
+            return Ok(());
+        }
+        let size = window.inner_size().to_logical::<f64>(window.scale_factor());
+        let state = PersistedWindowState {
+            width: logical_dimension_to_u16(size.width),
+            height: logical_dimension_to_u16(size.height),
+            maximized: window.is_maximized(),
+        };
+        if self.last_persisted_window_state == Some(state) {
+            return Ok(());
+        }
+        self.app.persist_window_state(state)?;
+        self.last_persisted_window_state = Some(state);
+        Ok(())
     }
 
     fn update(&mut self, msg: NativeMsg) -> Vec<NativeEffect> {
@@ -405,7 +457,8 @@ impl<T: NativeApp> NativeShell<T> {
             self.needs_redraw = true;
             self.pending_redraw_cause = Some(NativeRedrawCause::Mouse);
             if matches!(kind, MouseEventKind::Moved) {
-                self.hover_redraw_pending_since.get_or_insert_with(Instant::now);
+                self.hover_redraw_pending_since
+                    .get_or_insert_with(Instant::now);
             }
         }
         changed
@@ -571,7 +624,12 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             }
         };
         let initial_size = window.inner_size();
-        let mut shell = NativeShell::new(app, initial_size.width, initial_size.height);
+        let mut shell = NativeShell::new(
+            app,
+            initial_size.width,
+            initial_size.height,
+            self.native_options.window_mode != NativeWindowMode::BorderlessFullscreen,
+        );
         shell.serialize_redraws = self.native_options.serialize_redraws;
         if shell.serialize_redraws && self.native_options.diagnostic_mode {
             info!(
@@ -639,6 +697,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     },
                     false,
                 );
+                sync_window_state(shell, window.as_ref());
             }
             WindowEvent::ScaleFactorChanged { .. } => {
                 let size = window.inner_size();
@@ -652,6 +711,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     },
                     false,
                 );
+                sync_window_state(shell, window.as_ref());
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.diagnostics
@@ -724,6 +784,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 let was_drag_redraw = shell.drag_redraw_pending;
                 let _ = shell.flush_pointer(false);
                 if shell.app.should_quit() {
+                    sync_window_state(shell, window.as_ref());
                     event_loop.exit();
                     return;
                 }
@@ -806,6 +867,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 .set_stage(NativeStage::EventLoopWait);
         }
         sync_window_size(shell, window.as_ref());
+        sync_window_state(shell, window.as_ref());
         if !shell.redraw_requested
             && !shell.is_dragging_surface()
             && shell.pending_pointer.is_some()
@@ -818,8 +880,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 false,
             );
         }
-        let skip_idle =
-            shell.serialize_redraws && (shell.needs_redraw || shell.redraw_requested);
+        let skip_idle = shell.serialize_redraws && (shell.needs_redraw || shell.redraw_requested);
         if skip_idle && self.native_options.diagnostic_mode {
             info!(
                 target: "nc_dash::native",
@@ -865,6 +926,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             }
         }
         if shell.app.should_quit() {
+            sync_window_state(shell, window.as_ref());
             event_loop.exit();
         } else {
             let now = Instant::now();
@@ -909,8 +971,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                                 self.diagnostics.borrow_mut().set_last_redraw_cause(cause);
                             }
                             if self.native_options.diagnostic_mode {
-                                let redraw_seq =
-                                    self.diagnostics.borrow_mut().next_redraw_seq();
+                                let redraw_seq = self.diagnostics.borrow_mut().next_redraw_seq();
                                 info!(
                                     target: "nc_dash::native",
                                     redraw_seq,
@@ -931,6 +992,52 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             }
         }
     }
+}
+
+fn resolve_window_policy(
+    window_mode: NativeWindowMode,
+    geometry: ScreenGeometry,
+    saved_window_state: Option<PersistedWindowState>,
+) -> ResolvedWindowPolicy {
+    let default_size = logical_window_size_for_grid(geometry.width(), geometry.height());
+    let inner_width = saved_window_state
+        .map(|state| state.width)
+        .unwrap_or_else(|| logical_dimension_to_u16(default_size.width));
+    let inner_height = saved_window_state
+        .map(|state| state.height)
+        .unwrap_or_else(|| logical_dimension_to_u16(default_size.height));
+    match window_mode {
+        NativeWindowMode::MaximizedWindow => ResolvedWindowPolicy {
+            inner_width,
+            inner_height,
+            maximized: saved_window_state
+                .map(|state| state.maximized)
+                .unwrap_or(true),
+            fullscreen: false,
+            decorations: true,
+        },
+        NativeWindowMode::BorderlessFullscreen => ResolvedWindowPolicy {
+            inner_width,
+            inner_height,
+            maximized: false,
+            fullscreen: true,
+            decorations: false,
+        },
+    }
+}
+
+fn logical_dimension_to_u16(value: f64) -> u16 {
+    if !value.is_finite() {
+        return 1;
+    }
+    value.round().clamp(1.0, f64::from(u16::MAX)) as u16
+}
+
+fn native_window_icon() -> Option<Icon> {
+    let icon = image::load_from_memory_with_format(NC_ICON_BYTES, image::ImageFormat::Ico).ok()?;
+    let rgba = icon.into_rgba8();
+    let (width, height) = rgba.dimensions();
+    Icon::from_rgba(rgba.into_raw(), width, height).ok()
 }
 
 pub fn run<T: NativeApp>(
@@ -974,19 +1081,28 @@ pub fn run<T: NativeApp>(
     })?;
 
     let geometry = app.geometry();
+    let window_policy = resolve_window_policy(
+        native_options.window_mode,
+        geometry,
+        app.saved_window_state(),
+    );
     let mut window_attrs = Window::default_attributes()
         .with_title(app.window_title())
-        .with_inner_size(logical_window_size_for_grid(
-            geometry.width(),
-            geometry.height(),
+        .with_inner_size(LogicalSize::new(
+            f64::from(window_policy.inner_width),
+            f64::from(window_policy.inner_height),
         ))
-        .with_decorations(session_backend != "wayland")
-        .with_resizable(true);
-    window_attrs = match native_options.window_mode {
-        NativeWindowMode::MaximizedWindow => window_attrs.with_maximized(true),
-        NativeWindowMode::BorderlessFullscreen => {
-            window_attrs.with_fullscreen(Some(Fullscreen::Borderless(None)))
-        }
+        .with_decorations(window_policy.decorations)
+        .with_resizable(true)
+        .with_window_icon(native_window_icon());
+    #[cfg(target_os = "windows")]
+    {
+        window_attrs = window_attrs.with_taskbar_icon(native_window_icon());
+    }
+    window_attrs = if window_policy.fullscreen {
+        window_attrs.with_fullscreen(Some(Fullscreen::Borderless(None)))
+    } else {
+        window_attrs.with_maximized(window_policy.maximized)
     };
 
     let mut handler = NativeEventHandler {
@@ -1275,6 +1391,12 @@ fn sync_window_size<T: NativeApp>(shell: &mut NativeShell<T>, window: &winit::wi
     }
 }
 
+fn sync_window_state<T: NativeApp>(shell: &mut NativeShell<T>, window: &winit::window::Window) {
+    if let Err(err) = shell.sync_persisted_window_state(window) {
+        warn!(target: "nc_dash::native", error = %err, "failed to persist native window state");
+    }
+}
+
 fn pointer_from_position<T: NativeApp>(
     shell: &NativeShell<T>,
     position: PhysicalPosition<f64>,
@@ -1354,13 +1476,14 @@ fn key_modifiers(modifiers: ModifiersState) -> KeyModifiers {
 mod tests {
     use super::{
         DRAG_REDRAW_INTERVAL, HOVER_REDRAW_INTERVAL, NativeApp, NativeDiagnostics, NativeEffect,
-        NativeInputCause, NativeMsg, NativeRedrawCause, NativeShell, NativeStage,
-        PendingPointer, RedrawSchedule, WinitMouseButton, coalesce_pointer_move,
-        map_event_loop_error, native_error, next_pointer_dispatch, pointer_coords,
-        pointer_event_kind,
+        NativeInputCause, NativeMsg, NativeRedrawCause, NativeShell, NativeStage, PendingPointer,
+        RedrawSchedule, WinitMouseButton, coalesce_pointer_move, map_event_loop_error,
+        native_error, native_window_icon, next_pointer_dispatch, pointer_coords,
+        pointer_event_kind, resolve_window_policy,
     };
     use crate::RenderedUi;
     use crate::geometry::ScreenGeometry;
+    use crate::lobby::storage::settings::PersistedWindowState;
     use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
     use crossterm::event::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
@@ -1419,18 +1542,26 @@ mod tests {
 
     #[test]
     fn resize_updates_app_geometry_even_when_cached_pixels_match() {
+        let (cols, rows) = crate::native_grid::terminal_grid_for_pixels(100, 54);
         let mut shell = test_shell(ScreenGeometry::new(1, 1), 100, 54);
 
         assert!(shell.resize_to_window_pixels(100, 54));
-        assert_eq!(shell.app.geometry, ScreenGeometry::new(10, 3));
+        assert_eq!(
+            shell.app.geometry,
+            ScreenGeometry::new(cols as usize, rows as usize)
+        );
     }
 
     #[test]
     fn resize_noops_when_pixels_and_grid_are_already_current() {
-        let mut shell = test_shell(ScreenGeometry::new(10, 3), 100, 54);
+        let (cols, rows) = crate::native_grid::terminal_grid_for_pixels(100, 54);
+        let mut shell = test_shell(ScreenGeometry::new(cols as usize, rows as usize), 100, 54);
 
         assert!(!shell.resize_to_window_pixels(100, 54));
-        assert_eq!(shell.app.geometry, ScreenGeometry::new(10, 3));
+        assert_eq!(
+            shell.app.geometry,
+            ScreenGeometry::new(cols as usize, rows as usize)
+        );
     }
 
     #[test]
@@ -1441,7 +1572,10 @@ mod tests {
 
         let effects = shell.update(NativeMsg::QueuePointer(PendingPointer::Cell(7, 2)));
 
-        assert_eq!(effects, vec![NativeEffect::RequestRedraw(NativeRedrawCause::Mouse)]);
+        assert_eq!(
+            effects,
+            vec![NativeEffect::RequestRedraw(NativeRedrawCause::Mouse)]
+        );
         assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(3, 1)));
         assert_eq!(shell.pending_pointer, Some(PendingPointer::Cell(7, 2)));
     }
@@ -1548,7 +1682,10 @@ mod tests {
         assert_eq!(shell.app.mouse_dispatch_count, 2);
         assert_eq!(shell.app.last_mouse_column, Some(8));
         assert_eq!(shell.app.last_mouse_row, Some(2));
-        assert_eq!(effects, vec![NativeEffect::RequestRedraw(NativeRedrawCause::Mouse)]);
+        assert_eq!(
+            effects,
+            vec![NativeEffect::RequestRedraw(NativeRedrawCause::Mouse)]
+        );
     }
 
     #[test]
@@ -1659,6 +1796,83 @@ mod tests {
         );
     }
 
+    #[test]
+    fn windowed_policy_falls_back_to_maximized_grid_size_without_saved_state() {
+        let policy = resolve_window_policy(
+            NativeWindowMode::MaximizedWindow,
+            ScreenGeometry::new(120, 40),
+            None,
+        );
+
+        assert!(policy.maximized);
+        assert!(!policy.fullscreen);
+        assert!(policy.decorations);
+        assert!(policy.inner_width > 0);
+        assert!(policy.inner_height > 0);
+    }
+
+    #[test]
+    fn windowed_policy_restores_saved_window_size() {
+        let policy = resolve_window_policy(
+            NativeWindowMode::MaximizedWindow,
+            ScreenGeometry::new(120, 40),
+            Some(PersistedWindowState {
+                width: 1280,
+                height: 720,
+                maximized: false,
+            }),
+        );
+
+        assert_eq!(policy.inner_width, 1280);
+        assert_eq!(policy.inner_height, 720);
+        assert!(!policy.maximized);
+        assert!(!policy.fullscreen);
+        assert!(policy.decorations);
+    }
+
+    #[test]
+    fn windowed_policy_restores_saved_maximized_state() {
+        let policy = resolve_window_policy(
+            NativeWindowMode::MaximizedWindow,
+            ScreenGeometry::new(120, 40),
+            Some(PersistedWindowState {
+                width: 1366,
+                height: 768,
+                maximized: true,
+            }),
+        );
+
+        assert_eq!(policy.inner_width, 1366);
+        assert_eq!(policy.inner_height, 768);
+        assert!(policy.maximized);
+        assert!(!policy.fullscreen);
+        assert!(policy.decorations);
+    }
+
+    #[test]
+    fn fullscreen_policy_overrides_saved_window_state() {
+        let policy = resolve_window_policy(
+            NativeWindowMode::BorderlessFullscreen,
+            ScreenGeometry::new(120, 40),
+            Some(PersistedWindowState {
+                width: 1280,
+                height: 720,
+                maximized: true,
+            }),
+        );
+
+        assert!(policy.fullscreen);
+        assert!(!policy.maximized);
+        assert!(!policy.decorations);
+        assert_eq!(policy.inner_width, 1280);
+        assert_eq!(policy.inner_height, 720);
+    }
+
+    #[test]
+    fn native_window_icon_loads_embedded_asset() {
+        assert!(native_window_icon().is_some());
+    }
+
     fn test_shell(
         app_geometry: ScreenGeometry,
         window_pixel_width: u32,
@@ -1679,7 +1893,7 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        NativeShell::new(app, window_pixel_width, window_pixel_height)
+        NativeShell::new(app, window_pixel_width, window_pixel_height, false)
     }
 
     fn test_drag_shell(
@@ -1699,6 +1913,7 @@ mod tests {
             },
             window_pixel_width,
             window_pixel_height,
+            false,
         )
     }
 
@@ -1715,6 +1930,7 @@ mod tests {
             },
             100,
             54,
+            false,
         )
     }
 
