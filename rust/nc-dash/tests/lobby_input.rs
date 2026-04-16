@@ -53,6 +53,84 @@ fn tab_token_start(app: &LobbyApp, token: &str) -> (u16, u16) {
         .expect("tab token")
 }
 
+fn popup_close_button(app: &LobbyApp) -> (u16, u16) {
+    let buffer = app.render_for_test().expect("render lobby");
+    let title = popup_title_token(app);
+    let (row, _, right) = popup_title_row_bounds(&buffer, title);
+    let col = right.saturating_sub(4);
+
+    (col as u16, row as u16)
+}
+
+fn top_right_border_click(app: &LobbyApp) -> (u16, u16) {
+    let buffer = app.render_for_test().expect("render lobby");
+    let title = popup_title_token(app);
+    let (row, _, right) = popup_title_row_bounds(&buffer, title);
+
+    (right.saturating_sub(1) as u16, row as u16)
+}
+
+fn popup_title_row_bounds(
+    buffer: &nc_dash::PlayfieldBuffer,
+    title: &str,
+) -> (usize, usize, usize) {
+    let row = (0..buffer.height())
+        .find(|&row| find_token_in_row(buffer, row, title).is_some())
+        .expect("popup title row");
+    let title_col = find_token_in_row(buffer, row, title).expect("popup title");
+    let left = buffer
+        .row(row)
+        .iter()
+        .take(title_col + 1)
+        .rposition(|cell| cell.ch == '┌')
+        .expect("popup left border");
+    let right = buffer
+        .row(row)
+        .iter()
+        .enumerate()
+        .skip(title_col)
+        .find(|(_, cell)| cell.ch == '┐')
+        .map(|(col, _)| col)
+        .expect("popup right border");
+
+    (row, left, right)
+}
+
+fn find_token_in_row(buffer: &nc_dash::PlayfieldBuffer, row: usize, token: &str) -> Option<usize> {
+    let token = token.chars().collect::<Vec<_>>();
+    if token.is_empty() || token.len() > buffer.width() {
+        return None;
+    }
+    buffer
+        .row(row)
+        .windows(token.len())
+        .position(|window| window.iter().map(|cell| cell.ch).eq(token.iter().copied()))
+}
+
+fn popup_title_token(app: &LobbyApp) -> &'static str {
+    if app.state.show_manual {
+        return " HELP ";
+    }
+    if app.state.show_help {
+        return " KEYS ";
+    }
+    if app.state.show_resume_sync_overlay {
+        return " NETWORK ";
+    }
+    match app.state.route {
+        LobbyRoute::Settings => " LOBBY SETTINGS ",
+        LobbyRoute::ThemePicker => " THEME PICKER ",
+        LobbyRoute::ComposeInvite => " REQUEST TO JOIN ",
+        LobbyRoute::EditHandle => " EDIT HANDLE ",
+        LobbyRoute::FirstJoinSetup => " FIRST JOIN SETUP ",
+        LobbyRoute::SubmitTurn => " SUBMIT TURN ",
+        LobbyRoute::ContactPicker => " ADDRESS BOOK ",
+        LobbyRoute::AddContact => " ADD CONTACT ",
+        LobbyRoute::QuitConfirm => " QUIT ",
+        _ => panic!("missing popup title token for route {:?}", app.state.route),
+    }
+}
+
 fn sandbox_open_game() -> OpenGameRow {
     let mut row = OpenGameRow::new(
         "sandbox-smoke",
@@ -1366,6 +1444,62 @@ fn manual_popup_dismisses_on_left_click_without_switching_tabs() {
 
     assert!(!app.state.show_manual);
     assert_eq!(app.state.active_tab, LobbyTab::MyGames);
+}
+
+#[test]
+fn manual_popup_close_button_dismisses_popup() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_manual = true;
+
+    let (col, row) = popup_close_button(&app);
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), col, row));
+
+    assert!(!app.state.show_manual);
+}
+
+#[test]
+fn settings_popup_close_button_returns_home() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Settings, ScreenGeometry::new(120, 40));
+    app.state.show_manual = false;
+    app.state.manual_seen_this_session = true;
+
+    let (col, row) = popup_close_button(&app);
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), col, row));
+
+    assert_eq!(app.state.route, LobbyRoute::Home);
+}
+
+#[test]
+fn quit_confirm_top_right_border_click_does_not_close_popup() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::QuitConfirm, ScreenGeometry::new(120, 40));
+
+    let (col, row) = top_right_border_click(&app);
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), col, row));
+
+    assert_eq!(app.state.route, LobbyRoute::QuitConfirm);
+}
+
+#[test]
+fn submit_turn_close_button_returns_to_hosted_game() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::SubmitTurn, ScreenGeometry::new(120, 40));
+    app.state.hosted_game = Some(hosted_game_view());
+
+    let (col, row) = popup_close_button(&app);
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), col, row));
+
+    assert_eq!(app.state.route, LobbyRoute::HostedGame);
+}
+
+#[test]
+fn resume_sync_close_button_dismisses_overlay() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+    app.state.show_resume_sync_overlay = true;
+    app.state.manual_seen_this_session = true;
+
+    let (col, row) = popup_close_button(&app);
+    app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Down(MouseButton::Left), col, row));
+
+    assert!(!app.state.show_resume_sync_overlay);
 }
 
 #[test]

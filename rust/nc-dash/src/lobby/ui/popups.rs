@@ -11,7 +11,10 @@ use crate::modal::{
 use crate::overlays::frame::RelativePopupOrigin;
 use crate::theme;
 
-use super::chrome::{chrome_block, popup_block, status_style, toast_text_style, with_panel_bg};
+use super::chrome::{
+    chrome_block, popup_block, render_popup_close_button, status_style, toast_text_style,
+    with_panel_bg,
+};
 use super::layout::{popup_rect, scroll_offset};
 
 const FOOTER_HEIGHT: u16 = 5;
@@ -96,6 +99,7 @@ pub(super) fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent:
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
+    render_popup_close_button(buffer, popup, styles.title);
 
     for (idx, label) in SETTINGS_ROWS.iter().enumerate() {
         let row = inner.y + idx as u16;
@@ -184,6 +188,7 @@ pub(super) fn render_theme_picker_popup(buffer: &mut Buffer, app: &LobbyApp, par
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
+    render_popup_close_button(buffer, popup, styles.title);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
@@ -305,6 +310,7 @@ pub(super) fn render_compose_invite_popup(buffer: &mut Buffer, app: &LobbyApp, p
         " REQUEST TO JOIN ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
+        true,
     );
 }
 
@@ -320,6 +326,7 @@ pub(super) fn render_sandbox_join_confirm_popup(buffer: &mut Buffer, app: &Lobby
         " JOIN SANDBOX ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
+        false,
     );
 }
 
@@ -339,6 +346,7 @@ pub(super) fn render_sandbox_join_unavailable_popup(
         " SANDBOX FULL ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
+        false,
     );
 }
 
@@ -350,6 +358,7 @@ pub(super) fn render_edit_handle_popup(buffer: &mut Buffer, app: &LobbyApp, pare
         " EDIT HANDLE ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
+        true,
     );
 }
 
@@ -361,6 +370,7 @@ pub(super) fn render_first_join_setup_popup(buffer: &mut Buffer, app: &LobbyApp,
         " FIRST JOIN SETUP ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
+        true,
     );
 }
 
@@ -375,6 +385,7 @@ pub(super) fn render_contact_picker_popup(buffer: &mut Buffer, app: &LobbyApp, p
     let inner = block.inner(popup);
     Clear.render(popup, buffer);
     block.render(popup, buffer);
+    render_popup_close_button(buffer, popup, styles.title);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
@@ -441,6 +452,7 @@ pub(super) fn render_add_contact_popup(buffer: &mut Buffer, app: &LobbyApp, pare
         " ADD CONTACT ",
         &measure_popup_text(parent, &lines).lines,
         theme::tui_theme().value,
+        true,
     );
 }
 
@@ -467,6 +479,7 @@ pub(super) fn render_help_popup(
     let inner = block.inner(area);
     Clear.render(area, buffer);
     block.render(area, buffer);
+    render_popup_close_button(buffer, area, styles.title);
     let wrapped = wrapped_help_popup_lines(app, parent);
     for (idx, line) in wrapped.lines.iter().take(inner.height as usize).enumerate() {
         buffer.set_stringn(
@@ -492,6 +505,7 @@ pub(super) fn render_manual_popup(
         " HELP ",
         &wrapped.lines,
         theme::tui_theme().value,
+        true,
     );
 }
 
@@ -516,6 +530,7 @@ pub(super) fn render_too_small(buffer: &mut Buffer, area: Rect) {
         " WINDOW TOO SMALL ",
         &measure_popup_text(area, &lines).lines,
         theme::tui_theme().value,
+        false,
     );
 }
 
@@ -553,12 +568,16 @@ fn render_popup_lines(
     title: &'static str,
     lines: &[String],
     style: Style,
+    show_close_button: bool,
 ) {
     let styles = theme::tui_theme();
     let block = popup_block(title, styles.border);
     let inner = block.inner(area);
     Clear.render(area, buffer);
     block.render(area, buffer);
+    if show_close_button {
+        render_popup_close_button(buffer, area, styles.title);
+    }
     for (idx, line) in lines.iter().enumerate() {
         let row = inner.y + idx as u16;
         if row >= inner.bottom() {

@@ -7,7 +7,8 @@ use crate::table::{
 
 use crate::layout::{MapWidgetFrame, widgets::DashboardWidgetFrames};
 use crate::modal::{
-    ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent_with_placement, placed_rect,
+    ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent_with_placement,
+    modal_min_width_for_title, placed_rect,
 };
 #[cfg(test)]
 use crate::modal::{draw_modal_frame, draw_modal_frame_in_parent};
@@ -388,7 +389,7 @@ pub fn draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let footer_width = table_footer_scaffold_width(footer);
     let preferred_width =
-        (requested_body_width.max(footer_width) + 4).max(title.chars().count() + 6);
+        (requested_body_width.max(footer_width) + 4).max(modal_min_width_for_title(title));
     let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
     let placement = origin
         .map(|origin| ModalPlacement::Origin {
@@ -425,7 +426,7 @@ pub fn overlay_popup_rect_for_body_in_parent(
     let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
-        .max(title.chars().count() + 6);
+        .max(modal_min_width_for_title(title));
     let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
     overlay_popup_rect_in_parent(parent, preferred_width, preferred_height, origin)
 }
@@ -460,7 +461,7 @@ pub fn draw_overlay_frame_for_body_with_policy(
     let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
-        .max(title.chars().count() + 6);
+        .max(modal_min_width_for_title(title));
     let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
     draw_overlay_frame(buf, title, preferred_width, preferred_height, footer)
 }

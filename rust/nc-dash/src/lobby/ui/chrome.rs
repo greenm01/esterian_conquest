@@ -121,3 +121,21 @@ pub fn with_panel_bg(style: Style) -> Style {
         style
     }
 }
+
+pub fn render_popup_close_button(buffer: &mut ratatui::buffer::Buffer, area: Rect, style: Style) {
+    let Some(col) = crate::modal::modal_close_button_col(crate::modal::Rect::new(
+        area.x,
+        area.y,
+        area.width,
+        area.height,
+    )) else {
+        return;
+    };
+    buffer.set_stringn(
+        col,
+        area.y,
+        crate::modal::MODAL_CLOSE_BUTTON,
+        crate::modal::MODAL_CLOSE_BUTTON.chars().count(),
+        with_panel_bg(style),
+    );
+}

@@ -7,7 +7,10 @@ use crate::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
-use crate::modal::{ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement};
+use crate::modal::{
+    ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement_without_close_button,
+    modal_min_width_for_title,
+};
 use crate::overlays;
 use crate::panels::{
     comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap, war_record,
@@ -157,8 +160,8 @@ fn render_quit_confirm(
         })
         .unwrap_or(ModalPlacement::Centered);
     let message = "Quit Game? Y/[N]";
-    let popup_width = (message.chars().count() + 4).max("QUIT".chars().count() + 6);
-    let popup = draw_modal_frame_in_parent_with_placement(
+    let popup_width = (message.chars().count() + 4).max(modal_min_width_for_title("QUIT"));
+    let popup = draw_modal_frame_in_parent_with_placement_without_close_button(
         buf,
         "QUIT",
         popup_width,

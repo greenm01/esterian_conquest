@@ -29,7 +29,7 @@ use state::{
 
 use crate::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::layout::dashboard;
-use crate::modal::Rect;
+use crate::modal::{Rect, modal_close_button_contains};
 use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
@@ -737,6 +737,10 @@ impl DashApp {
         };
         let mouse_col = mouse.column as usize;
         let mouse_row = mouse.row as usize;
+        if modal_close_button_contains(popup, mouse_col, mouse_row) {
+            self.close_active_overlay();
+            return;
+        }
         if self.overlay.is_draggable() && modal_chrome_contains(popup, mouse_col, mouse_row) {
             self.mouse_gesture = ActiveMouseGesture::DraggingOverlay {
                 grab_col_offset: mouse_col.saturating_sub(popup.x as usize),
@@ -758,6 +762,11 @@ impl DashApp {
         };
         let mouse_col = mouse.column as usize;
         let mouse_row = mouse.row as usize;
+        if self.popup_has_close_button() && modal_close_button_contains(popup, mouse_col, mouse_row)
+        {
+            self.apply_action(Action::ClosePopup);
+            return;
+        }
         if modal_chrome_contains(popup, mouse_col, mouse_row) {
             self.mouse_gesture = ActiveMouseGesture::DraggingPopup {
                 grab_col_offset: mouse_col.saturating_sub(popup.x as usize),
@@ -955,6 +964,10 @@ impl DashApp {
                 planet_record_index_1_based,
             )),
         }
+    }
+
+    fn popup_has_close_button(&self) -> bool {
+        !matches!(self.popup, ActivePopup::QuitConfirm)
     }
 
     fn jump_crosshair_to_planet(&mut self, direction: starmap::PlanetJumpDirection) {
@@ -4591,6 +4604,26 @@ mod tests {
     }
 
     #[test]
+    fn clicking_overlay_close_button_closes_overlay_without_dragging() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("inbox popup rect");
+        let close_col = crate::modal::modal_close_button_col(popup).expect("overlay close col");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            close_col,
+            popup.y,
+        ));
+
+        assert_eq!(app.overlay, ActiveOverlay::None);
+        assert!(!<DashApp as NativeApp>::is_dragging_surface(&app));
+    }
+
+    #[test]
     fn dragging_planet_detail_popup_updates_position() {
         let mut app = dash_app();
         app.popup = ActivePopup::PlanetDetail {
@@ -4615,6 +4648,45 @@ mod tests {
         let moved_popup = app.current_popup_rect(map_frame).expect("moved popup");
         assert!(moved_popup.x > popup.x);
         assert!(moved_popup.y > popup.y);
+    }
+
+    #[test]
+    fn clicking_popup_close_button_closes_popup_without_dragging() {
+        let mut app = dash_app();
+        app.popup = ActivePopup::PlanetDetail {
+            planet_record_index_1_based: 1,
+        };
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_popup_rect(map_frame)
+            .expect("planet detail popup");
+        let close_col = crate::modal::modal_close_button_col(popup).expect("popup close col");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            close_col,
+            popup.y,
+        ));
+
+        assert_eq!(app.popup, ActivePopup::None);
+        assert!(!<DashApp as NativeApp>::is_dragging_surface(&app));
+    }
+
+    #[test]
+    fn clicking_quit_confirm_top_right_border_does_not_close_popup() {
+        let mut app = dash_app();
+        app.popup = ActivePopup::QuitConfirm;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_popup_rect(map_frame).expect("quit confirm popup");
+        let close_col = crate::modal::modal_close_button_col(popup).expect("popup close col");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            close_col,
+            popup.y,
+        ));
+
+        assert_eq!(app.popup, ActivePopup::QuitConfirm);
     }
 
     #[test]

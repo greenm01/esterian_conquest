@@ -1,7 +1,7 @@
 use crate::branding::NOSTRIAN_CONQUEST_LOGO;
 use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 
-use crate::modal::{Rect, centered_rect, draw_box, wrap_modal_text_lines};
+use crate::modal::{Rect, centered_rect, draw_box_without_close_button, wrap_modal_text_lines};
 use crate::theme;
 
 use super::state::{FirstRunField, LobbyRoute, LobbyState};
@@ -321,7 +321,7 @@ fn render_gate(
         Rect::new(1, 1, width.saturating_sub(2), height.saturating_sub(2)),
     );
 
-    draw_box(
+    draw_box_without_close_button(
         buffer,
         popup,
         title,

@@ -104,6 +104,37 @@ pub fn popup_title_bar_contains(app: &LobbyApp, column: u16, row: u16) -> bool {
         .unwrap_or(false)
 }
 
+pub fn popup_close_button_contains(app: &LobbyApp, column: u16, row: u16) -> bool {
+    if !popup_has_close_button(app) {
+        return false;
+    }
+    active_popup_rect(app)
+        .map(|popup| {
+            crate::modal::modal_close_button_contains(
+                crate::modal::Rect::new(popup.x, popup.y, popup.width, popup.height),
+                column as usize,
+                row as usize,
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn popup_has_close_button(app: &LobbyApp) -> bool {
+    match app.state.route {
+        LobbyRoute::Settings
+        | LobbyRoute::ThemePicker
+        | LobbyRoute::FirstJoinSetup
+        | LobbyRoute::ComposeInvite
+        | LobbyRoute::EditHandle
+        | LobbyRoute::ContactPicker
+        | LobbyRoute::AddContact => true,
+        LobbyRoute::QuitConfirm
+        | LobbyRoute::SandboxJoinConfirm
+        | LobbyRoute::SandboxJoinUnavailable => false,
+        _ => app.state.show_manual || app.state.show_help,
+    }
+}
+
 pub fn active_popup_rect(app: &LobbyApp) -> Option<Rect> {
     let area = Rect::new(
         0,

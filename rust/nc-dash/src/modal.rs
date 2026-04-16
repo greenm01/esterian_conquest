@@ -1,5 +1,8 @@
 use crate::buffer::{CellStyle, PlayfieldBuffer};
 
+pub const MODAL_CLOSE_BUTTON: &str = "[x]";
+const MODAL_CLOSE_BUTTON_WITH_PAD: &str = " [x]";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rect {
     pub x: u16,
@@ -27,6 +30,61 @@ impl Rect {
             height,
         }
     }
+}
+
+pub fn modal_close_button_width() -> usize {
+    MODAL_CLOSE_BUTTON_WITH_PAD.chars().count()
+}
+
+pub fn modal_title_slot_width(rect: Rect) -> usize {
+    rect.width.saturating_sub(4) as usize
+}
+
+pub fn modal_min_width_for_title(title: &str) -> usize {
+    title
+        .chars()
+        .count()
+        .saturating_add(2)
+        .saturating_add(modal_close_button_width())
+        .saturating_add(4)
+}
+
+pub fn modal_close_button_col(rect: Rect) -> Option<u16> {
+    if rect.width < 2 || modal_title_slot_width(rect) < modal_close_button_width() {
+        return None;
+    }
+    Some(
+        rect.x
+            .saturating_add(rect.width)
+            .saturating_sub(2)
+            .saturating_sub(MODAL_CLOSE_BUTTON.len() as u16),
+    )
+}
+
+pub fn modal_close_button_contains(rect: Rect, col: usize, row: usize) -> bool {
+    if row != rect.y as usize {
+        return false;
+    }
+    let Some(start_col) = modal_close_button_col(rect) else {
+        return false;
+    };
+    let end_col = start_col as usize + MODAL_CLOSE_BUTTON.len();
+    col >= start_col as usize && col < end_col
+}
+
+pub fn modal_box_rect_for_lines(
+    parent: Rect,
+    title: &str,
+    wrapped: &WrappedTextLines,
+    max_popup_width: usize,
+) -> Rect {
+    let width = (wrapped.content_width + 4)
+        .max(modal_min_width_for_title(title))
+        .min(max_popup_width);
+    let height = (wrapped.lines.len() + 2)
+        .min(parent.height.saturating_sub(2) as usize)
+        .max(2) as u16;
+    placed_rect(width as u16, height, parent, ModalPlacement::Centered)
 }
 
 pub fn centered_rect(width: u16, height: u16, parent: Rect) -> Rect {
@@ -69,6 +127,27 @@ pub fn draw_box(
     chrome_style: CellStyle,
     title_style: CellStyle,
 ) {
+    draw_box_with_close_button(buffer, rect, title, chrome_style, title_style, true);
+}
+
+pub fn draw_box_without_close_button(
+    buffer: &mut PlayfieldBuffer,
+    rect: Rect,
+    title: &str,
+    chrome_style: CellStyle,
+    title_style: CellStyle,
+) {
+    draw_box_with_close_button(buffer, rect, title, chrome_style, title_style, false);
+}
+
+fn draw_box_with_close_button(
+    buffer: &mut PlayfieldBuffer,
+    rect: Rect,
+    title: &str,
+    chrome_style: CellStyle,
+    title_style: CellStyle,
+    show_close_button: bool,
+) {
     if rect.width < 2 || rect.height < 2 {
         return;
     }
@@ -90,7 +169,11 @@ pub fn draw_box(
     buffer.set_cell(bottom, right, '┘', chrome_style);
     if !title.is_empty() && rect.width > 4 {
         let bordered = format!(" {title} ");
-        let available_width = rect.width.saturating_sub(4) as usize;
+        let available_width = if show_close_button {
+            modal_title_slot_width(rect).saturating_sub(modal_close_button_width())
+        } else {
+            modal_title_slot_width(rect)
+        };
         assert!(
             bordered.chars().count() <= available_width,
             "modal title overruns its border slot: text width {} exceeds allowed width {}",
@@ -98,6 +181,11 @@ pub fn draw_box(
             available_width
         );
         buffer.write_text(top, left + 2, &bordered, title_style);
+    }
+    if show_close_button {
+        if let Some(close_col) = modal_close_button_col(rect) {
+            buffer.write_text(top, close_col as usize, MODAL_CLOSE_BUTTON, title_style);
+        }
     }
 }
 
@@ -154,6 +242,49 @@ pub fn draw_modal_frame_in_parent_with_placement(
     placement: ModalPlacement,
     theme: ModalTheme,
 ) -> Rect {
+    draw_modal_frame_in_parent_with_placement_and_close_button(
+        buffer,
+        title,
+        preferred_width,
+        height,
+        parent,
+        placement,
+        theme,
+        true,
+    )
+}
+
+pub fn draw_modal_frame_in_parent_with_placement_without_close_button(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    preferred_width: usize,
+    height: u16,
+    parent: Rect,
+    placement: ModalPlacement,
+    theme: ModalTheme,
+) -> Rect {
+    draw_modal_frame_in_parent_with_placement_and_close_button(
+        buffer,
+        title,
+        preferred_width,
+        height,
+        parent,
+        placement,
+        theme,
+        false,
+    )
+}
+
+fn draw_modal_frame_in_parent_with_placement_and_close_button(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    preferred_width: usize,
+    height: u16,
+    parent: Rect,
+    placement: ModalPlacement,
+    theme: ModalTheme,
+    show_close_button: bool,
+) -> Rect {
     let max_width = parent.width.saturating_sub(2).max(1);
     let max_height = parent.height.saturating_sub(2).max(1);
     let popup = placed_rect(
@@ -184,7 +315,11 @@ pub fn draw_modal_frame_in_parent_with_placement(
         pad.height as usize,
         theme.pad_style,
     );
-    draw_box(buffer, popup, title, theme.chrome_style, theme.title_style);
+    if show_close_button {
+        draw_box(buffer, popup, title, theme.chrome_style, theme.title_style);
+    } else {
+        draw_box_without_close_button(buffer, popup, title, theme.chrome_style, theme.title_style);
+    }
     buffer.fill_rect(
         popup.y as usize + 1,
         popup.x as usize + 1,
@@ -226,13 +361,13 @@ pub fn render_modal_box(
 ) -> Rect {
     let wrapped = measure_modal_text_lines(lines, buffer.width().saturating_sub(12));
     let max_popup_width = buffer.width().saturating_sub(8);
-    let width = (wrapped.content_width + 4)
-        .max(title.chars().count() + 6)
-        .min(max_popup_width);
-    let height = (wrapped.lines.len() + 2)
-        .min(buffer.height().saturating_sub(2))
-        .max(2) as u16;
-    let popup = draw_modal_frame(buffer, title, width, height, theme);
+    let popup = modal_box_rect_for_lines(
+        Rect::new(0, 0, buffer.width() as u16, buffer.height() as u16),
+        title,
+        &wrapped,
+        max_popup_width,
+    );
+    let popup = draw_modal_frame(buffer, title, popup.width as usize, popup.height, theme);
     write_modal_lines(buffer, popup, &wrapped.lines, theme.body_style);
     popup
 }
@@ -584,5 +719,85 @@ mod tests {
                 .max()
                 .unwrap_or(0)
         );
+    }
+
+    #[test]
+    fn draw_box_renders_close_button_in_top_right_border() {
+        let mut buffer = PlayfieldBuffer::new(40, 12, classic::body_style());
+        let rect = Rect::new(10, 3, 20, 6);
+
+        draw_box(
+            &mut buffer,
+            rect,
+            "TEST",
+            classic::table_chrome_style(),
+            classic::table_header_style(),
+        );
+
+        let close_col = modal_close_button_col(rect).expect("close button col") as usize;
+        assert_eq!(close_col + MODAL_CLOSE_BUTTON.len(), rect.x as usize + rect.width as usize - 2);
+        assert_eq!(buffer.row(rect.y as usize)[close_col].ch, '[');
+        assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, 'x');
+        assert_eq!(buffer.row(rect.y as usize)[close_col + 2].ch, ']');
+        assert_eq!(
+            buffer.row(rect.y as usize)[rect.x as usize + rect.width as usize - 1].ch,
+            '┐'
+        );
+    }
+
+    #[test]
+    fn draw_box_without_close_button_leaves_top_right_border_clean() {
+        let mut buffer = PlayfieldBuffer::new(40, 12, classic::body_style());
+        let rect = Rect::new(10, 3, 20, 6);
+
+        draw_box_without_close_button(
+            &mut buffer,
+            rect,
+            "TEST",
+            classic::table_chrome_style(),
+            classic::table_header_style(),
+        );
+
+        let close_col = modal_close_button_col(rect).expect("close button col") as usize;
+        assert_eq!(buffer.row(rect.y as usize)[close_col].ch, '─');
+        assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, '─');
+        assert_eq!(buffer.row(rect.y as usize)[close_col + 2].ch, '─');
+    }
+
+    #[test]
+    fn modal_min_width_for_title_reserves_close_button_space() {
+        let width = modal_min_width_for_title("HELLO");
+        let rect = Rect::new(0, 0, width as u16, 5);
+        let title_width = " HELLO ".chars().count();
+        let available = modal_title_slot_width(rect).saturating_sub(modal_close_button_width());
+
+        assert!(available >= title_width);
+    }
+
+    #[test]
+    fn modal_close_button_hit_test_matches_rendered_cells() {
+        let rect = Rect::new(12, 4, 24, 7);
+        let close_col = modal_close_button_col(rect).expect("close button col") as usize;
+
+        assert!(modal_close_button_contains(
+            rect,
+            close_col,
+            rect.y as usize
+        ));
+        assert!(modal_close_button_contains(
+            rect,
+            close_col + 2,
+            rect.y as usize
+        ));
+        assert!(!modal_close_button_contains(
+            rect,
+            close_col.saturating_sub(1),
+            rect.y as usize
+        ));
+        assert!(!modal_close_button_contains(
+            rect,
+            close_col,
+            rect.y as usize + 1
+        ));
     }
 }

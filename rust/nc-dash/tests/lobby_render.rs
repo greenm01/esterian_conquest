@@ -18,6 +18,10 @@ fn render_lines_at(route: LobbyRoute, width: usize, height: usize) -> String {
 
 fn render_app_lines(app: LobbyApp) -> String {
     let buffer = app.render_for_test().expect("render lobby");
+    buffer_lines(&buffer)
+}
+
+fn buffer_lines(buffer: &PlayfieldBuffer) -> String {
     (0..buffer.height())
         .map(|row| {
             buffer
@@ -28,6 +32,38 @@ fn render_app_lines(app: LobbyApp) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn assert_close_button_is_flush_to_right(buffer: &PlayfieldBuffer, title: &str) {
+    let row = (0..buffer.height())
+        .find(|&row| find_token_in_row(buffer, row, title).is_some())
+        .expect("row with close button");
+    let title_col = find_token_in_row(buffer, row, title).expect("title");
+    let right_border = buffer
+        .row(row)
+        .iter()
+        .enumerate()
+        .skip(title_col)
+        .find(|(_, cell)| cell.ch == '┐')
+        .map(|(col, _)| col)
+        .expect("right border");
+    let close_col = right_border.saturating_sub(4);
+
+    assert_eq!(buffer.row(row)[close_col].ch, '[');
+    assert_eq!(buffer.row(row)[close_col + 1].ch, 'x');
+    assert_eq!(buffer.row(row)[close_col + 2].ch, ']');
+    assert_eq!(close_col + 4, right_border);
+}
+
+fn find_token_in_row(buffer: &PlayfieldBuffer, row: usize, token: &str) -> Option<usize> {
+    let token = token.chars().collect::<Vec<_>>();
+    if token.is_empty() || token.len() > buffer.width() {
+        return None;
+    }
+    buffer
+        .row(row)
+        .windows(token.len())
+        .position(|window| window.iter().map(|cell| cell.ch).eq(token.iter().copied()))
 }
 
 fn find_first_char(buffer: &PlayfieldBuffer, ch: char) -> Option<(usize, usize)> {
@@ -283,13 +319,16 @@ fn home_route_help_popup_renders_as_overlay() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.show_help = true;
 
-    let lines = render_app_lines(app);
+    let buffer = app.render_for_test().expect("render help");
+    let lines = buffer_lines(&buffer);
 
     assert!(lines.contains("KEYS"));
     assert!(lines.contains("cycle dashboard tabs"));
     assert!(lines.contains("join sandbox or request league access"));
     assert!(lines.contains("join sandbox or open the league request box"));
     assert!(lines.contains("lock nc-dash"));
+    assert!(lines.contains("[x]"));
+    assert_close_button_is_flush_to_right(&buffer, " KEYS ");
 }
 
 #[test]
@@ -297,13 +336,16 @@ fn home_route_manual_popup_renders_as_overlay() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.show_manual = true;
 
-    let lines = render_app_lines(app);
+    let buffer = app.render_for_test().expect("render manual");
+    let lines = buffer_lines(&buffer);
 
     assert!(lines.contains("HELP"));
     assert!(lines.contains("Welcome to Nostrian Conquest."));
     assert!(lines.contains("start in Open Games"));
     assert!(lines.contains("message the sysop"));
     assert!(lines.contains("Press H or h anytime in the lobby"));
+    assert!(lines.contains("[x]"));
+    assert_close_button_is_flush_to_right(&buffer, " HELP ");
 }
 
 #[test]
@@ -347,6 +389,7 @@ fn sandbox_join_confirm_popup_renders_dynamic_copy() {
     assert!(lines.contains("JOIN SANDBOX"));
     assert!(lines.contains("Sandbox Smoke"));
     assert!(lines.contains("Y joins an open seat immediately."));
+    assert!(!lines.contains("[x]"));
 }
 
 #[test]
@@ -376,6 +419,7 @@ fn sandbox_full_popup_renders_dismissal_copy() {
     assert!(lines.contains("SANDBOX FULL"));
     assert!(lines.contains("Sandbox Smoke is full right now."));
     assert!(lines.contains("Press any key to dismiss."));
+    assert!(!lines.contains("[x]"));
 }
 
 #[test]
@@ -734,6 +778,7 @@ fn locked_route_renders_logo_and_unlock_copy() {
     assert!(lines.contains("Password"));
     assert!(!lines.contains("Keychain path"));
     assert!(!lines.contains("NOSTRIAN CONQUEST LOBBY"));
+    assert!(!lines.contains("[x]"));
 }
 
 #[test]
@@ -742,6 +787,7 @@ fn quit_confirm_route_renders_lobby_copy() {
 
     assert!(lines.contains("QUIT"));
     assert!(lines.contains("Quit NC? Y/[N]"));
+    assert!(!lines.contains("[x]"));
 }
 
 #[test]
@@ -755,6 +801,13 @@ fn gate_routes_render_invalid_entry_copy() {
     locked.state.status_message = Some("invalid entry, try again.".to_string());
     let locked_lines = render_app_lines(locked);
     assert!(locked_lines.contains("invalid entry, try again."));
+}
+
+#[test]
+fn first_run_route_does_not_render_close_button() {
+    let lines = render_lines(LobbyRoute::FirstRun);
+
+    assert!(!lines.contains("[x]"));
 }
 
 #[test]

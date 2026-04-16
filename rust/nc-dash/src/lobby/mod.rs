@@ -16,7 +16,10 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
 use tracing::info;
 
-use crate::modal::{ModalTheme, render_modal_box};
+use crate::modal::{
+    ModalTheme, Rect as ModalRect, measure_modal_text_lines, modal_box_rect_for_lines,
+    modal_close_button_contains, render_modal_box,
+};
 use crate::native::NativeApp;
 use crate::rendered::RenderedUi;
 use crate::startup::LobbyStartupOptions;
@@ -307,10 +310,7 @@ impl LobbyApp {
     }
 
     fn render_resume_sync_overlay(&self, buffer: &mut PlayfieldBuffer) {
-        let lines = vec![format!(
-            "Network : {}",
-            network_dialog_label(self.state.network_status)
-        )];
+        let lines = self.resume_sync_overlay_lines();
         let _ = render_modal_box(buffer, "NETWORK", &lines, modal_theme());
     }
 
@@ -513,6 +513,34 @@ impl LobbyApp {
     }
 
     fn render_submit_turn(&self, buffer: &mut PlayfieldBuffer) {
+        let lines = self.submit_turn_lines();
+        let _ = render_modal_box(buffer, "SUBMIT TURN", &lines, modal_theme());
+    }
+
+    fn resume_sync_overlay_lines(&self) -> Vec<String> {
+        vec![format!(
+            "Network : {}",
+            network_dialog_label(self.state.network_status)
+        )]
+    }
+
+    fn resume_sync_overlay_rect(&self) -> ModalRect {
+        let lines = self.resume_sync_overlay_lines();
+        let wrapped = measure_modal_text_lines(&lines, self.geometry.width().saturating_sub(12));
+        modal_box_rect_for_lines(
+            ModalRect::new(
+                0,
+                0,
+                self.geometry.width() as u16,
+                self.geometry.height() as u16,
+            ),
+            "NETWORK",
+            &wrapped,
+            self.geometry.width().saturating_sub(8),
+        )
+    }
+
+    fn submit_turn_lines(&self) -> Vec<String> {
         let mut lines = vec![
             format!(
                 "Game     : {}",
@@ -550,14 +578,60 @@ impl LobbyApp {
                 }),
             );
         }
-        let _ = render_modal_box(buffer, "SUBMIT TURN", &lines, modal_theme());
+        lines
+    }
+
+    fn submit_turn_popup_rect(&self) -> ModalRect {
+        let lines = self.submit_turn_lines();
+        let wrapped = measure_modal_text_lines(&lines, self.geometry.width().saturating_sub(12));
+        modal_box_rect_for_lines(
+            ModalRect::new(
+                0,
+                0,
+                self.geometry.width() as u16,
+                self.geometry.height() as u16,
+            ),
+            "SUBMIT TURN",
+            &wrapped,
+            self.geometry.width().saturating_sub(8),
+        )
+    }
+
+    fn close_active_modal(&mut self) {
+        if self.state.show_resume_sync_overlay {
+            self.dismiss_resume_sync_overlay();
+        } else {
+            update::close_active_popup(self);
+        }
+        self.mouse_gesture = LobbyMouseGesture::None;
     }
 
     fn handle_lobby_mouse_down(&mut self, mouse: MouseEvent) {
         if self.state.show_manual {
+            if let Some(popup) = ui::active_popup_rect(self) {
+                let popup = ModalRect::new(popup.x, popup.y, popup.width, popup.height);
+                if modal_close_button_contains(popup, mouse.column as usize, mouse.row as usize) {
+                    self.close_active_modal();
+                    return;
+                }
+            }
             self.state.show_manual = false;
             self.popup_position = None;
             self.mouse_gesture = LobbyMouseGesture::None;
+            return;
+        }
+        if self.state.route == LobbyRoute::SubmitTurn
+            && modal_close_button_contains(
+                self.submit_turn_popup_rect(),
+                mouse.column as usize,
+                mouse.row as usize,
+            )
+        {
+            self.close_active_modal();
+            return;
+        }
+        if ui::popup_close_button_contains(self, mouse.column, mouse.row) {
+            self.close_active_modal();
             return;
         }
         if ui::popup_title_bar_contains(self, mouse.column, mouse.row) {
@@ -760,7 +834,15 @@ impl NativeApp for LobbyApp {
         if self.state.show_resume_sync_overlay {
             if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
                 let before = self.mouse_render_state();
-                self.dismiss_resume_sync_overlay();
+                if modal_close_button_contains(
+                    self.resume_sync_overlay_rect(),
+                    mouse.column as usize,
+                    mouse.row as usize,
+                ) {
+                    self.close_active_modal();
+                } else {
+                    self.dismiss_resume_sync_overlay();
+                }
                 return before != self.mouse_render_state();
             }
             return false;

@@ -89,7 +89,7 @@ We vendored `winit` and disabled Wayland relative-pointer binding at
 initialization:
 
 - [rust/Cargo.toml](../../../rust/Cargo.toml)
-- [rust/vendor/winit-0.29.15/src/platform_impl/linux/wayland/state.rs](../../../rust/vendor/winit-0.29.15/src/platform_impl/linux/wayland/state.rs)
+- historical local patch in `rust/vendor/winit-0.29.15/src/platform_impl/linux/wayland/state.rs`
 
 After that change, `WAYLAND_DEBUG=1` no longer showed
 `zwp_relative_pointer_v1` traffic, but the crash still occurred.
@@ -170,7 +170,7 @@ What is no longer the primary suspect:
 ### Vendored dependency experiment
 
 - [rust/Cargo.toml](../../../rust/Cargo.toml)
-- [rust/vendor/winit-0.29.15/src/platform_impl/linux/wayland/state.rs](../../../rust/vendor/winit-0.29.15/src/platform_impl/linux/wayland/state.rs)
+- historical local patch in `rust/vendor/winit-0.29.15/src/platform_impl/linux/wayland/state.rs`
 
 ## Repro Commands
 

@@ -1713,6 +1713,50 @@ pub(crate) fn maybe_open_home_manual(app: &mut LobbyApp) {
     open_manual_popup(app);
 }
 
+pub(crate) fn close_active_popup(app: &mut LobbyApp) {
+    if app.state.show_manual {
+        app.state.show_manual = false;
+        app.popup_position = None;
+        return;
+    }
+    if app.state.show_help {
+        app.state.show_help = false;
+        app.popup_position = None;
+        return;
+    }
+
+    match app.state.route {
+        LobbyRoute::QuitConfirm => {
+            let route = app.state.quit_confirm_return_route;
+            close_popup_route(app, route);
+        }
+        LobbyRoute::ComposeInvite => close_popup_route(app, LobbyRoute::Home),
+        LobbyRoute::SandboxJoinConfirm | LobbyRoute::SandboxJoinUnavailable => {
+            app.state.sandbox_join_target = None;
+            app.state.sandbox_join_notice = None;
+            close_popup_route(app, LobbyRoute::Home);
+        }
+        LobbyRoute::EditHandle => {
+            let route = app.state.edit_handle_return_route;
+            close_popup_route(app, route);
+        }
+        LobbyRoute::FirstJoinSetup => cancel_first_join_setup(app),
+        LobbyRoute::Settings => cancel_settings(app),
+        LobbyRoute::ThemePicker => {
+            let _ = theme::apply_theme_key(&app.state.theme_original_key);
+            app.state.settings_draft.theme_key = app.state.theme_original_key.clone();
+            close_popup_route(app, LobbyRoute::Settings);
+        }
+        LobbyRoute::SubmitTurn => {
+            app.state.route = LobbyRoute::HostedGame;
+            app.popup_position = None;
+        }
+        LobbyRoute::ContactPicker => close_popup_route(app, LobbyRoute::Home),
+        LobbyRoute::AddContact => close_popup_route(app, LobbyRoute::ContactPicker),
+        _ => {}
+    }
+}
+
 fn enter_home(app: &mut LobbyApp) {
     app.clear_gate_reset();
     app.state.route = LobbyRoute::Home;

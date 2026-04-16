@@ -8,7 +8,7 @@ pub use self::chrome::{panel_block, truncate_title, with_panel_bg, write_text};
 pub(crate) use self::home::hit_test_tabs;
 pub use self::layout::{
     active_popup_rect, contains, hit_test_home, home_layout, home_tab_content_area, padded_inner,
-    popup_title_bar_contains, scroll_offset,
+    popup_close_button_contains, popup_title_bar_contains, scroll_offset,
 };
 
 use crate::buffer::PlayfieldBuffer;
