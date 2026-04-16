@@ -63,7 +63,7 @@ That shared layer owns:
 
 - the window cell metrics
 - centered pixel-to-cell hit testing
-- 0xProto Nerd Font Mono primary rasterization with Noto Sans Mono fallback
+- Noto Sans Mono primary rasterization with 0xProto Nerd Font Mono fallback
 - `PlayfieldBuffer` to `softbuffer` presentation
 - shared `winit` -> crossterm-style key translation
 

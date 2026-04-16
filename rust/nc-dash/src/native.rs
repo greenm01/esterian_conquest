@@ -290,7 +290,6 @@ struct NativeShell<T: NativeApp> {
     last_drag_redraw_at: Option<Instant>,
     hover_redraw_pending_since: Option<Instant>,
     pending_redraw_cause: Option<NativeRedrawCause>,
-    suppress_passive_hover_redraws: bool,
     serialize_redraws: bool,
     render_count: u64,
 }
@@ -311,7 +310,6 @@ impl<T: NativeApp> NativeShell<T> {
             last_drag_redraw_at: None,
             hover_redraw_pending_since: None,
             pending_redraw_cause: Some(NativeRedrawCause::Resize),
-            suppress_passive_hover_redraws: false,
             serialize_redraws: false,
             render_count: 0,
         }
@@ -356,14 +354,6 @@ impl<T: NativeApp> NativeShell<T> {
                 }
             }
             NativeMsg::QueuePointer(pointer) => {
-                if self.suppress_passive_hover_redraws
-                    && !self.left_mouse_down
-                    && !self.is_dragging_surface()
-                {
-                    self.current_pointer = Some(pointer);
-                    self.pending_pointer = None;
-                    return effects;
-                }
                 coalesce_pointer_move(&mut self.pending_pointer, pointer);
                 if self.is_dragging_surface()
                     && next_pointer_dispatch(self.current_pointer, self.pending_pointer).is_some()
@@ -405,25 +395,20 @@ impl<T: NativeApp> NativeShell<T> {
         self.current_pointer = Some(pending);
         let kind = pointer_event_kind(self.left_mouse_down);
         let (column, row) = pointer_coords(Some(pending));
-        if self.suppress_passive_hover_redraws && matches!(kind, MouseEventKind::Moved) {
-            return false;
-        }
         let changed = self.app.dispatch_mouse_event(MouseEvent {
             kind,
             column,
             row,
             modifiers: key_modifiers(self.modifiers),
         });
-        let redraw_changed =
-            changed && !(self.suppress_passive_hover_redraws && matches!(kind, MouseEventKind::Moved));
-        if request_redraw && redraw_changed {
+        if request_redraw && changed {
             self.needs_redraw = true;
             self.pending_redraw_cause = Some(NativeRedrawCause::Mouse);
             if matches!(kind, MouseEventKind::Moved) {
                 self.hover_redraw_pending_since.get_or_insert_with(Instant::now);
             }
         }
-        redraw_changed
+        changed
     }
 
     fn pointer_column(&self) -> u16 {
@@ -587,14 +572,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
         };
         let initial_size = window.inner_size();
         let mut shell = NativeShell::new(app, initial_size.width, initial_size.height);
-        shell.suppress_passive_hover_redraws = self.session_backend == "wayland";
         shell.serialize_redraws = self.native_options.serialize_redraws;
-        if shell.suppress_passive_hover_redraws && self.native_options.diagnostic_mode {
-            info!(
-                target: "nc_dash::native",
-                "passive hover redraws suppressed on wayland"
-            );
-        }
         if shell.serialize_redraws && self.native_options.diagnostic_mode {
             info!(
                 target: "nc_dash::native",
@@ -1527,50 +1505,47 @@ mod tests {
     }
 
     #[test]
-    fn passive_pointer_move_redraw_is_suppressed_when_wayland_hover_fallback_is_enabled() {
+    fn passive_pointer_move_dispatches_and_defers_redraw() {
         let mut shell = test_mouse_shell(true);
-        shell.suppress_passive_hover_redraws = true;
         shell.current_pointer = Some(PendingPointer::Cell(3, 1));
         shell.pending_pointer = Some(PendingPointer::Cell(4, 1));
         shell.needs_redraw = false;
 
-        assert!(!shell.flush_pointer(true));
-        assert!(!shell.needs_redraw);
-        assert!(shell.hover_redraw_pending_since.is_none());
-        assert_eq!(shell.app.mouse_dispatch_count, 0);
+        assert!(shell.flush_pointer(true));
+        assert!(shell.needs_redraw);
+        assert!(shell.hover_redraw_pending_since.is_some());
+        assert_eq!(shell.app.mouse_dispatch_count, 1);
         assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(4, 1)));
     }
 
     #[test]
-    fn wayland_hover_fallback_updates_pointer_without_queuing_flush() {
+    fn queued_passive_pointer_move_waits_for_flush_before_dispatch() {
         let mut shell = test_mouse_shell(true);
-        shell.suppress_passive_hover_redraws = true;
         shell.current_pointer = Some(PendingPointer::Cell(3, 1));
 
         let effects = shell.update(NativeMsg::QueuePointer(PendingPointer::Cell(8, 2)));
 
         assert!(effects.is_empty());
-        assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(8, 2)));
-        assert_eq!(shell.pending_pointer, None);
+        assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(3, 1)));
+        assert_eq!(shell.pending_pointer, Some(PendingPointer::Cell(8, 2)));
         assert_eq!(shell.app.mouse_dispatch_count, 0);
     }
 
     #[test]
-    fn wayland_hover_fallback_keeps_updated_pointer_for_subsequent_click_dispatch() {
+    fn flushed_passive_pointer_move_keeps_updated_pointer_for_subsequent_click_dispatch() {
         let mut shell = test_mouse_shell(true);
-        shell.suppress_passive_hover_redraws = true;
         shell.current_pointer = Some(PendingPointer::Cell(3, 1));
         shell.pending_pointer = Some(PendingPointer::Cell(8, 2));
 
-        assert!(!shell.flush_pointer(true));
-        assert_eq!(shell.app.mouse_dispatch_count, 0);
+        assert!(shell.flush_pointer(true));
+        assert_eq!(shell.app.mouse_dispatch_count, 1);
 
         let effects = shell.update(NativeMsg::MouseButton {
             button: WinitMouseButton::Left,
             pressed: true,
         });
 
-        assert_eq!(shell.app.mouse_dispatch_count, 1);
+        assert_eq!(shell.app.mouse_dispatch_count, 2);
         assert_eq!(shell.app.last_mouse_column, Some(8));
         assert_eq!(shell.app.last_mouse_row, Some(2));
         assert_eq!(effects, vec![NativeEffect::RequestRedraw(NativeRedrawCause::Mouse)]);
