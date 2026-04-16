@@ -10,3 +10,4 @@ panic = "abort"
 
 [patch.crates-io]
 winit = { path = "vendor/winit-0.29.15" }
+ratatui-wgpu = { path = "vendor/ratatui-wgpu-0.5.0" }

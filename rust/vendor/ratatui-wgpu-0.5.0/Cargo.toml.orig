@@ -1,0 +1,70 @@
+[package]
+license      = "MIT OR Apache-2.0"
+name         = "ratatui-wgpu"
+version      = "0.5.0"
+edition      = "2021"
+rust-version = "1.92.0"
+repository   = "https://github.com/Jesterhearts/ratatui-wgpu"
+description  = "A wgpu based backend for ratatui."
+keywords     = [ "wasm", "tui", "rendering" ]
+exclude      = [ "examples/", "backend/fonts/", "backend/goldens/" ]
+
+[features]
+default = [ "ahash", "png" ]
+ahash   = [ "dep:ahash", "evictor/ahash" ]
+png     = [ "dep:png" ]
+web     = [ "wgpu/webgl" ]
+
+[[example]]
+name              = "hello_crt"
+path              = "examples/web/hello_crt.rs"
+required-features = [ "web" ]
+
+[[example]]
+name              = "hello_web"
+path              = "examples/web/hello_web.rs"
+required-features = [ "web" ]
+
+[[example]]
+name              = "hello_webworker"
+path              = "examples/web/hello_webworker.rs"
+required-features = [ "web" ]
+
+[dependencies]
+ahash              = { version = "0.8.12", default-features = false, features = [ "std", "compile-time-rng" ], optional = true }
+bitvec             = { version = "1.0.1", default-features = false, features = [ "std" ] }
+bytemuck           = { version = "1.25.0", features = [ "derive" ] }
+evictor            = { version = "0.5.1", default-features = false }
+indexmap           = { version = "2.13.0", default-features = false, features = [ "std" ] }
+log                = { version = "0.4.29", default-features = false }
+png                = { version = "0.18.1", optional = true }
+raqote             = { version = "0.8.5", default-features = false }
+ratatui-core       = { version = "0.1.0", default-features = false }
+ratatui-widgets    = { version = "0.3.0", default-features = false }
+rustybuzz          = "0.20.1"
+thiserror          = "2.0.18"
+unicode-bidi       = "0.3.18"
+unicode-properties = "0.1.4"
+unicode-width      = "0.2.2"
+web-time           = "1.1.0"
+wgpu               = "28.0.0"
+
+[dev-dependencies]
+anyhow                   = "1.0.102"
+chrono                   = "0.4.44"
+console_error_panic_hook = "0.1.7"
+console_log              = "1.0.0"
+crossbeam-queue          = "0.3.12"
+env_logger               = "0.11.9"
+fontdb                   = "0.23.0"
+futures-lite             = "2.6.1"
+image                    = { version = "0.25.9", default-features = false, features = [ "png" ] }
+js-sys                   = "0.3.91"
+oneshot                  = "0.2.1"
+palette                  = "0.7.6"
+serial_test              = "3.4.0"
+wasm-bindgen             = "0.2.114"
+wasm-bindgen-futures     = "0.4.64"
+web-sys                  = { version = "0.3.91", features = [ "MessageEvent", "Worker", "WorkerOptions", "WorkerType" ] }
+winit                    = "0.30.13"
+ratatui                  = "0.30.0"

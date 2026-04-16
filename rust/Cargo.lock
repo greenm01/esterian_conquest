@@ -4823,8 +4823,6 @@ dependencies = [
 [[package]]
 name = "ratatui-wgpu"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "307466142b80e65e8e57348818b982177240923edb088d6991a5bebe9da2f14d"
 dependencies = [
  "ahash",
  "bitvec",
