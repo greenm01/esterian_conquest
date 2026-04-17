@@ -363,7 +363,11 @@ fn render_build_specify_playfield(
     buf.set_cell(bottom, left, '└', chrome);
     buf.set_cell(bottom, right, '┘', chrome);
 
-    let title_width = layout.budget_title.chars().count().min(frame.body_width.saturating_sub(4));
+    let title_width = layout
+        .budget_title
+        .chars()
+        .count()
+        .min(frame.body_width.saturating_sub(4));
     if title_width > 0 {
         let title_col = left + frame.body_width.saturating_sub(title_width + 2);
         layout::write_clipped(

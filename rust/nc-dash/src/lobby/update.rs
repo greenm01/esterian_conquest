@@ -10,8 +10,7 @@ use super::hosted::dashboard::{build_hosted_dash_app, replay_hosted_draft};
 use super::state::{
     FirstJoinSetupField, FirstJoinSetupView, FirstRunField, GateResetAction, HostedGameView,
     HostedSyncPhase, KeychainGateMode, LobbyApp, LobbyNetworkStatus, LobbyRoute, LobbyStatusTone,
-    LobbyTab,
-    ThreadPaneFocus,
+    LobbyTab, ThreadPaneFocus,
 };
 use super::storage::settings::{LOCK_TIMEOUT_OPTIONS, lock_timeout_label};
 use crate::theme;
@@ -743,8 +742,7 @@ fn handle_submit_turn_key(app: &mut LobbyApp, key: KeyEvent) {
             match app.transport.submit_turn(&row, turn, &commands) {
                 Ok(outcome) => {
                     if let Some(hosted) = app.state.hosted_game.as_mut() {
-                        hosted.submit_status =
-                            Some(active_turn_receipt_message(&outcome.receipt));
+                        hosted.submit_status = Some(active_turn_receipt_message(&outcome.receipt));
                         if matches!(
                             outcome.receipt.status,
                             TurnReceiptStatus::Accepted | TurnReceiptStatus::Superseded
@@ -1348,18 +1346,20 @@ pub(crate) fn reload_hosted_dashboard_from_cached_snapshot(app: &mut LobbyApp) -
 
 fn active_turn_receipt_message(receipt: &TurnReceipt) -> String {
     match receipt.status {
-        TurnReceiptStatus::Accepted => "Turn receipt accepted. Waiting for refreshed state.".to_string(),
+        TurnReceiptStatus::Accepted => {
+            "Turn receipt accepted. Waiting for refreshed state.".to_string()
+        }
         TurnReceiptStatus::Superseded => {
             "Turn receipt superseded. Waiting for refreshed state.".to_string()
         }
-        TurnReceiptStatus::Rejected | TurnReceiptStatus::NotClaimed | TurnReceiptStatus::WrongTurn => {
-            receipt.message.clone().unwrap_or_else(|| {
-                format!(
-                    "Turn submission was rejected by nc-host ({})",
-                    receipt.status.as_str()
-                )
-            })
-        }
+        TurnReceiptStatus::Rejected
+        | TurnReceiptStatus::NotClaimed
+        | TurnReceiptStatus::WrongTurn => receipt.message.clone().unwrap_or_else(|| {
+            format!(
+                "Turn submission was rejected by nc-host ({})",
+                receipt.status.as_str()
+            )
+        }),
     }
 }
 
@@ -1937,8 +1937,7 @@ mod tests {
         let snapshot = crate::repro::sample_hosted_dashboard_snapshot();
         let dashboard =
             build_hosted_dash_app(&snapshot, ScreenGeometry::new(120, 40)).expect("dashboard");
-        let mut app =
-            LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
         app.state.hosted_game = Some(HostedGameView {
             row: JoinedGameRow::new(
                 &snapshot.game_id,
@@ -1994,8 +1993,7 @@ mod tests {
         let snapshot = crate::repro::sample_hosted_dashboard_snapshot();
         let dashboard =
             build_hosted_dash_app(&snapshot, ScreenGeometry::new(120, 40)).expect("dashboard");
-        let mut app =
-            LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
         app.state.hosted_game = Some(HostedGameView {
             row: JoinedGameRow::new(
                 &snapshot.game_id,

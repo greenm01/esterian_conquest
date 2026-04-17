@@ -1,11 +1,11 @@
 use crate::PlayfieldBuffer;
 use crate::buffer::CellStyle;
 use crate::geometry::ScreenGeometry;
+use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use crate::native::{self, NativeApp};
 use crate::startup::NativeLaunchOptions;
 use crate::theme;
 use crate::ui::UiScene;
-use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
@@ -339,7 +339,12 @@ impl NativeApp for CursorMotionReproApp {
         );
         draw_motion_repro_grid(&mut buffer);
         buffer.write_text(1, 2, "glyphon native motion repro", theme::title_style());
-        buffer.write_text(2, 2, "Move the pointer. Esc or q exits.", theme::body_style());
+        buffer.write_text(
+            2,
+            2,
+            "Move the pointer. Esc or q exits.",
+            theme::body_style(),
+        );
         buffer.write_text(
             3,
             2,
@@ -358,7 +363,8 @@ impl NativeApp for CursorMotionReproApp {
         );
         buffer.write_text(5, 2, &signature, theme::body_style());
         if let Some((column, row)) = self.last_pointer {
-            if usize::from(column) < self.geometry.width() && usize::from(row) < self.geometry.height()
+            if usize::from(column) < self.geometry.width()
+                && usize::from(row) < self.geometry.height()
             {
                 buffer.set_cell(
                     row as usize,
@@ -426,12 +432,7 @@ fn build_static_glyph_grid_playfield() -> PlayfieldBuffer {
         "             └────────────┴────────────┘",
         theme::body_style(),
     );
-    buffer.write_text(
-        11,
-        2,
-        "Blocks/shades: ░ ▒ ▓ █ ▀ ▄ ▌ ▐",
-        theme::body_style(),
-    );
+    buffer.write_text(11, 2, "Blocks/shades: ░ ▒ ▓ █ ▀ ▄ ▌ ▐", theme::body_style());
     buffer.write_text(
         13,
         2,
@@ -462,7 +463,11 @@ fn draw_motion_repro_grid(buffer: &mut PlayfieldBuffer) {
 
     for row in 1..height - 1 {
         for col in 1..width - 1 {
-            let ch = if row % 4 == 0 || col % 8 == 0 { '·' } else { ' ' };
+            let ch = if row % 4 == 0 || col % 8 == 0 {
+                '·'
+            } else {
+                ' '
+            };
             buffer.set_cell(row, col, ch, guide_style);
         }
     }
@@ -518,8 +523,18 @@ fn build_static_starmap_playfield() -> PlayfieldBuffer {
     buffer.set_cell(22, 60, '*', theme::body_style());
 
     buffer.write_text(25, 4, "Legend:", theme::table_header_style());
-    buffer.write_text(26, 4, "◊ icd   ⨁ fleet-on-world   △ fleet-empty", theme::body_style());
-    buffer.write_text(27, 4, "# known world   ? unknown   * partial", theme::body_style());
+    buffer.write_text(
+        26,
+        4,
+        "◊ icd   ⨁ fleet-on-world   △ fleet-empty",
+        theme::body_style(),
+    );
+    buffer.write_text(
+        27,
+        4,
+        "# known world   ? unknown   * partial",
+        theme::body_style(),
+    );
     buffer
 }
 
@@ -586,15 +601,19 @@ mod tests {
     fn hosted_snapshot_fixture_contains_empty_and_world_fleet_repro_cases() {
         let snapshot = sample_hosted_dashboard_snapshot();
         assert_eq!(snapshot.state.owned_fleets.len(), 2);
-        assert!(snapshot
-            .state
-            .owned_fleets
-            .iter()
-            .any(|fleet| fleet.coords == [12, 9]));
-        assert!(snapshot
-            .state
-            .owned_fleets
-            .iter()
-            .any(|fleet| fleet.coords == [10, 10]));
+        assert!(
+            snapshot
+                .state
+                .owned_fleets
+                .iter()
+                .any(|fleet| fleet.coords == [12, 9])
+        );
+        assert!(
+            snapshot
+                .state
+                .owned_fleets
+                .iter()
+                .any(|fleet| fleet.coords == [10, 10])
+        );
     }
 }

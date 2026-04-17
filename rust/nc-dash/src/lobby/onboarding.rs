@@ -4,8 +4,8 @@ use crate::geometry::ScreenGeometry;
 use crate::modal::{Rect, centered_rect, draw_box_without_close_button, wrap_modal_text_lines};
 use crate::native_grid::{logical_cell_metrics, logical_text_metrics};
 use crate::theme;
-use crate::ui::scene::{SceneGraph, ScenePoint, SceneRect};
 use crate::ui::UiScene;
+use crate::ui::scene::{SceneGraph, ScenePoint, SceneRect};
 
 use super::state::{FirstRunField, LobbyRoute, LobbyState};
 
@@ -449,7 +449,12 @@ fn build_gate_scene(
     let width = geometry.width() as u16;
     let height = geometry.height() as u16;
     if width < 60 || height < 24 {
-        render_tiny_scene(&mut scene, title, metrics.cell_width_px as f32, metrics.cell_height_px as f32);
+        render_tiny_scene(
+            &mut scene,
+            title,
+            metrics.cell_width_px as f32,
+            metrics.cell_height_px as f32,
+        );
         return UiScene::Graph(scene);
     }
 
@@ -491,8 +496,7 @@ fn build_gate_scene(
 
     let popup_rect = scene_rect_from_cells(popup);
     let interior_top = popup_rect.y + metrics.cell_height_px as f32;
-    let interior_height =
-        (popup_rect.height - metrics.cell_height_px as f32 - 2.0).max(0.0);
+    let interior_height = (popup_rect.height - metrics.cell_height_px as f32 - 2.0).max(0.0);
     scene.push_quad(
         SceneRect::new(
             popup_rect.x + 1.0,
@@ -545,12 +549,7 @@ fn build_gate_scene(
     UiScene::Graph(scene)
 }
 
-fn render_tiny_scene(
-    scene: &mut SceneGraph,
-    title: &str,
-    cell_width: f32,
-    cell_height: f32,
-) {
+fn render_tiny_scene(scene: &mut SceneGraph, title: &str, cell_width: f32, cell_height: f32) {
     let lines = ["Nostrian Conquest", title, "Resize the window to continue."];
     let rows = (scene.logical_size().height / cell_height).floor().max(1.0) as usize;
     let cols = (scene.logical_size().width / cell_width).floor().max(1.0) as usize;
@@ -563,12 +562,7 @@ fn render_tiny_scene(
         } else {
             theme::table_body_style()
         };
-        scene.push_text(
-            scene_point_from_cell(col, row),
-            *line,
-            style,
-            None,
-        );
+        scene.push_text(scene_point_from_cell(col, row), *line, style, None);
     }
 }
 
@@ -690,7 +684,12 @@ fn write_scene_field(
         cell_metrics.cell_height_px as f32,
     ));
     scene.push_text(scene_point_from_cell(left, row), label, marker_style, clip);
-    scene.push_text(scene_point_from_cell(value_col, row), value.clone(), value_style, clip);
+    scene.push_text(
+        scene_point_from_cell(value_col, row),
+        value.clone(),
+        value_style,
+        clip,
+    );
     if field.active {
         let caret_col = value_col + field.cursor_offset.min(value.chars().count());
         scene.push_caret(
@@ -953,10 +952,10 @@ fn truncate_with_continuation(text: &str, max_width: usize) -> String {
 mod tests {
     use super::{render_first_run_scene, render_locked_scene};
     use crate::geometry::ScreenGeometry;
-    use crate::lobby::state::LobbyRoute;
     use crate::lobby::LobbyApp;
-    use crate::ui::scene::SceneNode;
+    use crate::lobby::state::LobbyRoute;
     use crate::ui::UiScene;
+    use crate::ui::scene::SceneNode;
 
     #[test]
     fn locked_scene_uses_explicit_title_and_caret_nodes() {
@@ -972,10 +971,12 @@ mod tests {
             node,
             SceneNode::Text(text) if text.text == "- UNLOCK KEYCHAIN -"
         )));
-        assert!(graph
-            .nodes()
-            .iter()
-            .any(|node| matches!(node, SceneNode::Caret(_))));
+        assert!(
+            graph
+                .nodes()
+                .iter()
+                .any(|node| matches!(node, SceneNode::Caret(_)))
+        );
     }
 
     #[test]
@@ -1006,7 +1007,10 @@ mod tests {
             .expect("locked scene should include password row");
 
         assert!(caret.rect.y >= password_row);
-        assert!(caret.rect.y < password_row + crate::native_grid::logical_cell_metrics().cell_height_px as f32);
+        assert!(
+            caret.rect.y
+                < password_row + crate::native_grid::logical_cell_metrics().cell_height_px as f32
+        );
     }
 
     #[test]
@@ -1020,6 +1024,11 @@ mod tests {
 
         assert!(graph.logical_size().width > 0.0);
         assert!(graph.logical_size().height > 0.0);
-        assert!(graph.nodes().iter().any(|node| matches!(node, SceneNode::Quad(_))));
+        assert!(
+            graph
+                .nodes()
+                .iter()
+                .any(|node| matches!(node, SceneNode::Quad(_)))
+        );
     }
 }

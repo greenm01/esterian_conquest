@@ -8,8 +8,8 @@ mod coords;
 mod dashboard_launch;
 mod diplomacy_view;
 mod geometry;
-pub mod input;
 mod inbox;
+pub mod input;
 mod layout;
 pub mod lobby;
 mod modal;
@@ -21,13 +21,13 @@ mod planet_view;
 mod popups;
 mod prompt;
 mod repro;
-mod ui;
 pub mod startup;
 mod table;
 mod table_filter;
 mod table_layout;
 mod table_selection;
 mod theme;
+mod ui;
 
 use startup::{LaunchCommand, LaunchTarget};
 
@@ -35,8 +35,8 @@ pub use app::state::DashApp;
 pub use buffer::PlayfieldBuffer;
 pub use geometry::ScreenGeometry;
 pub use lobby::LobbyApp;
-pub use ui::UiScene;
 pub use startup::{LobbyStartupOptions, NativeLaunchOptions, parse_launch_command};
+pub use ui::UiScene;
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     match parse_launch_command(args)? {
@@ -120,7 +120,8 @@ pub fn run_sample_hosted_wrapper_snapshot_native_repro(
     let snapshot = sample_hosted_dashboard_snapshot();
     let geometry = crate::geometry::ScreenGeometry::new(120, 40);
     let seat = u8::try_from(snapshot.player_seat)?;
-    let mut dashboard = crate::lobby::hosted::dashboard::build_hosted_dash_app(&snapshot, geometry)?;
+    let mut dashboard =
+        crate::lobby::hosted::dashboard::build_hosted_dash_app(&snapshot, geometry)?;
     dashboard.initialize_hosted_turn_draft();
     let submit_input = dashboard.hosted_turn_text().unwrap_or_default();
     let mut app = crate::lobby::LobbyApp::new_for_tests(

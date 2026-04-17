@@ -1,4 +1,5 @@
 use crate::geometry::ScreenGeometry;
+use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use crate::lobby::storage::settings::PersistedWindowState;
 use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
@@ -6,7 +7,6 @@ use crate::native_grid::{
 };
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
 use crate::ui::UiScene;
-use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_log::LogLevel;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,6 +45,12 @@ pub(crate) trait NativeApp {
     fn window_title(&self) -> &'static str;
     fn geometry(&self) -> ScreenGeometry;
     fn native_window_ready(&mut self, _window: &Window) {}
+    fn wants_window_focus(&self) -> bool {
+        false
+    }
+    fn wants_text_input(&self) -> bool {
+        false
+    }
     fn saved_window_state(&self) -> Option<PersistedWindowState> {
         None
     }
@@ -323,6 +329,8 @@ struct NativeShell<T: NativeApp> {
     pending_redraw_cause: Option<NativeRedrawCause>,
     serialize_redraws: bool,
     render_count: u64,
+    window_has_focus: Option<bool>,
+    text_input_enabled: Option<bool>,
 }
 
 impl<T: NativeApp> NativeShell<T> {
@@ -353,6 +361,8 @@ impl<T: NativeApp> NativeShell<T> {
             pending_redraw_cause: Some(NativeRedrawCause::Resize),
             serialize_redraws: false,
             render_count: 0,
+            window_has_focus: Some(false),
+            text_input_enabled: None,
         }
     }
 
@@ -440,11 +450,8 @@ impl<T: NativeApp> NativeShell<T> {
                 pixel_width,
                 pixel_height,
             } => {
-                if self.resize_to_window_pixels(
-                    pixel_width,
-                    pixel_height,
-                    self.window_scale_factor,
-                ) {
+                if self.resize_to_window_pixels(pixel_width, pixel_height, self.window_scale_factor)
+                {
                     self.push_state_effects(&mut effects, true, NativeRedrawCause::Resize);
                 }
             }
@@ -536,6 +543,12 @@ impl<T: NativeApp> NativeShell<T> {
     fn clear_drag_redraw_state(&mut self) {
         self.drag_redraw_pending = false;
         self.last_drag_redraw_at = None;
+    }
+
+    fn clear_focus_state(&mut self) {
+        self.modifiers = ModifiersState::empty();
+        self.window_has_focus = Some(false);
+        self.text_input_enabled = None;
     }
 
     fn hover_redraw_deadline(&self) -> Option<Instant> {
@@ -673,6 +686,8 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             },
             false,
         );
+        sync_window_focus_state(&mut shell, window.as_ref());
+        sync_window_input_state(&mut shell, window.as_ref());
         self.window = Some(window);
         self.renderer = Some(renderer);
         self.shell = Some(shell);
@@ -699,6 +714,14 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     NativeMsg::CloseRequested,
                     true,
                 );
+            }
+            WindowEvent::Focused(focused) => {
+                if focused {
+                    shell.window_has_focus = Some(true);
+                    sync_window_input_state(shell, window.as_ref());
+                } else {
+                    shell.clear_focus_state();
+                }
             }
             WindowEvent::ModifiersChanged(modifiers) => {
                 dispatch(
@@ -849,14 +872,14 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                             self.native_options.diagnostic_mode,
                         ) {
                             Err(err) => {
-                            crate::show_fatal_error(&native_error(
-                                "unable to render nc-dash window",
-                                self.native_options,
-                                self.session_backend,
-                                &self.diagnostics.borrow(),
-                                &err.to_string(),
-                            ));
-                            event_loop.exit();
+                                crate::show_fatal_error(&native_error(
+                                    "unable to render nc-dash window",
+                                    self.native_options,
+                                    self.session_backend,
+                                    &self.diagnostics.borrow(),
+                                    &err.to_string(),
+                                ));
+                                event_loop.exit();
                             }
                             Ok(frame_stats) => {
                                 if was_drag_redraw || shell.hover_redraw_pending_since.is_some() {
@@ -1346,6 +1369,7 @@ fn dispatch<T: NativeApp>(
     msg: NativeMsg,
     exit_immediately: bool,
 ) {
+    let sync_focus = matches!(msg, NativeMsg::KeyInput(_) | NativeMsg::MouseButton { .. });
     let before_signature = if diagnostics.borrow().diagnostic_mode {
         Some(capture_signature(&shell.app))
     } else {
@@ -1370,6 +1394,10 @@ fn dispatch<T: NativeApp>(
         seq
     };
     let effects = shell.update(msg);
+    if sync_focus {
+        sync_window_focus_state(shell, window);
+    }
+    sync_window_input_state(shell, window);
     if diagnostics.borrow().diagnostic_mode {
         let after_signature = capture_signature(&shell.app);
         diagnostics
@@ -1451,6 +1479,42 @@ fn sync_window_size<T: NativeApp>(shell: &mut NativeShell<T>, window: &winit::wi
 fn sync_window_state<T: NativeApp>(shell: &mut NativeShell<T>, window: &winit::window::Window) {
     if let Err(err) = shell.sync_persisted_window_state(window) {
         warn!(target: "nc_dash::native", error = %err, "failed to persist native window state");
+    }
+}
+
+fn sync_window_focus_requested(current: &mut Option<bool>, wants: bool) -> bool {
+    if !wants || *current != Some(false) {
+        return false;
+    }
+    *current = None;
+    true
+}
+
+fn sync_window_focus_state<T: NativeApp>(
+    shell: &mut NativeShell<T>,
+    window: &winit::window::Window,
+) {
+    if sync_window_focus_requested(&mut shell.window_has_focus, shell.app.wants_window_focus()) {
+        window.focus_window();
+    }
+}
+
+fn sync_text_input_enabled(current: &mut Option<bool>, wants: bool) -> bool {
+    if *current == Some(wants) {
+        return false;
+    }
+    *current = Some(wants);
+    true
+}
+
+fn sync_window_input_state<T: NativeApp>(
+    shell: &mut NativeShell<T>,
+    window: &winit::window::Window,
+) {
+    let wants_text_input = shell.app.wants_text_input();
+    if sync_text_input_enabled(&mut shell.text_input_enabled, wants_text_input) {
+        window.set_ime_allowed(wants_text_input);
+        shell.needs_redraw = true;
     }
 }
 
@@ -1537,18 +1601,20 @@ mod tests {
         NativeInputCause, NativeMsg, NativeRedrawCause, NativeShell, NativeStage, PendingPointer,
         RedrawSchedule, WinitMouseButton, coalesce_pointer_move, map_event_loop_error,
         native_error, native_window_icon, next_pointer_dispatch, pointer_coords,
-        pointer_event_kind, resolve_window_policy,
+        pointer_event_kind, resolve_window_policy, sync_text_input_enabled,
+        sync_window_focus_requested,
     };
     use crate::geometry::ScreenGeometry;
+    use crate::input::{MouseEvent, MouseEventKind};
     use crate::lobby::storage::settings::PersistedWindowState;
     use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
     use crate::ui::UiScene;
-    use crate::input::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
     use std::time::{Duration, Instant};
     use winit::error::EventLoopError;
+    use winit::keyboard::ModifiersState;
 
     use crate::app::state::DashApp;
     use crate::theme;
@@ -1811,6 +1877,47 @@ mod tests {
     }
 
     #[test]
+    fn focus_loss_clears_modifiers() {
+        let mut shell = test_mouse_shell(false);
+        shell.window_has_focus = Some(true);
+        shell.modifiers = ModifiersState::SHIFT | ModifiersState::CONTROL;
+        shell.text_input_enabled = Some(true);
+
+        shell.clear_focus_state();
+
+        assert_eq!(shell.modifiers, ModifiersState::empty());
+        assert_eq!(shell.window_has_focus, Some(false));
+        assert_eq!(shell.text_input_enabled, None);
+    }
+
+    #[test]
+    fn text_input_sync_tracks_changes() {
+        let mut current = None;
+
+        assert!(sync_text_input_enabled(&mut current, true));
+        assert_eq!(current, Some(true));
+        assert!(!sync_text_input_enabled(&mut current, true));
+        assert!(sync_text_input_enabled(&mut current, false));
+        assert_eq!(current, Some(false));
+    }
+
+    #[test]
+    fn window_focus_sync_requests_once_until_focus_changes() {
+        let mut current = Some(false);
+
+        assert!(sync_window_focus_requested(&mut current, true));
+        assert_eq!(current, None);
+        assert!(!sync_window_focus_requested(&mut current, true));
+
+        current = Some(true);
+        assert!(!sync_window_focus_requested(&mut current, true));
+
+        current = Some(false);
+        assert!(!sync_window_focus_requested(&mut current, false));
+        assert_eq!(current, Some(false));
+    }
+
+    #[test]
     fn native_error_includes_backend_and_stage_context() {
         let mut diagnostics = NativeDiagnostics::new(true);
         diagnostics.set_stage(NativeStage::RendererInit);
@@ -1970,6 +2077,8 @@ mod tests {
                 last_mouse_column: None,
                 last_mouse_row: None,
                 should_quit: false,
+                wants_window_focus: false,
+                wants_text_input: false,
             },
             window_pixel_width,
             window_pixel_height,
@@ -1988,6 +2097,8 @@ mod tests {
                 last_mouse_column: None,
                 last_mouse_row: None,
                 should_quit: false,
+                wants_window_focus: false,
+                wants_text_input: false,
             },
             100,
             54,
@@ -2004,6 +2115,8 @@ mod tests {
         last_mouse_column: Option<u16>,
         last_mouse_row: Option<u16>,
         should_quit: bool,
+        wants_window_focus: bool,
+        wants_text_input: bool,
     }
 
     impl NativeApp for TestApp {
@@ -2016,6 +2129,14 @@ mod tests {
         }
 
         fn dispatch_key_event(&mut self, _key: crate::input::KeyEvent) {}
+
+        fn wants_window_focus(&self) -> bool {
+            self.wants_window_focus
+        }
+
+        fn wants_text_input(&self) -> bool {
+            self.wants_text_input
+        }
 
         fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool {
             self.mouse_dispatch_count += 1;

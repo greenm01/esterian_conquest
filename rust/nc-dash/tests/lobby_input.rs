@@ -1,5 +1,5 @@
-use nc_dash::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_dash::ScreenGeometry;
+use nc_dash::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
 use nc_dash::lobby::models::{DirectContactRow, JoinedGameRow, OpenGameRow, ThreadMessage};

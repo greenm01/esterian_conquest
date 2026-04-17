@@ -68,8 +68,9 @@ impl Clipboard {
                     return;
                 }
             };
-            self.state =
-                ClipboardState::WaylandAvailable(unsafe { smithay_clipboard::Clipboard::new(display) });
+            self.state = ClipboardState::WaylandAvailable(unsafe {
+                smithay_clipboard::Clipboard::new(display)
+            });
         }
     }
 
@@ -82,9 +83,7 @@ impl Clipboard {
             ClipboardState::CrossPlatformAvailable(inner) => match inner.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::warn!(
-                        "Disabling nc-dash clipboard after backend read failure: {err}"
-                    );
+                    tracing::warn!("Disabling nc-dash clipboard after backend read failure: {err}");
                     self.state = ClipboardState::Unavailable;
                     None
                 }

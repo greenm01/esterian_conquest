@@ -51,8 +51,7 @@ impl Buffer {
 
     pub fn cell(&self, position: (u16, u16)) -> Option<&Cell> {
         let (x, y) = position;
-        if x < self.area.x || y < self.area.y || x >= self.area.right() || y >= self.area.bottom()
-        {
+        if x < self.area.x || y < self.area.y || x >= self.area.right() || y >= self.area.bottom() {
             return None;
         }
         let local_x = usize::from(x - self.area.x);
@@ -93,8 +92,7 @@ impl Buffer {
     }
 
     fn set_cell(&mut self, x: u16, y: u16, ch: char, style: Style) {
-        if x < self.area.x || y < self.area.y || x >= self.area.right() || y >= self.area.bottom()
-        {
+        if x < self.area.x || y < self.area.y || x >= self.area.right() || y >= self.area.bottom() {
             return;
         }
         let local_x = usize::from(x - self.area.x);

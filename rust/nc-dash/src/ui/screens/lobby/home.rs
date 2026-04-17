@@ -5,8 +5,8 @@ use crate::ui::cell::layout::{Constraint, Rect};
 use crate::ui::cell::style::Style;
 use crate::ui::cell::widgets::Widget;
 
-use super::comms;
 use super::chrome::{network_style, shell_block, with_panel_bg};
+use super::comms;
 use super::layout::{HomeLayout, home_tab_content_area};
 use super::tables::{TableCellAlign, TableColumnSpec, render_table_panel};
 
@@ -361,13 +361,7 @@ fn map_size_summary(total_seats: u8) -> String {
     format!("{edge}x{edge}")
 }
 
-fn right_align(
-    buffer: &mut Buffer,
-    area: Rect,
-    row: u16,
-    text: &str,
-    style: Style,
-) {
+fn right_align(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: Style) {
     let width = text.chars().count().min(area.width as usize) as u16;
     let start = area.right().saturating_sub(width);
     buffer.set_stringn(start, row, text, area.width as usize, style);

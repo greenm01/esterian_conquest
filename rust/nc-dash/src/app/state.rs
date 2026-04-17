@@ -13,9 +13,9 @@ use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
+use super::panel_cache::PanelCache;
 use crate::client_settings::DashClientSettings;
 use crate::overlays::frame::RelativePopupOrigin;
-use super::panel_cache::PanelCache;
 
 /// Which panel has keyboard focus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

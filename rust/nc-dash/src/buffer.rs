@@ -246,7 +246,14 @@ impl PlayfieldBuffer {
         cells
     }
 
-    pub fn blit_region(&mut self, row: usize, col: usize, width: usize, height: usize, cells: &[Cell]) {
+    pub fn blit_region(
+        &mut self,
+        row: usize,
+        col: usize,
+        width: usize,
+        height: usize,
+        cells: &[Cell],
+    ) {
         let row_end = (row + height).min(self.height);
         let col_end = (col + width).min(self.width);
         let w = col_end.saturating_sub(col);

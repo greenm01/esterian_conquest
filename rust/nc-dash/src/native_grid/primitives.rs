@@ -371,15 +371,71 @@ fn draw_marker_glyph(
 
     match shape {
         MarkerShape::TriangleOutline => {
-            draw_line_rgba(frame, stride_px, mid_x as isize, top as isize, left as isize, bottom as isize, color);
-            draw_line_rgba(frame, stride_px, mid_x as isize, top as isize, right as isize, bottom as isize, color);
-            draw_line_rgba(frame, stride_px, left as isize, bottom as isize, right as isize, bottom as isize, color);
+            draw_line_rgba(
+                frame,
+                stride_px,
+                mid_x as isize,
+                top as isize,
+                left as isize,
+                bottom as isize,
+                color,
+            );
+            draw_line_rgba(
+                frame,
+                stride_px,
+                mid_x as isize,
+                top as isize,
+                right as isize,
+                bottom as isize,
+                color,
+            );
+            draw_line_rgba(
+                frame,
+                stride_px,
+                left as isize,
+                bottom as isize,
+                right as isize,
+                bottom as isize,
+                color,
+            );
         }
         MarkerShape::DiamondOutline | MarkerShape::DiamondWithPlus => {
-            draw_line_rgba(frame, stride_px, mid_x as isize, top as isize, right as isize, mid_y as isize, color);
-            draw_line_rgba(frame, stride_px, right as isize, mid_y as isize, mid_x as isize, bottom as isize, color);
-            draw_line_rgba(frame, stride_px, mid_x as isize, bottom as isize, left as isize, mid_y as isize, color);
-            draw_line_rgba(frame, stride_px, left as isize, mid_y as isize, mid_x as isize, top as isize, color);
+            draw_line_rgba(
+                frame,
+                stride_px,
+                mid_x as isize,
+                top as isize,
+                right as isize,
+                mid_y as isize,
+                color,
+            );
+            draw_line_rgba(
+                frame,
+                stride_px,
+                right as isize,
+                mid_y as isize,
+                mid_x as isize,
+                bottom as isize,
+                color,
+            );
+            draw_line_rgba(
+                frame,
+                stride_px,
+                mid_x as isize,
+                bottom as isize,
+                left as isize,
+                mid_y as isize,
+                color,
+            );
+            draw_line_rgba(
+                frame,
+                stride_px,
+                left as isize,
+                mid_y as isize,
+                mid_x as isize,
+                top as isize,
+                color,
+            );
             if matches!(shape, MarkerShape::DiamondWithPlus) {
                 fill_rect_rgba(
                     frame,

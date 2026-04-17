@@ -1,8 +1,8 @@
 mod primitives;
 
 use std::borrow::Cow;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -12,6 +12,7 @@ use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
     SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight, fontdb,
 };
+use tracing::info;
 use wgpu::{
     self, BindGroup, BindGroupLayout, BlendState, ColorTargetState, ColorWrites,
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, FragmentState,
@@ -25,12 +26,11 @@ use wgpu::{
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{Key, ModifiersState, NamedKey};
-use tracing::info;
 
 use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::theme;
-use crate::ui::scene::{SceneGraph, SceneNode, SceneRect, TextNode};
 use crate::ui::UiScene;
+use crate::ui::scene::{SceneGraph, SceneNode, SceneRect, TextNode};
 
 pub const DEFAULT_FONT_SIZE_LOGICAL_PX: f32 = 18.0;
 pub const DEFAULT_LINE_HEIGHT_LOGICAL_PX: f32 = 24.0;
@@ -58,8 +58,8 @@ const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
     "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
 ));
 const CELL_METRIC_SAMPLE_GLYPHS: &[char] = &[
-    'm', 'M', 'W', '@', 'O', '#', '?', '*', '△', '⨁', '◊', '·', 'α', 'β', 'γ', 'δ', 'ε', 'ζ',
-    'η', 'θ', 'λ', 'μ', 'ξ', 'π', 'σ', 'φ', 'ω', 'Δ', 'Σ', 'Ω',
+    'm', 'M', 'W', '@', 'O', '#', '?', '*', '△', '⨁', '◊', '·', 'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η',
+    'θ', 'λ', 'μ', 'ξ', 'π', 'σ', 'φ', 'ω', 'Δ', 'Σ', 'Ω',
 ];
 const BACKGROUND_SHADER: &str = r#"
 @group(0) @binding(0) var background_tex: texture_2d<f32>;
@@ -158,7 +158,8 @@ impl PlayfieldSnapshot {
         self.row_fingerprints.clear();
         self.row_fingerprints.reserve(self.height);
         for row_idx in 0..self.height {
-            self.row_fingerprints.push(fingerprint_row(buffer.row(row_idx)));
+            self.row_fingerprints
+                .push(fingerprint_row(buffer.row(row_idx)));
         }
     }
 }
@@ -689,12 +690,7 @@ impl CellGridWindowRenderer {
 
         for row_idx in 0..playfield.height() {
             let row_changed = full_repaint
-                || row_needs_repaint(
-                    &self.previous_playfield,
-                    &current_snapshot,
-                    row_idx,
-                    cursor,
-                );
+                || row_needs_repaint(&self.previous_playfield, &current_snapshot, row_idx, cursor);
             if row_changed {
                 repaint_playfield_row(
                     &mut self.background_pixels,
@@ -710,7 +706,8 @@ impl CellGridWindowRenderer {
                 match current_dirty_range.as_mut() {
                     Some((_, end)) if *end == row_idx => *end += 1,
                     Some(_) => {
-                        dirty_row_ranges.push(current_dirty_range.take().expect("dirty range exists"));
+                        dirty_row_ranges
+                            .push(current_dirty_range.take().expect("dirty range exists"));
                         current_dirty_range = Some((row_idx, row_idx + 1));
                     }
                     None => current_dirty_range = Some((row_idx, row_idx + 1)),
@@ -870,7 +867,9 @@ impl CellGridWindowRenderer {
                     );
                 }
                 SceneNode::Line(node) => {
-                    let thickness = (node.thickness * layout.scale_factor as f32).ceil().max(1.0);
+                    let thickness = (node.thickness * layout.scale_factor as f32)
+                        .ceil()
+                        .max(1.0);
                     let start = layout.physical_point(node.start);
                     let end = layout.physical_point(node.end);
                     draw_scene_line(
@@ -909,7 +908,10 @@ impl CellGridWindowRenderer {
         Ok(placements)
     }
 
-    fn collect_existing_scene_text_placements(&mut self, scene: &SceneGraph) -> Vec<TextCellPlacement> {
+    fn collect_existing_scene_text_placements(
+        &mut self,
+        scene: &SceneGraph,
+    ) -> Vec<TextCellPlacement> {
         let layout = SceneRenderLayout::new(
             scene.logical_size(),
             self.surface_config.width,
@@ -987,7 +989,14 @@ impl CellGridWindowRenderer {
         let bounds = node
             .clip
             .map(|clip| layout.text_bounds(clip))
-            .unwrap_or_else(|| layout.text_bounds(SceneRect::new(0.0, 0.0, layout.logical_width, layout.logical_height)));
+            .unwrap_or_else(|| {
+                layout.text_bounds(SceneRect::new(
+                    0.0,
+                    0.0,
+                    layout.logical_width,
+                    layout.logical_height,
+                ))
+            });
         placements.push(TextCellPlacement {
             key,
             left: layout.logical_x_to_physical(node.origin.x) + self.text_metrics.left_inset_px,
@@ -1287,12 +1296,20 @@ fn draw_scene_line(
     if start.0 == end.0 {
         let x = start.0.saturating_sub(thickness / 2);
         let top = start.1.min(end.1);
-        let height = start.1.max(end.1).saturating_sub(top).saturating_add(thickness);
+        let height = start
+            .1
+            .max(end.1)
+            .saturating_sub(top)
+            .saturating_add(thickness);
         primitives::fill_rect_rgba(frame, stride_px, x, top, thickness, height, color);
     } else {
         let y = start.1.saturating_sub(thickness / 2);
         let left = start.0.min(end.0);
-        let width = start.0.max(end.0).saturating_sub(left).saturating_add(thickness);
+        let width = start
+            .0
+            .max(end.0)
+            .saturating_sub(left)
+            .saturating_add(thickness);
         primitives::fill_rect_rgba(frame, stride_px, left, y, width, thickness, color);
     }
 }
@@ -1323,7 +1340,11 @@ pub fn logical_window_size_for_grid(cols: usize, rows: usize) -> winit::dpi::Log
     )
 }
 
-pub fn terminal_grid_for_pixels(pixel_width: u32, pixel_height: u32, scale_factor: f64) -> (u16, u16) {
+pub fn terminal_grid_for_pixels(
+    pixel_width: u32,
+    pixel_height: u32,
+    scale_factor: f64,
+) -> (u16, u16) {
     let metrics = cell_metrics_for_scale(scale_factor);
     let cols = (pixel_width.max(1) as usize / metrics.cell_width_px).max(1);
     let rows = (pixel_height.max(1) as usize / metrics.cell_height_px).max(1);
@@ -1522,9 +1543,7 @@ fn cell_metrics_for_scale(scale_factor: f64) -> NativeCellMetrics {
         cell_width_px: CELL_METRIC_SAMPLE_GLYPHS
             .iter()
             .flat_map(|ch| [false, true].into_iter().map(move |bold| (*ch, bold)))
-            .map(|(ch, bold)| {
-                measure_sample_glyph_width(&mut font_system, ch, bold, text_metrics)
-            })
+            .map(|(ch, bold)| measure_sample_glyph_width(&mut font_system, ch, bold, text_metrics))
             .max()
             .unwrap_or(1)
             .saturating_add(horizontal_padding)

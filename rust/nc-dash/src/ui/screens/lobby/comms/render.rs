@@ -7,9 +7,9 @@ use crate::ui::cell::layout::Rect;
 use crate::ui::cell::style::{Modifier, Style};
 use crate::ui::cell::widgets::{Block, Borders, Widget};
 
+use super::super::{panel_block, scroll_offset, truncate_title, with_panel_bg, write_text};
 use super::format::{ThreadRenderLine, direct_thread_render_lines, notice_render_lines};
 use super::layout::workspace_layout;
-use super::super::{panel_block, scroll_offset, truncate_title, with_panel_bg, write_text};
 
 pub fn render_comms_scene(buffer: &mut Buffer, area: Rect, app: &LobbyApp) {
     if area.width == 0 || area.height == 0 {

@@ -1350,7 +1350,13 @@ fn apply_live_update(
         apply_catalog(unlocked, &update.catalog);
     }
     let catalog = unlocked.catalog.clone();
-    apply_player_events(unlocked, update.player_events, &catalog, active_game_id, active_game);
+    apply_player_events(
+        unlocked,
+        update.player_events,
+        &catalog,
+        active_game_id,
+        active_game,
+    );
     apply_notices(unlocked, update.notices);
     apply_direct_messages(unlocked, update.contact_messages);
     apply_game_inbox_messages(unlocked, update.player_messages, &catalog);
@@ -2576,7 +2582,10 @@ mod tests {
         assert_eq!(active_game.game_id.as_deref(), Some("sandbox-smoke"));
         assert_eq!(active_game.promoted_state_hash.as_deref(), Some("hash-6"));
         assert_eq!(
-            active_game.turn_receipt.as_ref().map(|receipt| receipt.status.clone()),
+            active_game
+                .turn_receipt
+                .as_ref()
+                .map(|receipt| receipt.status.clone()),
             Some(TurnReceiptStatus::Accepted)
         );
         assert_eq!(unlocked.cache.games[0].last_turn, Some(6));

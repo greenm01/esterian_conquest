@@ -238,8 +238,10 @@ impl LobbyApp {
     }
 
     fn refresh_resume_sync_overlay(&mut self) {
-        let hosted_route = matches!(self.state.route, LobbyRoute::HostedGame | LobbyRoute::SubmitTurn)
-            && self.state.hosted_game.is_some();
+        let hosted_route = matches!(
+            self.state.route,
+            LobbyRoute::HostedGame | LobbyRoute::SubmitTurn
+        ) && self.state.hosted_game.is_some();
         self.state.show_resume_sync_overlay =
             hosted_route && self.state.hosted_sync_phase.is_resuming_hosted_game();
     }
@@ -386,7 +388,10 @@ impl LobbyApp {
             self.state.show_help,
             self.state.show_manual,
             self.state.show_resume_sync_overlay,
-            self.state.hosted_sync_phase.current_game_id().unwrap_or("-"),
+            self.state
+                .hosted_sync_phase
+                .current_game_id()
+                .unwrap_or("-"),
             self.state.hosted_game.is_some(),
             hosted_signature,
             self.popup_position.is_some(),
@@ -427,9 +432,17 @@ impl LobbyApp {
 
         buffer.write_text(1, 2, "NOSTRIAN CONQUEST LOBBY", title_style);
         let network = format!("NETWORK: {}", self.state.network_status.label());
-        let network_col = self.geometry.width().saturating_sub(network.chars().count() + 2);
+        let network_col = self
+            .geometry
+            .width()
+            .saturating_sub(network.chars().count() + 2);
         buffer.write_text(1, network_col, &network, accent_style);
-        buffer.write_text(3, 2, "[ Home/OpenGames ratatui bypass enabled ]", accent_style);
+        buffer.write_text(
+            3,
+            2,
+            "[ Home/OpenGames ratatui bypass enabled ]",
+            accent_style,
+        );
         buffer.write_text(
             4,
             2,
@@ -458,7 +471,11 @@ impl LobbyApp {
             buffer.write_text(16, 4, "<none>", dim_style);
         } else {
             for (idx, row) in self.state.open_games.iter().take(8).enumerate() {
-                let marker = if idx == self.state.open_selected { '>' } else { ' ' };
+                let marker = if idx == self.state.open_selected {
+                    '>'
+                } else {
+                    ' '
+                };
                 let line = format!(
                     "{marker} {}  {}  {}/{}  {}",
                     row.game,
@@ -476,15 +493,16 @@ impl LobbyApp {
             buffer.write_text(27, 4, "<none>", dim_style);
         } else {
             for (idx, row) in self.state.joined_games.iter().take(6).enumerate() {
-                let marker = if idx == self.state.joined_selected { '>' } else { ' ' };
+                let marker = if idx == self.state.joined_selected {
+                    '>'
+                } else {
+                    ' '
+                };
                 let seat = row
                     .seat
                     .map(|seat| seat.to_string())
                     .unwrap_or_else(|| "-".to_string());
-                let line = format!(
-                    "{marker} {}  seat:{}  {}",
-                    row.game, seat, row.turn_summary
-                );
+                let line = format!("{marker} {}  seat:{}  {}", row.game, seat, row.turn_summary);
                 buffer.write_text(27 + idx, 4, &line, value_style);
             }
         }
@@ -985,9 +1003,15 @@ impl NativeApp for LobbyApp {
     }
 
     fn native_window_ready(&mut self, window: &winit::window::Window) {
-        window.set_ime_allowed(true);
-        window.focus_window();
         self.clipboard.attach_window(window);
+    }
+
+    fn wants_window_focus(&self) -> bool {
+        true
+    }
+
+    fn wants_text_input(&self) -> bool {
+        matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked)
     }
 
     fn persist_window_state(
@@ -1084,7 +1108,9 @@ impl NativeApp for LobbyApp {
     fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
         if matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked) {
             let scene = match self.state.route {
-                LobbyRoute::FirstRun => onboarding::render_first_run_scene(self.geometry, &self.state),
+                LobbyRoute::FirstRun => {
+                    onboarding::render_first_run_scene(self.geometry, &self.state)
+                }
                 LobbyRoute::Locked => onboarding::render_locked_scene(self.geometry, &self.state),
                 _ => unreachable!(),
             };
@@ -1145,8 +1171,8 @@ fn network_dialog_label(status: state::LobbyNetworkStatus) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::native::NativeApp;
     use crate::input::KeyModifiers;
+    use crate::native::NativeApp;
 
     #[test]
     fn popup_drag_reports_dragging_surface_state() {
@@ -1213,5 +1239,30 @@ mod tests {
             row: row as u16 + 2,
             modifiers: KeyModifiers::empty(),
         }));
+    }
+
+    #[test]
+    fn gate_routes_request_text_input() {
+        let first_run = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+        let locked = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+
+        assert!(<LobbyApp as NativeApp>::wants_text_input(&first_run));
+        assert!(<LobbyApp as NativeApp>::wants_text_input(&locked));
+    }
+
+    #[test]
+    fn lobby_routes_request_window_focus() {
+        let home = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+        let locked = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+
+        assert!(<LobbyApp as NativeApp>::wants_window_focus(&home));
+        assert!(<LobbyApp as NativeApp>::wants_window_focus(&locked));
+    }
+
+    #[test]
+    fn home_route_does_not_request_text_input() {
+        let app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
+
+        assert!(!<LobbyApp as NativeApp>::wants_text_input(&app));
     }
 }

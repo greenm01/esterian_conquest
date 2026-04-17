@@ -22,10 +22,10 @@ pub fn parse_native_options() -> Result<NativeLaunchOptions, Box<dyn std::error:
                     "wayland" => NativeBackendPreference::Wayland,
                     "x11" => NativeBackendPreference::X11,
                     _ => {
-                        return Err(
-                            format!("unknown backend '{value}'; expected auto, wayland, or x11")
-                                .into(),
-                        );
+                        return Err(format!(
+                            "unknown backend '{value}'; expected auto, wayland, or x11"
+                        )
+                        .into());
                     }
                 };
             }

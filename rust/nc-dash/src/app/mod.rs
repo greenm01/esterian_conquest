@@ -13,11 +13,11 @@ pub mod state;
 
 use crate::buffer::PlayfieldBuffer;
 use crate::geometry::ScreenGeometry;
+use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use crate::table_filter::{
     format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
 use crate::table_selection;
-use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
@@ -2063,6 +2063,10 @@ impl NativeApp for DashApp {
         self.geometry
     }
 
+    fn wants_window_focus(&self) -> bool {
+        true
+    }
+
     fn saved_window_state(&self) -> Option<crate::lobby::storage::settings::PersistedWindowState> {
         self.client_settings.persisted_window_state()
     }
@@ -2609,13 +2613,11 @@ mod tests {
     };
     use crate::buffer::PlayfieldBuffer;
     use crate::geometry::ScreenGeometry;
+    use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use crate::layout::dashboard::dashboard_layout;
     use crate::native::NativeApp;
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crate::planet_view;
-    use crate::input::{
-        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-    };
     use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot};
     use nc_engine::{
         fleet_target_input_kind, recommended_coordinate_target,

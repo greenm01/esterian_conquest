@@ -155,7 +155,10 @@ impl Widget for Block<'_> {
         buffer.set_stringn(right, bottom, &br.to_string(), 1, self.border_style);
 
         if let Some(title) = self.title {
-            let title_width = title.chars().count().min(area.width.saturating_sub(4) as usize);
+            let title_width = title
+                .chars()
+                .count()
+                .min(area.width.saturating_sub(4) as usize);
             if title_width > 0 {
                 buffer.set_stringn(
                     area.x.saturating_add(2),

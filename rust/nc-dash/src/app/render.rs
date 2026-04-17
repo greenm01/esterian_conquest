@@ -54,50 +54,93 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let mut cache = app.panel_cache.borrow_mut();
 
     // Left column panels.
-    draw_cached(&mut buf, &mut cache.economy,
+    draw_cached(
+        &mut buf,
+        &mut cache.economy,
         panel_hash(rev, player, widgets.left_economy.outer),
         widgets.left_economy.outer,
-        |buf| economy::draw(buf, app, widgets.left_economy));
-    draw_cached(&mut buf, &mut cache.planets,
+        |buf| economy::draw(buf, app, widgets.left_economy),
+    );
+    draw_cached(
+        &mut buf,
+        &mut cache.planets,
         panel_hash(rev, player, widgets.left_planets.outer),
         widgets.left_planets.outer,
-        |buf| planets::draw(buf, app, widgets.left_planets));
-    draw_cached(&mut buf, &mut cache.fleets,
+        |buf| planets::draw(buf, app, widgets.left_planets),
+    );
+    draw_cached(
+        &mut buf,
+        &mut cache.fleets,
         panel_hash(rev, player, widgets.left_fleets.outer),
         widgets.left_fleets.outer,
-        |buf| fleets::draw(buf, app, widgets.left_fleets));
-    draw_cached(&mut buf, &mut cache.war_record,
+        |buf| fleets::draw(buf, app, widgets.left_fleets),
+    );
+    draw_cached(
+        &mut buf,
+        &mut cache.war_record,
         panel_hash(rev, player, widgets.left_war_record.outer),
         widgets.left_war_record.outer,
-        |buf| war_record::draw(buf, app, widgets.left_war_record));
+        |buf| war_record::draw(buf, app, widgets.left_war_record),
+    );
 
     // Center: starmap (also depends on crosshair, map mode, zoom, settings).
-    draw_cached(&mut buf, &mut cache.starmap,
-        starmap_hash(rev, player, widgets.center_map.outer,
-            app.crosshair_x, app.crosshair_y,
-            app.map_view_mode, app.map_zoom_level,
-            app.client_settings.dense_empty_sector_dots),
+    draw_cached(
+        &mut buf,
+        &mut cache.starmap,
+        starmap_hash(
+            rev,
+            player,
+            widgets.center_map.outer,
+            app.crosshair_x,
+            app.crosshair_y,
+            app.map_view_mode,
+            app.map_zoom_level,
+            app.client_settings.dense_empty_sector_dots,
+        ),
         widgets.center_map.outer,
-        |buf| starmap::draw(buf, app, widgets.center_map));
+        |buf| starmap::draw(buf, app, widgets.center_map),
+    );
 
     // Right column panels.
-    draw_cached(&mut buf, &mut cache.comms,
+    draw_cached(
+        &mut buf,
+        &mut cache.comms,
         panel_hash(rev, player, widgets.right_comms.outer),
         widgets.right_comms.outer,
-        |buf| comms::draw(buf, app, widgets.right_comms));
-    draw_cached(&mut buf, &mut cache.known_galaxy,
+        |buf| comms::draw(buf, app, widgets.right_comms),
+    );
+    draw_cached(
+        &mut buf,
+        &mut cache.known_galaxy,
         panel_hash(rev, player, widgets.right_galaxy.outer),
         widgets.right_galaxy.outer,
-        |buf| known_galaxy::draw(buf, app, widgets.right_galaxy));
-    draw_cached(&mut buf, &mut cache.diplomacy,
-        diplomacy_hash(rev, player, widgets.right_diplomacy.outer, app.diplomacy_scroll),
+        |buf| known_galaxy::draw(buf, app, widgets.right_galaxy),
+    );
+    draw_cached(
+        &mut buf,
+        &mut cache.diplomacy,
+        diplomacy_hash(
+            rev,
+            player,
+            widgets.right_diplomacy.outer,
+            app.diplomacy_scroll,
+        ),
         widgets.right_diplomacy.outer,
-        |buf| diplomacy::draw(buf, app, widgets.right_diplomacy));
-    draw_cached(&mut buf, &mut cache.sector_detail,
-        sector_detail_hash(rev, player, widgets.right_sector_detail.outer,
-            app.crosshair_x, app.crosshair_y),
+        |buf| diplomacy::draw(buf, app, widgets.right_diplomacy),
+    );
+    draw_cached(
+        &mut buf,
+        &mut cache.sector_detail,
+        sector_detail_hash(
+            rev,
+            player,
+            widgets.right_sector_detail.outer,
+            app.crosshair_x,
+            app.crosshair_y,
+        ),
         widgets.right_sector_detail.outer,
-        |buf| sector_detail::draw(buf, app, widgets.right_sector_detail));
+        |buf| sector_detail::draw(buf, app, widgets.right_sector_detail),
+    );
 
     let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
 
@@ -325,13 +368,7 @@ fn diplomacy_hash(revision: u64, player: usize, outer: WidgetRect, scroll: usize
     h.finish()
 }
 
-fn sector_detail_hash(
-    revision: u64,
-    player: usize,
-    outer: WidgetRect,
-    cx: u8,
-    cy: u8,
-) -> u64 {
+fn sector_detail_hash(revision: u64, player: usize, outer: WidgetRect, cx: u8, cy: u8) -> u64 {
     let mut h = DefaultHasher::new();
     revision.hash(&mut h);
     player.hash(&mut h);
