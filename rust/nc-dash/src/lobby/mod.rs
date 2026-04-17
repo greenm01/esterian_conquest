@@ -64,6 +64,12 @@ struct LobbyMouseRenderState {
 }
 
 impl LobbyApp {
+    fn bypass_home_ratatui_scene(&self) -> bool {
+        self.diagnostic_mode
+            && self.state.route == LobbyRoute::Home
+            && std::env::var_os("NC_DASH_BYPASS_RATATUI_HOME").is_some()
+    }
+
     pub fn new(options: LobbyStartupOptions) -> Self {
         let route = onboarding::initial_route(nc_client::keychain::keychain_path().exists());
         let settings_path = storage::settings::settings_path();
@@ -308,6 +314,78 @@ impl LobbyApp {
         let _ = render_modal_box(buffer, "NETWORK", &lines, modal_theme());
     }
 
+    fn render_home_bypass_playfield(&self, buffer: &mut PlayfieldBuffer) {
+        let title_style = theme::title_style();
+        let label_style = theme::table_header_style();
+        let value_style = theme::body_style();
+        let accent_style = theme::value_style();
+        let dim_style = theme::dim_style();
+
+        buffer.write_text(1, 2, "NOSTRIAN CONQUEST LOBBY", title_style);
+        let network = format!("NETWORK: {}", self.state.network_status.label());
+        let network_col = self.geometry.width().saturating_sub(network.chars().count() + 2);
+        buffer.write_text(1, network_col, &network, accent_style);
+        buffer.write_text(3, 2, "[ Home/OpenGames ratatui bypass enabled ]", accent_style);
+        buffer.write_text(
+            4,
+            2,
+            "Set NC_DASH_BYPASS_RATATUI_HOME=1 only for crash isolation.",
+            dim_style,
+        );
+
+        let status = self.state.status_message.as_deref().unwrap_or("-");
+        let rows = [
+            ("Route", "Home"),
+            ("Tab", "OpenGames"),
+            ("Joined", &self.state.joined_games.len().to_string()),
+            ("Open", &self.state.open_games.len().to_string()),
+            ("Contacts", &self.state.direct_contacts.len().to_string()),
+            ("Notices", &self.state.notices.len().to_string()),
+            ("Status", status),
+        ];
+        for (idx, (label, value)) in rows.into_iter().enumerate() {
+            let row = 6 + idx;
+            buffer.write_text(row, 2, label, label_style);
+            buffer.write_text(row, 14, value, value_style);
+        }
+
+        buffer.write_text(15, 2, "Open Games", label_style);
+        if self.state.open_games.is_empty() {
+            buffer.write_text(16, 4, "<none>", dim_style);
+        } else {
+            for (idx, row) in self.state.open_games.iter().take(8).enumerate() {
+                let marker = if idx == self.state.open_selected { '>' } else { ' ' };
+                let line = format!(
+                    "{marker} {}  {}  {}/{}  {}",
+                    row.game,
+                    row.host,
+                    row.total_seats.saturating_sub(row.open_seats),
+                    row.total_seats,
+                    row.turn_summary
+                );
+                buffer.write_text(16 + idx, 4, &line, value_style);
+            }
+        }
+
+        buffer.write_text(26, 2, "My Games", label_style);
+        if self.state.joined_games.is_empty() {
+            buffer.write_text(27, 4, "<none>", dim_style);
+        } else {
+            for (idx, row) in self.state.joined_games.iter().take(6).enumerate() {
+                let marker = if idx == self.state.joined_selected { '>' } else { ' ' };
+                let seat = row
+                    .seat
+                    .map(|seat| seat.to_string())
+                    .unwrap_or_else(|| "-".to_string());
+                let line = format!(
+                    "{marker} {}  seat:{}  {}",
+                    row.game, seat, row.turn_summary
+                );
+                buffer.write_text(27 + idx, 4, &line, value_style);
+            }
+        }
+    }
+
     fn render_lobby_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if self.state.route == LobbyRoute::HostedGame {
             if let Some(hosted) = self.state.hosted_game.as_ref() {
@@ -344,7 +422,11 @@ impl LobbyApp {
             }
             return Ok(buffer);
         }
-        ui::render_scene(&mut buffer, self);
+        if self.bypass_home_ratatui_scene() {
+            self.render_home_bypass_playfield(&mut buffer);
+        } else {
+            ui::render_scene(&mut buffer, self);
+        }
         if self.state.show_resume_sync_overlay {
             self.render_resume_sync_overlay(&mut buffer);
         }
