@@ -1,20 +1,39 @@
-use std::num::NonZeroU32;
+mod legacy;
+mod primitives;
+
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::Terminal;
-use ratatui::style::Style;
-use ratatui_wgpu::{Builder, Dimensions, Font, WgpuBackend};
+use glyphon::{
+    Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
+    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight, fontdb,
+};
 use rustybuzz::{Face, ttf_parser::GlyphId};
+use wgpu::{
+    self, BindGroup, BindGroupLayout, BlendState, ColorTargetState, ColorWrites,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, FragmentState,
+    Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
+    PresentMode, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
+    SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, SurfaceConfiguration,
+    Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
+    TextureViewDescriptor, TextureViewDimension, VertexState,
+};
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
+use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-use crate::rendered::{RenderedUi, blit_rendered_ui};
+use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::theme;
+
+pub use legacy::build_native_terminal;
 
 pub const DEFAULT_FONT_HEIGHT_PX: u32 = 20;
 
+const PRIMARY_FONT_FAMILY: &str = "0xProto Nerd Font Mono";
 const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Regular.ttf"
@@ -35,8 +54,44 @@ const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
 ));
+const BACKGROUND_SHADER: &str = r#"
+@group(0) @binding(0) var background_tex: texture_2d<f32>;
+@group(0) @binding(1) var background_sampler: sampler;
 
-type NativeTerminal = Terminal<WgpuBackend<'static, 'static>>;
+struct VertexOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
+    var positions = array<vec2<f32>, 6>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>(1.0, -1.0),
+        vec2<f32>(-1.0, 1.0),
+        vec2<f32>(-1.0, 1.0),
+        vec2<f32>(1.0, -1.0),
+        vec2<f32>(1.0, 1.0),
+    );
+    var uvs = array<vec2<f32>, 6>(
+        vec2<f32>(0.0, 0.0),
+        vec2<f32>(1.0, 0.0),
+        vec2<f32>(0.0, 1.0),
+        vec2<f32>(0.0, 1.0),
+        vec2<f32>(1.0, 0.0),
+        vec2<f32>(1.0, 1.0),
+    );
+    var out: VertexOut;
+    out.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
+    out.uv = uvs[vertex_index];
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    return textureSample(background_tex, background_sampler, in.uv);
+}
+"#;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NativeCellMetrics {
@@ -44,39 +99,421 @@ pub struct NativeCellMetrics {
     pub cell_height_px: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct TextCellKey {
+    ch: char,
+    bold: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct TextCellPlacement {
+    key: TextCellKey,
+    left: f32,
+    top: f32,
+    bounds: TextBounds,
+    color: Color,
+}
+
 static DEFAULT_CELL_METRICS: OnceLock<NativeCellMetrics> = OnceLock::new();
 
 pub struct CellGridWindowRenderer {
-    terminal: NativeTerminal,
+    instance: Instance,
+    device: Device,
+    queue: Queue,
+    surface: wgpu::Surface<'static>,
+    surface_config: SurfaceConfiguration,
+    font_system: FontSystem,
+    swash_cache: SwashCache,
+    viewport: Viewport,
+    atlas: TextAtlas,
+    text_renderer: TextRenderer,
+    text_buffers: HashMap<TextCellKey, GlyphBuffer>,
+    background_pipeline: RenderPipeline,
+    background_bind_group_layout: BindGroupLayout,
+    background_sampler: Sampler,
+    background_texture: BackgroundTexture,
+    background_pixels: Vec<u8>,
+    cell_metrics: NativeCellMetrics,
+    window: Arc<winit::window::Window>,
+}
+
+struct BackgroundTexture {
+    texture: Texture,
+    bind_group: BindGroup,
 }
 
 impl CellGridWindowRenderer {
-    pub fn new(window: Arc<winit::window::Window>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        window: Arc<winit::window::Window>,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let cell_metrics = default_cell_metrics();
+        let instance = Instance::new(InstanceDescriptor::new_with_display_handle(Box::new(
+            event_loop.owned_display_handle(),
+        )));
+        let adapter =
+            pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default()))
+                .map_err(|err| format!("unable to request wgpu adapter: {err}"))?;
+        let (device, queue) =
+            pollster::block_on(adapter.request_device(&DeviceDescriptor::default()))
+                .map_err(|err| format!("unable to request wgpu device: {err}"))?;
+        let surface = instance.create_surface(window.clone())?;
+        let size = window.inner_size();
+        let surface_config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: TextureFormat::Bgra8UnormSrgb,
+            width: size.width.max(1),
+            height: size.height.max(1),
+            present_mode: PresentMode::Fifo,
+            alpha_mode: CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&device, &surface_config);
+
+        let font_system = build_font_system();
+        let swash_cache = SwashCache::new();
+        let cache = Cache::new(&device);
+        let viewport = Viewport::new(&device, &cache);
+        let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
+        let text_renderer =
+            TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
+        let (background_pipeline, background_bind_group_layout) =
+            create_background_pipeline(&device, surface_config.format);
+        let background_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("nc-dash-background-sampler"),
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+            ..SamplerDescriptor::default()
+        });
+        let background_texture = BackgroundTexture::new(
+            &device,
+            &background_bind_group_layout,
+            &background_sampler,
+            surface_config.width,
+            surface_config.height,
+        );
+        let background_pixels =
+            vec![0; surface_config.width as usize * surface_config.height as usize * 4];
+
         Ok(Self {
-            terminal: build_native_terminal(window)?,
+            instance,
+            device,
+            queue,
+            surface,
+            surface_config,
+            font_system,
+            swash_cache,
+            viewport,
+            atlas,
+            text_renderer,
+            text_buffers: HashMap::new(),
+            background_pipeline,
+            background_bind_group_layout,
+            background_sampler,
+            background_texture,
+            background_pixels,
+            cell_metrics,
+            window,
         })
     }
 
     pub fn render(
         &mut self,
-        rendered: &RenderedUi,
+        playfield: &PlayfieldBuffer,
         window_pixel_width: u32,
         window_pixel_height: u32,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if window_pixel_width == 0 || window_pixel_height == 0 {
             return Ok(());
         }
-        self.terminal
-            .backend_mut()
-            .resize(window_pixel_width, window_pixel_height);
-        let body_style = Style::default()
-            .fg(theme::to_tui_color(theme::body_style().fg))
-            .bg(theme::to_tui_color(theme::body_style().bg));
-        self.terminal.draw(|frame| {
-            let area = frame.area();
-            blit_rendered_ui(frame.buffer_mut(), area, rendered, body_style);
-        })?;
+        self.ensure_surface_size(window_pixel_width, window_pixel_height);
+        self.viewport.update(
+            &self.queue,
+            Resolution {
+                width: self.surface_config.width,
+                height: self.surface_config.height,
+            },
+        );
+
+        let text_placements = self.draw_background(playfield)?;
+        let text_areas = text_placements
+            .iter()
+            .map(|placement| TextArea {
+                buffer: self
+                    .text_buffers
+                    .get(&placement.key)
+                    .expect("text buffer should exist before prepare"),
+                left: placement.left,
+                top: placement.top,
+                scale: 1.0,
+                bounds: placement.bounds,
+                default_color: placement.color,
+                custom_glyphs: &[],
+            })
+            .collect::<Vec<_>>();
+
+        self.text_renderer.prepare(
+            &self.device,
+            &self.queue,
+            &mut self.font_system,
+            &mut self.atlas,
+            &self.viewport,
+            text_areas,
+            &mut self.swash_cache,
+        )?;
+
+        let frame = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                self.window.request_redraw();
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
+                self.surface.configure(&self.device, &self.surface_config);
+                self.window.request_redraw();
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                self.surface = self.instance.create_surface(self.window.clone())?;
+                self.surface.configure(&self.device, &self.surface_config);
+                self.window.request_redraw();
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                return Err("wgpu surface validation error".into());
+            }
+        };
+
+        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+        {
+            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("nc-dash-native-pass"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(theme_wgpu_background()),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(&self.background_pipeline);
+            pass.set_bind_group(0, &self.background_texture.bind_group, &[]);
+            pass.draw(0..6, 0..1);
+            self.text_renderer
+                .render(&self.atlas, &self.viewport, &mut pass)?;
+        }
+        self.queue.submit(Some(encoder.finish()));
+        frame.present();
+        self.atlas.trim();
         Ok(())
+    }
+
+    fn ensure_surface_size(&mut self, width: u32, height: u32) {
+        if self.surface_config.width == width && self.surface_config.height == height {
+            return;
+        }
+        self.surface_config.width = width.max(1);
+        self.surface_config.height = height.max(1);
+        self.surface.configure(&self.device, &self.surface_config);
+        self.background_texture = BackgroundTexture::new(
+            &self.device,
+            &self.background_bind_group_layout,
+            &self.background_sampler,
+            self.surface_config.width,
+            self.surface_config.height,
+        );
+        self.background_pixels.resize(
+            self.surface_config.width as usize * self.surface_config.height as usize * 4,
+            0,
+        );
+    }
+
+    fn draw_background(
+        &mut self,
+        playfield: &PlayfieldBuffer,
+    ) -> Result<Vec<TextCellPlacement>, Box<dyn std::error::Error>> {
+        let frame_width = self.surface_config.width as usize;
+        let frame_height = self.surface_config.height as usize;
+        let body_bg = primitives::color_to_rgba(theme::body_style().bg);
+        self.background_pixels.fill(0);
+        for pixel in self.background_pixels.chunks_exact_mut(4) {
+            pixel.copy_from_slice(&body_bg);
+        }
+
+        let grid_pixel_width = playfield.width() * self.cell_metrics.cell_width_px;
+        let grid_pixel_height = playfield.height() * self.cell_metrics.cell_height_px;
+        let x_offset = frame_width.saturating_sub(grid_pixel_width) / 2;
+        let y_offset = frame_height.saturating_sub(grid_pixel_height) / 2;
+        let cursor = playfield
+            .cursor()
+            .map(|(col, row)| (usize::from(col), usize::from(row)));
+        let mut placements = Vec::new();
+
+        for row_idx in 0..playfield.height() {
+            for col_idx in 0..playfield.width() {
+                let source = playfield.row(row_idx)[col_idx];
+                let style = if cursor == Some((col_idx, row_idx)) {
+                    CellStyle::new(source.style.bg, source.style.fg, source.style.bold)
+                } else {
+                    source.style
+                };
+                let cell_x = x_offset + col_idx * self.cell_metrics.cell_width_px;
+                let cell_y = y_offset + row_idx * self.cell_metrics.cell_height_px;
+                primitives::fill_rect_rgba(
+                    &mut self.background_pixels,
+                    frame_width,
+                    cell_x,
+                    cell_y,
+                    self.cell_metrics.cell_width_px,
+                    self.cell_metrics.cell_height_px,
+                    primitives::color_to_rgba(style.bg),
+                );
+                if source.ch == ' ' {
+                    continue;
+                }
+                if primitives::should_draw_as_primitive(source.ch) {
+                    primitives::draw_cell_primitive(
+                        &mut self.background_pixels,
+                        frame_width,
+                        cell_x,
+                        cell_y,
+                        self.cell_metrics.cell_width_px,
+                        self.cell_metrics.cell_height_px,
+                        source.ch,
+                        primitives::color_to_rgba(style.fg),
+                    );
+                    continue;
+                }
+
+                let key = TextCellKey {
+                    ch: source.ch,
+                    bold: style.bold,
+                };
+                self.ensure_text_buffer(key);
+                placements.push(TextCellPlacement {
+                    key,
+                    left: cell_x as f32,
+                    top: cell_y as f32,
+                    bounds: TextBounds {
+                        left: cell_x as i32,
+                        top: cell_y as i32,
+                        right: (cell_x + self.cell_metrics.cell_width_px) as i32,
+                        bottom: (cell_y + self.cell_metrics.cell_height_px) as i32,
+                    },
+                    color: glyphon_color(style.fg),
+                });
+            }
+        }
+
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.background_texture.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &self.background_pixels,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(self.surface_config.width * 4),
+                rows_per_image: Some(self.surface_config.height),
+            },
+            wgpu::Extent3d {
+                width: self.surface_config.width,
+                height: self.surface_config.height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        Ok(placements)
+    }
+
+    fn ensure_text_buffer(&mut self, key: TextCellKey) {
+        if self.text_buffers.contains_key(&key) {
+            return;
+        }
+        let mut buffer = GlyphBuffer::new(
+            &mut self.font_system,
+            Metrics::new(
+                DEFAULT_FONT_HEIGHT_PX as f32,
+                self.cell_metrics.cell_height_px as f32,
+            ),
+        );
+        buffer.set_size(
+            &mut self.font_system,
+            Some(self.cell_metrics.cell_width_px as f32),
+            Some(self.cell_metrics.cell_height_px as f32),
+        );
+        let attrs = Attrs::new().family(Family::Monospace).weight(if key.bold {
+            Weight::BOLD
+        } else {
+            Weight::NORMAL
+        });
+        let text = key.ch.to_string();
+        buffer.set_text(
+            &mut self.font_system,
+            &text,
+            &attrs,
+            Shaping::Advanced,
+            None,
+        );
+        buffer.shape_until_scroll(&mut self.font_system, false);
+        self.text_buffers.insert(key, buffer);
+    }
+}
+
+impl BackgroundTexture {
+    fn new(
+        device: &Device,
+        bind_group_layout: &BindGroupLayout,
+        sampler: &Sampler,
+        width: u32,
+        height: u32,
+    ) -> Self {
+        let texture = device.create_texture(&TextureDescriptor {
+            label: Some("nc-dash-background-texture"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&TextureViewDescriptor::default());
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("nc-dash-background-bind-group"),
+            layout: bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+        });
+        Self {
+            texture,
+            bind_group,
+        }
     }
 }
 
@@ -90,34 +527,6 @@ pub fn logical_window_size_for_grid(cols: usize, rows: usize) -> winit::dpi::Log
         (cols * metrics.cell_width_px) as f64,
         (rows * metrics.cell_height_px) as f64,
     )
-}
-
-pub fn build_native_terminal(
-    window: Arc<winit::window::Window>,
-) -> Result<NativeTerminal, Box<dyn std::error::Error>> {
-    let size = window.inner_size();
-    let primary_regular =
-        Font::new(PRIMARY_REGULAR_FONT).ok_or("unable to load primary regular font")?;
-    let primary_bold = Font::new(PRIMARY_BOLD_FONT).ok_or("unable to load primary bold font")?;
-    let primary_italic =
-        Font::new(PRIMARY_ITALIC_FONT).ok_or("unable to load primary italic font")?;
-    let fallback_regular =
-        Font::new(FALLBACK_REGULAR_FONT).ok_or("unable to load fallback regular font")?;
-    let fallback_bold = Font::new(FALLBACK_BOLD_FONT).ok_or("unable to load fallback bold font")?;
-    let backend = pollster::block_on(
-        Builder::from_font(primary_regular)
-            .with_font_size_px(DEFAULT_FONT_HEIGHT_PX)
-            .with_bold_fonts([primary_bold, fallback_bold])
-            .with_italic_fonts([primary_italic])
-            .with_regular_fonts([fallback_regular])
-            .with_width_and_height(Dimensions {
-                width: NonZeroU32::new(size.width.max(1)).ok_or("window width must be non-zero")?,
-                height: NonZeroU32::new(size.height.max(1))
-                    .ok_or("window height must be non-zero")?,
-            })
-            .build_with_target(window),
-    )?;
-    Ok(Terminal::new(backend)?)
 }
 
 pub fn terminal_grid_for_pixels(pixel_width: u32, pixel_height: u32) -> (u16, u16) {
@@ -227,18 +636,88 @@ pub fn crossterm_key_event_from_winit(
     Some(KeyEvent::new(code, key_modifiers))
 }
 
-fn modifiers_to_crossterm(modifiers: ModifiersState) -> KeyModifiers {
-    let mut mapped = KeyModifiers::empty();
-    if modifiers.shift_key() {
-        mapped.insert(KeyModifiers::SHIFT);
-    }
-    if modifiers.control_key() {
-        mapped.insert(KeyModifiers::CONTROL);
-    }
-    if modifiers.alt_key() {
-        mapped.insert(KeyModifiers::ALT);
-    }
-    mapped
+fn build_font_system() -> FontSystem {
+    let fonts = [
+        PRIMARY_REGULAR_FONT,
+        PRIMARY_BOLD_FONT,
+        FALLBACK_REGULAR_FONT,
+        FALLBACK_BOLD_FONT,
+    ]
+    .into_iter()
+    .map(|font| fontdb::Source::Binary(Arc::new(Vec::from(font))));
+    let mut system = FontSystem::new_with_fonts(fonts);
+    system.db_mut().set_monospace_family(PRIMARY_FONT_FAMILY);
+    system
+}
+
+fn create_background_pipeline(
+    device: &Device,
+    surface_format: TextureFormat,
+) -> (RenderPipeline, BindGroupLayout) {
+    let shader = device.create_shader_module(ShaderModuleDescriptor {
+        label: Some("nc-dash-background-shader"),
+        source: ShaderSource::Wgsl(Cow::Borrowed(BACKGROUND_SHADER)),
+    });
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("nc-dash-background-bind-group-layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: TextureSampleType::Float { filterable: true },
+                    view_dimension: TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+    });
+    let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        label: Some("nc-dash-background-pipeline-layout"),
+        bind_group_layouts: &[Some(&bind_group_layout)],
+        immediate_size: 0,
+    });
+    let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        label: Some("nc-dash-background-pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            buffers: &[],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        },
+        fragment: Some(FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            targets: &[Some(ColorTargetState {
+                format: surface_format,
+                blend: Some(BlendState::REPLACE),
+                write_mask: ColorWrites::ALL,
+            })],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        }),
+        primitive: PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+    });
+    (pipeline, bind_group_layout)
+}
+
+fn measured_char_width(font_bytes: &[u8]) -> usize {
+    let face = Face::from_slice(font_bytes, 0).expect("embedded native font should parse");
+    let glyph = face.glyph_index('m').unwrap_or_else(|| GlyphId(0));
+    let advance = face.glyph_hor_advance(glyph).unwrap_or(0) as f32;
+    let scale = DEFAULT_FONT_HEIGHT_PX as f32 / face.height() as f32;
+    (advance * scale).floor().max(1.0) as usize
 }
 
 fn measure_default_cell_metrics() -> NativeCellMetrics {
@@ -259,12 +738,33 @@ fn measure_default_cell_metrics() -> NativeCellMetrics {
     }
 }
 
-fn measured_char_width(font_bytes: &[u8]) -> usize {
-    let face = Face::from_slice(font_bytes, 0).expect("embedded native font should parse");
-    let glyph = face.glyph_index('m').unwrap_or_else(|| GlyphId(0));
-    let advance = face.glyph_hor_advance(glyph).unwrap_or(0) as f32;
-    let scale = DEFAULT_FONT_HEIGHT_PX as f32 / face.height() as f32;
-    (advance * scale).floor().max(1.0) as usize
+fn glyphon_color(color: crate::buffer::GameColor) -> Color {
+    let [r, g, b, _] = primitives::color_to_rgba(color);
+    Color::rgb(r, g, b)
+}
+
+fn modifiers_to_crossterm(modifiers: ModifiersState) -> KeyModifiers {
+    let mut mapped = KeyModifiers::empty();
+    if modifiers.shift_key() {
+        mapped.insert(KeyModifiers::SHIFT);
+    }
+    if modifiers.control_key() {
+        mapped.insert(KeyModifiers::CONTROL);
+    }
+    if modifiers.alt_key() {
+        mapped.insert(KeyModifiers::ALT);
+    }
+    mapped
+}
+
+fn theme_wgpu_background() -> wgpu::Color {
+    let [r, g, b, _] = primitives::color_to_rgba(theme::body_style().bg);
+    wgpu::Color {
+        r: f64::from(r) / 255.0,
+        g: f64::from(g) / 255.0,
+        b: f64::from(b) / 255.0,
+        a: 1.0,
+    }
 }
 
 #[cfg(test)]

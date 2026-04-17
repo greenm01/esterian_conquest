@@ -129,12 +129,15 @@ impl LobbyApp {
     }
 
     pub fn render_for_test(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        Ok(<Self as NativeApp>::render_ui(self)?.to_playfield(theme::body_style()))
+        <Self as NativeApp>::render_playfield(self)
     }
 
     #[doc(hidden)]
     pub fn render_ui_for_repro(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-        <Self as NativeApp>::render_ui(self)
+        Ok(RenderedUi::from_playfield(
+            &<Self as NativeApp>::render_playfield(self)?,
+            theme::tui_theme().cursor,
+        ))
     }
 
     pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) -> bool {
@@ -317,10 +320,7 @@ impl LobbyApp {
     fn render_lobby_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if self.state.route == LobbyRoute::HostedGame {
             if let Some(hosted) = self.state.hosted_game.as_ref() {
-                let mut buffer = hosted
-                    .dashboard
-                    .render_ui()?
-                    .to_playfield(theme::body_style());
+                let mut buffer = hosted.dashboard.render_playfield()?;
                 if self.state.show_resume_sync_overlay {
                     self.render_resume_sync_overlay(&mut buffer);
                 }
@@ -886,11 +886,8 @@ impl NativeApp for LobbyApp {
         }
     }
 
-    fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-        Ok(RenderedUi::from_playfield(
-            &self.render_lobby_playfield()?,
-            theme::tui_theme().cursor,
-        ))
+    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_lobby_playfield()
     }
 
     fn debug_render_signature(&self) -> Option<String> {

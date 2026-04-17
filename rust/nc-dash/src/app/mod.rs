@@ -202,7 +202,10 @@ impl DashApp {
 
     #[doc(hidden)]
     pub fn render_ui_for_repro(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-        <Self as NativeApp>::render_ui(self)
+        Ok(RenderedUi::from_playfield(
+            &<Self as NativeApp>::render_playfield(self)?,
+            crate::theme::tui_theme().cursor,
+        ))
     }
 
     #[doc(hidden)]
@@ -2095,11 +2098,8 @@ impl NativeApp for DashApp {
         Self::resize_canvas(self, cols, rows);
     }
 
-    fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-        Ok(RenderedUi::from_playfield(
-            &Self::render_playfield(self)?,
-            crate::theme::tui_theme().cursor,
-        ))
+    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        Self::render_playfield(self)
     }
 
     fn debug_render_signature(&self) -> Option<String> {
@@ -4677,7 +4677,9 @@ mod tests {
         let mut app = dash_app();
         app.popup = ActivePopup::QuitConfirm;
         let map_frame = dashboard_layout(&app).widgets.center_map;
-        let popup = app.current_popup_rect(map_frame).expect("quit confirm popup");
+        let popup = app
+            .current_popup_rect(map_frame)
+            .expect("quit confirm popup");
         let close_col = crate::modal::modal_close_button_col(popup).expect("popup close col");
 
         app.handle_mouse(mouse(

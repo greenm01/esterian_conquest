@@ -9,8 +9,9 @@ use crate::layout::dashboard;
 use crate::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
 use crate::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
-    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_height_in_parent,
-    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, write_clipped,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
+    max_overlay_body_height_in_parent, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_parent, write_clipped,
 };
 use crate::theme;
 
@@ -18,10 +19,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let body_height = wrapped
-        .lines
-        .len()
-        .min(max_overlay_body_height_in_parent(parent, TableFooter::Dismiss));
+    let body_height = wrapped.lines.len().min(max_overlay_body_height_in_parent(
+        parent,
+        TableFooter::Dismiss,
+    ));
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         parent,
@@ -50,10 +51,10 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let body_height = wrapped
-        .lines
-        .len()
-        .min(max_overlay_body_height_in_parent(parent, TableFooter::Dismiss));
+    let body_height = wrapped.lines.len().min(max_overlay_body_height_in_parent(
+        parent,
+        TableFooter::Dismiss,
+    ));
     overlay_popup_rect_for_body_in_parent(
         parent,
         "HELP",
@@ -327,8 +328,6 @@ mod tests {
     use crate::geometry::ScreenGeometry;
     use crate::layout::dashboard::dashboard_layout;
     use crate::native::NativeApp;
-    use crate::theme;
-
     #[test]
     fn fleet_help_mentions_typed_jump_and_real_actions() {
         let lines = help_lines(HelpContext::FleetList);
@@ -430,9 +429,7 @@ mod tests {
         app.overlay = ActiveOverlay::Help;
         app.help_context = HelpContext::Global;
         let map_frame = dashboard_layout(&app).widgets.center_map;
-        let mut buffer = <DashApp as NativeApp>::render_ui(&app)
-            .expect("rendered ui")
-            .to_playfield(theme::body_style());
+        let mut buffer = <DashApp as NativeApp>::render_playfield(&app).expect("playfield");
 
         draw(&mut buffer, &app, map_frame);
 

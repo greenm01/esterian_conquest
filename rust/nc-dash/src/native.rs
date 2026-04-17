@@ -1,10 +1,10 @@
+use crate::PlayfieldBuffer;
 use crate::geometry::ScreenGeometry;
 use crate::lobby::storage::settings::PersistedWindowState;
 use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     logical_window_size_for_grid, terminal_grid_for_pixels,
 };
-use crate::rendered::RenderedUi;
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_log::LogLevel;
@@ -53,7 +53,7 @@ pub(crate) trait NativeApp {
     fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent);
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool;
     fn resize_canvas(&mut self, cols: u16, rows: u16);
-    fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>>;
+    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>>;
     fn debug_render_signature(&self) -> Option<String> {
         None
     }
@@ -609,7 +609,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
         self.diagnostics
             .borrow_mut()
             .set_stage(NativeStage::RendererInit);
-        let renderer = match CellGridWindowRenderer::new(window.clone()) {
+        let renderer = match CellGridWindowRenderer::new(window.clone(), event_loop) {
             Ok(r) => r,
             Err(err) => {
                 crate::show_fatal_error(&native_error(
@@ -792,8 +792,8 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 let Some(renderer) = self.renderer.as_mut() else {
                     return;
                 };
-                match shell.app.render_ui() {
-                    Ok(rendered) => {
+                match shell.app.render_playfield() {
+                    Ok(playfield) => {
                         shell.render_count += 1;
                         let render_seq = {
                             let mut diagnostics = self.diagnostics.borrow_mut();
@@ -813,7 +813,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                         self.diagnostics
                             .borrow_mut()
                             .set_stage(NativeStage::FirstFrameRender);
-                        if let Err(err) = renderer.render(&rendered, size.width, size.height) {
+                        if let Err(err) = renderer.render(&playfield, size.width, size.height) {
                             crate::show_fatal_error(&native_error(
                                 "unable to render nc-dash window",
                                 self.native_options,
@@ -1215,7 +1215,7 @@ fn native_error(
     err: &str,
 ) -> String {
     let mut message = format!(
-        "{prefix} (mode: {}, backend: {}, session: {}, renderer: ratatui-wgpu, stage: {}, first_frame: {}, serialize_redraws: {}, last_input: {}, last_redraw: {}): {err}",
+        "{prefix} (mode: {}, backend: {}, session: {}, renderer: glyphon-wgpu, stage: {}, first_frame: {}, serialize_redraws: {}, last_input: {}, last_redraw: {}): {err}",
         native_options.window_mode.cli_label(),
         native_options.backend_preference.cli_label(),
         session_backend,
@@ -1481,7 +1481,7 @@ mod tests {
         native_error, native_window_icon, next_pointer_dispatch, pointer_coords,
         pointer_event_kind, resolve_window_policy,
     };
-    use crate::RenderedUi;
+    use crate::PlayfieldBuffer;
     use crate::geometry::ScreenGeometry;
     use crate::lobby::storage::settings::PersistedWindowState;
     use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
@@ -1774,7 +1774,7 @@ mod tests {
 
         assert!(message.contains("backend: wayland"));
         assert!(message.contains("stage: renderer_init"));
-        assert!(message.contains("renderer: ratatui-wgpu"));
+        assert!(message.contains("renderer: glyphon-wgpu"));
         assert!(message.contains("last_input: mouse_move"));
         assert!(message.contains("last_redraw: mouse"));
         assert!(message.contains("/tmp/nc-dash.log"));
@@ -1966,14 +1966,11 @@ mod tests {
             self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
         }
 
-        fn render_ui(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-            Ok(RenderedUi::from_playfield(
-                &crate::buffer::PlayfieldBuffer::new(
-                    self.geometry.width(),
-                    self.geometry.height(),
-                    theme::body_style(),
-                ),
-                theme::tui_theme().cursor,
+        fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+            Ok(crate::buffer::PlayfieldBuffer::new(
+                self.geometry.width(),
+                self.geometry.height(),
+                theme::body_style(),
             ))
         }
 
