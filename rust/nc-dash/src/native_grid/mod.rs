@@ -717,7 +717,7 @@ fn measured_char_width(font_bytes: &[u8]) -> usize {
     let glyph = face.glyph_index('m').unwrap_or_else(|| GlyphId(0));
     let advance = face.glyph_hor_advance(glyph).unwrap_or(0) as f32;
     let scale = DEFAULT_FONT_HEIGHT_PX as f32 / face.height() as f32;
-    (advance * scale).floor().max(1.0) as usize
+    (advance * scale).ceil().max(1.0) as usize
 }
 
 fn measure_default_cell_metrics() -> NativeCellMetrics {
@@ -731,7 +731,7 @@ fn measure_default_cell_metrics() -> NativeCellMetrics {
         ]
         .into_iter()
         .map(measured_char_width)
-        .min()
+        .max()
         .unwrap_or(1)
         .max(1),
         cell_height_px: DEFAULT_FONT_HEIGHT_PX as usize,
@@ -839,9 +839,9 @@ mod tests {
             let glyph = face.glyph_index('m').unwrap_or_else(|| GlyphId(0));
             let advance = face.glyph_hor_advance(glyph).unwrap_or(0) as f32;
             let scale = super::DEFAULT_FONT_HEIGHT_PX as f32 / face.height() as f32;
-            (advance * scale).floor().max(1.0) as usize
+            (advance * scale).ceil().max(1.0) as usize
         })
-        .min()
+        .max()
         .expect("width");
 
         let metrics = default_cell_metrics();
