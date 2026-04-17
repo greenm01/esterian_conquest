@@ -11,7 +11,6 @@ use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
     SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight, fontdb,
 };
-use rustybuzz::{Face, ttf_parser::GlyphId};
 use wgpu::{
     self, BindGroup, BindGroupLayout, BlendState, ColorTargetState, ColorWrites,
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, FragmentState,
@@ -55,6 +54,10 @@ const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
 ));
+const CELL_METRIC_SAMPLE_GLYPHS: &[char] = &[
+    'm', 'M', 'W', '@', 'O', '#', '?', '*', '△', '⨁', '◊', '·', 'α', 'β', 'γ', 'δ', 'ε', 'ζ',
+    'η', 'θ', 'λ', 'μ', 'ξ', 'π', 'σ', 'φ', 'ω', 'Δ', 'Σ', 'Ω',
+];
 const BACKGROUND_SHADER: &str = r#"
 @group(0) @binding(0) var background_tex: texture_2d<f32>;
 @group(0) @binding(1) var background_sampler: sampler;
@@ -106,6 +109,11 @@ struct TextCellKey {
     bold: bool,
 }
 
+struct CachedTextCell {
+    buffer: GlyphBuffer,
+    line_width: f32,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct TextCellPlacement {
     key: TextCellKey,
@@ -128,7 +136,7 @@ pub struct CellGridWindowRenderer {
     viewport: Viewport,
     atlas: TextAtlas,
     text_renderer: TextRenderer,
-    text_buffers: HashMap<TextCellKey, GlyphBuffer>,
+    text_buffers: HashMap<TextCellKey, CachedTextCell>,
     background_pipeline: RenderPipeline,
     background_bind_group_layout: BindGroupLayout,
     background_sampler: Sampler,
@@ -283,6 +291,7 @@ impl CellGridWindowRenderer {
                 buffer: self
                     .text_buffers
                     .get(&placement.key)
+                    .map(|cached| &cached.buffer)
                     .expect("text buffer should exist before prepare"),
                 left: placement.left,
                 top: placement.top,
@@ -500,9 +509,15 @@ impl CellGridWindowRenderer {
                     bold: style.bold,
                 };
                 self.ensure_text_buffer(key);
+                let line_width = self
+                    .text_buffers
+                    .get(&key)
+                    .expect("text buffer should exist before placement")
+                    .line_width;
                 placements.push(TextCellPlacement {
                     key,
-                    left: cell_x as f32,
+                    left: cell_x as f32
+                        + ((self.cell_metrics.cell_width_px as f32 - line_width).max(0.0) / 2.0),
                     top: cell_y as f32,
                     bounds: TextBounds {
                         left: cell_x as i32,
@@ -551,7 +566,7 @@ impl CellGridWindowRenderer {
         );
         buffer.set_size(
             &mut self.font_system,
-            Some(self.cell_metrics.cell_width_px as f32),
+            None,
             Some(self.cell_metrics.cell_height_px as f32),
         );
         let attrs = Attrs::new().family(Family::Monospace).weight(if key.bold {
@@ -568,7 +583,9 @@ impl CellGridWindowRenderer {
             None,
         );
         buffer.shape_until_scroll(&mut self.font_system, false);
-        self.text_buffers.insert(key, buffer);
+        let line_width = measured_buffer_width(&buffer);
+        self.text_buffers
+            .insert(key, CachedTextCell { buffer, line_width });
     }
 }
 
@@ -811,30 +828,42 @@ fn create_background_pipeline(
     (pipeline, bind_group_layout)
 }
 
-fn measured_char_width(font_bytes: &[u8]) -> usize {
-    let face = Face::from_slice(font_bytes, 0).expect("embedded native font should parse");
-    let glyph = face.glyph_index('m').unwrap_or_else(|| GlyphId(0));
-    let advance = face.glyph_hor_advance(glyph).unwrap_or(0) as f32;
-    let scale = DEFAULT_FONT_HEIGHT_PX as f32 / face.height() as f32;
-    (advance * scale).ceil().max(1.0) as usize
+fn measured_buffer_width(buffer: &GlyphBuffer) -> f32 {
+    buffer
+        .layout_runs()
+        .fold(0.0f32, |width, run| width.max(run.line_w))
 }
 
 fn measure_default_cell_metrics() -> NativeCellMetrics {
+    let mut font_system = build_font_system();
     NativeCellMetrics {
-        cell_width_px: [
-            PRIMARY_REGULAR_FONT,
-            PRIMARY_BOLD_FONT,
-            PRIMARY_ITALIC_FONT,
-            FALLBACK_REGULAR_FONT,
-            FALLBACK_BOLD_FONT,
-        ]
-        .into_iter()
-        .map(measured_char_width)
-        .max()
-        .unwrap_or(1)
-        .max(1),
+        cell_width_px: CELL_METRIC_SAMPLE_GLYPHS
+            .iter()
+            .flat_map(|ch| [false, true].into_iter().map(move |bold| (*ch, bold)))
+            .map(|(ch, bold)| measure_sample_glyph_width(&mut font_system, ch, bold))
+            .max()
+            .unwrap_or(1)
+            .saturating_add(1)
+            .max(1),
         cell_height_px: DEFAULT_FONT_HEIGHT_PX as usize,
     }
+}
+
+fn measure_sample_glyph_width(font_system: &mut FontSystem, ch: char, bold: bool) -> usize {
+    let mut buffer = GlyphBuffer::new(
+        font_system,
+        Metrics::new(DEFAULT_FONT_HEIGHT_PX as f32, DEFAULT_FONT_HEIGHT_PX as f32),
+    );
+    buffer.set_size(font_system, None, Some(DEFAULT_FONT_HEIGHT_PX as f32));
+    let attrs = Attrs::new().family(Family::Monospace).weight(if bold {
+        Weight::BOLD
+    } else {
+        Weight::NORMAL
+    });
+    let text = ch.to_string();
+    buffer.set_text(font_system, &text, &attrs, Shaping::Advanced, None);
+    buffer.shape_until_scroll(font_system, false);
+    measured_buffer_width(&buffer).ceil().max(1.0) as usize
 }
 
 fn glyphon_color(color: crate::buffer::GameColor) -> Color {
@@ -869,11 +898,9 @@ fn theme_wgpu_background() -> wgpu::Color {
 #[cfg(test)]
 mod tests {
     use super::{
-        FALLBACK_BOLD_FONT, FALLBACK_REGULAR_FONT, PRIMARY_BOLD_FONT, PRIMARY_ITALIC_FONT,
-        PRIMARY_REGULAR_FONT, cell_position_at_pixel, default_cell_metrics,
-        terminal_grid_for_pixels,
+        CELL_METRIC_SAMPLE_GLYPHS, cell_position_at_pixel, default_cell_metrics,
+        measure_sample_glyph_width, terminal_grid_for_pixels,
     };
-    use rustybuzz::{Face, ttf_parser::GlyphId};
 
     #[test]
     fn terminal_grid_uses_measured_font_dimensions() {
@@ -924,27 +951,19 @@ mod tests {
     }
 
     #[test]
-    fn default_metrics_match_active_font_profile() {
-        let expected = [
-            PRIMARY_REGULAR_FONT,
-            PRIMARY_BOLD_FONT,
-            PRIMARY_ITALIC_FONT,
-            FALLBACK_REGULAR_FONT,
-            FALLBACK_BOLD_FONT,
-        ]
-        .into_iter()
-        .map(|bytes| {
-            let face = Face::from_slice(bytes, 0).expect("font");
-            let glyph = face.glyph_index('m').unwrap_or_else(|| GlyphId(0));
-            let advance = face.glyph_hor_advance(glyph).unwrap_or(0) as f32;
-            let scale = super::DEFAULT_FONT_HEIGHT_PX as f32 / face.height() as f32;
-            (advance * scale).ceil().max(1.0) as usize
-        })
-        .max()
-        .expect("width");
-
+    fn default_metrics_cover_sample_glyph_catalog() {
         let metrics = default_cell_metrics();
-        assert_eq!(metrics.cell_width_px, expected);
+        let mut font_system = super::build_font_system();
+        for ch in CELL_METRIC_SAMPLE_GLYPHS {
+            for bold in [false, true] {
+                let width = measure_sample_glyph_width(&mut font_system, *ch, bold);
+                assert!(
+                    width < metrics.cell_width_px,
+                    "sample glyph {ch} bold={bold} width {width} exceeded cell width {}",
+                    metrics.cell_width_px
+                );
+            }
+        }
         assert_eq!(
             metrics.cell_height_px,
             super::DEFAULT_FONT_HEIGHT_PX as usize

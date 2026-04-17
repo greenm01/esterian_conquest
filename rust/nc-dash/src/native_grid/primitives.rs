@@ -19,7 +19,7 @@ pub(super) fn fill_rect_rgba(
 }
 
 pub(super) fn should_draw_as_primitive(ch: char) -> bool {
-    box_connections(ch).is_some() || block_fill(ch).is_some()
+    box_connections(ch).is_some() || block_fill(ch).is_some() || marker_shape(ch).is_some()
 }
 
 pub(super) fn draw_cell_primitive(
@@ -57,6 +57,19 @@ pub(super) fn draw_cell_primitive(
             cell_width,
             cell_height,
             fill,
+            color,
+        );
+        return;
+    }
+    if let Some(shape) = marker_shape(ch) {
+        draw_marker_glyph(
+            frame,
+            stride_px,
+            cell_x,
+            cell_y,
+            cell_width,
+            cell_height,
+            shape,
             color,
         );
     }
@@ -150,6 +163,13 @@ enum BlockFill {
     DarkShade,
 }
 
+#[derive(Clone, Copy)]
+enum MarkerShape {
+    TriangleOutline,
+    DiamondOutline,
+    DiamondWithPlus,
+}
+
 fn block_fill(ch: char) -> Option<BlockFill> {
     match ch {
         '█' => Some(BlockFill::Full),
@@ -160,6 +180,15 @@ fn block_fill(ch: char) -> Option<BlockFill> {
         '░' => Some(BlockFill::LightShade),
         '▒' => Some(BlockFill::MediumShade),
         '▓' => Some(BlockFill::DarkShade),
+        _ => None,
+    }
+}
+
+fn marker_shape(ch: char) -> Option<MarkerShape> {
+    match ch {
+        '△' => Some(MarkerShape::TriangleOutline),
+        '◊' => Some(MarkerShape::DiamondOutline),
+        '⨁' => Some(MarkerShape::DiamondWithPlus),
         _ => None,
     }
 }
@@ -323,6 +352,58 @@ fn draw_block_glyph(
     }
 }
 
+fn draw_marker_glyph(
+    frame: &mut [u8],
+    stride_px: usize,
+    cell_x: usize,
+    cell_y: usize,
+    cell_width: usize,
+    cell_height: usize,
+    shape: MarkerShape,
+    color: [u8; 4],
+) {
+    let left = cell_x + 1.min(cell_width.saturating_sub(1));
+    let right = cell_x + cell_width.saturating_sub(2);
+    let top = cell_y + 1.min(cell_height.saturating_sub(1));
+    let bottom = cell_y + cell_height.saturating_sub(2);
+    let mid_x = cell_x + cell_width / 2;
+    let mid_y = cell_y + cell_height / 2;
+
+    match shape {
+        MarkerShape::TriangleOutline => {
+            draw_line_rgba(frame, stride_px, mid_x as isize, top as isize, left as isize, bottom as isize, color);
+            draw_line_rgba(frame, stride_px, mid_x as isize, top as isize, right as isize, bottom as isize, color);
+            draw_line_rgba(frame, stride_px, left as isize, bottom as isize, right as isize, bottom as isize, color);
+        }
+        MarkerShape::DiamondOutline | MarkerShape::DiamondWithPlus => {
+            draw_line_rgba(frame, stride_px, mid_x as isize, top as isize, right as isize, mid_y as isize, color);
+            draw_line_rgba(frame, stride_px, right as isize, mid_y as isize, mid_x as isize, bottom as isize, color);
+            draw_line_rgba(frame, stride_px, mid_x as isize, bottom as isize, left as isize, mid_y as isize, color);
+            draw_line_rgba(frame, stride_px, left as isize, mid_y as isize, mid_x as isize, top as isize, color);
+            if matches!(shape, MarkerShape::DiamondWithPlus) {
+                fill_rect_rgba(
+                    frame,
+                    stride_px,
+                    mid_x.saturating_sub(1),
+                    top + (bottom.saturating_sub(top)) / 4,
+                    2.min(cell_width),
+                    bottom.saturating_sub(top + (bottom.saturating_sub(top)) / 4) + 1,
+                    color,
+                );
+                fill_rect_rgba(
+                    frame,
+                    stride_px,
+                    left + (right.saturating_sub(left)) / 4,
+                    mid_y.saturating_sub(1),
+                    right.saturating_sub(left + (right.saturating_sub(left)) / 4) + 1,
+                    2.min(cell_height),
+                    color,
+                );
+            }
+        }
+    }
+}
+
 fn draw_shade_pattern(
     frame: &mut [u8],
     stride_px: usize,
@@ -348,6 +429,43 @@ fn draw_shade_pattern(
     }
 }
 
+fn draw_line_rgba(
+    frame: &mut [u8],
+    stride_px: usize,
+    mut x0: isize,
+    mut y0: isize,
+    x1: isize,
+    y1: isize,
+    color: [u8; 4],
+) {
+    let dx = (x1 - x0).abs();
+    let sx = if x0 < x1 { 1 } else { -1 };
+    let dy = -(y1 - y0).abs();
+    let sy = if y0 < y1 { 1 } else { -1 };
+    let mut err = dx + dy;
+
+    loop {
+        if x0 >= 0 && y0 >= 0 {
+            let pixel = ((y0 as usize) * stride_px + x0 as usize) * 4;
+            if pixel + 4 <= frame.len() {
+                frame[pixel..pixel + 4].copy_from_slice(&color);
+            }
+        }
+        if x0 == x1 && y0 == y1 {
+            break;
+        }
+        let twice_err = err * 2;
+        if twice_err >= dy {
+            err += dy;
+            x0 += sx;
+        }
+        if twice_err <= dx {
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -363,10 +481,10 @@ mod tests {
 
     #[test]
     fn glyph_catalog_routes_block_shade_chars_to_primitives() {
-        for ch in ['─', '│', '┼', '█', '░', '▒', '▓'] {
+        for ch in ['─', '│', '┼', '█', '░', '▒', '▓', '△', '⨁', '◊'] {
             assert!(should_draw_as_primitive(ch), "{ch} should use primitives");
         }
-        for ch in ['△', '⨁', '◊', '·', 'Ω'] {
+        for ch in ['·', 'Ω'] {
             assert!(!should_draw_as_primitive(ch), "{ch} should use text");
         }
     }
