@@ -4,6 +4,7 @@ mod fleet_orders;
 mod hosted_turns;
 pub mod input;
 mod owned_planet;
+pub(crate) mod panel_cache;
 mod persistence;
 pub(crate) mod planet_build;
 pub mod render;

@@ -232,4 +232,29 @@ impl PlayfieldBuffer {
             .trim_end_matches(' ')
             .to_string()
     }
+
+    pub fn copy_region(&self, row: usize, col: usize, width: usize, height: usize) -> Vec<Cell> {
+        let row_end = (row + height).min(self.height);
+        let col_end = (col + width).min(self.width);
+        let w = col_end.saturating_sub(col);
+        let h = row_end.saturating_sub(row);
+        let mut cells = Vec::with_capacity(w * h);
+        for r in row..row + h {
+            let start = r * self.width + col;
+            cells.extend_from_slice(&self.cells[start..start + w]);
+        }
+        cells
+    }
+
+    pub fn blit_region(&mut self, row: usize, col: usize, width: usize, height: usize, cells: &[Cell]) {
+        let row_end = (row + height).min(self.height);
+        let col_end = (col + width).min(self.width);
+        let w = col_end.saturating_sub(col);
+        let h = row_end.saturating_sub(row);
+        for r in row..row + h {
+            let buf_start = r * self.width + col;
+            let src_start = (r - row) * w;
+            self.cells[buf_start..buf_start + w].copy_from_slice(&cells[src_start..src_start + w]);
+        }
+    }
 }

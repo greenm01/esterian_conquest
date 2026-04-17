@@ -489,11 +489,10 @@ fn build_gate_scene(
         Rect::new(1, 1, width.saturating_sub(2), height.saturating_sub(2)),
     );
 
-    draw_gate_frame_scene(&mut scene, popup, title);
-
     let popup_rect = scene_rect_from_cells(popup);
     let interior_top = popup_rect.y + metrics.cell_height_px as f32;
-    let interior_height = (popup_rect.bottom() - 1.0 - interior_top).max(0.0);
+    let interior_height =
+        (popup_rect.height - metrics.cell_height_px as f32 - 2.0).max(0.0);
     scene.push_quad(
         SceneRect::new(
             popup_rect.x + 1.0,
@@ -503,6 +502,7 @@ fn build_gate_scene(
         ),
         theme::table_body_style().bg,
     );
+    draw_gate_frame_scene(&mut scene, popup, title);
 
     let left = popup.x as usize + GATE_SIDE_PADDING;
     let content_bottom = popup.y as usize + popup.height.saturating_sub(2) as usize;
@@ -576,26 +576,36 @@ fn draw_gate_frame_scene(scene: &mut SceneGraph, popup: Rect, title: &str) {
     let metrics = logical_cell_metrics();
     let rect = scene_rect_from_cells(popup);
     let color = theme::table_chrome_style().fg;
-    let title_bg = theme::table_body_style().bg;
     let title_text = format!("- {title} -");
     let title_width = title_text.chars().count() as f32 * metrics.cell_width_px as f32;
     let title_x = rect.x + ((rect.width - title_width).max(0.0) / 2.0);
-    let title_strip = SceneRect::new(
-        (title_x - metrics.cell_width_px as f32 * 0.5).max(rect.x + 1.0),
-        rect.y,
-        (title_width + metrics.cell_width_px as f32)
-            .min((rect.width - 2.0).max(0.0)),
-        metrics.cell_height_px as f32,
-    );
     let right = (rect.right() - 1.0).max(rect.x);
     let bottom = (rect.bottom() - 1.0).max(rect.y);
+    let horizontal_left = rect.x + 1.0;
+    let horizontal_right = (right - 1.0).max(horizontal_left);
+    let gap_left = (title_x - metrics.cell_width_px as f32 * 0.5)
+        .max(horizontal_left)
+        .min(horizontal_right);
+    let gap_right = (title_x + title_width + metrics.cell_width_px as f32 * 0.5)
+        .max(horizontal_left)
+        .min(horizontal_right);
 
-    scene.push_line(
-        ScenePoint::new(rect.x, rect.y),
-        ScenePoint::new(right, rect.y),
-        1.0,
-        color,
-    );
+    if gap_left > horizontal_left {
+        scene.push_line(
+            ScenePoint::new(horizontal_left, rect.y),
+            ScenePoint::new(gap_left - 1.0, rect.y),
+            1.0,
+            color,
+        );
+    }
+    if gap_right < horizontal_right {
+        scene.push_line(
+            ScenePoint::new(gap_right + 1.0, rect.y),
+            ScenePoint::new(horizontal_right, rect.y),
+            1.0,
+            color,
+        );
+    }
     scene.push_line(
         ScenePoint::new(rect.x, bottom),
         ScenePoint::new(right, bottom),
@@ -614,12 +624,16 @@ fn draw_gate_frame_scene(scene: &mut SceneGraph, popup: Rect, title: &str) {
         1.0,
         color,
     );
-    scene.push_quad(title_strip, title_bg);
     scene.push_text(
         ScenePoint::new(title_x, rect.y),
         title_text,
         theme::table_header_style(),
-        Some(SceneRect::new(rect.x + 1.0, rect.y, rect.width - 2.0, metrics.cell_height_px as f32)),
+        Some(SceneRect::new(
+            rect.x + 1.0,
+            rect.y,
+            rect.width - 2.0,
+            metrics.cell_height_px as f32,
+        )),
     );
 }
 

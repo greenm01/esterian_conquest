@@ -15,6 +15,7 @@ use std::time::Instant;
 
 use crate::client_settings::DashClientSettings;
 use crate::overlays::frame::RelativePopupOrigin;
+use super::panel_cache::PanelCache;
 
 /// Which panel has keyboard focus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -143,7 +144,7 @@ impl OwnedPlanetPopupState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MapViewMode {
     Readable,
     Fill,
@@ -849,6 +850,9 @@ pub struct DashApp {
     pub should_quit: bool,
     pub command_line_toast_message: Option<String>,
     pub command_line_toast_deadline: Option<Instant>,
+
+    pub(crate) game_data_revision: u64,
+    pub(crate) panel_cache: std::cell::RefCell<PanelCache>,
 }
 
 impl DashApp {
@@ -927,6 +931,8 @@ impl DashApp {
             should_quit: false,
             command_line_toast_message: None,
             command_line_toast_deadline: None,
+            game_data_revision: 0,
+            panel_cache: std::cell::RefCell::new(PanelCache::default()),
         }
     }
 

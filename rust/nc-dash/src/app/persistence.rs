@@ -73,6 +73,7 @@ impl DashApp {
             .unwrap_or_else(|| {
                 nc_data::PlayerWarStatsState::for_player(self.player_record_index_1_based)
             });
+        self.game_data_revision += 1;
         Ok(())
     }
 }

@@ -1,8 +1,13 @@
 //! Top-level render dispatch: assembles the three-column dashboard frame.
 
-use crate::buffer::PlayfieldBuffer;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
-use crate::app::state::{ActiveOverlay, ActivePopup, DashApp};
+use crate::buffer::PlayfieldBuffer;
+use crate::layout::widgets::WidgetRect;
+
+use crate::app::panel_cache::CachedPanel;
+use crate::app::state::{ActiveOverlay, ActivePopup, DashApp, MapViewMode};
 use crate::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
@@ -44,20 +49,55 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     draw_header(&mut buf, app, &dashboard);
     draw_footer(&mut buf, app, &dashboard);
 
-    // Left column panels.
-    economy::draw(&mut buf, app, widgets.left_economy);
-    planets::draw(&mut buf, app, widgets.left_planets);
-    fleets::draw(&mut buf, app, widgets.left_fleets);
-    war_record::draw(&mut buf, app, widgets.left_war_record);
+    let rev = app.game_data_revision;
+    let player = app.player_record_index_1_based;
+    let mut cache = app.panel_cache.borrow_mut();
 
-    // Center: starmap.
-    starmap::draw(&mut buf, app, widgets.center_map);
+    // Left column panels.
+    draw_cached(&mut buf, &mut cache.economy,
+        panel_hash(rev, player, widgets.left_economy.outer),
+        widgets.left_economy.outer,
+        |buf| economy::draw(buf, app, widgets.left_economy));
+    draw_cached(&mut buf, &mut cache.planets,
+        panel_hash(rev, player, widgets.left_planets.outer),
+        widgets.left_planets.outer,
+        |buf| planets::draw(buf, app, widgets.left_planets));
+    draw_cached(&mut buf, &mut cache.fleets,
+        panel_hash(rev, player, widgets.left_fleets.outer),
+        widgets.left_fleets.outer,
+        |buf| fleets::draw(buf, app, widgets.left_fleets));
+    draw_cached(&mut buf, &mut cache.war_record,
+        panel_hash(rev, player, widgets.left_war_record.outer),
+        widgets.left_war_record.outer,
+        |buf| war_record::draw(buf, app, widgets.left_war_record));
+
+    // Center: starmap (also depends on crosshair, map mode, zoom, settings).
+    draw_cached(&mut buf, &mut cache.starmap,
+        starmap_hash(rev, player, widgets.center_map.outer,
+            app.crosshair_x, app.crosshair_y,
+            app.map_view_mode, app.map_zoom_level,
+            app.client_settings.dense_empty_sector_dots),
+        widgets.center_map.outer,
+        |buf| starmap::draw(buf, app, widgets.center_map));
 
     // Right column panels.
-    comms::draw(&mut buf, app, widgets.right_comms);
-    known_galaxy::draw(&mut buf, app, widgets.right_galaxy);
-    diplomacy::draw(&mut buf, app, widgets.right_diplomacy);
-    sector_detail::draw(&mut buf, app, widgets.right_sector_detail);
+    draw_cached(&mut buf, &mut cache.comms,
+        panel_hash(rev, player, widgets.right_comms.outer),
+        widgets.right_comms.outer,
+        |buf| comms::draw(buf, app, widgets.right_comms));
+    draw_cached(&mut buf, &mut cache.known_galaxy,
+        panel_hash(rev, player, widgets.right_galaxy.outer),
+        widgets.right_galaxy.outer,
+        |buf| known_galaxy::draw(buf, app, widgets.right_galaxy));
+    draw_cached(&mut buf, &mut cache.diplomacy,
+        diplomacy_hash(rev, player, widgets.right_diplomacy.outer, app.diplomacy_scroll),
+        widgets.right_diplomacy.outer,
+        |buf| diplomacy::draw(buf, app, widgets.right_diplomacy));
+    draw_cached(&mut buf, &mut cache.sector_detail,
+        sector_detail_hash(rev, player, widgets.right_sector_detail.outer,
+            app.crosshair_x, app.crosshair_y),
+        widgets.right_sector_detail.outer,
+        |buf| sector_detail::draw(buf, app, widgets.right_sector_detail));
 
     let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
 
@@ -216,6 +256,92 @@ fn draw_non_help_overlay(
         ActiveOverlay::Diplomacy => overlays::diplomacy::draw(buf, app, map_frame),
         ActiveOverlay::Settings => overlays::settings::draw(buf, app, map_frame),
     }
+}
+
+fn draw_cached<F>(
+    buf: &mut PlayfieldBuffer,
+    entry: &mut Option<CachedPanel>,
+    inputs_hash: u64,
+    outer: WidgetRect,
+    draw_fn: F,
+) where
+    F: Fn(&mut PlayfieldBuffer),
+{
+    if entry.as_ref().is_some_and(|e| e.inputs_hash == inputs_hash) {
+        let cells = &entry.as_ref().unwrap().cells;
+        buf.blit_region(outer.row, outer.col, outer.width, outer.height, cells);
+    } else {
+        draw_fn(buf);
+        let cells = buf.copy_region(outer.row, outer.col, outer.width, outer.height);
+        *entry = Some(CachedPanel { inputs_hash, cells });
+    }
+}
+
+fn panel_hash(revision: u64, player: usize, outer: WidgetRect) -> u64 {
+    let mut h = DefaultHasher::new();
+    revision.hash(&mut h);
+    player.hash(&mut h);
+    outer.row.hash(&mut h);
+    outer.col.hash(&mut h);
+    outer.width.hash(&mut h);
+    outer.height.hash(&mut h);
+    h.finish()
+}
+
+fn starmap_hash(
+    revision: u64,
+    player: usize,
+    outer: WidgetRect,
+    cx: u8,
+    cy: u8,
+    mode: MapViewMode,
+    zoom: u8,
+    dense_dots: bool,
+) -> u64 {
+    let mut h = DefaultHasher::new();
+    revision.hash(&mut h);
+    player.hash(&mut h);
+    outer.row.hash(&mut h);
+    outer.col.hash(&mut h);
+    outer.width.hash(&mut h);
+    outer.height.hash(&mut h);
+    cx.hash(&mut h);
+    cy.hash(&mut h);
+    mode.hash(&mut h);
+    zoom.hash(&mut h);
+    dense_dots.hash(&mut h);
+    h.finish()
+}
+
+fn diplomacy_hash(revision: u64, player: usize, outer: WidgetRect, scroll: usize) -> u64 {
+    let mut h = DefaultHasher::new();
+    revision.hash(&mut h);
+    player.hash(&mut h);
+    outer.row.hash(&mut h);
+    outer.col.hash(&mut h);
+    outer.width.hash(&mut h);
+    outer.height.hash(&mut h);
+    scroll.hash(&mut h);
+    h.finish()
+}
+
+fn sector_detail_hash(
+    revision: u64,
+    player: usize,
+    outer: WidgetRect,
+    cx: u8,
+    cy: u8,
+) -> u64 {
+    let mut h = DefaultHasher::new();
+    revision.hash(&mut h);
+    player.hash(&mut h);
+    outer.row.hash(&mut h);
+    outer.col.hash(&mut h);
+    outer.width.hash(&mut h);
+    outer.height.hash(&mut h);
+    cx.hash(&mut h);
+    cy.hash(&mut h);
+    h.finish()
 }
 
 #[cfg(test)]

@@ -985,6 +985,8 @@ impl NativeApp for LobbyApp {
     }
 
     fn native_window_ready(&mut self, window: &winit::window::Window) {
+        window.set_ime_allowed(true);
+        window.focus_window();
         self.clipboard.attach_window(window);
     }
 

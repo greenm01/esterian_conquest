@@ -1,7 +1,9 @@
 mod primitives;
 
 use std::borrow::Cow;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::sync::OnceLock;
 
@@ -135,14 +137,13 @@ struct TextCellPlacement {
     left: f32,
     top: f32,
     bounds: TextBounds,
-    color: Color,
+    color: crate::buffer::GameColor,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct PlayfieldSnapshot {
     width: usize,
     height: usize,
-    cells: Vec<crate::buffer::Cell>,
     row_fingerprints: Vec<u64>,
     cursor: Option<(usize, usize)>,
 }
@@ -154,14 +155,10 @@ impl PlayfieldSnapshot {
         self.cursor = buffer
             .cursor()
             .map(|(col, row)| (usize::from(col), usize::from(row)));
-        self.cells.clear();
         self.row_fingerprints.clear();
-        self.cells.reserve(self.width * self.height);
         self.row_fingerprints.reserve(self.height);
         for row_idx in 0..self.height {
-            let row = buffer.row(row_idx);
-            self.row_fingerprints.push(fingerprint_row(row));
-            self.cells.extend_from_slice(row);
+            self.row_fingerprints.push(fingerprint_row(buffer.row(row_idx)));
         }
     }
 }
@@ -169,7 +166,6 @@ impl PlayfieldSnapshot {
 static DEFAULT_CELL_METRICS: OnceLock<NativeCellMetrics> = OnceLock::new();
 
 pub struct CellGridWindowRenderer {
-    instance: Instance,
     device: Device,
     queue: Queue,
     surface: wgpu::Surface<'static>,
@@ -187,6 +183,9 @@ pub struct CellGridWindowRenderer {
     background_pixels: Vec<u8>,
     previous_playfield: PlayfieldSnapshot,
     has_previous_playfield: bool,
+    prepared_text_hash: u64,
+    has_prepared_text: bool,
+    previous_scene_hash: Option<u64>,
     cell_metrics: NativeCellMetrics,
     text_metrics: TextRasterMetrics,
     scale_factor: f64,
@@ -201,6 +200,22 @@ pub(crate) struct RendererFrameStats {
     pub(crate) grid_rows: usize,
     pub(crate) text_area_count: usize,
     pub(crate) unique_text_buffer_count: usize,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SurfaceAcquireVariant {
+    Success,
+    Suboptimal,
+    Timeout,
+    Occluded,
+    Outdated,
+    Lost,
+    Validation,
+}
+
+const fn should_reconfigure_after_present(variant: SurfaceAcquireVariant) -> bool {
+    matches!(variant, SurfaceAcquireVariant::Suboptimal)
 }
 
 struct BackgroundTexture {
@@ -336,7 +351,6 @@ impl CellGridWindowRenderer {
             vec![0; surface_config.width as usize * surface_config.height as usize * 4];
 
         Ok(Self {
-            instance,
             device,
             queue,
             surface,
@@ -354,6 +368,9 @@ impl CellGridWindowRenderer {
             background_pixels,
             previous_playfield: PlayfieldSnapshot::default(),
             has_previous_playfield: false,
+            prepared_text_hash: 0,
+            has_prepared_text: false,
+            previous_scene_hash: None,
             cell_metrics,
             text_metrics,
             scale_factor,
@@ -394,7 +411,18 @@ impl CellGridWindowRenderer {
 
         let text_placements = match scene {
             UiScene::Playfield(playfield) => self.draw_playfield_background(playfield)?,
-            UiScene::Graph(graph) => self.draw_scene_background(graph)?,
+            UiScene::Graph(graph) => {
+                let scene_hash = hash_scene_graph(graph);
+                if self.previous_scene_hash == Some(scene_hash) {
+                    // Scene unchanged: skip CPU repaint + write_texture.
+                    // Collect text placements from existing buffers for the prepare-skip hash check.
+                    self.collect_existing_scene_text_placements(graph)
+                } else {
+                    let placements = self.draw_scene_background(graph)?;
+                    self.previous_scene_hash = Some(scene_hash);
+                    placements
+                }
+            }
         };
         let (grid_cols, grid_rows) = match scene {
             UiScene::Playfield(playfield) => (playfield.width(), playfield.height()),
@@ -408,6 +436,7 @@ impl CellGridWindowRenderer {
             text_area_count: text_placements.len(),
             unique_text_buffer_count: self.text_buffers.len(),
         };
+        let placement_hash = hash_text_placements(&text_placements);
         if diagnostic_mode {
             info!(
                 target: "nc_dash::native_grid",
@@ -432,35 +461,61 @@ impl CellGridWindowRenderer {
                 top: placement.top,
                 scale: 1.0,
                 bounds: placement.bounds,
-                default_color: placement.color,
+                default_color: glyphon_color(placement.color),
                 custom_glyphs: &[],
             })
             .collect::<Vec<_>>();
-
-        if diagnostic_mode {
+        let needs_prepare = !self.has_prepared_text || self.prepared_text_hash != placement_hash;
+        if needs_prepare {
+            if diagnostic_mode {
+                info!(
+                    target: "nc_dash::native_grid",
+                    text_areas = frame_stats.text_area_count,
+                    "renderer prepare begin"
+                );
+            }
+            self.text_renderer.prepare(
+                &self.device,
+                &self.queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                text_areas,
+                &mut self.swash_cache,
+            )?;
+            self.prepared_text_hash = placement_hash;
+            self.has_prepared_text = true;
+            if diagnostic_mode {
+                info!(target: "nc_dash::native_grid", "renderer prepare end");
+            }
+        } else if diagnostic_mode {
             info!(
                 target: "nc_dash::native_grid",
                 text_areas = frame_stats.text_area_count,
-                "renderer prepare begin"
+                "renderer prepare skipped"
             );
         }
-        self.text_renderer.prepare(
-            &self.device,
-            &self.queue,
-            &mut self.font_system,
-            &mut self.atlas,
-            &self.viewport,
-            text_areas,
-            &mut self.swash_cache,
-        )?;
         if diagnostic_mode {
-            info!(target: "nc_dash::native_grid", "renderer prepare end");
             info!(target: "nc_dash::native_grid", "renderer acquire begin");
         }
 
-        let frame = match self.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(frame) => frame,
-            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+        let (frame, acquire_variant) = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(frame) => (frame, SurfaceAcquireVariant::Success),
+            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
+                if diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native_grid",
+                        surface_state = "suboptimal",
+                        width = self.surface_config.width,
+                        height = self.surface_config.height,
+                        "renderer surface reconfigure deferred"
+                    );
+                }
+                // `Suboptimal(frame)` still carries a live `SurfaceTexture`, so
+                // reconfigure must wait until after `present()` consumes and drops it.
+                (frame, SurfaceAcquireVariant::Suboptimal)
+            }
+            wgpu::CurrentSurfaceTexture::Timeout => {
                 if diagnostic_mode {
                     info!(
                         target: "nc_dash::native_grid",
@@ -471,29 +526,33 @@ impl CellGridWindowRenderer {
                 self.window.request_redraw();
                 return Ok(frame_stats);
             }
-            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
+            wgpu::CurrentSurfaceTexture::Occluded => {
                 if diagnostic_mode {
                     info!(
                         target: "nc_dash::native_grid",
-                        surface_state = "outdated_or_suboptimal",
+                        surface_state = "timeout_or_occluded",
+                        "renderer acquire retry"
+                    );
+                }
+                self.window.request_redraw();
+                return Ok(frame_stats);
+            }
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
+                if diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native_grid",
+                        surface_state = "outdated_or_lost",
                         width = self.surface_config.width,
                         height = self.surface_config.height,
                         "renderer surface reconfigure"
                     );
                 }
-                self.surface.configure(&self.device, &self.surface_config);
-                self.window.request_redraw();
-                return Ok(frame_stats);
-            }
-            wgpu::CurrentSurfaceTexture::Lost => {
-                if diagnostic_mode {
-                    info!(
-                        target: "nc_dash::native_grid",
-                        surface_state = "lost",
-                        "renderer surface recreate"
-                    );
-                }
-                self.surface = self.instance.create_surface(self.window.clone())?;
+                // Reconfigure rather than recreate. Recreating via
+                // `self.surface = instance.create_surface(...)` evaluates the new
+                // surface while the old one is still alive, which triggers the wgpu
+                // validation error "SurfaceOutput must be dropped before a new
+                // Surface is made" on Wayland/mesa-vk when the Lost event arrives
+                // with an acquired surface texture still internally tracked.
                 self.surface.configure(&self.device, &self.surface_config);
                 self.window.request_redraw();
                 return Ok(frame_stats);
@@ -502,6 +561,7 @@ impl CellGridWindowRenderer {
                 return Err("wgpu surface validation error".into());
             }
         };
+        let reconfigure_after_present = should_reconfigure_after_present(acquire_variant);
         if diagnostic_mode {
             info!(target: "nc_dash::native_grid", "renderer acquire end");
         }
@@ -542,6 +602,19 @@ impl CellGridWindowRenderer {
             info!(target: "nc_dash::native_grid", "renderer present begin");
         }
         frame.present();
+        if reconfigure_after_present {
+            if diagnostic_mode {
+                info!(
+                    target: "nc_dash::native_grid",
+                    surface_state = "suboptimal",
+                    width = self.surface_config.width,
+                    height = self.surface_config.height,
+                    "renderer surface reconfigure after present"
+                );
+            }
+            self.surface.configure(&self.device, &self.surface_config);
+            self.window.request_redraw();
+        }
         if diagnostic_mode {
             info!(target: "nc_dash::native_grid", "renderer present end");
         }
@@ -580,6 +653,8 @@ impl CellGridWindowRenderer {
             self.surface_config.width as usize * self.surface_config.height as usize * 4,
             0,
         );
+        self.has_prepared_text = false;
+        self.previous_scene_hash = None;
     }
 
     fn draw_playfield_background(
@@ -834,6 +909,22 @@ impl CellGridWindowRenderer {
         Ok(placements)
     }
 
+    fn collect_existing_scene_text_placements(&mut self, scene: &SceneGraph) -> Vec<TextCellPlacement> {
+        let layout = SceneRenderLayout::new(
+            scene.logical_size(),
+            self.surface_config.width,
+            self.surface_config.height,
+            self.window.scale_factor(),
+        );
+        let mut placements = Vec::new();
+        for node in scene.nodes() {
+            if let SceneNode::Text(node) = node {
+                self.push_scene_text_node(&layout, node, &mut placements);
+            }
+        }
+        placements
+    }
+
     fn ensure_text_buffer(&mut self, key: TextBufferKey) {
         if self.text_buffers.contains_key(&key) {
             return;
@@ -875,6 +966,8 @@ impl CellGridWindowRenderer {
         self.cell_metrics = cell_metrics_for_scale(scale_factor);
         self.text_metrics = text_raster_metrics_for_scale(scale_factor);
         self.text_buffers.clear();
+        self.has_prepared_text = false;
+        self.previous_scene_hash = None;
     }
 
     fn push_scene_text_node(
@@ -900,7 +993,7 @@ impl CellGridWindowRenderer {
             left: layout.logical_x_to_physical(node.origin.x) + self.text_metrics.left_inset_px,
             top: layout.logical_y_to_physical(node.origin.y) + self.text_metrics.top_inset_px,
             bounds,
-            color: glyphon_color(node.style.fg),
+            color: node.style.fg,
         });
     }
 
@@ -951,7 +1044,7 @@ impl CellGridWindowRenderer {
                 right: (x_offset + end_col * self.cell_metrics.cell_width_px) as i32,
                 bottom: (y_offset + (row_idx + 1) * self.cell_metrics.cell_height_px) as i32,
             },
-            color: glyphon_color(style.fg),
+            color: style.fg,
         });
         run_text.clear();
     }
@@ -1110,6 +1203,76 @@ fn color_code(color: crate::buffer::GameColor) -> u32 {
             0x0200_0000 | (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b)
         }
     }
+}
+
+fn hash_text_placements(placements: &[TextCellPlacement]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    placements.len().hash(&mut hasher);
+    for placement in placements {
+        placement.key.hash(&mut hasher);
+        placement.left.to_bits().hash(&mut hasher);
+        placement.top.to_bits().hash(&mut hasher);
+        placement.bounds.left.hash(&mut hasher);
+        placement.bounds.top.hash(&mut hasher);
+        placement.bounds.right.hash(&mut hasher);
+        placement.bounds.bottom.hash(&mut hasher);
+        color_code(placement.color).hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
+fn hash_scene_graph(graph: &SceneGraph) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    let size = graph.logical_size();
+    size.width.to_bits().hash(&mut hasher);
+    size.height.to_bits().hash(&mut hasher);
+    graph.nodes().len().hash(&mut hasher);
+    for node in graph.nodes() {
+        match node {
+            SceneNode::Quad(n) => {
+                0u8.hash(&mut hasher);
+                n.rect.x.to_bits().hash(&mut hasher);
+                n.rect.y.to_bits().hash(&mut hasher);
+                n.rect.width.to_bits().hash(&mut hasher);
+                n.rect.height.to_bits().hash(&mut hasher);
+                color_code(n.color).hash(&mut hasher);
+            }
+            SceneNode::Line(n) => {
+                1u8.hash(&mut hasher);
+                n.start.x.to_bits().hash(&mut hasher);
+                n.start.y.to_bits().hash(&mut hasher);
+                n.end.x.to_bits().hash(&mut hasher);
+                n.end.y.to_bits().hash(&mut hasher);
+                n.thickness.to_bits().hash(&mut hasher);
+                color_code(n.color).hash(&mut hasher);
+            }
+            SceneNode::Caret(n) => {
+                2u8.hash(&mut hasher);
+                n.rect.x.to_bits().hash(&mut hasher);
+                n.rect.y.to_bits().hash(&mut hasher);
+                n.rect.width.to_bits().hash(&mut hasher);
+                n.rect.height.to_bits().hash(&mut hasher);
+                color_code(n.color).hash(&mut hasher);
+            }
+            SceneNode::Text(n) => {
+                3u8.hash(&mut hasher);
+                n.text.hash(&mut hasher);
+                n.origin.x.to_bits().hash(&mut hasher);
+                n.origin.y.to_bits().hash(&mut hasher);
+                color_code(n.style.fg).hash(&mut hasher);
+                color_code(n.style.bg).hash(&mut hasher);
+                n.style.bold.hash(&mut hasher);
+                n.clip.is_some().hash(&mut hasher);
+                if let Some(clip) = n.clip {
+                    clip.x.to_bits().hash(&mut hasher);
+                    clip.y.to_bits().hash(&mut hasher);
+                    clip.width.to_bits().hash(&mut hasher);
+                    clip.height.to_bits().hash(&mut hasher);
+                }
+            }
+        }
+    }
+    hasher.finish()
 }
 
 fn draw_scene_line(
@@ -1438,8 +1601,9 @@ fn theme_wgpu_background() -> wgpu::Color {
 #[cfg(test)]
 mod tests {
     use super::{
-        CELL_METRIC_SAMPLE_GLYPHS, cell_position_at_pixel, default_cell_metrics,
-        measure_sample_glyph_width, terminal_grid_for_pixels, text_raster_metrics_for_scale,
+        CELL_METRIC_SAMPLE_GLYPHS, SurfaceAcquireVariant, cell_position_at_pixel,
+        default_cell_metrics, measure_sample_glyph_width, should_reconfigure_after_present,
+        terminal_grid_for_pixels, text_raster_metrics_for_scale,
     };
 
     #[test]
@@ -1512,5 +1676,30 @@ mod tests {
             metrics.cell_height_px,
             super::DEFAULT_LINE_HEIGHT_LOGICAL_PX.ceil() as usize
         );
+    }
+
+    #[test]
+    fn only_suboptimal_reconfigures_after_present() {
+        assert!(!should_reconfigure_after_present(
+            SurfaceAcquireVariant::Success
+        ));
+        assert!(should_reconfigure_after_present(
+            SurfaceAcquireVariant::Suboptimal
+        ));
+        assert!(!should_reconfigure_after_present(
+            SurfaceAcquireVariant::Timeout
+        ));
+        assert!(!should_reconfigure_after_present(
+            SurfaceAcquireVariant::Occluded
+        ));
+        assert!(!should_reconfigure_after_present(
+            SurfaceAcquireVariant::Outdated
+        ));
+        assert!(!should_reconfigure_after_present(
+            SurfaceAcquireVariant::Lost
+        ));
+        assert!(!should_reconfigure_after_present(
+            SurfaceAcquireVariant::Validation
+        ));
     }
 }

@@ -1280,6 +1280,17 @@ fn locked_resume_escape_returns_to_matrix_lock() {
 }
 
 #[test]
+fn locked_route_typing_updates_password_buffer() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+
+    app.dispatch_key_event_for_test(key(KeyCode::Char('s')));
+    app.dispatch_key_event_for_test(key(KeyCode::Char('e')));
+    app.dispatch_key_event_for_test(key(KeyCode::Char('c')));
+
+    assert_eq!(app.state.unlock_password_input, "sec");
+}
+
+#[test]
 fn resume_sync_overlay_blocks_home_input_until_dismissed() {
     let mut app = LobbyApp::new_for_tests(LobbyRoute::Home, ScreenGeometry::new(120, 40));
     app.state.show_resume_sync_overlay = true;
