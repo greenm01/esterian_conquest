@@ -1,7 +1,7 @@
-use crate::ratatui::layout::{Constraint, Layout, Rect};
+use crate::lobby::state::{LobbyState, ThreadPaneFocus};
+use crate::ui::cell::layout::{Constraint, Layout, Rect};
 
-use super::super::state::{LobbyState, ThreadPaneFocus};
-use super::super::ui::{contains, padded_inner, scroll_offset};
+use super::super::{contains, padded_inner, scroll_offset};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ThreadWorkspaceLayout {

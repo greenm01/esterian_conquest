@@ -1,10 +1,12 @@
 mod chrome;
+mod comms;
 mod home;
 mod layout;
 mod popups;
 mod tables;
 
 pub use self::chrome::{panel_block, truncate_title, with_panel_bg, write_text};
+pub use self::comms::hit_test_workspace;
 pub(crate) use self::home::hit_test_tabs;
 pub use self::layout::{
     active_popup_rect, contains, hit_test_home, home_layout, home_tab_content_area, padded_inner,
@@ -12,13 +14,11 @@ pub use self::layout::{
 };
 
 use crate::buffer::PlayfieldBuffer;
-use crate::ratatui::buffer::Buffer;
-use crate::ratatui::layout::Rect;
-use crate::ratatui::style::Modifier;
-
 use crate::lobby::state::{LobbyApp, LobbyRoute};
-use crate::lobby::threads;
 use crate::theme;
+use crate::ui::cell::buffer::Buffer;
+use crate::ui::cell::layout::Rect;
+use crate::ui::cell::style::Modifier;
 
 pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
     let width = playfield.width() as u16;
@@ -37,7 +37,7 @@ pub fn render_scene(playfield: &mut PlayfieldBuffer, app: &LobbyApp) {
             home::render_home_base(&mut buffer, app, layout);
         }
         LobbyRoute::ContactPicker | LobbyRoute::AddContact => {
-            threads::render_comms_scene(&mut buffer, layout.body, app)
+            comms::render_comms_scene(&mut buffer, layout.body, app)
         }
         _ => home::render_home_base(&mut buffer, app, layout),
     }

@@ -4,9 +4,7 @@ pub mod models;
 pub mod onboarding;
 pub mod state;
 pub mod storage;
-pub mod threads;
 pub mod transport;
-mod ui;
 pub mod update;
 
 use crate::buffer::PlayfieldBuffer;
@@ -21,9 +19,10 @@ use crate::modal::{
     modal_close_button_contains, render_modal_box,
 };
 use crate::native::NativeApp;
-use crate::scene::UiScene;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
+use crate::ui::UiScene;
+use crate::ui::screens::lobby as ui;
 
 use self::state::{HostedSyncPhase, LobbyMouseGesture, LobbyRoute, LobbyTab, ThreadPaneFocus};
 
@@ -841,7 +840,7 @@ impl LobbyApp {
         }
 
         if self.state.route == LobbyRoute::Home {
-            if let Some(layout) = ui::home_layout(crate::ratatui::layout::Rect::new(
+            if let Some(layout) = ui::home_layout(crate::ui::cell::layout::Rect::new(
                 0,
                 0,
                 self.geometry.width() as u16,
@@ -861,7 +860,7 @@ impl LobbyApp {
         }
 
         if self.state.route == LobbyRoute::Home && self.state.active_tab == LobbyTab::Comms {
-            let Some(layout) = ui::home_layout(crate::ratatui::layout::Rect::new(
+            let Some(layout) = ui::home_layout(crate::ui::cell::layout::Rect::new(
                 0,
                 0,
                 self.geometry.width() as u16,
@@ -869,7 +868,7 @@ impl LobbyApp {
             )) else {
                 return;
             };
-            if let Some(hit) = threads::hit_test_workspace(
+            if let Some(hit) = ui::hit_test_workspace(
                 &self.state,
                 ui::home_tab_content_area(layout.body, LobbyTab::Comms),
                 mouse.column,
@@ -954,7 +953,7 @@ impl LobbyApp {
         else {
             return;
         };
-        let Some(layout) = ui::home_layout(crate::ratatui::layout::Rect::new(
+        let Some(layout) = ui::home_layout(crate::ui::cell::layout::Rect::new(
             0,
             0,
             self.geometry.width() as u16,
@@ -1081,6 +1080,14 @@ impl NativeApp for LobbyApp {
     }
 
     fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
+        if matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked) {
+            let scene = match self.state.route {
+                LobbyRoute::FirstRun => onboarding::render_first_run_scene(self.geometry, &self.state),
+                LobbyRoute::Locked => onboarding::render_locked_scene(self.geometry, &self.state),
+                _ => unreachable!(),
+            };
+            return Ok(scene);
+        }
         Ok(UiScene::from(self.render_lobby_playfield()?))
     }
 

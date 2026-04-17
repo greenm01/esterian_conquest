@@ -1,8 +1,3 @@
-use crate::ratatui::buffer::Buffer;
-use crate::ratatui::layout::{Constraint, Layout, Rect};
-use crate::ratatui::style::Style;
-use crate::ratatui::widgets::{Block, Borders, Clear, Padding, Widget};
-
 use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
 use crate::modal::{
     WrappedHelpLines, WrappedTextLines, format_help_rows, max_content_width,
@@ -10,6 +5,10 @@ use crate::modal::{
 };
 use crate::overlays::frame::RelativePopupOrigin;
 use crate::theme;
+use crate::ui::cell::buffer::Buffer;
+use crate::ui::cell::layout::{Constraint, Layout, Rect};
+use crate::ui::cell::style::Style;
+use crate::ui::cell::widgets::{Block, Borders, Clear, Padding, Widget};
 
 use super::chrome::{
     chrome_block, popup_block, render_popup_close_button, status_style, toast_text_style,
@@ -108,7 +107,7 @@ pub(super) fn render_settings_popup(buffer: &mut Buffer, app: &LobbyApp, parent:
         }
         let value = match *label {
             "Handle" => self_or_unset(app.state.player_handle.as_deref()),
-            "Idle Lock" => super::super::storage::settings::lock_timeout_label(
+            "Idle Lock" => crate::lobby::storage::settings::lock_timeout_label(
                 app.state.settings_draft.lock_timeout_minutes,
             ),
             "Mouse Follow" => on_off(app.state.settings_draft.follow_mouse_on_map).to_string(),
@@ -691,7 +690,7 @@ fn settings_rows(app: &LobbyApp) -> Vec<String> {
         .map(|(idx, label)| {
             let value = match *label {
                 "Handle" => self_or_unset(app.state.player_handle.as_deref()),
-                "Idle Lock" => super::super::storage::settings::lock_timeout_label(
+                "Idle Lock" => crate::lobby::storage::settings::lock_timeout_label(
                     app.state.settings_draft.lock_timeout_minutes,
                 ),
                 "Mouse Follow" => on_off(app.state.settings_draft.follow_mouse_on_map).to_string(),

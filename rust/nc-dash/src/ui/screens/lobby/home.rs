@@ -1,12 +1,11 @@
-use crate::ratatui::buffer::Buffer;
-use crate::ratatui::layout::{Constraint, Rect};
-use crate::ratatui::style::Style;
-use crate::ratatui::widgets::Widget;
-
 use crate::lobby::state::{LobbyApp, LobbyState, LobbyTab};
-use crate::lobby::threads;
 use crate::theme;
+use crate::ui::cell::buffer::Buffer;
+use crate::ui::cell::layout::{Constraint, Rect};
+use crate::ui::cell::style::Style;
+use crate::ui::cell::widgets::Widget;
 
+use super::comms;
 use super::chrome::{network_style, shell_block, with_panel_bg};
 use super::layout::{HomeLayout, home_tab_content_area};
 use super::tables::{TableCellAlign, TableColumnSpec, render_table_panel};
@@ -116,7 +115,7 @@ pub(super) fn render_home_base(buffer: &mut Buffer, app: &LobbyApp, layout: Home
             );
         }
         LobbyTab::Comms => {
-            threads::render_comms_scene(
+            comms::render_comms_scene(
                 buffer,
                 home_tab_content_area(layout.body, LobbyTab::Comms),
                 app,

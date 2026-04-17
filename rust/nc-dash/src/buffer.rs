@@ -57,6 +57,7 @@ impl<'a> StyledSpan<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct PlayfieldBuffer {
     width: usize,
     height: usize,

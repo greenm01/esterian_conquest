@@ -1,7 +1,6 @@
-use crate::ratatui::layout::{Constraint, Layout, Rect};
-
 use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
 use crate::overlays::frame::RelativePopupOrigin;
+use crate::ui::cell::layout::{Constraint, Layout, Rect};
 
 const HOME_MIN_WIDTH: u16 = 72;
 const HOME_MIN_HEIGHT: u16 = 20;

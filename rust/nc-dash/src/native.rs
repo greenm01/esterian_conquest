@@ -4,8 +4,8 @@ use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     logical_window_size_for_grid, terminal_grid_for_pixels,
 };
-use crate::scene::UiScene;
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
+use crate::ui::UiScene;
 use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_log::LogLevel;
 use std::cell::RefCell;
@@ -308,6 +308,7 @@ struct NativeShell<T: NativeApp> {
     app: T,
     window_pixel_width: u32,
     window_pixel_height: u32,
+    window_scale_factor: f64,
     persist_window_state: bool,
     last_persisted_window_state: Option<PersistedWindowState>,
     modifiers: ModifiersState,
@@ -329,6 +330,7 @@ impl<T: NativeApp> NativeShell<T> {
         app: T,
         window_pixel_width: u32,
         window_pixel_height: u32,
+        window_scale_factor: f64,
         persist_window_state: bool,
     ) -> Self {
         let last_persisted_window_state = app.saved_window_state();
@@ -336,6 +338,7 @@ impl<T: NativeApp> NativeShell<T> {
             app,
             window_pixel_width: window_pixel_width.max(1),
             window_pixel_height: window_pixel_height.max(1),
+            window_scale_factor,
             persist_window_state,
             last_persisted_window_state,
             modifiers: ModifiersState::empty(),
@@ -437,7 +440,11 @@ impl<T: NativeApp> NativeShell<T> {
                 pixel_width,
                 pixel_height,
             } => {
-                if self.resize_to_window_pixels(pixel_width, pixel_height) {
+                if self.resize_to_window_pixels(
+                    pixel_width,
+                    pixel_height,
+                    self.window_scale_factor,
+                ) {
                     self.push_state_effects(&mut effects, true, NativeRedrawCause::Resize);
                 }
             }
@@ -495,15 +502,21 @@ impl<T: NativeApp> NativeShell<T> {
         }
     }
 
-    fn resize_to_window_pixels(&mut self, pixel_width: u32, pixel_height: u32) -> bool {
+    fn resize_to_window_pixels(
+        &mut self,
+        pixel_width: u32,
+        pixel_height: u32,
+        scale_factor: f64,
+    ) -> bool {
         let pixel_width = pixel_width.max(1);
         let pixel_height = pixel_height.max(1);
-        let (cols, rows) = terminal_grid_for_pixels(pixel_width, pixel_height);
+        let (cols, rows) = terminal_grid_for_pixels(pixel_width, pixel_height, scale_factor);
         let geometry = self.app.geometry();
         let geometry_changed =
             geometry.width() != cols as usize || geometry.height() != rows as usize;
         if self.window_pixel_width == pixel_width
             && self.window_pixel_height == pixel_height
+            && (self.window_scale_factor - scale_factor).abs() < f64::EPSILON
             && !geometry_changed
         {
             return false;
@@ -511,6 +524,7 @@ impl<T: NativeApp> NativeShell<T> {
 
         self.window_pixel_width = pixel_width;
         self.window_pixel_height = pixel_height;
+        self.window_scale_factor = scale_factor;
         self.app.resize_canvas(cols, rows);
         true
     }
@@ -636,6 +650,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             app,
             initial_size.width,
             initial_size.height,
+            window.scale_factor(),
             self.native_options.window_mode != NativeWindowMode::BorderlessFullscreen,
         );
         shell.serialize_redraws = self.native_options.serialize_redraws;
@@ -1428,7 +1443,7 @@ fn apply_effects<T: NativeApp>(
 
 fn sync_window_size<T: NativeApp>(shell: &mut NativeShell<T>, window: &winit::window::Window) {
     let size = window.inner_size();
-    if shell.resize_to_window_pixels(size.width, size.height) {
+    if shell.resize_to_window_pixels(size.width, size.height, window.scale_factor()) {
         shell.needs_redraw = true;
     }
 }
@@ -1449,6 +1464,7 @@ fn pointer_from_position<T: NativeApp>(
         geometry.height(),
         shell.window_pixel_width,
         shell.window_pixel_height,
+        shell.window_scale_factor,
         position,
     )
     .map(|(column, row)| PendingPointer::Cell(column, row))
@@ -1525,8 +1541,8 @@ mod tests {
     };
     use crate::geometry::ScreenGeometry;
     use crate::lobby::storage::settings::PersistedWindowState;
-    use crate::scene::UiScene;
     use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
+    use crate::ui::UiScene;
     use crate::input::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
@@ -1584,10 +1600,10 @@ mod tests {
 
     #[test]
     fn resize_updates_app_geometry_even_when_cached_pixels_match() {
-        let (cols, rows) = crate::native_grid::terminal_grid_for_pixels(100, 54);
+        let (cols, rows) = crate::native_grid::terminal_grid_for_pixels(100, 54, 1.0);
         let mut shell = test_shell(ScreenGeometry::new(1, 1), 100, 54);
 
-        assert!(shell.resize_to_window_pixels(100, 54));
+        assert!(shell.resize_to_window_pixels(100, 54, 1.0));
         assert_eq!(
             shell.app.geometry,
             ScreenGeometry::new(cols as usize, rows as usize)
@@ -1596,10 +1612,10 @@ mod tests {
 
     #[test]
     fn resize_noops_when_pixels_and_grid_are_already_current() {
-        let (cols, rows) = crate::native_grid::terminal_grid_for_pixels(100, 54);
+        let (cols, rows) = crate::native_grid::terminal_grid_for_pixels(100, 54, 1.0);
         let mut shell = test_shell(ScreenGeometry::new(cols as usize, rows as usize), 100, 54);
 
-        assert!(!shell.resize_to_window_pixels(100, 54));
+        assert!(!shell.resize_to_window_pixels(100, 54, 1.0));
         assert_eq!(
             shell.app.geometry,
             ScreenGeometry::new(cols as usize, rows as usize)
@@ -1937,7 +1953,7 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        NativeShell::new(app, window_pixel_width, window_pixel_height, false)
+        NativeShell::new(app, window_pixel_width, window_pixel_height, 1.0, false)
     }
 
     fn test_drag_shell(
@@ -1957,6 +1973,7 @@ mod tests {
             },
             window_pixel_width,
             window_pixel_height,
+            1.0,
             false,
         )
     }
@@ -1974,6 +1991,7 @@ mod tests {
             },
             100,
             54,
+            1.0,
             false,
         )
     }

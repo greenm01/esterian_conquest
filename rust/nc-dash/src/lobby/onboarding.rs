@@ -1,8 +1,11 @@
 use crate::branding::NOSTRIAN_CONQUEST_LOGO;
 use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
-
+use crate::geometry::ScreenGeometry;
 use crate::modal::{Rect, centered_rect, draw_box_without_close_button, wrap_modal_text_lines};
+use crate::native_grid::logical_cell_metrics;
 use crate::theme;
+use crate::ui::scene::{SceneGraph, ScenePoint, SceneRect};
+use crate::ui::UiScene;
 
 use super::state::{FirstRunField, LobbyRoute, LobbyState};
 
@@ -254,6 +257,57 @@ pub fn render_locked(buffer: &mut PlayfieldBuffer, state: &LobbyState) {
     );
 }
 
+pub fn render_first_run_scene(geometry: ScreenGeometry, state: &LobbyState) -> UiScene {
+    let copy_lines = vec![
+        "Create your local hosted identity.".to_string(),
+        "Choose a handle, set a password, and confirm it.".to_string(),
+    ];
+    let fields = vec![
+        GateField {
+            label: "Handle",
+            value: display_or_cursor(&state.first_run_handle_input),
+            active: state.first_run_field == FirstRunField::Handle,
+            cursor_offset: state.first_run_handle_input.chars().count(),
+        },
+        GateField {
+            label: "Set Password",
+            value: masked_or_cursor(&state.first_run_password_input),
+            active: state.first_run_field == FirstRunField::Password,
+            cursor_offset: state.first_run_password_input.chars().count(),
+        },
+        GateField {
+            label: "Confirm",
+            value: masked_or_cursor(&state.first_run_confirm_input),
+            active: state.first_run_field == FirstRunField::Confirm,
+            cursor_offset: state.first_run_confirm_input.chars().count(),
+        },
+    ];
+    build_gate_scene(
+        geometry,
+        "FIRST RUN",
+        state.status_message.as_deref(),
+        &copy_lines,
+        &fields,
+    )
+}
+
+pub fn render_locked_scene(geometry: ScreenGeometry, state: &LobbyState) -> UiScene {
+    let copy_lines = vec!["Enter your keychain password.".to_string()];
+    let fields = vec![GateField {
+        label: "Password",
+        value: masked_or_cursor(&state.unlock_password_input),
+        active: true,
+        cursor_offset: state.unlock_password_input.chars().count(),
+    }];
+    build_gate_scene(
+        geometry,
+        "UNLOCK KEYCHAIN",
+        state.status_message.as_deref(),
+        &copy_lines,
+        &fields,
+    )
+}
+
 pub fn render_matrix_locked(buffer: &mut PlayfieldBuffer, rain: &MatrixRain) {
     rain.render(buffer);
 }
@@ -374,6 +428,311 @@ fn render_gate(
         write_field(buffer, row, left, content_width, field);
         row += 1;
     }
+}
+
+fn build_gate_scene(
+    geometry: ScreenGeometry,
+    title: &str,
+    status_message: Option<&str>,
+    copy_lines: &[String],
+    fields: &[GateField<'_>],
+) -> UiScene {
+    let metrics = logical_cell_metrics();
+    let scene_width = geometry.width() as f32 * metrics.cell_width_px as f32;
+    let scene_height = geometry.height() as f32 * metrics.cell_height_px as f32;
+    let mut scene = SceneGraph::new(scene_width, scene_height);
+    scene.push_quad(
+        SceneRect::new(0.0, 0.0, scene_width, scene_height),
+        theme::body_style().bg,
+    );
+
+    let width = geometry.width() as u16;
+    let height = geometry.height() as u16;
+    if width < 60 || height < 24 {
+        render_tiny_scene(&mut scene, title, metrics.cell_width_px as f32, metrics.cell_height_px as f32);
+        return UiScene::Graph(scene);
+    }
+
+    let logo_width = NOSTRIAN_CONQUEST_LOGO
+        .iter()
+        .map(|line| line.len())
+        .max()
+        .unwrap_or(0);
+    let field_width = fields.iter().map(field_row_width).max().unwrap_or(0);
+    let copy_width = copy_lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    let status_width = status_message
+        .map(|message| message.chars().count())
+        .unwrap_or(0);
+    let natural_content_width = logo_width
+        .max(field_width)
+        .max(copy_width)
+        .max(status_width);
+    let popup_width = (natural_content_width + GATE_SIDE_PADDING * 2 + 2)
+        .max(usize::from(GATE_MIN_POPUP_WIDTH))
+        .min(width.saturating_sub(2) as usize) as u16;
+    let content_width = popup_content_width(popup_width);
+    let wrapped_status = status_message
+        .map(|message| wrap_modal_text_lines(&[message.to_string()], content_width))
+        .unwrap_or_default();
+    let wrapped_copy = wrap_modal_text_lines(copy_lines, content_width);
+    let fixed_rows = NOSTRIAN_CONQUEST_LOGO.len() + 1 + wrapped_copy.len() + 1 + fields.len();
+    let popup_height = (fixed_rows + wrapped_status.len() + 2)
+        .min(height.saturating_sub(2) as usize)
+        .max(usize::from(GATE_MIN_POPUP_HEIGHT)) as u16;
+    let popup = centered_rect(
+        popup_width,
+        popup_height,
+        Rect::new(1, 1, width.saturating_sub(2), height.saturating_sub(2)),
+    );
+
+    draw_gate_frame_scene(&mut scene, popup, title);
+
+    let popup_rect = scene_rect_from_cells(popup);
+    scene.push_quad(popup_rect.inset(1.0, 1.0), theme::table_body_style().bg);
+
+    let left = popup.x as usize + GATE_SIDE_PADDING;
+    let content_bottom = popup.y as usize + popup.height.saturating_sub(2) as usize;
+    let mut row = popup.y as usize + 1;
+    row += write_wrapped_scene_rows(
+        &mut scene,
+        row,
+        left,
+        content_width,
+        content_bottom.saturating_add(1).saturating_sub(row),
+        &wrapped_status,
+        theme::error_style(),
+    );
+    if !wrapped_status.is_empty() {
+        row += 1;
+    }
+
+    row += draw_logo_scene(&mut scene, row, popup);
+    row += 1;
+
+    row += write_wrapped_scene_rows(
+        &mut scene,
+        row,
+        left,
+        content_width,
+        content_bottom.saturating_add(1).saturating_sub(row),
+        &wrapped_copy,
+        theme::prompt_notice_action_style(),
+    );
+    row += 1;
+
+    for field in fields {
+        if row > content_bottom {
+            break;
+        }
+        write_scene_field(&mut scene, row, left, content_width, field);
+        row += 1;
+    }
+
+    UiScene::Graph(scene)
+}
+
+fn render_tiny_scene(
+    scene: &mut SceneGraph,
+    title: &str,
+    cell_width: f32,
+    cell_height: f32,
+) {
+    let lines = ["Nostrian Conquest", title, "Resize the window to continue."];
+    let rows = (scene.logical_size().height / cell_height).floor().max(1.0) as usize;
+    let cols = (scene.logical_size().width / cell_width).floor().max(1.0) as usize;
+    let start_row = rows.saturating_sub(lines.len()) / 2;
+    for (idx, line) in lines.iter().enumerate() {
+        let row = start_row + idx;
+        let col = cols.saturating_sub(line.chars().count()) / 2;
+        let style = if idx == 0 {
+            theme::logo_style()
+        } else {
+            theme::table_body_style()
+        };
+        scene.push_text(
+            scene_point_from_cell(col, row),
+            *line,
+            style,
+            None,
+        );
+    }
+}
+
+fn draw_gate_frame_scene(scene: &mut SceneGraph, popup: Rect, title: &str) {
+    let rect = scene_rect_from_cells(popup);
+    let color = theme::table_chrome_style().fg;
+    let title_bg = theme::table_body_style().bg;
+    let title_text = format!("- {title} -");
+    let title_width = title_text.chars().count() as f32 * logical_cell_metrics().cell_width_px as f32;
+    let title_x = rect.x + ((rect.width - title_width).max(0.0) / 2.0);
+    let title_strip = SceneRect::new(title_x - 4.0, rect.y, title_width + 8.0, logical_cell_metrics().cell_height_px as f32);
+
+    scene.push_line(
+        ScenePoint::new(rect.x, rect.y),
+        ScenePoint::new(rect.right(), rect.y),
+        1.0,
+        color,
+    );
+    scene.push_line(
+        ScenePoint::new(rect.x, rect.bottom()),
+        ScenePoint::new(rect.right(), rect.bottom()),
+        1.0,
+        color,
+    );
+    scene.push_line(
+        ScenePoint::new(rect.x, rect.y),
+        ScenePoint::new(rect.x, rect.bottom()),
+        1.0,
+        color,
+    );
+    scene.push_line(
+        ScenePoint::new(rect.right(), rect.y),
+        ScenePoint::new(rect.right(), rect.bottom()),
+        1.0,
+        color,
+    );
+    scene.push_quad(title_strip, title_bg);
+    scene.push_text(
+        ScenePoint::new(title_x, rect.y - 2.0),
+        title_text,
+        theme::table_header_style(),
+        Some(rect),
+    );
+}
+
+fn scene_rect_from_cells(rect: Rect) -> SceneRect {
+    let metrics = logical_cell_metrics();
+    SceneRect::new(
+        rect.x as f32 * metrics.cell_width_px as f32,
+        rect.y as f32 * metrics.cell_height_px as f32,
+        rect.width as f32 * metrics.cell_width_px as f32,
+        rect.height as f32 * metrics.cell_height_px as f32,
+    )
+}
+
+fn scene_point_from_cell(col: usize, row: usize) -> ScenePoint {
+    let metrics = logical_cell_metrics();
+    ScenePoint::new(
+        col as f32 * metrics.cell_width_px as f32,
+        row as f32 * metrics.cell_height_px as f32,
+    )
+}
+
+fn write_scene_field(
+    scene: &mut SceneGraph,
+    row: usize,
+    left: usize,
+    content_width: usize,
+    field: &GateField<'_>,
+) {
+    let marker = if field.active { ">" } else { " " };
+    let marker_style = if field.active {
+        theme::prompt_hotkey_style()
+    } else {
+        theme::status_label_style()
+    };
+    let value_style = if field.active {
+        theme::prompt_style()
+    } else {
+        theme::table_body_style()
+    };
+    let label = format!(
+        "{marker} {:<width$} :",
+        field.label,
+        width = GATE_FIELD_LABEL_WIDTH
+    );
+    let value_col = left + label.chars().count() + 1;
+    let value_width = content_width.saturating_sub(value_col.saturating_sub(left));
+    let value = clip_to_width(&field.value, value_width);
+    let clip = Some(SceneRect::new(
+        left as f32 * logical_cell_metrics().cell_width_px as f32,
+        row as f32 * logical_cell_metrics().cell_height_px as f32,
+        content_width as f32 * logical_cell_metrics().cell_width_px as f32,
+        logical_cell_metrics().cell_height_px as f32,
+    ));
+    scene.push_text(scene_point_from_cell(left, row), label, marker_style, clip);
+    scene.push_text(scene_point_from_cell(value_col, row), value.clone(), value_style, clip);
+    if field.active {
+        let metrics = logical_cell_metrics();
+        let caret_col = value_col + field.cursor_offset.min(value.chars().count());
+        scene.push_caret(
+            SceneRect::new(
+                caret_col as f32 * metrics.cell_width_px as f32 + 2.0,
+                row as f32 * metrics.cell_height_px as f32 + 3.0,
+                2.0,
+                metrics.cell_height_px.saturating_sub(6) as f32,
+            ),
+            theme::prompt_hotkey_style().fg,
+        );
+    }
+}
+
+fn draw_logo_scene(scene: &mut SceneGraph, start_row: usize, popup: Rect) -> usize {
+    let logo_width = NOSTRIAN_CONQUEST_LOGO
+        .iter()
+        .map(|line| line.len())
+        .max()
+        .unwrap_or(0);
+    let inner_left = popup.x as usize + 1;
+    let inner_width = popup.width.saturating_sub(2) as usize;
+    let logo_left = inner_left + inner_width.saturating_sub(logo_width) / 2;
+
+    for (row_offset, line) in NOSTRIAN_CONQUEST_LOGO.iter().enumerate() {
+        for (col_offset, ch) in line.chars().enumerate() {
+            if ch == ' ' {
+                continue;
+            }
+            let style = if is_star_decoration(ch) {
+                theme::classic::star_decoration_style(row_offset + col_offset)
+            } else {
+                theme::logo_style()
+            };
+            scene.push_text(
+                scene_point_from_cell(logo_left + col_offset, start_row + row_offset),
+                ch.to_string(),
+                style,
+                Some(scene_rect_from_cells(popup)),
+            );
+        }
+    }
+
+    NOSTRIAN_CONQUEST_LOGO.len()
+}
+
+fn write_wrapped_scene_rows(
+    scene: &mut SceneGraph,
+    start_row: usize,
+    left: usize,
+    content_width: usize,
+    max_rows: usize,
+    lines: &[String],
+    style: crate::buffer::CellStyle,
+) -> usize {
+    if content_width == 0 || max_rows == 0 {
+        return 0;
+    }
+
+    let visible_rows = lines.len().min(max_rows);
+    for idx in 0..visible_rows {
+        let is_last_visible = idx + 1 == max_rows;
+        let overflow_hidden = lines.len() > max_rows;
+        let line = if is_last_visible && overflow_hidden {
+            truncate_with_continuation(&lines[idx], content_width)
+        } else {
+            clip_to_width(&lines[idx], content_width)
+        };
+        scene.push_text(
+            scene_point_from_cell(left, start_row + idx),
+            line,
+            style,
+            None,
+        );
+    }
+    visible_rows
 }
 
 fn write_field(
@@ -527,4 +886,48 @@ fn truncate_with_continuation(text: &str, max_width: usize) -> String {
     }
     let clipped = clip_to_width(text, max_width.saturating_sub(3));
     format!("{clipped}...")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{render_first_run_scene, render_locked_scene};
+    use crate::geometry::ScreenGeometry;
+    use crate::lobby::state::LobbyRoute;
+    use crate::lobby::LobbyApp;
+    use crate::ui::scene::SceneNode;
+    use crate::ui::UiScene;
+
+    #[test]
+    fn locked_scene_uses_explicit_title_and_caret_nodes() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+        app.state.unlock_password_input = "hunter2".to_string();
+
+        let scene = render_locked_scene(app.geometry, &app.state);
+        let UiScene::Graph(graph) = scene else {
+            panic!("locked scene should render as scene graph");
+        };
+
+        assert!(graph.nodes().iter().any(|node| matches!(
+            node,
+            SceneNode::Text(text) if text.text == "- UNLOCK KEYCHAIN -"
+        )));
+        assert!(graph
+            .nodes()
+            .iter()
+            .any(|node| matches!(node, SceneNode::Caret(_))));
+    }
+
+    #[test]
+    fn first_run_scene_uses_logical_scene_size_from_geometry() {
+        let app = LobbyApp::new_for_tests(LobbyRoute::FirstRun, ScreenGeometry::new(120, 40));
+
+        let scene = render_first_run_scene(app.geometry, &app.state);
+        let UiScene::Graph(graph) = scene else {
+            panic!("first-run scene should render as scene graph");
+        };
+
+        assert!(graph.logical_size().width > 0.0);
+        assert!(graph.logical_size().height > 0.0);
+        assert!(graph.nodes().iter().any(|node| matches!(node, SceneNode::Quad(_))));
+    }
 }

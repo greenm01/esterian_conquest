@@ -1,8 +1,9 @@
 use chrono::{DateTime, Local};
 
-use super::super::models::{GameInboxMessage, LobbyNotice, ThreadMessage};
-use super::super::state::LobbyState;
+use crate::lobby::models::{GameInboxMessage, LobbyNotice, ThreadMessage};
+use crate::lobby::state::LobbyState;
 
+#[allow(dead_code)]
 pub fn notice_rows(state: &LobbyState) -> Vec<String> {
     state.notices.iter().map(format_notice).collect()
 }
@@ -25,6 +26,7 @@ pub fn direct_thread_render_lines(state: &LobbyState, width: usize) -> Vec<Threa
         .collect()
 }
 
+#[allow(dead_code)]
 pub fn game_inbox_render_lines(state: &LobbyState, width: usize) -> Vec<ThreadRenderLine> {
     state
         .visible_game_inbox_messages()
@@ -62,6 +64,7 @@ pub fn thread_prompt_label(state: &LobbyState) -> String {
         .to_string()
 }
 
+#[allow(dead_code)]
 fn format_notice(notice: &LobbyNotice) -> String {
     format!("{}: {}", notice.sender, notice.body)
 }
@@ -86,6 +89,7 @@ fn format_direct_thread_message(
     )
 }
 
+#[allow(dead_code)]
 fn format_game_inbox_message(message: &&GameInboxMessage, width: usize) -> Vec<ThreadRenderLine> {
     format_chat_message(
         &message.created_at,

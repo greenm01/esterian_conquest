@@ -1,9 +1,8 @@
-use crate::ratatui::buffer::Buffer;
-use crate::ratatui::layout::{Constraint, Layout, Rect};
-use crate::ratatui::style::Style;
-use crate::ratatui::widgets::Widget;
-
 use crate::theme;
+use crate::ui::cell::buffer::Buffer;
+use crate::ui::cell::layout::{Constraint, Layout, Rect};
+use crate::ui::cell::style::Style;
+use crate::ui::cell::widgets::Widget;
 
 use super::chrome::{panel_block, with_panel_bg};
 use super::layout::scroll_offset;

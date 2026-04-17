@@ -34,7 +34,7 @@ use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
-use crate::scene::UiScene;
+use crate::ui::UiScene;
 use std::time::{Duration, Instant};
 
 const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);

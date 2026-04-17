@@ -2,9 +2,9 @@ use crate::PlayfieldBuffer;
 use crate::buffer::CellStyle;
 use crate::geometry::ScreenGeometry;
 use crate::native::{self, NativeApp};
-use crate::scene::UiScene;
 use crate::startup::NativeLaunchOptions;
 use crate::theme;
+use crate::ui::UiScene;
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,

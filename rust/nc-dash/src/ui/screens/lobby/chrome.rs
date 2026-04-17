@@ -1,10 +1,9 @@
-use crate::ratatui::buffer::Buffer;
-use crate::ratatui::layout::Rect;
-use crate::ratatui::style::Style;
-use crate::ratatui::widgets::{Block, BorderType, Borders, Padding};
-
 use crate::lobby::state::{LobbyNetworkStatus, LobbyStatusTone};
 use crate::theme;
+use crate::ui::cell::buffer::Buffer;
+use crate::ui::cell::layout::Rect;
+use crate::ui::cell::style::Style;
+use crate::ui::cell::widgets::{Block, BorderType, Borders, Padding};
 
 pub fn panel_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
     let styles = theme::tui_theme();
