@@ -30,7 +30,8 @@ Keep the binaries straight:
 - `nc-game`: direct localhost player client
 - `nc-door`: BBS door entrypoint
 - `nc-sysop`: sysop and BBS/local campaign administration tool
-- `nc-dash`: planned modern client for the Nostr GameServer path
+- `nc-helm`: experimental TEA-based hosted player client for the Nostr path
+- `nc-dash`: legacy native prototype for the hosted path
 - `nc-cli`: internal developer, oracle, and compatibility tool
 
 A normal non-BBS game directory contains `ncgame.db` and nothing else. BBS
@@ -126,15 +127,23 @@ Stage `nc-door` as the live BBS binary. For working host setups, see:
 
 ### 3. Planned Nostr GameServer Path
 
-The planned modern network path is a Nostr-backed GameServer with `nc-dash` as
+The planned modern network path is a Nostr-backed GameServer with `nc-helm` as
 the player client. That stack is still under construction, but it is the
 intended long-term way to host and join NC over the network without direct BBS
 or localhost access.
 
-`nc-dash` now opens in a decorated native window and restores the last saved
-windowed size/state when available. If no saved window state exists yet, it
-falls back to a maximized window. Use `--fullscreen` to force borderless
-fullscreen for that session only.
+`nc-helm` is the new library-first hosted client architecture. Today it
+implements the local bootstrap, encrypted SQLite keychain flow, lobby shell,
+and background catalog/notices sync on a fresh `winit`/`wgpu`/`glyphon`
+runtime. `nc-dash` remains in the repo only as the older prototype reference
+while `nc-helm` takes over feature work.
+
+Try the new client with:
+
+```bash
+cd rust
+cargo run -q -p nc-helm -- --windowed
+```
 
 ## Operator Docs
 

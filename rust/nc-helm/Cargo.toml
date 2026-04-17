@@ -1,0 +1,22 @@
+[package]
+name = "nc-helm"
+version = "1.0.0-beta.2"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[[bin]]
+name = "nc-helm"
+path = "src/main.rs"
+
+[dependencies]
+dirs = "5"
+glyphon = "0.11"
+nc-client = { path = "../nc-client" }
+nc-nostr = { path = "../nc-nostr" }
+nc-ui = { path = "../nc-ui" }
+nostr-sdk = { version = "0.44", features = ["nip44"] }
+pollster = "0.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
+wgpu = "29.0.0"
+winit = "0.30"
+
