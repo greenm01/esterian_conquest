@@ -44,6 +44,10 @@ pub enum StorageCommand {
     LoadBoot {
         reply_to: Sender<Result<BootSnapshot, String>>,
     },
+    SaveRelayUrl {
+        relay_url: String,
+        reply_to: Sender<Result<String, String>>,
+    },
     CreateIdentity {
         handle: String,
         password: String,
@@ -91,6 +95,13 @@ impl StorageActor {
         });
     }
 
+    pub fn save_relay_url(&self, relay_url: String, reply_to: Sender<Result<String, String>>) {
+        let _ = self.tx.send(StorageCommand::SaveRelayUrl {
+            relay_url,
+            reply_to,
+        });
+    }
+
     pub fn unlock(&self, password: String, reply_to: Sender<Result<StoredSession, String>>) {
         let _ = self.tx.send(StorageCommand::Unlock { password, reply_to });
     }
@@ -102,6 +113,12 @@ fn storage_loop(rx: Receiver<StorageCommand>) -> Result<(), Box<dyn std::error::
         match command {
             StorageCommand::LoadBoot { reply_to } => {
                 let _ = reply_to.send(db.load_boot());
+            }
+            StorageCommand::SaveRelayUrl {
+                relay_url,
+                reply_to,
+            } => {
+                let _ = reply_to.send(db.save_relay_url(&relay_url));
             }
             StorageCommand::CreateIdentity {
                 handle,
@@ -193,6 +210,18 @@ impl AppDatabase {
         build_stored_session(keychain)
     }
 
+    fn save_relay_url(&self, relay_url: &str) -> Result<String, String> {
+        self.conn
+            .execute(
+                "INSERT INTO app_meta (key, value)
+                 VALUES (?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![RELAY_KEY, relay_url],
+            )
+            .map_err(|err| err.to_string())?;
+        Ok(relay_url.to_string())
+    }
+
     fn unlock(&self, password: &str) -> Result<StoredSession, String> {
         let payload = self
             .conn
@@ -264,6 +293,23 @@ mod tests {
         let unlocked = db.unlock("hunter2").expect("unlock keychain");
         assert_eq!(created.active_npub, unlocked.active_npub);
         assert_eq!(unlocked.active_handle.as_deref(), Some("captain"));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn relay_url_round_trip_persists_in_meta_table() {
+        let path = std::env::temp_dir().join(format!(
+            "nc-helm-storage-relay-test-{}-{}.db",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("unix time")
+                .as_nanos()
+        ));
+        let db = AppDatabase::open(&path).expect("open app db");
+        db.save_relay_url("ws://relay.example").expect("save relay");
+        let snapshot = db.load_boot().expect("load boot snapshot");
+        assert_eq!(snapshot.relay_url.as_deref(), Some("ws://relay.example"));
         let _ = std::fs::remove_file(path);
     }
 }

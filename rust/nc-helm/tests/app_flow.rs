@@ -143,3 +143,38 @@ fn tab_switching_changes_rendered_lobby_content() {
     let buffer = app.view();
     assert!(buffer.plain_line(5).contains("SETTINGS"));
 }
+
+#[test]
+fn settings_relay_edit_emits_save_and_reconnect_effects() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Enter)));
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Char('4'))));
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Char('r'))));
+    for _ in 0.."ws://127.0.0.1:8080".chars().count() {
+        let _ = app.dispatch(Msg::Key(key(KeyCode::Backspace)));
+    }
+    for ch in "ws://relay.example".chars() {
+        let _ = app.dispatch(Msg::Key(key(KeyCode::Char(ch))));
+    }
+    let effects = app.dispatch(Msg::Key(key(KeyCode::Enter)));
+    assert!(matches!(
+        effects.as_slice(),
+        [
+            Effect::SaveRelayUrl { relay_url: saved },
+            Effect::DisconnectTransport,
+            Effect::ConnectTransport { relay_url: connected, .. }
+        ] if saved == "ws://relay.example" && connected == "ws://relay.example"
+    ));
+}
+
+#[test]
+fn relay_saved_updates_model_and_boot_snapshot() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
+        has_keychain: false,
+        relay_url: Some("ws://old-relay".to_string()),
+    })));
+    let _ = app.dispatch(Msg::RelaySaved(Ok("ws://new-relay".to_string())));
+    assert_eq!(app.model().relay_url, "ws://new-relay");
+}

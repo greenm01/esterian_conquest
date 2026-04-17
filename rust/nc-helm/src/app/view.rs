@@ -358,7 +358,18 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
     buffer.write_text(5, 3, "SETTINGS", ACCENT);
     draw_frame(buffer, 2, 6, geometry.width().saturating_sub(4), 16, DIM);
     buffer.write_text(6, 4, " CLIENT SETTINGS ", ACCENT);
-    buffer.write_text_clipped(8, 5, &format!("Relay URL    : {}", model.relay_url), BODY);
+    let (relay_draft, editing_relay) = if let Route::Lobby(lobby) = &model.route {
+        (lobby.relay_draft.as_str(), lobby.editing_relay)
+    } else {
+        (model.relay_url.as_str(), false)
+    };
+    buffer.write_text(8, 5, "Relay URL    : ", DIM);
+    buffer.write_text_clipped(
+        8,
+        20,
+        relay_draft,
+        if editing_relay { ACCENT } else { BODY },
+    );
     buffer.write_text(
         9,
         5,
@@ -399,12 +410,22 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
         );
     }
     buffer.write_text(
+        15,
+        5,
+        "R : Edit relay URL   Enter : Save relay   Esc : Cancel edit",
+        if editing_relay { ACCENT } else { DIM },
+    );
+    buffer.write_text(
         16,
         5,
         "L : Lock the local session and stop background sync",
         ACCENT,
     );
     buffer.write_text(18, 5, "Esc/Q : Quit nc-helm", DIM);
+    if editing_relay {
+        let column = (20 + relay_draft.chars().count()).min(buffer.width().saturating_sub(1));
+        buffer.set_cursor(column as u16, 8);
+    }
     draw_status_panel(buffer, geometry, model);
 }
 

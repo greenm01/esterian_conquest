@@ -22,6 +22,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
         Msg::IdentityCreated(result) => handle_identity_created(model, result),
         Msg::Unlocked(result) => handle_unlocked(model, result),
         Msg::LobbyUpdated(result) => handle_lobby_updated(model, result),
+        Msg::RelaySaved(result) => handle_relay_saved(model, result),
         Msg::Key(key) => handle_key(model, key),
         Msg::Mouse(mouse) => handle_mouse(model, mouse),
     }
@@ -59,7 +60,7 @@ fn handle_identity_created(
             let session = active_session_from_stored(stored, current_password(model));
             let nsec = session.active_nsec.clone();
             model.session = Some(session);
-            model.route = lobby_route(Some("Identity created.".to_string()));
+            model.route = lobby_route(Some("Identity created.".to_string()), relay_url.clone());
             model.network = NetworkState::Connecting;
             vec![Effect::ConnectTransport { relay_url, nsec }]
         }
@@ -82,7 +83,7 @@ fn handle_unlocked(
             let session = active_session_from_stored(stored, current_password(model));
             let nsec = session.active_nsec.clone();
             model.session = Some(session);
-            model.route = lobby_route(Some("Keychain unlocked.".to_string()));
+            model.route = lobby_route(Some("Keychain unlocked.".to_string()), relay_url.clone());
             model.network = NetworkState::Connecting;
             vec![Effect::ConnectTransport { relay_url, nsec }]
         }
@@ -121,6 +122,24 @@ fn handle_lobby_updated(
         }
         Err(err) => {
             model.network = NetworkState::Error;
+            if let Route::Lobby(lobby) = &mut model.route {
+                lobby.status = Some(err);
+            }
+        }
+    }
+    Vec::new()
+}
+
+fn handle_relay_saved(model: &mut Model, result: Result<String, String>) -> Vec<Effect> {
+    match result {
+        Ok(relay_url) => {
+            model.relay_url = relay_url.clone();
+            if let Route::Lobby(lobby) = &mut model.route {
+                lobby.relay_draft = relay_url;
+                lobby.status = Some("Relay setting saved.".to_string());
+            }
+        }
+        Err(err) => {
             if let Route::Lobby(lobby) = &mut model.route {
                 lobby.status = Some(err);
             }
@@ -265,6 +284,52 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
         return Vec::new();
     }
 
+    if lobby.active_tab == LobbyTab::Settings && lobby.editing_relay {
+        match key.code {
+            KeyCode::Enter => {
+                let relay_url = lobby.relay_draft.trim().to_string();
+                if let Err(err) = relay_url_to_invite_host(&relay_url) {
+                    lobby.status = Some(err);
+                    return Vec::new();
+                }
+                lobby.editing_relay = false;
+                model.relay_url = relay_url.clone();
+                model.network = if model.session.is_some() {
+                    NetworkState::Connecting
+                } else {
+                    NetworkState::Idle
+                };
+                let mut effects = vec![Effect::SaveRelayUrl {
+                    relay_url: relay_url.clone(),
+                }];
+                if let Some(session) = &model.session {
+                    effects.push(Effect::DisconnectTransport);
+                    effects.push(Effect::ConnectTransport {
+                        relay_url,
+                        nsec: session.active_nsec.clone(),
+                    });
+                }
+                return effects;
+            }
+            KeyCode::Esc => {
+                lobby.editing_relay = false;
+                lobby.relay_draft = model.relay_url.clone();
+                lobby.status = Some("Relay edit cancelled.".to_string());
+                return Vec::new();
+            }
+            KeyCode::Backspace => {
+                lobby.relay_draft.pop();
+                return Vec::new();
+            }
+            _ => {
+                if let Some(ch) = is_printable_key(key) {
+                    lobby.relay_draft.push(ch);
+                }
+                return Vec::new();
+            }
+        }
+    }
+
     match key.code {
         KeyCode::Tab => {
             lobby.active_tab = lobby.active_tab.next();
@@ -312,6 +377,12 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
         }
         KeyCode::Char('4') => {
             lobby.active_tab = LobbyTab::Settings;
+            Vec::new()
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') if lobby.active_tab == LobbyTab::Settings => {
+            lobby.editing_relay = true;
+            lobby.relay_draft = model.relay_url.clone();
+            lobby.status = Some("Editing relay URL. Enter saves, Esc cancels.".to_string());
             Vec::new()
         }
         _ => Vec::new(),

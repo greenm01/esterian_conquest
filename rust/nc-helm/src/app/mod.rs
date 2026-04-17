@@ -154,6 +154,8 @@ pub struct LobbyModel {
     pub active_tab: LobbyTab,
     pub help_open: bool,
     pub selected_game: usize,
+    pub editing_relay: bool,
+    pub relay_draft: String,
     pub status: Option<String>,
 }
 
@@ -193,6 +195,7 @@ pub enum Msg {
     IdentityCreated(Result<StoredSession, String>),
     Unlocked(Result<StoredSession, String>),
     LobbyUpdated(Result<LobbySnapshot, String>),
+    RelaySaved(Result<String, String>),
 }
 
 #[derive(Debug, Clone)]
@@ -209,6 +212,9 @@ pub enum Effect {
     ConnectTransport {
         relay_url: String,
         nsec: String,
+    },
+    SaveRelayUrl {
+        relay_url: String,
     },
     DisconnectTransport,
     Quit,
@@ -232,11 +238,13 @@ fn bootstrap_route(snapshot: &BootSnapshot, relay_url: String) -> Route {
     }
 }
 
-fn lobby_route(status: Option<String>) -> Route {
+fn lobby_route(status: Option<String>, relay_url: String) -> Route {
     Route::Lobby(LobbyModel {
         active_tab: LobbyTab::Home,
         help_open: true,
         selected_game: 0,
+        editing_relay: false,
+        relay_draft: relay_url,
         status,
     })
 }

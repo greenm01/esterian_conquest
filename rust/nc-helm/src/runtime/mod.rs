@@ -62,6 +62,7 @@ enum RuntimeEvent {
     IdentityCreated(Result<StoredSession, String>),
     Unlocked(Result<StoredSession, String>),
     LobbyUpdated(Result<LobbySnapshot, String>),
+    RelaySaved(Result<String, String>),
 }
 
 struct Runtime {
@@ -176,6 +177,16 @@ impl Runtime {
                         }
                     });
                 }
+                Effect::SaveRelayUrl { relay_url } => {
+                    let proxy = self.proxy.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    self.storage.save_relay_url(relay_url, tx);
+                    thread::spawn(move || {
+                        if let Ok(result) = rx.recv() {
+                            let _ = proxy.send_event(RuntimeEvent::RelaySaved(result));
+                        }
+                    });
+                }
                 Effect::Unlock { password } => {
                     let proxy = self.proxy.clone();
                     let (tx, rx) = std::sync::mpsc::channel();
@@ -269,6 +280,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             RuntimeEvent::LobbyUpdated(result) => {
                 self.dispatch(Msg::LobbyUpdated(result), event_loop)
             }
+            RuntimeEvent::RelaySaved(result) => self.dispatch(Msg::RelaySaved(result), event_loop),
         }
     }
 
