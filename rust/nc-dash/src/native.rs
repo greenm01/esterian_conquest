@@ -782,7 +782,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 shell.redraw_requested = false;
                 sync_window_size(shell, window.as_ref());
                 let was_drag_redraw = shell.drag_redraw_pending;
-                let _ = shell.flush_pointer(false);
+                let pointer_flushed = shell.flush_pointer(false);
                 if shell.app.should_quit() {
                     sync_window_state(shell, window.as_ref());
                     event_loop.exit();
@@ -806,6 +806,9 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                                 render_seq,
                                 render_count = shell.render_count,
                                 cause = shell.pending_redraw_cause.map(NativeRedrawCause::label),
+                                pointer_flushed,
+                                window_width = size.width,
+                                window_height = size.height,
                                 signature = %signature,
                                 "native render begin"
                             );
@@ -813,7 +816,13 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                         self.diagnostics
                             .borrow_mut()
                             .set_stage(NativeStage::FirstFrameRender);
-                        if let Err(err) = renderer.render(&playfield, size.width, size.height) {
+                        match renderer.render(
+                            &playfield,
+                            size.width,
+                            size.height,
+                            self.native_options.diagnostic_mode,
+                        ) {
+                            Err(err) => {
                             crate::show_fatal_error(&native_error(
                                 "unable to render nc-dash window",
                                 self.native_options,
@@ -822,24 +831,33 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                                 &err.to_string(),
                             ));
                             event_loop.exit();
-                        } else {
-                            if was_drag_redraw || shell.hover_redraw_pending_since.is_some() {
-                                shell.note_rendered_frame(Instant::now());
                             }
-                            let mut diagnostics = self.diagnostics.borrow_mut();
-                            diagnostics.first_frame_rendered = true;
-                            diagnostics.set_stage(NativeStage::FirstFrameRendered);
-                            shell.pending_redraw_cause = None;
-                            shell.needs_redraw = false;
-                            if self.native_options.diagnostic_mode {
-                                let signature = capture_signature(&shell.app);
-                                info!(
-                                    target: "nc_dash::native",
-                                    render_seq,
-                                    render_count = shell.render_count,
-                                    signature = %signature,
-                                    "native render end"
-                                );
+                            Ok(frame_stats) => {
+                                if was_drag_redraw || shell.hover_redraw_pending_since.is_some() {
+                                    shell.note_rendered_frame(Instant::now());
+                                }
+                                let mut diagnostics = self.diagnostics.borrow_mut();
+                                diagnostics.first_frame_rendered = true;
+                                diagnostics.set_stage(NativeStage::FirstFrameRendered);
+                                shell.pending_redraw_cause = None;
+                                shell.needs_redraw = false;
+                                if self.native_options.diagnostic_mode {
+                                    let signature = capture_signature(&shell.app);
+                                    info!(
+                                        target: "nc_dash::native",
+                                        render_seq,
+                                        render_count = shell.render_count,
+                                        pointer_flushed,
+                                        window_width = frame_stats.window_width,
+                                        window_height = frame_stats.window_height,
+                                        grid_cols = frame_stats.grid_cols,
+                                        grid_rows = frame_stats.grid_rows,
+                                        text_areas = frame_stats.text_area_count,
+                                        unique_text_buffers = frame_stats.unique_text_buffer_count,
+                                        signature = %signature,
+                                        "native render end"
+                                    );
+                                }
                             }
                         }
                     }

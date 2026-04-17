@@ -20,6 +20,7 @@ mod panels;
 mod planet_view;
 mod popups;
 mod prompt;
+mod repro;
 mod rendered;
 pub mod startup;
 mod table;
@@ -30,9 +31,9 @@ mod theme;
 
 use startup::{LaunchCommand, LaunchTarget};
 
+pub use app::state::DashApp;
 pub use buffer::PlayfieldBuffer;
 pub use geometry::ScreenGeometry;
-pub use app::state::DashApp;
 pub use lobby::LobbyApp;
 pub use rendered::{RenderedUi, blit_rendered_ui};
 pub use startup::{LobbyStartupOptions, NativeLaunchOptions, parse_launch_command};
@@ -89,15 +90,51 @@ pub fn run_hosted_snapshot_native_repro(
 }
 
 #[doc(hidden)]
+pub fn run_glyphon_cursor_motion_native_repro(
+    native_options: startup::NativeLaunchOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    repro::run_glyphon_cursor_motion_native_repro(native_options)
+}
+
+#[doc(hidden)]
+pub fn run_glyphon_glyph_grid_native_repro(
+    native_options: startup::NativeLaunchOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    repro::run_glyphon_glyph_grid_native_repro(native_options)
+}
+
+#[doc(hidden)]
+pub fn run_glyphon_starmap_native_repro(
+    native_options: startup::NativeLaunchOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    repro::run_glyphon_starmap_native_repro(native_options)
+}
+
+#[doc(hidden)]
+pub fn sample_hosted_dashboard_snapshot() -> nc_nostr::state_sync::GameState {
+    repro::sample_hosted_dashboard_snapshot()
+}
+
+#[doc(hidden)]
+pub fn run_sample_hosted_snapshot_native_repro(
+    native_options: startup::NativeLaunchOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let snapshot = sample_hosted_dashboard_snapshot();
+    run_hosted_snapshot_native_repro(&snapshot, native_options)
+}
+
+#[doc(hidden)]
 pub fn run_hosted_wrapper_snapshot_native_repro(
     snapshot: &nc_nostr::state_sync::GameState,
     native_options: startup::NativeLaunchOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let geometry = crate::geometry::ScreenGeometry::new(120, 40);
     let seat = u8::try_from(snapshot.player_seat)?;
-    let dashboard =
-        crate::lobby::hosted::dashboard::build_hosted_dash_app(snapshot, geometry)?;
-    let mut app = crate::lobby::LobbyApp::new_for_tests(crate::lobby::state::LobbyRoute::HostedGame, geometry);
+    let dashboard = crate::lobby::hosted::dashboard::build_hosted_dash_app(snapshot, geometry)?;
+    let mut app = crate::lobby::LobbyApp::new_for_tests(
+        crate::lobby::state::LobbyRoute::HostedGame,
+        geometry,
+    );
     app.state.hosted_game = Some(crate::lobby::state::HostedGameView {
         row: crate::lobby::models::JoinedGameRow::new(
             &snapshot.game_id,
@@ -130,11 +167,13 @@ pub fn run_unlocked_hosted_wrapper_snapshot_native_repro(
         native: native_options,
     });
     app.geometry = geometry;
-    let loaded = app.transport.unlock(password).map_err(|err| err.to_string())?;
+    let loaded = app
+        .transport
+        .unlock(password)
+        .map_err(|err| err.to_string())?;
     app.state.apply_loaded(loaded);
     let seat = u8::try_from(snapshot.player_seat)?;
-    let dashboard =
-        crate::lobby::hosted::dashboard::build_hosted_dash_app(snapshot, geometry)?;
+    let dashboard = crate::lobby::hosted::dashboard::build_hosted_dash_app(snapshot, geometry)?;
     app.state.hosted_game = Some(crate::lobby::state::HostedGameView {
         row: crate::lobby::models::JoinedGameRow::new(
             &snapshot.game_id,
@@ -166,10 +205,7 @@ pub fn run_unlocked_open_game_native_repro(
     let geometry = crate::geometry::ScreenGeometry::new(120, 40);
     let mut app = unlocked_lobby_app(password, relay_override, native_options, geometry)?;
     let row = resolve_row_for_snapshot_hint(&app, snapshot_hint)?;
-    let snapshot = app
-        .transport
-        .open_game(&row)
-        .map_err(|err| err.message)?;
+    let snapshot = app.transport.open_game(&row).map_err(|err| err.message)?;
     if native_options.diagnostic_mode {
         let path = dump_diagnostic_snapshot("last-open-game-repro-snapshot.json", &snapshot);
         eprintln!(
@@ -247,7 +283,8 @@ pub fn run_unlocked_cache_write_snapshot_native_repro(
     let persist = app
         .transport
         .persist_open_game_state_for_repro(&row, snapshot)?;
-    app.transport.update_open_game_cache_for_repro(&row, snapshot)?;
+    app.transport
+        .update_open_game_cache_for_repro(&row, snapshot)?;
     if native_options.diagnostic_mode {
         eprintln!(
             "unlocked_cache_write_snapshot_native_repro: had_baseline={} had_draft={} cleared_stale_draft={} cache_write=true",
@@ -269,7 +306,10 @@ fn unlocked_lobby_app(
         native: native_options,
     });
     app.geometry = geometry;
-    let loaded = app.transport.unlock(password).map_err(|err| err.to_string())?;
+    let loaded = app
+        .transport
+        .unlock(password)
+        .map_err(|err| err.to_string())?;
     app.state.apply_loaded(loaded);
     Ok(app)
 }

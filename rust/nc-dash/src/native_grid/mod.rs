@@ -25,6 +25,7 @@ use wgpu::{
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{Key, ModifiersState, NamedKey};
+use tracing::info;
 
 use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::theme;
@@ -137,6 +138,16 @@ pub struct CellGridWindowRenderer {
     window: Arc<winit::window::Window>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RendererFrameStats {
+    pub(crate) window_width: u32,
+    pub(crate) window_height: u32,
+    pub(crate) grid_cols: usize,
+    pub(crate) grid_rows: usize,
+    pub(crate) text_area_count: usize,
+    pub(crate) unique_text_buffer_count: usize,
+}
+
 struct BackgroundTexture {
     texture: Texture,
     bind_group: BindGroup,
@@ -224,11 +235,19 @@ impl CellGridWindowRenderer {
         playfield: &PlayfieldBuffer,
         window_pixel_width: u32,
         window_pixel_height: u32,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+        diagnostic_mode: bool,
+    ) -> Result<RendererFrameStats, Box<dyn std::error::Error>> {
         if window_pixel_width == 0 || window_pixel_height == 0 {
-            return Ok(());
+            return Ok(RendererFrameStats {
+                window_width: window_pixel_width,
+                window_height: window_pixel_height,
+                grid_cols: playfield.width(),
+                grid_rows: playfield.height(),
+                text_area_count: 0,
+                unique_text_buffer_count: self.text_buffers.len(),
+            });
         }
-        self.ensure_surface_size(window_pixel_width, window_pixel_height);
+        self.ensure_surface_size(window_pixel_width, window_pixel_height, diagnostic_mode);
         self.viewport.update(
             &self.queue,
             Resolution {
@@ -238,6 +257,26 @@ impl CellGridWindowRenderer {
         );
 
         let text_placements = self.draw_background(playfield)?;
+        let frame_stats = RendererFrameStats {
+            window_width: self.surface_config.width,
+            window_height: self.surface_config.height,
+            grid_cols: playfield.width(),
+            grid_rows: playfield.height(),
+            text_area_count: text_placements.len(),
+            unique_text_buffer_count: self.text_buffers.len(),
+        };
+        if diagnostic_mode {
+            info!(
+                target: "nc_dash::native_grid",
+                window_width = frame_stats.window_width,
+                window_height = frame_stats.window_height,
+                grid_cols = frame_stats.grid_cols,
+                grid_rows = frame_stats.grid_rows,
+                text_areas = frame_stats.text_area_count,
+                unique_text_buffers = frame_stats.unique_text_buffer_count,
+                "renderer frame begin"
+            );
+        }
         let text_areas = text_placements
             .iter()
             .map(|placement| TextArea {
@@ -254,6 +293,13 @@ impl CellGridWindowRenderer {
             })
             .collect::<Vec<_>>();
 
+        if diagnostic_mode {
+            info!(
+                target: "nc_dash::native_grid",
+                text_areas = frame_stats.text_area_count,
+                "renderer prepare begin"
+            );
+        }
         self.text_renderer.prepare(
             &self.device,
             &self.queue,
@@ -263,28 +309,58 @@ impl CellGridWindowRenderer {
             text_areas,
             &mut self.swash_cache,
         )?;
+        if diagnostic_mode {
+            info!(target: "nc_dash::native_grid", "renderer prepare end");
+            info!(target: "nc_dash::native_grid", "renderer acquire begin");
+        }
 
         let frame = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(frame) => frame,
             wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                if diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native_grid",
+                        surface_state = "timeout_or_occluded",
+                        "renderer acquire retry"
+                    );
+                }
                 self.window.request_redraw();
-                return Ok(());
+                return Ok(frame_stats);
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
+                if diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native_grid",
+                        surface_state = "outdated_or_suboptimal",
+                        width = self.surface_config.width,
+                        height = self.surface_config.height,
+                        "renderer surface reconfigure"
+                    );
+                }
                 self.surface.configure(&self.device, &self.surface_config);
                 self.window.request_redraw();
-                return Ok(());
+                return Ok(frame_stats);
             }
             wgpu::CurrentSurfaceTexture::Lost => {
+                if diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native_grid",
+                        surface_state = "lost",
+                        "renderer surface recreate"
+                    );
+                }
                 self.surface = self.instance.create_surface(self.window.clone())?;
                 self.surface.configure(&self.device, &self.surface_config);
                 self.window.request_redraw();
-                return Ok(());
+                return Ok(frame_stats);
             }
             wgpu::CurrentSurfaceTexture::Validation => {
                 return Err("wgpu surface validation error".into());
             }
         };
+        if diagnostic_mode {
+            info!(target: "nc_dash::native_grid", "renderer acquire end");
+        }
 
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut encoder = self
@@ -313,15 +389,38 @@ impl CellGridWindowRenderer {
             self.text_renderer
                 .render(&self.atlas, &self.viewport, &mut pass)?;
         }
+        if diagnostic_mode {
+            info!(target: "nc_dash::native_grid", "renderer submit begin");
+        }
         self.queue.submit(Some(encoder.finish()));
+        if diagnostic_mode {
+            info!(target: "nc_dash::native_grid", "renderer submit end");
+            info!(target: "nc_dash::native_grid", "renderer present begin");
+        }
         frame.present();
+        if diagnostic_mode {
+            info!(target: "nc_dash::native_grid", "renderer present end");
+        }
         self.atlas.trim();
-        Ok(())
+        if diagnostic_mode {
+            info!(target: "nc_dash::native_grid", "renderer frame end");
+        }
+        Ok(frame_stats)
     }
 
-    fn ensure_surface_size(&mut self, width: u32, height: u32) {
+    fn ensure_surface_size(&mut self, width: u32, height: u32, diagnostic_mode: bool) {
         if self.surface_config.width == width && self.surface_config.height == height {
             return;
+        }
+        if diagnostic_mode {
+            info!(
+                target: "nc_dash::native_grid",
+                old_width = self.surface_config.width,
+                old_height = self.surface_config.height,
+                new_width = width.max(1),
+                new_height = height.max(1),
+                "renderer surface resize"
+            );
         }
         self.surface_config.width = width.max(1);
         self.surface_config.height = height.max(1);
