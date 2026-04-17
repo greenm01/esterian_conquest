@@ -1,9 +1,12 @@
 use crate::geometry::ScreenGeometry;
-use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crate::input::{
+    KeyModifiers, MouseButton, MouseEvent, MouseEventKind, key_event_from_winit,
+    key_modifiers_from_winit,
+};
 use crate::lobby::storage::settings::PersistedWindowState;
 use crate::native_grid::{
-    CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
-    logical_window_size_for_grid, terminal_grid_for_pixels,
+    CellGridWindowRenderer, cell_position_at_pixel, logical_window_size_for_grid,
+    terminal_grid_for_pixels,
 };
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
 use crate::ui::UiScene;
@@ -809,7 +812,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 );
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                let Some(key) = crossterm_key_event_from_winit(&event, shell.modifiers) else {
+                let Some(key) = key_event_from_winit(&event, shell.modifiers) else {
                     return;
                 };
                 self.diagnostics
@@ -1581,17 +1584,7 @@ fn map_mouse_button(button: WinitMouseButton) -> Option<MouseButton> {
 }
 
 fn key_modifiers(modifiers: ModifiersState) -> KeyModifiers {
-    let mut mapped = KeyModifiers::empty();
-    if modifiers.shift_key() {
-        mapped.insert(KeyModifiers::SHIFT);
-    }
-    if modifiers.control_key() {
-        mapped.insert(KeyModifiers::CONTROL);
-    }
-    if modifiers.alt_key() {
-        mapped.insert(KeyModifiers::ALT);
-    }
-    mapped
+    key_modifiers_from_winit(modifiers)
 }
 
 #[cfg(test)]
