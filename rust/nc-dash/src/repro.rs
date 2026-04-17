@@ -336,15 +336,11 @@ impl NativeApp for CursorMotionReproApp {
             self.geometry.height(),
             theme::body_style(),
         );
+        draw_motion_repro_grid(&mut buffer);
         buffer.write_text(1, 2, "glyphon native motion repro", theme::title_style());
+        buffer.write_text(2, 2, "Move the pointer. Esc or q exits.", theme::body_style());
         buffer.write_text(
             3,
-            2,
-            "Move the pointer inside the window. Esc or q exits.",
-            theme::body_style(),
-        );
-        buffer.write_text(
-            5,
             2,
             &format!("motion events: {}", self.motion_count),
             theme::table_header_style(),
@@ -353,16 +349,22 @@ impl NativeApp for CursorMotionReproApp {
             .last_pointer
             .map(|(column, row)| format!("last cell: ({column},{row})"))
             .unwrap_or_else(|| "last cell: outside".to_string());
-        buffer.write_text(6, 2, &pointer_text, theme::body_style());
+        buffer.write_text(4, 2, &pointer_text, theme::body_style());
         let mut signature = String::new();
         let _ = write!(
             signature,
-            "signature: glyphs △ ⨁ ◊ · ─ │ ┼ ░▒▓ αβγδε"
+            "signature: marker=@ guides=· box=─│┼ glyphs △ ⨁ ◊ αβγδε"
         );
-        buffer.write_text(8, 2, &signature, theme::body_style());
+        buffer.write_text(5, 2, &signature, theme::body_style());
         if let Some((column, row)) = self.last_pointer {
             if usize::from(column) < self.geometry.width() && usize::from(row) < self.geometry.height()
             {
+                buffer.set_cell(
+                    row as usize,
+                    column as usize,
+                    '@',
+                    CellStyle::new(theme::body_style().bg, theme::value_style().fg, true),
+                );
                 buffer.set_cursor(column, row);
             }
         }
@@ -442,6 +444,41 @@ fn build_static_glyph_grid_playfield() -> PlayfieldBuffer {
         theme::dim_style(),
     );
     buffer
+}
+
+fn draw_motion_repro_grid(buffer: &mut PlayfieldBuffer) {
+    let width = buffer.width();
+    let height = buffer.height();
+    if width < 4 || height < 4 {
+        return;
+    }
+
+    let border_style = theme::table_header_style();
+    let guide_style = theme::dim_style();
+    let axis_style = theme::table_header_style();
+
+    draw_box(buffer, 0, 0, width - 1, height - 1, border_style);
+
+    for row in 1..height - 1 {
+        for col in 1..width - 1 {
+            let ch = if row % 4 == 0 || col % 8 == 0 { '·' } else { ' ' };
+            buffer.set_cell(row, col, ch, guide_style);
+        }
+    }
+
+    for col in (8..width.saturating_sub(1)).step_by(8) {
+        let label = format!("{:02}", col);
+        if col + label.len() < width - 1 {
+            buffer.write_text(0, col, &label, axis_style);
+        }
+    }
+
+    for row in (4..height.saturating_sub(1)).step_by(4) {
+        let label = format!("{:02}", row);
+        if label.len() < width - 2 {
+            buffer.write_text(row, 1, &label, axis_style);
+        }
+    }
 }
 
 fn build_static_starmap_playfield() -> PlayfieldBuffer {
