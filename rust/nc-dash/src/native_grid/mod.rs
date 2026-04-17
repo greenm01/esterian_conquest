@@ -108,7 +108,15 @@ pub struct NativeCellMetrics {
 struct TextRasterMetrics {
     font_size_px: f32,
     line_height_px: f32,
+    left_inset_px: f32,
     top_inset_px: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LogicalTextMetrics {
+    pub line_height_px: f32,
+    pub left_inset_px: f32,
+    pub top_inset_px: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -119,7 +127,6 @@ struct TextBufferKey {
 
 struct CachedTextCell {
     buffer: GlyphBuffer,
-    line_width: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -129,6 +136,34 @@ struct TextCellPlacement {
     top: f32,
     bounds: TextBounds,
     color: Color,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct PlayfieldSnapshot {
+    width: usize,
+    height: usize,
+    cells: Vec<crate::buffer::Cell>,
+    row_fingerprints: Vec<u64>,
+    cursor: Option<(usize, usize)>,
+}
+
+impl PlayfieldSnapshot {
+    fn capture_from_buffer(&mut self, buffer: &PlayfieldBuffer) {
+        self.width = buffer.width();
+        self.height = buffer.height();
+        self.cursor = buffer
+            .cursor()
+            .map(|(col, row)| (usize::from(col), usize::from(row)));
+        self.cells.clear();
+        self.row_fingerprints.clear();
+        self.cells.reserve(self.width * self.height);
+        self.row_fingerprints.reserve(self.height);
+        for row_idx in 0..self.height {
+            let row = buffer.row(row_idx);
+            self.row_fingerprints.push(fingerprint_row(row));
+            self.cells.extend_from_slice(row);
+        }
+    }
 }
 
 static DEFAULT_CELL_METRICS: OnceLock<NativeCellMetrics> = OnceLock::new();
@@ -150,6 +185,8 @@ pub struct CellGridWindowRenderer {
     background_sampler: Sampler,
     background_texture: BackgroundTexture,
     background_pixels: Vec<u8>,
+    previous_playfield: PlayfieldSnapshot,
+    has_previous_playfield: bool,
     cell_metrics: NativeCellMetrics,
     text_metrics: TextRasterMetrics,
     scale_factor: f64,
@@ -315,6 +352,8 @@ impl CellGridWindowRenderer {
             background_sampler,
             background_texture,
             background_pixels,
+            previous_playfield: PlayfieldSnapshot::default(),
+            has_previous_playfield: false,
             cell_metrics,
             text_metrics,
             scale_factor,
@@ -550,11 +589,6 @@ impl CellGridWindowRenderer {
         let frame_width = self.surface_config.width as usize;
         let frame_height = self.surface_config.height as usize;
         let body_bg = primitives::color_to_rgba(theme::body_style().bg);
-        self.background_pixels.fill(0);
-        for pixel in self.background_pixels.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&body_bg);
-        }
-
         let grid_pixel_width = playfield.width() * self.cell_metrics.cell_width_px;
         let grid_pixel_height = playfield.height() * self.cell_metrics.cell_height_px;
         let x_offset = frame_width.saturating_sub(grid_pixel_width) / 2;
@@ -562,9 +596,56 @@ impl CellGridWindowRenderer {
         let cursor = playfield
             .cursor()
             .map(|(col, row)| (usize::from(col), usize::from(row)));
+        let mut current_snapshot = PlayfieldSnapshot::default();
+        current_snapshot.capture_from_buffer(playfield);
+        let full_repaint = !self.has_previous_playfield
+            || self.previous_playfield.width != current_snapshot.width
+            || self.previous_playfield.height != current_snapshot.height
+            || self.background_pixels.len() != frame_width * frame_height * 4;
+        if full_repaint {
+            self.background_pixels.fill(0);
+            for pixel in self.background_pixels.chunks_exact_mut(4) {
+                pixel.copy_from_slice(&body_bg);
+            }
+        }
         let mut placements = Vec::new();
+        let mut dirty_row_ranges = Vec::new();
+        let mut current_dirty_range: Option<(usize, usize)> = None;
 
         for row_idx in 0..playfield.height() {
+            let row_changed = full_repaint
+                || row_needs_repaint(
+                    &self.previous_playfield,
+                    &current_snapshot,
+                    row_idx,
+                    cursor,
+                );
+            if row_changed {
+                repaint_playfield_row(
+                    &mut self.background_pixels,
+                    frame_width,
+                    x_offset,
+                    y_offset,
+                    row_idx,
+                    playfield,
+                    cursor,
+                    self.cell_metrics,
+                    body_bg,
+                );
+                match current_dirty_range.as_mut() {
+                    Some((_, end)) if *end == row_idx => *end += 1,
+                    Some(_) => {
+                        dirty_row_ranges.push(current_dirty_range.take().expect("dirty range exists"));
+                        current_dirty_range = Some((row_idx, row_idx + 1));
+                    }
+                    None => current_dirty_range = Some((row_idx, row_idx + 1)),
+                }
+            }
+
+            let mut run_start = None;
+            let mut run_style: Option<CellStyle> = None;
+            let mut run_text = String::new();
+
             for col_idx in 0..playfield.width() {
                 let source = playfield.row(row_idx)[col_idx];
                 let style = if cursor == Some((col_idx, row_idx)) {
@@ -572,79 +653,98 @@ impl CellGridWindowRenderer {
                 } else {
                     source.style
                 };
-                let cell_x = x_offset + col_idx * self.cell_metrics.cell_width_px;
-                let cell_y = y_offset + row_idx * self.cell_metrics.cell_height_px;
-                primitives::fill_rect_rgba(
-                    &mut self.background_pixels,
-                    frame_width,
-                    cell_x,
-                    cell_y,
-                    self.cell_metrics.cell_width_px,
-                    self.cell_metrics.cell_height_px,
-                    primitives::color_to_rgba(style.bg),
+                let can_join_run = source.ch != ' '
+                    && !primitives::should_draw_as_primitive(source.ch)
+                    && run_style == Some(style);
+                if can_join_run {
+                    run_text.push(source.ch);
+                    continue;
+                }
+                self.flush_playfield_text_run(
+                    &mut placements,
+                    &mut run_start,
+                    &mut run_style,
+                    &mut run_text,
+                    x_offset,
+                    y_offset,
+                    row_idx,
+                    col_idx,
                 );
-                if source.ch == ' ' {
-                    continue;
+                if source.ch != ' ' && !primitives::should_draw_as_primitive(source.ch) {
+                    run_start = Some(col_idx);
+                    run_style = Some(style);
+                    run_text.push(source.ch);
                 }
-                if primitives::should_draw_as_primitive(source.ch) {
-                    primitives::draw_cell_primitive(
-                        &mut self.background_pixels,
-                        frame_width,
-                        cell_x,
-                        cell_y,
-                        self.cell_metrics.cell_width_px,
-                        self.cell_metrics.cell_height_px,
-                        source.ch,
-                        primitives::color_to_rgba(style.fg),
-                    );
-                    continue;
-                }
-
-                let key = TextBufferKey {
-                    text: Arc::<str>::from(source.ch.to_string()),
-                    bold: style.bold,
-                };
-                self.ensure_text_buffer(key.clone());
-                let line_width = self
-                    .text_buffers
-                    .get(&key)
-                    .expect("text buffer should exist before placement")
-                    .line_width;
-                placements.push(TextCellPlacement {
-                    key,
-                    left: cell_x as f32
-                        + ((self.cell_metrics.cell_width_px as f32 - line_width).max(0.0) / 2.0),
-                    top: cell_y as f32 + self.text_metrics.top_inset_px,
-                    bounds: TextBounds {
-                        left: cell_x as i32,
-                        top: cell_y as i32,
-                        right: (cell_x + self.cell_metrics.cell_width_px) as i32,
-                        bottom: (cell_y + self.cell_metrics.cell_height_px) as i32,
-                    },
-                    color: glyphon_color(style.fg),
-                });
             }
+            self.flush_playfield_text_run(
+                &mut placements,
+                &mut run_start,
+                &mut run_style,
+                &mut run_text,
+                x_offset,
+                y_offset,
+                row_idx,
+                playfield.width(),
+            );
+        }
+        if let Some(range) = current_dirty_range {
+            dirty_row_ranges.push(range);
         }
 
-        self.queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &self.background_texture.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            &self.background_pixels,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(self.surface_config.width * 4),
-                rows_per_image: Some(self.surface_config.height),
-            },
-            wgpu::Extent3d {
-                width: self.surface_config.width,
-                height: self.surface_config.height,
-                depth_or_array_layers: 1,
-            },
-        );
+        self.previous_playfield = current_snapshot;
+        self.has_previous_playfield = true;
+
+        if full_repaint {
+            self.queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &self.background_texture.texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &self.background_pixels,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(self.surface_config.width * 4),
+                    rows_per_image: Some(self.surface_config.height),
+                },
+                wgpu::Extent3d {
+                    width: self.surface_config.width,
+                    height: self.surface_config.height,
+                    depth_or_array_layers: 1,
+                },
+            );
+        } else {
+            for (start_row, end_row) in dirty_row_ranges {
+                let band_top = y_offset + start_row * self.cell_metrics.cell_height_px;
+                let band_height = (end_row - start_row) * self.cell_metrics.cell_height_px;
+                let byte_offset = band_top * frame_width * 4;
+                let byte_len = band_height * frame_width * 4;
+                self.queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: &self.background_texture.texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d {
+                            x: 0,
+                            y: band_top as u32,
+                            z: 0,
+                        },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &self.background_pixels[byte_offset..byte_offset + byte_len],
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(self.surface_config.width * 4),
+                        rows_per_image: Some(band_height as u32),
+                    },
+                    wgpu::Extent3d {
+                        width: self.surface_config.width,
+                        height: band_height as u32,
+                        depth_or_array_layers: 1,
+                    },
+                );
+            }
+        }
 
         Ok(placements)
     }
@@ -763,9 +863,7 @@ impl CellGridWindowRenderer {
             None,
         );
         buffer.shape_until_scroll(&mut self.font_system, false);
-        let line_width = measured_buffer_width(&buffer);
-        self.text_buffers
-            .insert(key, CachedTextCell { buffer, line_width });
+        self.text_buffers.insert(key, CachedTextCell { buffer });
     }
 
     fn sync_scale_metrics(&mut self) {
@@ -799,8 +897,8 @@ impl CellGridWindowRenderer {
             .unwrap_or_else(|| layout.text_bounds(SceneRect::new(0.0, 0.0, layout.logical_width, layout.logical_height)));
         placements.push(TextCellPlacement {
             key,
-            left: layout.logical_x_to_physical(node.origin.x),
-            top: layout.logical_y_to_physical(node.origin.y),
+            left: layout.logical_x_to_physical(node.origin.x) + self.text_metrics.left_inset_px,
+            top: layout.logical_y_to_physical(node.origin.y) + self.text_metrics.top_inset_px,
             bounds,
             color: glyphon_color(node.style.fg),
         });
@@ -812,6 +910,50 @@ impl CellGridWindowRenderer {
             (scene.logical_size().width / logical_metrics.cell_width_px as f32).round() as usize,
             (scene.logical_size().height / logical_metrics.cell_height_px as f32).round() as usize,
         )
+    }
+
+    fn flush_playfield_text_run(
+        &mut self,
+        placements: &mut Vec<TextCellPlacement>,
+        run_start: &mut Option<usize>,
+        run_style: &mut Option<CellStyle>,
+        run_text: &mut String,
+        x_offset: usize,
+        y_offset: usize,
+        row_idx: usize,
+        end_col: usize,
+    ) {
+        let Some(start_col) = run_start.take() else {
+            return;
+        };
+        let style = run_style.take().expect("run style exists when run starts");
+        if run_text.is_empty() {
+            return;
+        }
+        let key = TextBufferKey {
+            text: Arc::<str>::from(run_text.as_str()),
+            bold: style.bold,
+        };
+        self.ensure_text_buffer(key.clone());
+        let left = x_offset as f32
+            + start_col as f32 * self.cell_metrics.cell_width_px as f32
+            + self.text_metrics.left_inset_px;
+        let top = y_offset as f32
+            + row_idx as f32 * self.cell_metrics.cell_height_px as f32
+            + self.text_metrics.top_inset_px;
+        placements.push(TextCellPlacement {
+            key,
+            left,
+            top,
+            bounds: TextBounds {
+                left: (x_offset + start_col * self.cell_metrics.cell_width_px) as i32,
+                top: (y_offset + row_idx * self.cell_metrics.cell_height_px) as i32,
+                right: (x_offset + end_col * self.cell_metrics.cell_width_px) as i32,
+                bottom: (y_offset + (row_idx + 1) * self.cell_metrics.cell_height_px) as i32,
+            },
+            color: glyphon_color(style.fg),
+        });
+        run_text.clear();
     }
 }
 
@@ -859,6 +1001,117 @@ impl BackgroundTexture {
     }
 }
 
+fn repaint_playfield_row(
+    pixels: &mut [u8],
+    frame_width: usize,
+    x_offset: usize,
+    y_offset: usize,
+    row_idx: usize,
+    playfield: &PlayfieldBuffer,
+    cursor: Option<(usize, usize)>,
+    cell_metrics: NativeCellMetrics,
+    body_bg: [u8; 4],
+) {
+    let row_y = y_offset + row_idx * cell_metrics.cell_height_px;
+    primitives::fill_rect_rgba(
+        pixels,
+        frame_width,
+        0,
+        row_y,
+        frame_width,
+        cell_metrics.cell_height_px,
+        body_bg,
+    );
+    for col_idx in 0..playfield.width() {
+        let source = playfield.row(row_idx)[col_idx];
+        let style = if cursor == Some((col_idx, row_idx)) {
+            CellStyle::new(source.style.bg, source.style.fg, source.style.bold)
+        } else {
+            source.style
+        };
+        let cell_x = x_offset + col_idx * cell_metrics.cell_width_px;
+        primitives::fill_rect_rgba(
+            pixels,
+            frame_width,
+            cell_x,
+            row_y,
+            cell_metrics.cell_width_px,
+            cell_metrics.cell_height_px,
+            primitives::color_to_rgba(style.bg),
+        );
+        if source.ch != ' ' && primitives::should_draw_as_primitive(source.ch) {
+            primitives::draw_cell_primitive(
+                pixels,
+                frame_width,
+                cell_x,
+                row_y,
+                cell_metrics.cell_width_px,
+                cell_metrics.cell_height_px,
+                source.ch,
+                primitives::color_to_rgba(style.fg),
+            );
+        }
+    }
+}
+
+fn row_needs_repaint(
+    previous: &PlayfieldSnapshot,
+    current: &PlayfieldSnapshot,
+    row_idx: usize,
+    current_cursor: Option<(usize, usize)>,
+) -> bool {
+    if previous.row_fingerprints.get(row_idx) != current.row_fingerprints.get(row_idx) {
+        return true;
+    }
+    let previous_cursor_row = previous.cursor.filter(|(_, row)| *row == row_idx);
+    let current_cursor_row = current_cursor.filter(|(_, row)| *row == row_idx);
+    previous_cursor_row != current_cursor_row
+}
+
+fn fingerprint_row(row: &[crate::buffer::Cell]) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for cell in row {
+        hash = mix_u32(hash, cell.ch as u32);
+        hash = mix_u32(hash, color_code(cell.style.fg));
+        hash = mix_u32(hash, color_code(cell.style.bg));
+        hash = mix_u32(hash, u32::from(cell.style.bold));
+    }
+    hash
+}
+
+fn mix_u32(mut hash: u64, value: u32) -> u64 {
+    for byte in value.to_le_bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+fn color_code(color: crate::buffer::GameColor) -> u32 {
+    match color {
+        crate::buffer::GameColor::Black => 0,
+        crate::buffer::GameColor::Red => 1,
+        crate::buffer::GameColor::Green => 2,
+        crate::buffer::GameColor::Yellow => 3,
+        crate::buffer::GameColor::Blue => 4,
+        crate::buffer::GameColor::Magenta => 5,
+        crate::buffer::GameColor::Cyan => 6,
+        crate::buffer::GameColor::White => 7,
+        crate::buffer::GameColor::BrightBlack => 8,
+        crate::buffer::GameColor::BrightRed => 9,
+        crate::buffer::GameColor::BrightGreen => 10,
+        crate::buffer::GameColor::BrightYellow => 11,
+        crate::buffer::GameColor::BrightBlue => 12,
+        crate::buffer::GameColor::BrightMagenta => 13,
+        crate::buffer::GameColor::BrightCyan => 14,
+        crate::buffer::GameColor::BrightWhite => 15,
+        crate::buffer::GameColor::Indexed(idx) => 0x0100_0000 | u32::from(idx),
+        crate::buffer::GameColor::Rgb(r, g, b) => {
+            0x0200_0000 | (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b)
+        }
+    }
+}
+
 fn draw_scene_line(
     frame: &mut [u8],
     stride_px: usize,
@@ -883,6 +1136,15 @@ fn draw_scene_line(
 
 pub fn logical_cell_metrics() -> NativeCellMetrics {
     *DEFAULT_CELL_METRICS.get_or_init(|| cell_metrics_for_scale(1.0))
+}
+
+pub fn logical_text_metrics() -> LogicalTextMetrics {
+    let metrics = text_raster_metrics_for_scale(1.0);
+    LogicalTextMetrics {
+        line_height_px: metrics.line_height_px,
+        left_inset_px: metrics.left_inset_px,
+        top_inset_px: metrics.top_inset_px,
+    }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -1112,10 +1374,12 @@ fn text_raster_metrics_for_scale(scale_factor: f64) -> TextRasterMetrics {
     let scale = scale_factor.max(1.0) as f32;
     let font_size_px = DEFAULT_FONT_SIZE_LOGICAL_PX * scale;
     let line_height_px = DEFAULT_LINE_HEIGHT_LOGICAL_PX * scale;
+    let left_inset_px = scale.ceil().max(1.0);
     let top_inset_px = DEFAULT_TEXT_TOP_INSET_LOGICAL_PX * scale;
     TextRasterMetrics {
         font_size_px,
         line_height_px,
+        left_inset_px,
         top_inset_px,
     }
 }

@@ -2,7 +2,7 @@ use crate::branding::NOSTRIAN_CONQUEST_LOGO;
 use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 use crate::geometry::ScreenGeometry;
 use crate::modal::{Rect, centered_rect, draw_box_without_close_button, wrap_modal_text_lines};
-use crate::native_grid::logical_cell_metrics;
+use crate::native_grid::{logical_cell_metrics, logical_text_metrics};
 use crate::theme;
 use crate::ui::scene::{SceneGraph, ScenePoint, SceneRect};
 use crate::ui::UiScene;
@@ -492,7 +492,17 @@ fn build_gate_scene(
     draw_gate_frame_scene(&mut scene, popup, title);
 
     let popup_rect = scene_rect_from_cells(popup);
-    scene.push_quad(popup_rect.inset(1.0, 1.0), theme::table_body_style().bg);
+    let interior_top = popup_rect.y + metrics.cell_height_px as f32;
+    let interior_height = (popup_rect.bottom() - 1.0 - interior_top).max(0.0);
+    scene.push_quad(
+        SceneRect::new(
+            popup_rect.x + 1.0,
+            interior_top,
+            (popup_rect.width - 2.0).max(0.0),
+            interior_height,
+        ),
+        theme::table_body_style().bg,
+    );
 
     let left = popup.x as usize + GATE_SIDE_PADDING;
     let content_bottom = popup.y as usize + popup.height.saturating_sub(2) as usize;
@@ -563,44 +573,53 @@ fn render_tiny_scene(
 }
 
 fn draw_gate_frame_scene(scene: &mut SceneGraph, popup: Rect, title: &str) {
+    let metrics = logical_cell_metrics();
     let rect = scene_rect_from_cells(popup);
     let color = theme::table_chrome_style().fg;
     let title_bg = theme::table_body_style().bg;
     let title_text = format!("- {title} -");
-    let title_width = title_text.chars().count() as f32 * logical_cell_metrics().cell_width_px as f32;
+    let title_width = title_text.chars().count() as f32 * metrics.cell_width_px as f32;
     let title_x = rect.x + ((rect.width - title_width).max(0.0) / 2.0);
-    let title_strip = SceneRect::new(title_x - 4.0, rect.y, title_width + 8.0, logical_cell_metrics().cell_height_px as f32);
+    let title_strip = SceneRect::new(
+        (title_x - metrics.cell_width_px as f32 * 0.5).max(rect.x + 1.0),
+        rect.y,
+        (title_width + metrics.cell_width_px as f32)
+            .min((rect.width - 2.0).max(0.0)),
+        metrics.cell_height_px as f32,
+    );
+    let right = (rect.right() - 1.0).max(rect.x);
+    let bottom = (rect.bottom() - 1.0).max(rect.y);
 
     scene.push_line(
         ScenePoint::new(rect.x, rect.y),
-        ScenePoint::new(rect.right(), rect.y),
+        ScenePoint::new(right, rect.y),
         1.0,
         color,
     );
     scene.push_line(
-        ScenePoint::new(rect.x, rect.bottom()),
-        ScenePoint::new(rect.right(), rect.bottom()),
+        ScenePoint::new(rect.x, bottom),
+        ScenePoint::new(right, bottom),
         1.0,
         color,
     );
     scene.push_line(
         ScenePoint::new(rect.x, rect.y),
-        ScenePoint::new(rect.x, rect.bottom()),
+        ScenePoint::new(rect.x, bottom),
         1.0,
         color,
     );
     scene.push_line(
-        ScenePoint::new(rect.right(), rect.y),
-        ScenePoint::new(rect.right(), rect.bottom()),
+        ScenePoint::new(right, rect.y),
+        ScenePoint::new(right, bottom),
         1.0,
         color,
     );
     scene.push_quad(title_strip, title_bg);
     scene.push_text(
-        ScenePoint::new(title_x, rect.y - 2.0),
+        ScenePoint::new(title_x, rect.y),
         title_text,
         theme::table_header_style(),
-        Some(rect),
+        Some(SceneRect::new(rect.x + 1.0, rect.y, rect.width - 2.0, metrics.cell_height_px as f32)),
     );
 }
 
@@ -648,23 +667,24 @@ fn write_scene_field(
     let value_col = left + label.chars().count() + 1;
     let value_width = content_width.saturating_sub(value_col.saturating_sub(left));
     let value = clip_to_width(&field.value, value_width);
+    let cell_metrics = logical_cell_metrics();
+    let text_metrics = logical_text_metrics();
     let clip = Some(SceneRect::new(
-        left as f32 * logical_cell_metrics().cell_width_px as f32,
-        row as f32 * logical_cell_metrics().cell_height_px as f32,
-        content_width as f32 * logical_cell_metrics().cell_width_px as f32,
-        logical_cell_metrics().cell_height_px as f32,
+        left as f32 * cell_metrics.cell_width_px as f32,
+        row as f32 * cell_metrics.cell_height_px as f32,
+        content_width as f32 * cell_metrics.cell_width_px as f32,
+        cell_metrics.cell_height_px as f32,
     ));
     scene.push_text(scene_point_from_cell(left, row), label, marker_style, clip);
     scene.push_text(scene_point_from_cell(value_col, row), value.clone(), value_style, clip);
     if field.active {
-        let metrics = logical_cell_metrics();
         let caret_col = value_col + field.cursor_offset.min(value.chars().count());
         scene.push_caret(
             SceneRect::new(
-                caret_col as f32 * metrics.cell_width_px as f32 + 2.0,
-                row as f32 * metrics.cell_height_px as f32 + 3.0,
+                caret_col as f32 * cell_metrics.cell_width_px as f32 + text_metrics.left_inset_px,
+                row as f32 * cell_metrics.cell_height_px as f32 + text_metrics.top_inset_px,
                 2.0,
-                metrics.cell_height_px.saturating_sub(6) as f32,
+                (text_metrics.line_height_px - text_metrics.top_inset_px * 2.0).max(2.0),
             ),
             theme::prompt_hotkey_style().fg,
         );
@@ -682,22 +702,49 @@ fn draw_logo_scene(scene: &mut SceneGraph, start_row: usize, popup: Rect) -> usi
     let logo_left = inner_left + inner_width.saturating_sub(logo_width) / 2;
 
     for (row_offset, line) in NOSTRIAN_CONQUEST_LOGO.iter().enumerate() {
-        for (col_offset, ch) in line.chars().enumerate() {
-            if ch == ' ' {
-                continue;
+        let mut run_start = None;
+        let mut run_style = None;
+        let mut run_text = String::new();
+        let flush_run = |scene: &mut SceneGraph,
+                         run_start: &mut Option<usize>,
+                         run_style: &mut Option<crate::buffer::CellStyle>,
+                         run_text: &mut String| {
+            let Some(start) = run_start.take() else {
+                return;
+            };
+            let style = run_style.take().expect("style exists for logo run");
+            if run_text.is_empty() {
+                return;
             }
+            scene.push_text(
+                scene_point_from_cell(start, start_row + row_offset),
+                std::mem::take(run_text),
+                style,
+                Some(scene_rect_from_cells(popup)),
+            );
+        };
+
+        for (col_offset, ch) in line.chars().enumerate() {
             let style = if is_star_decoration(ch) {
                 theme::classic::star_decoration_style(row_offset + col_offset)
             } else {
                 theme::logo_style()
             };
-            scene.push_text(
-                scene_point_from_cell(logo_left + col_offset, start_row + row_offset),
-                ch.to_string(),
-                style,
-                Some(scene_rect_from_cells(popup)),
-            );
+            if ch == ' ' {
+                flush_run(scene, &mut run_start, &mut run_style, &mut run_text);
+                continue;
+            }
+            let absolute_col = logo_left + col_offset;
+            if run_style == Some(style) {
+                run_text.push(ch);
+                continue;
+            }
+            flush_run(scene, &mut run_start, &mut run_style, &mut run_text);
+            run_start = Some(absolute_col);
+            run_style = Some(style);
+            run_text.push(ch);
         }
+        flush_run(scene, &mut run_start, &mut run_style, &mut run_text);
     }
 
     NOSTRIAN_CONQUEST_LOGO.len()
@@ -915,6 +962,37 @@ mod tests {
             .nodes()
             .iter()
             .any(|node| matches!(node, SceneNode::Caret(_))));
+    }
+
+    #[test]
+    fn locked_scene_caret_stays_on_password_row() {
+        let mut app = LobbyApp::new_for_tests(LobbyRoute::Locked, ScreenGeometry::new(120, 40));
+        app.state.unlock_password_input = "hunter2".to_string();
+
+        let scene = render_locked_scene(app.geometry, &app.state);
+        let UiScene::Graph(graph) = scene else {
+            panic!("locked scene should render as scene graph");
+        };
+
+        let caret = graph
+            .nodes()
+            .iter()
+            .find_map(|node| match node {
+                SceneNode::Caret(caret) => Some(caret),
+                _ => None,
+            })
+            .expect("locked scene should include caret");
+        let password_row = graph
+            .nodes()
+            .iter()
+            .find_map(|node| match node {
+                SceneNode::Text(text) if text.text.contains("Password") => Some(text.origin.y),
+                _ => None,
+            })
+            .expect("locked scene should include password row");
+
+        assert!(caret.rect.y >= password_row);
+        assert!(caret.rect.y < password_row + crate::native_grid::logical_cell_metrics().cell_height_px as f32);
     }
 
     #[test]
