@@ -13,7 +13,6 @@ mod inbox;
 mod layout;
 pub mod lobby;
 mod modal;
-mod modal_ratatui;
 mod native;
 mod native_grid;
 mod overlays;
@@ -21,8 +20,9 @@ mod panels;
 mod planet_view;
 mod popups;
 mod prompt;
+mod ratatui;
 mod repro;
-mod rendered;
+mod scene;
 pub mod startup;
 mod table;
 mod table_filter;
@@ -36,6 +36,7 @@ pub use app::state::DashApp;
 pub use buffer::PlayfieldBuffer;
 pub use geometry::ScreenGeometry;
 pub use lobby::LobbyApp;
+pub use scene::UiScene;
 pub use startup::{LobbyStartupOptions, NativeLaunchOptions, parse_launch_command};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {

@@ -3209,7 +3209,6 @@ dependencies = [
  "nc-session",
  "opaline",
  "pollster",
- "ratatui",
  "rustybuzz",
  "serde_json",
  "smithay-clipboard",

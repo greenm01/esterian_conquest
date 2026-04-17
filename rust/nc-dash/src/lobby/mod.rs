@@ -21,6 +21,7 @@ use crate::modal::{
     modal_close_button_contains, render_modal_box,
 };
 use crate::native::NativeApp;
+use crate::scene::UiScene;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
@@ -135,7 +136,7 @@ impl LobbyApp {
     }
 
     pub fn render_for_test(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        <Self as NativeApp>::render_playfield(self)
+        self.render_lobby_playfield()
     }
 
     pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) -> bool {
@@ -840,7 +841,7 @@ impl LobbyApp {
         }
 
         if self.state.route == LobbyRoute::Home {
-            if let Some(layout) = ui::home_layout(::ratatui::layout::Rect::new(
+            if let Some(layout) = ui::home_layout(crate::ratatui::layout::Rect::new(
                 0,
                 0,
                 self.geometry.width() as u16,
@@ -860,7 +861,7 @@ impl LobbyApp {
         }
 
         if self.state.route == LobbyRoute::Home && self.state.active_tab == LobbyTab::Comms {
-            let Some(layout) = ui::home_layout(::ratatui::layout::Rect::new(
+            let Some(layout) = ui::home_layout(crate::ratatui::layout::Rect::new(
                 0,
                 0,
                 self.geometry.width() as u16,
@@ -953,7 +954,7 @@ impl LobbyApp {
         else {
             return;
         };
-        let Some(layout) = ui::home_layout(::ratatui::layout::Rect::new(
+        let Some(layout) = ui::home_layout(crate::ratatui::layout::Rect::new(
             0,
             0,
             self.geometry.width() as u16,
@@ -1079,8 +1080,8 @@ impl NativeApp for LobbyApp {
         }
     }
 
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_lobby_playfield()
+    fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
+        Ok(UiScene::from(self.render_lobby_playfield()?))
     }
 
     fn debug_render_signature(&self) -> Option<String> {

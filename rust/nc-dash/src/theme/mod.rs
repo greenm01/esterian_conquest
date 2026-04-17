@@ -3,9 +3,9 @@
 use std::cell::RefCell;
 
 use crate::buffer::{CellStyle, GameColor};
+use crate::ratatui::style::{Color, Modifier, Style};
 use crate::table::TableRenderTheme;
 use opaline::{OpalineColor, OpalineStyle};
-use ratatui::style::{Color, Modifier, Style};
 
 const DEFAULT_THEME_KEY: &str = "tokyo-night";
 

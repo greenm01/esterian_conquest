@@ -2,6 +2,7 @@ use crate::PlayfieldBuffer;
 use crate::buffer::CellStyle;
 use crate::geometry::ScreenGeometry;
 use crate::native::{self, NativeApp};
+use crate::scene::UiScene;
 use crate::startup::NativeLaunchOptions;
 use crate::theme;
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
@@ -258,8 +259,8 @@ impl NativeApp for StaticPlayfieldReproApp {
 
     fn resize_canvas(&mut self, _cols: u16, _rows: u16) {}
 
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        Ok((self.render_playfield)())
+    fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
+        Ok(UiScene::from((self.render_playfield)()))
     }
 
     fn should_quit(&self) -> bool {
@@ -330,7 +331,7 @@ impl NativeApp for CursorMotionReproApp {
         self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
     }
 
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
         let mut buffer = PlayfieldBuffer::new(
             self.geometry.width(),
             self.geometry.height(),
@@ -368,7 +369,7 @@ impl NativeApp for CursorMotionReproApp {
                 buffer.set_cursor(column, row);
             }
         }
-        Ok(buffer)
+        Ok(UiScene::from(buffer))
     }
 
     fn note_user_activity(&mut self, now: Instant) {

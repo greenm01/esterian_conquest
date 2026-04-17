@@ -1,7 +1,7 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::Style;
-use ratatui::widgets::Widget;
+use crate::ratatui::buffer::Buffer;
+use crate::ratatui::layout::{Constraint, Layout, Rect};
+use crate::ratatui::style::Style;
+use crate::ratatui::widgets::Widget;
 
 use crate::theme;
 

@@ -1,5 +1,5 @@
 use crate::app::state::{DashApp, OwnedPlanetPopupMode};
-use crate::buffer::{CellStyle, PlayfieldBuffer};
+use crate::buffer::PlayfieldBuffer;
 use crate::layout::{self, MapWidgetFrame, dashboard};
 use crate::modal::Rect;
 use crate::overlays::frame::{
@@ -8,7 +8,6 @@ use crate::overlays::frame::{
     overlay_popup_rect_for_body_in_parent,
 };
 use crate::planet_view::selected_planet_detail;
-use crate::rendered::render_tui_area_into_playfield;
 use crate::table::{TableFooter, with_command_line_toast};
 use crate::theme;
 use nc_data::ProductionItemKind;
@@ -16,12 +15,6 @@ use nc_engine::{
     ArmyTransportMode, PlanetBuildSpecifyEntry, build_unit_spec_by_kind,
     transport_fleet_candidates_for_planet,
 };
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Constraint, Layout, Rect as TuiRect};
-use ratatui::style::{Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Cell, Row, Table, Widget};
-
 const BUILD_TABLE_NUMBER_WIDTH: usize = 2;
 const BUILD_TABLE_COST_WIDTH: usize = 4;
 const BUILD_TABLE_QUEUE_WIDTH: usize = 5;
@@ -89,7 +82,6 @@ enum PopupBody {
 struct BuildSpecifyPopupLayout {
     budget_title: String,
     body_width: usize,
-    table_total_width: usize,
     table_height: usize,
     entries: Vec<PlanetBuildSpecifyEntry>,
 }
@@ -338,26 +330,54 @@ fn draw_popup_body(buf: &mut PlayfieldBuffer, frame: OverlayFrame, body: PopupBo
             }
         }
         PopupBody::BuildSpecify(build) => {
-            render_tui_area_into_playfield(
-                buf,
-                frame.body_row,
-                frame.body_col,
-                frame.body_width,
-                frame.body_height,
-                |buffer, area| render_build_specify_buffer(buffer, area, &build),
-            );
+            render_build_specify_playfield(buf, frame, &build);
         }
     }
 }
 
-fn render_build_specify_buffer(
-    buffer: &mut Buffer,
-    area: TuiRect,
+fn render_build_specify_playfield(
+    buf: &mut PlayfieldBuffer,
+    frame: OverlayFrame,
     layout: &BuildSpecifyPopupLayout,
 ) {
-    let rows = Layout::vertical([Constraint::Length(layout.table_height as u16)]).split(area);
-    let unit_width = layout
-        .table_total_width
+    if frame.body_width < 3 || frame.body_height < 4 {
+        return;
+    }
+
+    let top = frame.body_row;
+    let left = frame.body_col;
+    let bottom = frame.body_row + frame.body_height.saturating_sub(1);
+    let right = frame.body_col + frame.body_width.saturating_sub(1);
+    let chrome = theme::table_chrome_style();
+
+    for col in left..=right {
+        buf.set_cell(top, col, '─', chrome);
+        buf.set_cell(bottom, col, '─', chrome);
+    }
+    for row in top..=bottom {
+        buf.set_cell(row, left, '│', chrome);
+        buf.set_cell(row, right, '│', chrome);
+    }
+    buf.set_cell(top, left, '┌', chrome);
+    buf.set_cell(top, right, '┐', chrome);
+    buf.set_cell(bottom, left, '└', chrome);
+    buf.set_cell(bottom, right, '┘', chrome);
+
+    let title_width = layout.budget_title.chars().count().min(frame.body_width.saturating_sub(4));
+    if title_width > 0 {
+        let title_col = left + frame.body_width.saturating_sub(title_width + 2);
+        layout::write_clipped(
+            buf,
+            top,
+            title_col,
+            title_width,
+            &layout.budget_title,
+            theme::label_style(),
+        );
+    }
+
+    let inner_width = frame.body_width.saturating_sub(2);
+    let unit_width = inner_width
         .saturating_sub(
             BUILD_TABLE_NUMBER_WIDTH
                 + BUILD_TABLE_SEPARATOR_WIDTH
@@ -366,73 +386,61 @@ fn render_build_specify_buffer(
                 + BUILD_TABLE_SEPARATOR_WIDTH
                 + BUILD_TABLE_QUEUE_WIDTH
                 + BUILD_TABLE_SEPARATOR_WIDTH
-                + BUILD_TABLE_STATUS_WIDTH
-                + 2,
+                + BUILD_TABLE_STATUS_WIDTH,
         )
         .max(BUILD_TABLE_MIN_UNIT_WIDTH);
-    let header = Row::new(["#", "│", "Unit", "│", "Cost", "│", "Queue", "│", "Status"])
-        .style(cell_style_to_tui_style(theme::table_header_style()));
-    let divider = Row::new(vec![
-        Cell::from("─".repeat(BUILD_TABLE_NUMBER_WIDTH)),
-        Cell::from("┼"),
-        Cell::from("─".repeat(unit_width)),
-        Cell::from("┼"),
-        Cell::from("─".repeat(BUILD_TABLE_COST_WIDTH)),
-        Cell::from("┼"),
-        Cell::from("─".repeat(BUILD_TABLE_QUEUE_WIDTH)),
-        Cell::from("┼"),
-        Cell::from("─".repeat(BUILD_TABLE_STATUS_WIDTH)),
-    ])
-    .style(cell_style_to_tui_style(theme::table_chrome_style()));
-    let table_rows = std::iter::once(divider).chain(layout.entries.iter().map(|entry| {
+
+    let header = format!(
+        "{:>2}│{:<unit_width$}│{:>4}│{:>5}│{:<6}",
+        "#", "Unit", "Cost", "Queue", "Status"
+    );
+    layout::write_clipped(
+        buf,
+        top + 1,
+        left + 1,
+        inner_width,
+        &header,
+        theme::table_header_style(),
+    );
+
+    let divider = format!(
+        "{}┼{}┼{}┼{}┼{}",
+        "─".repeat(BUILD_TABLE_NUMBER_WIDTH),
+        "─".repeat(unit_width),
+        "─".repeat(BUILD_TABLE_COST_WIDTH),
+        "─".repeat(BUILD_TABLE_QUEUE_WIDTH),
+        "─".repeat(BUILD_TABLE_STATUS_WIDTH),
+    );
+    layout::write_clipped(
+        buf,
+        top + 2,
+        left + 1,
+        inner_width,
+        &divider,
+        theme::table_chrome_style(),
+    );
+
+    for (offset, entry) in layout.entries.iter().enumerate() {
+        let row = top + 3 + offset;
+        if row >= bottom {
+            break;
+        }
         let status = if entry.selectable { "" } else { "FULL" };
+        let line = format!(
+            "{:>2}│{:<unit_width$}│{:>4}│{:>5}│{:<6}",
+            format!("{:02}", entry.number),
+            entry.label,
+            entry.cost,
+            entry.queued_qty,
+            status,
+        );
         let style = if entry.selectable {
-            cell_style_to_tui_style(theme::table_body_style())
+            theme::table_body_style()
         } else {
-            cell_style_to_tui_style(theme::dim_style())
+            theme::dim_style()
         };
-        Row::new(vec![
-            Cell::from(format!("{:02}", entry.number)),
-            Cell::from("│"),
-            Cell::from(entry.label),
-            Cell::from("│"),
-            Cell::from(entry.cost.to_string()),
-            Cell::from("│"),
-            Cell::from(entry.queued_qty.to_string()),
-            Cell::from("│"),
-            Cell::from(status),
-        ])
-        .style(style)
-    }));
-    Table::new(
-        table_rows,
-        [
-            Constraint::Length(BUILD_TABLE_NUMBER_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
-            Constraint::Length(unit_width as u16),
-            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_COST_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_QUEUE_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_SEPARATOR_WIDTH as u16),
-            Constraint::Length(BUILD_TABLE_STATUS_WIDTH as u16),
-        ],
-    )
-    .header(header)
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(
-                Line::from(layout.budget_title.as_str())
-                    .style(
-                        cell_style_to_tui_style(theme::label_style()).add_modifier(Modifier::BOLD),
-                    )
-                    .alignment(Alignment::Right),
-            )
-            .border_style(cell_style_to_tui_style(theme::table_chrome_style()))
-            .style(cell_style_to_tui_style(theme::body_style())),
-    )
-    .render(rows[0], buffer);
+        layout::write_clipped(buf, row, left + 1, inner_width, &line, style);
+    }
 }
 
 fn build_specify_popup_layout(app: &DashApp, max_body_width: usize) -> BuildSpecifyPopupLayout {
@@ -464,7 +472,6 @@ fn build_specify_popup_layout(app: &DashApp, max_body_width: usize) -> BuildSpec
     BuildSpecifyPopupLayout {
         budget_title,
         body_width,
-        table_total_width: body_width,
         table_height: entries.len() + 4,
         entries,
     }
@@ -486,16 +493,6 @@ fn popup_planet_name(app: &DashApp) -> String {
                 .map(|planet| planet.status_or_name_summary())
         })
         .unwrap_or_else(|| String::from("Unknown"))
-}
-
-fn cell_style_to_tui_style(style: CellStyle) -> Style {
-    let mut tui = Style::default()
-        .fg(theme::to_tui_color(style.fg))
-        .bg(theme::to_tui_color(style.bg));
-    if style.bold {
-        tui = tui.add_modifier(Modifier::BOLD);
-    }
-    tui
 }
 
 fn max_line_width(lines: &[String]) -> usize {

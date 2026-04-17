@@ -1,6 +1,7 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Rect};
-use ratatui::widgets::Widget;
+use crate::ratatui::buffer::Buffer;
+use crate::ratatui::layout::{Constraint, Rect};
+use crate::ratatui::style::Style;
+use crate::ratatui::widgets::Widget;
 
 use crate::lobby::state::{LobbyApp, LobbyState, LobbyTab};
 use crate::lobby::threads;
@@ -366,7 +367,7 @@ fn right_align(
     area: Rect,
     row: u16,
     text: &str,
-    style: ratatui::style::Style,
+    style: Style,
 ) {
     let width = text.chars().count().min(area.width as usize) as u16;
     let start = area.right().saturating_sub(width);
@@ -438,8 +439,8 @@ impl FooterToken {
         buffer: &mut Buffer,
         row: u16,
         start: u16,
-        label: ratatui::style::Style,
-        hotkey: ratatui::style::Style,
+        label: Style,
+        hotkey: Style,
     ) -> usize {
         let mut col = start;
         if !self.prefix.is_empty() {

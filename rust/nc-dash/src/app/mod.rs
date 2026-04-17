@@ -34,6 +34,7 @@ use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
+use crate::scene::UiScene;
 use std::time::{Duration, Instant};
 
 const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);
@@ -2089,8 +2090,8 @@ impl NativeApp for DashApp {
         Self::resize_canvas(self, cols, rows);
     }
 
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        Self::render_playfield(self)
+    fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
+        Ok(UiScene::from(Self::render_playfield(self)?))
     }
 
     fn debug_render_signature(&self) -> Option<String> {

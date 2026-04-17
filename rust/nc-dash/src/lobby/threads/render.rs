@@ -1,7 +1,7 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Borders, Widget};
+use crate::ratatui::buffer::Buffer;
+use crate::ratatui::layout::Rect;
+use crate::ratatui::style::{Modifier, Style};
+use crate::ratatui::widgets::{Block, Borders, Widget};
 
 use crate::lobby::LobbyApp;
 use crate::lobby::models::{CommsConversationKind, CommsConversationRow, DirectContactRow};

@@ -1,6 +1,7 @@
-use ratatui::layout::Rect;
-use ratatui::style::Style;
-use ratatui::widgets::{Block, BorderType, Borders, Padding};
+use crate::ratatui::buffer::Buffer;
+use crate::ratatui::layout::Rect;
+use crate::ratatui::style::Style;
+use crate::ratatui::widgets::{Block, BorderType, Borders, Padding};
 
 use crate::lobby::state::{LobbyNetworkStatus, LobbyStatusTone};
 use crate::theme;
@@ -100,7 +101,7 @@ pub fn truncate_title(title: &str, limit: usize) -> String {
 }
 
 pub fn write_text(
-    buffer: &mut ratatui::buffer::Buffer,
+    buffer: &mut Buffer,
     row: u16,
     start_col: u16,
     end_col: u16,
@@ -122,7 +123,7 @@ pub fn with_panel_bg(style: Style) -> Style {
     }
 }
 
-pub fn render_popup_close_button(buffer: &mut ratatui::buffer::Buffer, area: Rect, style: Style) {
+pub fn render_popup_close_button(buffer: &mut Buffer, area: Rect, style: Style) {
     let Some(col) = crate::modal::modal_close_button_col(crate::modal::Rect::new(
         area.x,
         area.y,

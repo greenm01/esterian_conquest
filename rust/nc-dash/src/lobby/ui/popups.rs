@@ -1,7 +1,7 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::Style;
-use ratatui::widgets::{Block, Borders, Clear, Padding, Widget};
+use crate::ratatui::buffer::Buffer;
+use crate::ratatui::layout::{Constraint, Layout, Rect};
+use crate::ratatui::style::Style;
+use crate::ratatui::widgets::{Block, Borders, Clear, Padding, Widget};
 
 use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
 use crate::modal::{

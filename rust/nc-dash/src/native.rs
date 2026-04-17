@@ -1,10 +1,10 @@
-use crate::PlayfieldBuffer;
 use crate::geometry::ScreenGeometry;
 use crate::lobby::storage::settings::PersistedWindowState;
 use crate::native_grid::{
     CellGridWindowRenderer, cell_position_at_pixel, crossterm_key_event_from_winit,
     logical_window_size_for_grid, terminal_grid_for_pixels,
 };
+use crate::scene::UiScene;
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
 use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_log::LogLevel;
@@ -54,7 +54,7 @@ pub(crate) trait NativeApp {
     fn dispatch_key_event(&mut self, key: crate::input::KeyEvent);
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool;
     fn resize_canvas(&mut self, cols: u16, rows: u16);
-    fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>>;
+    fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>>;
     fn debug_render_signature(&self) -> Option<String> {
         None
     }
@@ -800,8 +800,8 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 let Some(renderer) = self.renderer.as_mut() else {
                     return;
                 };
-                match shell.app.render_playfield() {
-                    Ok(playfield) => {
+                match shell.app.render_scene() {
+                    Ok(scene) => {
                         shell.render_count += 1;
                         let render_seq = {
                             let mut diagnostics = self.diagnostics.borrow_mut();
@@ -828,7 +828,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                             .borrow_mut()
                             .set_stage(NativeStage::FirstFrameRender);
                         match renderer.render(
-                            &playfield,
+                            &scene,
                             size.width,
                             size.height,
                             self.native_options.diagnostic_mode,
@@ -1523,9 +1523,9 @@ mod tests {
         native_error, native_window_icon, next_pointer_dispatch, pointer_coords,
         pointer_event_kind, resolve_window_policy,
     };
-    use crate::PlayfieldBuffer;
     use crate::geometry::ScreenGeometry;
     use crate::lobby::storage::settings::PersistedWindowState;
+    use crate::scene::UiScene;
     use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
     use crate::input::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
@@ -2010,12 +2010,12 @@ mod tests {
             self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
         }
 
-        fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-            Ok(crate::buffer::PlayfieldBuffer::new(
+        fn render_scene(&self) -> Result<UiScene, Box<dyn std::error::Error>> {
+            Ok(UiScene::from(crate::buffer::PlayfieldBuffer::new(
                 self.geometry.width(),
                 self.geometry.height(),
                 theme::body_style(),
-            ))
+            )))
         }
 
         fn is_dragging_surface(&self) -> bool {

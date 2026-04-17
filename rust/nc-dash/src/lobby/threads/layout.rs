@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Layout, Rect};
+use crate::ratatui::layout::{Constraint, Layout, Rect};
 
 use super::super::state::{LobbyState, ThreadPaneFocus};
 use super::super::ui::{contains, padded_inner, scroll_offset};

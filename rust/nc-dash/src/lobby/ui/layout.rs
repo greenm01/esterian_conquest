@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Layout, Rect};
+use crate::ratatui::layout::{Constraint, Layout, Rect};
 
 use crate::lobby::state::{LobbyApp, LobbyRoute, LobbyState, LobbyTab};
 use crate::overlays::frame::RelativePopupOrigin;
@@ -205,7 +205,19 @@ pub fn popup_rect(
     preferred: (u16, u16),
     origin: Option<RelativePopupOrigin>,
 ) -> Rect {
-    crate::modal_ratatui::placed_popup_rect(parent, preferred, origin)
+    let placement = origin
+        .map(|origin| crate::modal::ModalPlacement::Origin {
+            x: parent.x.saturating_add(origin.col_offset as u16),
+            y: parent.y.saturating_add(origin.row_offset as u16),
+        })
+        .unwrap_or(crate::modal::ModalPlacement::Centered);
+    let rect = crate::modal::placed_rect(
+        preferred.0.min(parent.width.saturating_sub(2)).max(10),
+        preferred.1.min(parent.height.saturating_sub(2)).max(5),
+        crate::modal::Rect::new(parent.x, parent.y, parent.width, parent.height),
+        placement,
+    );
+    Rect::new(rect.x, rect.y, rect.width, rect.height)
 }
 
 fn tab_row_count(state: &LobbyState) -> usize {

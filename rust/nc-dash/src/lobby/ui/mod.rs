@@ -12,9 +12,9 @@ pub use self::layout::{
 };
 
 use crate::buffer::PlayfieldBuffer;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
+use crate::ratatui::buffer::Buffer;
+use crate::ratatui::layout::Rect;
+use crate::ratatui::style::Modifier;
 
 use crate::lobby::state::{LobbyApp, LobbyRoute};
 use crate::lobby::threads;

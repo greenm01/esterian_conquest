@@ -26,6 +26,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use tracing::info;
 
 use crate::buffer::{CellStyle, PlayfieldBuffer};
+use crate::scene::UiScene;
 use crate::theme;
 
 pub const DEFAULT_FONT_HEIGHT_PX: u32 = 20;
@@ -237,11 +238,12 @@ impl CellGridWindowRenderer {
 
     pub fn render(
         &mut self,
-        playfield: &PlayfieldBuffer,
+        scene: &UiScene,
         window_pixel_width: u32,
         window_pixel_height: u32,
         diagnostic_mode: bool,
     ) -> Result<RendererFrameStats, Box<dyn std::error::Error>> {
+        let playfield = scene.playfield();
         if window_pixel_width == 0 || window_pixel_height == 0 {
             return Ok(RendererFrameStats {
                 window_width: window_pixel_width,

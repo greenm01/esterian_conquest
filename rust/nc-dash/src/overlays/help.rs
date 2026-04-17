@@ -327,7 +327,6 @@ mod tests {
     use crate::app::state::{ActiveOverlay, DashApp, HelpContext};
     use crate::geometry::ScreenGeometry;
     use crate::layout::dashboard::dashboard_layout;
-    use crate::native::NativeApp;
     #[test]
     fn fleet_help_mentions_typed_jump_and_real_actions() {
         let lines = help_lines(HelpContext::FleetList);
@@ -429,7 +428,7 @@ mod tests {
         app.overlay = ActiveOverlay::Help;
         app.help_context = HelpContext::Global;
         let map_frame = dashboard_layout(&app).widgets.center_map;
-        let mut buffer = <DashApp as NativeApp>::render_playfield(&app).expect("playfield");
+        let mut buffer = app.render_playfield().expect("playfield");
 
         draw(&mut buffer, &app, map_frame);
 
