@@ -171,6 +171,7 @@ struct NativeDiagnostics {
     first_frame_rendered: bool,
     last_input_cause: Option<NativeInputCause>,
     last_redraw_cause: Option<NativeRedrawCause>,
+    last_signature: Option<String>,
     event_seq: u64,
     redraw_seq: u64,
     render_seq: u64,
@@ -187,6 +188,7 @@ impl NativeDiagnostics {
             first_frame_rendered: false,
             last_input_cause: None,
             last_redraw_cause: None,
+            last_signature: None,
             event_seq: 0,
             redraw_seq: 0,
             render_seq: 0,
@@ -244,6 +246,10 @@ impl NativeDiagnostics {
     fn next_idle_seq(&mut self) -> u64 {
         self.idle_seq += 1;
         self.idle_seq
+    }
+
+    fn set_last_signature(&mut self, signature: String) {
+        self.last_signature = Some(signature);
     }
 }
 
@@ -801,6 +807,9 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                         };
                         if self.native_options.diagnostic_mode {
                             let signature = capture_signature(&shell.app);
+                            self.diagnostics
+                                .borrow_mut()
+                                .set_last_signature(signature.clone());
                             info!(
                                 target: "nc_dash::native",
                                 render_seq,
@@ -843,6 +852,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                                 shell.needs_redraw = false;
                                 if self.native_options.diagnostic_mode {
                                     let signature = capture_signature(&shell.app);
+                                    diagnostics.set_last_signature(signature.clone());
                                     info!(
                                         target: "nc_dash::native",
                                         render_seq,
@@ -923,6 +933,9 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 shell.pending_redraw_cause = Some(NativeRedrawCause::Idle);
                 if self.native_options.diagnostic_mode {
                     let after_signature = capture_signature(&shell.app);
+                    self.diagnostics
+                        .borrow_mut()
+                        .set_last_signature(after_signature.clone());
                     info!(
                         target: "nc_dash::native",
                         idle_seq,
@@ -934,6 +947,9 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             } else if self.native_options.diagnostic_mode {
                 let idle_seq = self.diagnostics.borrow_mut().next_idle_seq();
                 let after_signature = capture_signature(&shell.app);
+                self.diagnostics
+                    .borrow_mut()
+                    .set_last_signature(after_signature.clone());
                 info!(
                     target: "nc_dash::native",
                     idle_seq,
@@ -1257,6 +1273,9 @@ fn native_error(
             .map(NativeRedrawCause::label)
             .unwrap_or("unknown")
     );
+    if let Some(signature) = diagnostics.last_signature.as_deref() {
+        message.push_str(&format!("; signature: {signature}"));
+    }
     if let Some(log_path) = diagnostics.log_path.as_ref() {
         message.push_str(&format!(" — log: {}", log_path.display()));
     }
@@ -1336,6 +1355,9 @@ fn dispatch<T: NativeApp>(
     let effects = shell.update(msg);
     if diagnostics.borrow().diagnostic_mode {
         let after_signature = capture_signature(&shell.app);
+        diagnostics
+            .borrow_mut()
+            .set_last_signature(after_signature.clone());
         info!(
             target: "nc_dash::native",
             event_seq,
@@ -1776,6 +1798,7 @@ mod tests {
         diagnostics.set_stage(NativeStage::RendererInit);
         diagnostics.set_last_input_cause(NativeInputCause::MouseMove);
         diagnostics.set_last_redraw_cause(NativeRedrawCause::Mouse);
+        diagnostics.set_last_signature("route=HostedGame crosshair=8,10".to_string());
         diagnostics.log_path = Some(PathBuf::from("/tmp/nc-dash.log"));
         let message = native_error(
             "unable to initialize nc-dash renderer",
@@ -1795,6 +1818,7 @@ mod tests {
         assert!(message.contains("renderer: glyphon-wgpu"));
         assert!(message.contains("last_input: mouse_move"));
         assert!(message.contains("last_redraw: mouse"));
+        assert!(message.contains("signature: route=HostedGame crosshair=8,10"));
         assert!(message.contains("/tmp/nc-dash.log"));
     }
 
