@@ -1,7 +1,7 @@
 use anyhow::Result;
+use chrono::Utc;
 use nostr_sdk::prelude::*;
 use tokio::sync::mpsc;
-use chrono::Utc;
 
 pub struct SysopClient {
     pub client: Client,
@@ -31,11 +31,8 @@ impl SysopClient {
 
     pub async fn new_with_keys(keys: Keys) -> Result<Self> {
         let client = Client::new(keys.clone());
-        
-        Ok(Self {
-            client,
-            keys,
-        })
+
+        Ok(Self { client, keys })
     }
 
     pub async fn connect(&self, relays: Vec<String>) -> Result<()> {
@@ -46,7 +43,7 @@ impl SysopClient {
 
         // Subscribe to relevant sysop events:
         let sysop_pubkey = self.keys.public_key();
-        
+
         let dm_filter = Filter::new()
             .kind(Kind::Custom(30518))
             .pubkey(sysop_pubkey)
@@ -57,17 +54,11 @@ impl SysopClient {
             .pubkey(sysop_pubkey)
             .limit(50);
 
-        let invite_filter = Filter::new()
-            .kind(Kind::Custom(30515))
-            .pubkey(sysop_pubkey);
+        let invite_filter = Filter::new().kind(Kind::Custom(30515)).pubkey(sysop_pubkey);
 
-        let game_def_filter = Filter::new()
-            .kind(Kind::Custom(30500))
-            .limit(20);
+        let game_def_filter = Filter::new().kind(Kind::Custom(30500)).limit(20);
 
-        let global_chat_filter = Filter::new()
-            .kind(Kind::TextNote)
-            .limit(50); // Get last 50 global messages
+        let global_chat_filter = Filter::new().kind(Kind::TextNote).limit(50); // Get last 50 global messages
 
         // In nostr-sdk 0.44, we can pass multiple filters to subscribe
         let _ = self.client.subscribe(dm_filter, None).await;
@@ -75,7 +66,7 @@ impl SysopClient {
         let _ = self.client.subscribe(invite_filter, None).await;
         let _ = self.client.subscribe(game_def_filter, None).await;
         let _ = self.client.subscribe(global_chat_filter, None).await;
-        
+
         Ok(())
     }
 
@@ -101,15 +92,19 @@ impl SysopClient {
                     body: content.to_string(),
                     created_at: Utc::now().timestamp(),
                 };
-                
-                let encrypted = nc_nostr::private_payload::encrypt_private_json(&self.keys, &recipient_pubkey, &payload)
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
-                
+
+                let encrypted = nc_nostr::private_payload::encrypt_private_json(
+                    &self.keys,
+                    &recipient_pubkey,
+                    &payload,
+                )
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+
                 let tags = vec![
                     Tag::custom(TagKind::d(), [message_id]),
                     Tag::public_key(recipient_pubkey),
                 ];
-                
+
                 let builder = EventBuilder::new(Kind::Custom(30518), encrypted).tags(tags);
                 self.client.send_event_builder(builder).await?;
             }
@@ -127,7 +122,7 @@ impl SysopClient {
     pub async fn start_listening(&self, tx: mpsc::UnboundedSender<NetworkEvent>) -> Result<()> {
         let mut notifications = self.client.notifications();
         let secret_key = self.keys.secret_key().clone();
-        
+
         tokio::spawn(async move {
             while let Ok(notification) = notifications.recv().await {
                 if let RelayPoolNotification::Event { event, .. } = notification {
@@ -150,9 +145,14 @@ impl SysopClient {
                         }
                         Kind::Custom(30518) => {
                             // Decrypt Sysop DM
-                            if let Some(msg) = nc_nostr::contact_message::decrypt_contact_message(&secret_key, &event) {
+                            if let Some(msg) = nc_nostr::contact_message::decrypt_contact_message(
+                                &secret_key,
+                                &event,
+                            ) {
                                 let _ = tx.send(NetworkEvent::MessageReceived {
-                                    sender: msg.sender_label.unwrap_or_else(|| msg.sender_npub[..12].to_string()),
+                                    sender: msg
+                                        .sender_label
+                                        .unwrap_or_else(|| msg.sender_npub[..12].to_string()),
                                     content: msg.body,
                                     channel: crate::app::SysopChannel::Direct(msg.sender_npub),
                                     is_direct: true,
@@ -161,9 +161,14 @@ impl SysopClient {
                         }
                         Kind::Custom(30517) => {
                             // Decrypt Sysop Thread Message (Game Inbox)
-                            if let Some(msg) = nc_nostr::thread_message::decrypt_thread_message(&secret_key, &event) {
+                            if let Some(msg) = nc_nostr::thread_message::decrypt_thread_message(
+                                &secret_key,
+                                &event,
+                            ) {
                                 let _ = tx.send(NetworkEvent::MessageReceived {
-                                    sender: msg.sender_handle.unwrap_or_else(|| msg.sender_npub[..12].to_string()),
+                                    sender: msg
+                                        .sender_handle
+                                        .unwrap_or_else(|| msg.sender_npub[..12].to_string()),
                                     content: format!("[INBOX] {}", msg.body),
                                     channel: crate::app::SysopChannel::Game(msg.game_id),
                                     is_direct: true,
@@ -172,9 +177,13 @@ impl SysopClient {
                         }
                         Kind::Custom(30515) => {
                             // Decrypt Invite Request
-                            if let Some(req) = nc_nostr::invite_request::parse_invite_request(&secret_key, &event) {
+                            if let Some(req) =
+                                nc_nostr::invite_request::parse_invite_request(&secret_key, &event)
+                            {
                                 let _ = tx.send(NetworkEvent::MessageReceived {
-                                    sender: req.handle.unwrap_or_else(|| req.player_pubkey[..12].to_string()),
+                                    sender: req
+                                        .handle
+                                        .unwrap_or_else(|| req.player_pubkey[..12].to_string()),
                                     content: format!("[REQUEST] {}", req.message),
                                     channel: crate::app::SysopChannel::Game(req.game_id),
                                     is_direct: true,
@@ -204,7 +213,7 @@ impl SysopClient {
                 }
             }
         });
-        
+
         Ok(())
     }
 }

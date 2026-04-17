@@ -25,7 +25,7 @@ use nc_nostr::invite_request::{InviteDecision, InviteDecisionPayload};
 use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::pubkeys::hex_to_npub;
 use nc_nostr::state_sync::{GameState, StateErrorCode, apply_state_delta};
-use nc_nostr::turn_commands::TurnReceiptStatus;
+use nc_nostr::turn_commands::{TurnReceipt, TurnReceiptStatus};
 
 use super::models::{
     DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
@@ -126,6 +126,25 @@ pub struct LobbyLoadedState {
 pub struct SandboxJoinSuccess {
     pub loaded: LobbyLoadedState,
     pub snapshot: GameState,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ActiveHostedGamePollUpdate {
+    pub game_id: Option<String>,
+    pub promoted_state_hash: Option<String>,
+    pub turn_receipt: Option<TurnReceipt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LobbyPollUpdate {
+    pub loaded: LobbyLoadedState,
+    pub active_game: ActiveHostedGamePollUpdate,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubmitTurnOutcome {
+    pub loaded: LobbyLoadedState,
+    pub receipt: TurnReceipt,
 }
 
 pub enum LobbySandboxJoinResult {
@@ -316,8 +335,8 @@ impl LobbyTransport {
         if unlocked.live_session.is_none() {
             bootstrap_request_session(unlocked);
         }
-        let changed = apply_live_updates(unlocked);
-        if changed {
+        let changed = apply_live_updates(unlocked, None);
+        if changed.is_some() {
             save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
             return Ok(build_loaded_state(
                 unlocked,
@@ -344,20 +363,26 @@ impl LobbyTransport {
         ))
     }
 
-    pub fn poll_updates(&mut self) -> Result<Option<LobbyLoadedState>, String> {
+    pub fn poll_updates(
+        &mut self,
+        active_game_id: Option<&str>,
+    ) -> Result<Option<LobbyPollUpdate>, String> {
         let Some(unlocked) = self.unlocked.as_mut() else {
             return Ok(None);
         };
-        if !apply_live_updates(unlocked) {
+        let Some(active_game) = apply_live_updates(unlocked, active_game_id) else {
             return Ok(None);
-        }
+        };
         save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
-        Ok(Some(build_loaded_state(
-            unlocked,
-            None,
-            LobbyStatusTone::Info,
-            Some(unlocked.network_status),
-        )))
+        Ok(Some(LobbyPollUpdate {
+            loaded: build_loaded_state(
+                unlocked,
+                None,
+                LobbyStatusTone::Info,
+                Some(unlocked.network_status),
+            ),
+            active_game,
+        }))
     }
 
     pub fn save_handle(&mut self, handle: &str) -> Result<LobbyLoadedState, String> {
@@ -618,7 +643,7 @@ impl LobbyTransport {
         row: &JoinedGameRow,
         turn: u32,
         commands: &str,
-    ) -> Result<LobbyLoadedState, String> {
+    ) -> Result<SubmitTurnOutcome, String> {
         let unlocked = self
             .unlocked
             .as_mut()
@@ -630,7 +655,7 @@ impl LobbyTransport {
         let handle = current_handle(&unlocked.keychain);
         let player_pubkey =
             current_player_pubkey(&unlocked.keychain).map_err(|err| err.to_string())?;
-        session
+        let receipt = session
             .submit_turn(
                 &row.game_id,
                 &row.daemon_pubkey,
@@ -641,6 +666,19 @@ impl LobbyTransport {
             .map_err(|err| err.to_string())?;
         let hosted_store = open_hosted_state_store().map_err(|err| err.to_string())?;
         let parsed_commands = TurnSubmission::parse_kdl_str(commands).ok();
+        let draft_status = match receipt.status {
+            TurnReceiptStatus::Accepted | TurnReceiptStatus::Superseded => {
+                HostedDraftStatus::SubmittedPending
+            }
+            TurnReceiptStatus::Rejected
+            | TurnReceiptStatus::NotClaimed
+            | TurnReceiptStatus::WrongTurn => HostedDraftStatus::Local,
+        };
+        let draft_submit_id = matches!(
+            receipt.status,
+            TurnReceiptStatus::Accepted | TurnReceiptStatus::Superseded
+        )
+        .then_some(receipt.submit_id.as_str());
         if let Some(draft) = parsed_commands {
             hosted_store
                 .save_draft(
@@ -649,8 +687,8 @@ impl LobbyTransport {
                     &row.game_id,
                     row.last_hash.as_deref().unwrap_or(""),
                     &draft,
-                    HostedDraftStatus::SubmittedPending,
-                    None,
+                    draft_status,
+                    draft_submit_id,
                 )
                 .map_err(|err| err.to_string())?;
         } else if let Some(draft) = hosted_store
@@ -664,17 +702,46 @@ impl LobbyTransport {
                     &row.game_id,
                     &draft.base_hash,
                     &draft.draft,
-                    HostedDraftStatus::SubmittedPending,
-                    draft.submit_id.as_deref(),
+                    draft_status,
+                    draft_submit_id.or(draft.submit_id.as_deref()),
                 )
                 .map_err(|err| err.to_string())?;
         }
-        Ok(build_loaded_state(
-            unlocked,
-            Some("Turn submitted. Waiting for nc-host receipt.".to_string()),
-            LobbyStatusTone::Success,
-            None,
-        ))
+        let (status_tone, status_message) = match receipt.status {
+            TurnReceiptStatus::Accepted => (
+                LobbyStatusTone::Success,
+                "Turn receipt accepted. Waiting for refreshed state.".to_string(),
+            ),
+            TurnReceiptStatus::Superseded => (
+                LobbyStatusTone::Info,
+                "Turn receipt superseded. Waiting for refreshed state.".to_string(),
+            ),
+            TurnReceiptStatus::Rejected => (
+                LobbyStatusTone::Error,
+                receipt
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| "Turn submission was rejected by nc-host.".to_string()),
+            ),
+            TurnReceiptStatus::NotClaimed => (
+                LobbyStatusTone::Error,
+                receipt.message.clone().unwrap_or_else(|| {
+                    "Turn submission was rejected because the seat is no longer claimed."
+                        .to_string()
+                }),
+            ),
+            TurnReceiptStatus::WrongTurn => (
+                LobbyStatusTone::Error,
+                receipt.message.clone().unwrap_or_else(|| {
+                    "Turn submission was rejected because the turn is no longer current."
+                        .to_string()
+                }),
+            ),
+        };
+        Ok(SubmitTurnOutcome {
+            loaded: build_loaded_state(unlocked, Some(status_message), status_tone, None),
+            receipt,
+        })
     }
 
     pub fn load_cached_hosted_snapshot(&self, game_id: &str) -> Result<Option<GameState>, String> {
@@ -1210,18 +1277,22 @@ fn build_sessions(
     Ok((Some(session), live_session))
 }
 
-fn apply_live_updates(unlocked: &mut UnlockedClient) -> bool {
+fn apply_live_updates(
+    unlocked: &mut UnlockedClient,
+    active_game_id: Option<&str>,
+) -> Option<ActiveHostedGamePollUpdate> {
     let Some(live_session) = unlocked.live_session.as_ref() else {
-        return false;
+        return None;
     };
     let updates = live_session.drain_updates();
     if updates.is_empty() {
-        return false;
+        return None;
     }
+    let mut active_game = ActiveHostedGamePollUpdate::default();
     for update in updates {
-        apply_live_update(unlocked, update);
+        apply_live_update(unlocked, update, active_game_id, &mut active_game);
     }
-    true
+    Some(active_game)
 }
 
 fn bootstrap_request_session(unlocked: &mut UnlockedClient) {
@@ -1266,7 +1337,12 @@ fn bootstrap_request_session(unlocked: &mut UnlockedClient) {
     };
 }
 
-fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate) {
+fn apply_live_update(
+    unlocked: &mut UnlockedClient,
+    update: HostedSessionUpdate,
+    active_game_id: Option<&str>,
+    active_game: &mut ActiveHostedGamePollUpdate,
+) {
     if let Some(status) = update.status {
         unlocked.network_status = map_hosted_status(status);
     }
@@ -1274,7 +1350,7 @@ fn apply_live_update(unlocked: &mut UnlockedClient, update: HostedSessionUpdate)
         apply_catalog(unlocked, &update.catalog);
     }
     let catalog = unlocked.catalog.clone();
-    apply_player_events(unlocked, update.player_events, &catalog);
+    apply_player_events(unlocked, update.player_events, &catalog, active_game_id, active_game);
     apply_notices(unlocked, update.notices);
     apply_direct_messages(unlocked, update.contact_messages);
     apply_game_inbox_messages(unlocked, update.player_messages, &catalog);
@@ -1354,6 +1430,8 @@ fn apply_player_events(
     unlocked: &mut UnlockedClient,
     batch: PlayerEventBatch,
     catalog: &[CatalogGame],
+    active_game_id: Option<&str>,
+    active_game: &mut ActiveHostedGamePollUpdate,
 ) {
     let player_pubkey = current_player_pubkey(&unlocked.keychain).ok();
     let hosted_store = open_hosted_state_store().ok();
@@ -1408,6 +1486,7 @@ fn apply_player_events(
             );
         }
         apply_state_snapshot_to_cache(unlocked, &state);
+        note_active_game_state(active_game, active_game_id, &state);
     }
     for delta in batch.deltas {
         let Some(player_pubkey) = player_pubkey.as_deref() else {
@@ -1435,6 +1514,7 @@ fn apply_player_events(
             state.turn,
         );
         apply_state_snapshot_to_cache(unlocked, &state);
+        note_active_game_state(active_game, active_game_id, &state);
     }
     for message in batch.contact_messages {
         apply_direct_message(unlocked, message);
@@ -1457,6 +1537,21 @@ fn apply_player_events(
                 game.updated_at = now_iso8601();
             }
         }
+        if active_game_id == Some(receipt.game_id.as_str()) {
+            active_game.game_id = Some(receipt.game_id.clone());
+            active_game.turn_receipt = Some(receipt);
+        }
+    }
+}
+
+fn note_active_game_state(
+    active_game: &mut ActiveHostedGamePollUpdate,
+    active_game_id: Option<&str>,
+    state: &GameState,
+) {
+    if active_game_id == Some(state.game_id.as_str()) {
+        active_game.game_id = Some(state.game_id.clone());
+        active_game.promoted_state_hash = Some(state.state_hash.clone());
     }
 }
 
@@ -2088,6 +2183,7 @@ mod tests {
         GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedStarmapState,
         HostedStatePayload, StateErrorCode,
     };
+    use nc_nostr::turn_commands::{TurnReceipt, TurnReceiptStatus};
 
     fn temp_test_path(name: &str) -> PathBuf {
         let unique = SystemTime::now()
@@ -2270,6 +2366,8 @@ mod tests {
                 ..PlayerEventBatch::default()
             },
             &[],
+            None,
+            &mut ActiveHostedGamePollUpdate::default(),
         );
 
         assert_eq!(unlocked.cache.games[0].status, "joined");
@@ -2290,6 +2388,8 @@ mod tests {
                 ..PlayerEventBatch::default()
             },
             &[],
+            None,
+            &mut ActiveHostedGamePollUpdate::default(),
         );
 
         assert_eq!(unlocked.cache.games[0].status, "requested");
@@ -2444,6 +2544,72 @@ mod tests {
         assert_eq!(unlocked.cache.rosters[0].game_id, "sandbox-smoke");
         assert_eq!(unlocked.cache.rosters[0].empire_name, "Terran Union");
         assert!(unlocked.cache.rosters[0].is_self);
+    }
+
+    #[test]
+    fn active_game_summary_tracks_latest_promoted_state_and_receipt() {
+        let mut unlocked = unlocked_with_game("joined");
+        let mut active_game = ActiveHostedGamePollUpdate::default();
+
+        apply_player_events(
+            &mut unlocked,
+            PlayerEventBatch {
+                states: vec![
+                    sample_state("sandbox-smoke", 5, "hash-5"),
+                    sample_state("sandbox-smoke", 6, "hash-6"),
+                ],
+                turn_receipts: vec![TurnReceipt {
+                    submit_id: "submit-1".to_string(),
+                    game_id: "sandbox-smoke".to_string(),
+                    turn: 6,
+                    status: TurnReceiptStatus::Accepted,
+                    message: Some("Accepted.".to_string()),
+                    errors: Vec::new(),
+                }],
+                ..PlayerEventBatch::default()
+            },
+            &[],
+            Some("sandbox-smoke"),
+            &mut active_game,
+        );
+
+        assert_eq!(active_game.game_id.as_deref(), Some("sandbox-smoke"));
+        assert_eq!(active_game.promoted_state_hash.as_deref(), Some("hash-6"));
+        assert_eq!(
+            active_game.turn_receipt.as_ref().map(|receipt| receipt.status.clone()),
+            Some(TurnReceiptStatus::Accepted)
+        );
+        assert_eq!(unlocked.cache.games[0].last_turn, Some(6));
+        assert_eq!(unlocked.cache.games[0].last_hash.as_deref(), Some("hash-6"));
+    }
+
+    #[test]
+    fn inactive_game_updates_do_not_mark_active_game_summary() {
+        let mut unlocked = unlocked_with_game("joined");
+        let mut active_game = ActiveHostedGamePollUpdate::default();
+
+        apply_player_events(
+            &mut unlocked,
+            PlayerEventBatch {
+                states: vec![sample_state("other-game", 7, "hash-7")],
+                turn_receipts: vec![TurnReceipt {
+                    submit_id: "submit-2".to_string(),
+                    game_id: "other-game".to_string(),
+                    turn: 7,
+                    status: TurnReceiptStatus::Accepted,
+                    message: None,
+                    errors: Vec::new(),
+                }],
+                ..PlayerEventBatch::default()
+            },
+            &[],
+            Some("sandbox-smoke"),
+            &mut active_game,
+        );
+
+        assert!(active_game.game_id.is_none());
+        assert!(active_game.promoted_state_hash.is_none());
+        assert!(active_game.turn_receipt.is_none());
     }
 
     #[test]

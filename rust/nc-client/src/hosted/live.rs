@@ -184,9 +184,14 @@ async fn run_live_session(
     send_status_update(&update_tx, HostedSessionStatus::Connected);
 
     if options.enable_backfill
-        && let Err(err) =
-            backfill(&client, &keys, public_filter.as_ref(), private_filter.as_ref(), &update_tx)
-                .await
+        && let Err(err) = backfill(
+            &client,
+            &keys,
+            public_filter.as_ref(),
+            private_filter.as_ref(),
+            &update_tx,
+        )
+        .await
     {
         send_status_update(&update_tx, HostedSessionStatus::Error);
         eprintln!("warning: hosted live initial backfill failed: {err}");
@@ -267,7 +272,9 @@ async fn backfill(
     update_tx: &mpsc::Sender<HostedSessionUpdate>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(filter) = public_filter {
-        let events = client.fetch_events(filter.clone(), Duration::from_secs(8)).await?;
+        let events = client
+            .fetch_events(filter.clone(), Duration::from_secs(8))
+            .await?;
         for event in events.iter() {
             if let Some(update) = parse_event(keys, event) {
                 let _ = update_tx.send(update);
@@ -275,7 +282,9 @@ async fn backfill(
         }
     }
     if let Some(filter) = private_filter {
-        let events = client.fetch_events(filter.clone(), Duration::from_secs(8)).await?;
+        let events = client
+            .fetch_events(filter.clone(), Duration::from_secs(8))
+            .await?;
         for event in events.iter() {
             if let Some(update) = parse_event(keys, event) {
                 let _ = update_tx.send(update);

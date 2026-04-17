@@ -1,16 +1,16 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame,
 };
 
 use crate::app::App;
 
 pub fn draw(f: &mut Frame, app: &mut App) {
     let size = f.area();
-    
+
     // Reset hit detection rects
     app.channel_rects.clear();
     app.input_rect = Rect::default();
@@ -24,18 +24,21 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             Constraint::Length(3), // Input Area
         ])
         .split(size);
-    
+
     app.input_rect = chunks[2];
 
     // --- DRAW TITLE BAR ---
     let current_channel = app.active_channel().label();
-    
+
     // Left part of title: App name and handle
     let title_left = format!(" NC-NOSTR-SYSOP | {} ", app.sysop_handle);
     // Center part: Active channel
     let title_center = format!(" Channel: {} ", current_channel);
     // Right part: Connection status
-    let title_right = format!(" Status: {} | Relays: {} ", app.connection_status, app.relay_count);
+    let title_right = format!(
+        " Status: {} | Relays: {} ",
+        app.connection_status, app.relay_count
+    );
 
     let title_block = Block::default().borders(Borders::ALL);
     let title_inner = title_block.inner(chunks[0]);
@@ -43,7 +46,12 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Render components of the title bar
     f.render_widget(
-        Paragraph::new(Span::styled(title_left, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))),
+        Paragraph::new(Span::styled(
+            title_left,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )),
         title_inner,
     );
     f.render_widget(
@@ -58,15 +66,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     // 2. Body Horizontal Layout: [Chat (75%), Info Panel (25%)]
     let body_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(75),
-            Constraint::Percentage(25),
-        ])
+        .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
         .split(chunks[1]);
 
     // --- DRAW CHAT AREA ---
     let active_channel = app.active_channel();
-    let filtered_messages: Vec<&crate::app::SysopMessage> = app.messages.iter()
+    let filtered_messages: Vec<&crate::app::SysopMessage> = app
+        .messages
+        .iter()
         .filter(|m| &m.channel == active_channel)
         .collect();
 
@@ -77,25 +84,34 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         "".to_string()
     };
 
-    let messages: Vec<ListItem> = filtered_messages.iter()
+    let messages: Vec<ListItem> = filtered_messages
+        .iter()
         .map(|m| {
             let time = m.timestamp.format("[%H:%M] ").to_string();
             let sender = format!("<{}> ", m.sender);
-            
+
             let spans = vec![
                 Span::styled(time, Style::default().fg(Color::DarkGray)),
-                Span::styled(sender, Style::default().fg(if m.is_own { Color::Green } else { Color::Magenta })),
+                Span::styled(
+                    sender,
+                    Style::default().fg(if m.is_own {
+                        Color::Green
+                    } else {
+                        Color::Magenta
+                    }),
+                ),
                 Span::raw(&m.content),
             ];
 
             ListItem::new(Line::from(spans))
-        }).collect();
+        })
+        .collect();
 
     let chat_block = Block::default()
         .borders(Borders::ALL)
         .title(format!(" {} {} ", current_channel, scroll_indicator))
         .style(Style::default().fg(Color::Cyan));
-    
+
     // Manage scroll state to keep bottom by default but allow j/k
     let list_height = body_chunks[0].height.saturating_sub(2) as usize;
     if total_messages > list_height {
@@ -120,35 +136,83 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Identity
     let id_text = vec![
-        Line::from(vec![Span::raw("Nick: "), Span::styled(&app.sysop_handle, Style::default().fg(Color::Green))]),
-        Line::from(vec![Span::raw("Type: "), Span::styled("sysop", Style::default().fg(Color::Yellow))]),
-        Line::from(vec![Span::raw("Npub: "), Span::styled(if app.sysop_npub.len() > 12 { &app.sysop_npub[..12] } else { "" }, Style::default().fg(Color::Gray)), Span::raw("...")]),
+        Line::from(vec![
+            Span::raw("Nick: "),
+            Span::styled(&app.sysop_handle, Style::default().fg(Color::Green)),
+        ]),
+        Line::from(vec![
+            Span::raw("Type: "),
+            Span::styled("sysop", Style::default().fg(Color::Yellow)),
+        ]),
+        Line::from(vec![
+            Span::raw("Npub: "),
+            Span::styled(
+                if app.sysop_npub.len() > 12 {
+                    &app.sysop_npub[..12]
+                } else {
+                    ""
+                },
+                Style::default().fg(Color::Gray),
+            ),
+            Span::raw("..."),
+        ]),
     ];
-    f.render_widget(Paragraph::new(id_text).block(Block::default().borders(Borders::ALL).title(" Identity ")), info_chunks[0]);
+    f.render_widget(
+        Paragraph::new(id_text).block(Block::default().borders(Borders::ALL).title(" Identity ")),
+        info_chunks[0],
+    );
 
     // Connection
     let conn_text = vec![
-        Line::from(vec![Span::raw("Status: "), Span::styled(&app.connection_status, Style::default().fg(Color::Green))]),
-        Line::from(vec![Span::raw("Relays: "), Span::styled(app.relay_count.to_string(), Style::default().fg(Color::Cyan))]),
+        Line::from(vec![
+            Span::raw("Status: "),
+            Span::styled(&app.connection_status, Style::default().fg(Color::Green)),
+        ]),
+        Line::from(vec![
+            Span::raw("Relays: "),
+            Span::styled(
+                app.relay_count.to_string(),
+                Style::default().fg(Color::Cyan),
+            ),
+        ]),
     ];
-    f.render_widget(Paragraph::new(conn_text).block(Block::default().borders(Borders::ALL).title(" Connection ")), info_chunks[1]);
+    f.render_widget(
+        Paragraph::new(conn_text)
+            .block(Block::default().borders(Borders::ALL).title(" Connection ")),
+        info_chunks[1],
+    );
 
     // Channels List
     let sidebar_rect = info_chunks[2];
-    let channel_items: Vec<ListItem> = app.channels.iter().enumerate().map(|(i, c)| {
-        let style = if i == app.active_channel_index {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
-        
-        // Track the Rect for each channel for mouse selection
-        let channel_rect = Rect::new(sidebar_rect.x + 1, sidebar_rect.y + 1 + i as u16, sidebar_rect.width - 2, 1);
-        app.channel_rects.push((i, channel_rect));
+    let channel_items: Vec<ListItem> = app
+        .channels
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let style = if i == app.active_channel_index {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
 
-        ListItem::new(c.label()).style(style)
-    }).collect();
-    f.render_widget(List::new(channel_items).block(Block::default().borders(Borders::ALL).title(" Channels ")), sidebar_rect);
+            // Track the Rect for each channel for mouse selection
+            let channel_rect = Rect::new(
+                sidebar_rect.x + 1,
+                sidebar_rect.y + 1 + i as u16,
+                sidebar_rect.width - 2,
+                1,
+            );
+            app.channel_rects.push((i, channel_rect));
+
+            ListItem::new(c.label()).style(style)
+        })
+        .collect();
+    f.render_widget(
+        List::new(channel_items).block(Block::default().borders(Borders::ALL).title(" Channels ")),
+        sidebar_rect,
+    );
 
     // --- DRAW INPUT AREA ---
     let (input_text, mode_text, input_style) = match app.input_mode {

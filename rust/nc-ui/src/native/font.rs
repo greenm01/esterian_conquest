@@ -539,11 +539,7 @@ mod tests {
         pack_rgb(color_to_rgb(GameColor::Black))
     }
 
-    fn install_overwide_test_glyph(
-        renderer: &mut FontRenderer,
-        face: FontFaceKey,
-        ch: char,
-    ) {
+    fn install_overwide_test_glyph(renderer: &mut FontRenderer, face: FontFaceKey, ch: char) {
         let baseline = renderer.face(face).baseline;
         renderer.glyphs.insert(
             (face, ch),

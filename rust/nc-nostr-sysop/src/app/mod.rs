@@ -1,5 +1,5 @@
-use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
+use std::collections::VecDeque;
 
 pub mod update;
 
@@ -49,7 +49,7 @@ pub struct App {
     pub sysop_npub: String,
     pub relay_count: usize,
     pub connection_status: String,
-    
+
     // UI Layout tracking for mouse interaction
     pub channel_rects: Vec<(usize, ratatui::layout::Rect)>,
     pub input_rect: ratatui::layout::Rect,

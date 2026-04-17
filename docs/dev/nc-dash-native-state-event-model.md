@@ -46,29 +46,29 @@ shell lives around it in `rust/nc-dash/src/native.rs`.
 - `update()` on the native shell mutates `DashApp` and returns `DashEffect`
   values such as `RequestRedraw` and `Exit`.
 - Rendering stays separate: `DashApp::render_playfield()` builds a
-  `PlayfieldBuffer`, and the shared native renderer paints it to the window.
+  `PlayfieldBuffer`, and the native presentation layer paints it to the
+  window.
 
 This is intentionally a compatibility step, not a full reducer rewrite. The
 old crossterm-shaped key/mouse handlers still exist inside `DashApp`, but they
 now sit behind a native shell boundary instead of owning the process loop.
 
-## Shared Native Renderer
+## Renderer Status
 
-The native cell-grid stack now lives in `nc-ui`, not `nc-connect`.
+The earlier native-renderer migration note is now partially stale.
 
-- `rust/nc-ui/src/native/mod.rs`
-- `rust/nc-ui/src/native/font.rs`
+`nc-dash` does **not** currently present through the `nc-ui` native renderer.
+Its active path still goes through the vendored `ratatui-wgpu` backend in:
 
-That shared layer owns:
+- `rust/nc-dash/src/native_grid/mod.rs`
+- `rust/vendor/ratatui-wgpu-0.5.0/`
 
-- the window cell metrics
-- centered pixel-to-cell hit testing
-- 0xProto Nerd Font Mono primary rasterization with Noto Sans Mono fallback
-- `PlayfieldBuffer` to `softbuffer` presentation
-- shared `winit` -> crossterm-style key translation
+That mismatch matters because the app-side render contract is already
+cell-buffer oriented while the current presentation path is still backend
+oriented.
 
-`nc-connect` now uses the same shared renderer/input pieces. This avoids
-drifting native stacks across two clients.
+The renderer replacement direction is defined separately in
+[nc-dash-glyphon-renderer.md](nc-dash-glyphon-renderer.md).
 
 ## Redraw Policy
 
@@ -100,15 +100,13 @@ aligned to the latest pointer location instead of building a backlog.
 
 ## Native Rendering
 
-The native renderer now keeps a cached pixel backbuffer plus the previous
-`PlayfieldBuffer` snapshot.
+The long-term renderer remains a native cell-grid presentation path, not a PTY
+or terminal-emulation model.
 
-- first frame, resize, or geometry/background change triggers a full repaint
-- stable frames use row fingerprints and changed spans to redraw only dirty
-  cells into the cached pixel backbuffer
-- glyph rasterization stays cached in the font renderer
-- the final softbuffer present is still whole-surface, but the expensive
-  per-cell redraw work is limited to changed regions
+The active implementation details are still in transition. This document keeps
+the native event-loop model authoritative, while
+[nc-dash-glyphon-renderer.md](nc-dash-glyphon-renderer.md) defines the intended
+renderer replacement.
 
 ## Preserved UI Contract
 

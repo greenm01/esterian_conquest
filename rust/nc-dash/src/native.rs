@@ -44,6 +44,7 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 pub(crate) trait NativeApp {
     fn window_title(&self) -> &'static str;
     fn geometry(&self) -> ScreenGeometry;
+    fn native_window_ready(&mut self, _window: &Window) {}
     fn saved_window_state(&self) -> Option<PersistedWindowState> {
         None
     }
@@ -591,7 +592,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
         if self.window.is_some() {
             return;
         }
-        let app = self
+        let mut app = self
             .app_factory
             .take()
             .expect("app_factory consumed in resumed");
@@ -612,6 +613,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 return;
             }
         };
+        app.native_window_ready(window.as_ref());
         self.diagnostics
             .borrow_mut()
             .set_stage(NativeStage::RendererInit);

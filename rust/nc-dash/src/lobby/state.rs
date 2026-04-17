@@ -153,6 +153,29 @@ pub enum ThreadPaneFocus {
     Threads,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostedSyncPhase {
+    Idle,
+    ResumingHostedGame { game_id: String },
+    AwaitingTurnReceipt { game_id: String, turn: u32 },
+    AwaitingAuthoritativeState { game_id: String, turn: u32 },
+}
+
+impl HostedSyncPhase {
+    pub fn current_game_id(&self) -> Option<&str> {
+        match self {
+            Self::Idle => None,
+            Self::ResumingHostedGame { game_id }
+            | Self::AwaitingTurnReceipt { game_id, .. }
+            | Self::AwaitingAuthoritativeState { game_id, .. } => Some(game_id.as_str()),
+        }
+    }
+
+    pub fn is_resuming_hosted_game(&self) -> bool {
+        matches!(self, Self::ResumingHostedGame { .. })
+    }
+}
+
 pub struct HostedGameView {
     pub row: JoinedGameRow,
     pub snapshot: GameState,
@@ -228,6 +251,7 @@ pub struct LobbyState {
     pub theme_selected: usize,
     pub theme_original_key: String,
     pub hosted_game: Option<HostedGameView>,
+    pub hosted_sync_phase: HostedSyncPhase,
 }
 
 impl LobbyState {
@@ -297,6 +321,7 @@ impl LobbyState {
             theme_selected: 0,
             theme_original_key: crate::theme::default_theme_key().to_string(),
             hosted_game: None,
+            hosted_sync_phase: HostedSyncPhase::Idle,
         }
     }
 

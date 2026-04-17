@@ -1,6 +1,6 @@
-use crossterm::event::{KeyCode, KeyEvent};
 use super::{App, SysopMessage};
 use chrono::Utc;
+use crossterm::event::{KeyCode, KeyEvent};
 
 pub enum UpdateResult {
     None,
@@ -159,13 +159,17 @@ fn handle_command(app: &mut App, input: &str) -> UpdateResult {
             }
             let npub = parts[1].to_string();
             let channel = super::SysopChannel::Direct(npub.clone());
-            
+
             if !app.channels.contains(&channel) {
                 app.channels.push(channel);
             }
-            
+
             // Switch to that channel
-            if let Some(idx) = app.channels.iter().position(|c| c == &super::SysopChannel::Direct(npub.clone())) {
+            if let Some(idx) = app
+                .channels
+                .iter()
+                .position(|c| c == &super::SysopChannel::Direct(npub.clone()))
+            {
                 app.active_channel_index = idx;
                 app.scroll_offset = 0;
             }

@@ -11,14 +11,14 @@ Future hosted-first lobby behavior for the same binary is defined separately in
 
 The legacy TUI (`nc-game`) remains unchanged for BBS door mode and players
 who prefer the classic interface. Both crates share the same game data model
-(`nc-data`), engine (`nc-engine`), and rendering primitives (`nc-ui`).
+(`nc-data`) and engine (`nc-engine`).
 
 ## Crate Boundaries
 
 ```
 nc-game   ← legacy 80×25 BBS/door TUI (unchanged)
 nc-dash   ← full-screen dashboard (this crate)
-nc-ui     ← shared: PlayfieldBuffer, native cell-grid renderer, terminal helpers, themes
+nc-ui     ← shared: PlayfieldBuffer, terminal helpers, themes
 nc-data   ← shared: game state, records, economy formulas
 nc-engine ← shared: maintenance engine, combat, reports
 ```
@@ -28,23 +28,28 @@ doors and retro terminals, `nc-dash` for modern local play.
 
 `nc-dash` must not call into `nc-game`. The legacy crate is the UX and
 workflow reference only. Shared neutral rendering primitives belong in
-`nc-ui`; dashboard-specific overlays, prompts, and tables are implemented
-inside `nc-dash`.
+`nc-ui`; dashboard-specific overlays, prompts, tables, and native presentation
+choices are implemented inside `nc-dash`.
 
 ## Rendering Model
 
 `nc-dash` still renders from `PlayfieldBuffer`, but the presentation shell is
-now native rather than PTY-driven.
+native rather than PTY-driven.
 
 - `PlayfieldBuffer` already supports arbitrary dimensions.
-- `nc-ui` now owns the shared native cell-grid renderer used by both
-  `nc-dash` and `nc-connect`.
-- `winit` drives native window/input events and `softbuffer` presents the
-  rendered cell grid.
-- No widget framework — direct cell-by-cell rendering for full control.
+- `winit` drives the native window/input loop.
+- The current `nc-dash` GPU presentation path still goes through a vendored
+  `ratatui-wgpu` backend rather than the shared `nc-ui` renderer.
+- The app-side output contract is already cell-grid first: dashboard and lobby
+  code produce final playfield state before presentation.
+- No widget framework owns the visible shell; `nc-dash` owns the cell-grid
+  presentation contract.
 
 The dashboard creates a `PlayfieldBuffer` at the actual window cell-grid size
 (detected on startup and resize) rather than the fixed 80×25 grid.
+
+The renderer replacement direction is documented separately in
+[../dev/nc-dash-glyphon-renderer.md](../dev/nc-dash-glyphon-renderer.md).
 
 ## Layout
 

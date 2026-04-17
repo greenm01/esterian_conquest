@@ -60,11 +60,7 @@ fn main() {
     }
     writeln!(code, "];").expect("write to String");
 
-    writeln!(
-        code,
-        "\n/// Auto-generated builtin file names."
-    )
-    .expect("write to String");
+    writeln!(code, "\n/// Auto-generated builtin file names.").expect("write to String");
     writeln!(code, "const GENERATED_BUILTIN_FILE_NAMES: &[&str] = &[").expect("write to String");
     for (stem, _) in &themes {
         writeln!(code, "    \"{stem}.kdl\",").expect("write to String");

@@ -27,5 +27,8 @@ serde_json = "1"
 tracing = "0.1"
 wgpu = "29.0.0"
 winit = "0.30"
-arboard = { version = "3", features = ["wayland-data-control"] }
+arboard = "3"
 chrono = { version = "0.4", features = ["serde"] }
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+smithay-clipboard = "0.7.3"

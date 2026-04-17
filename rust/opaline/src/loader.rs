@@ -11,10 +11,13 @@ use crate::theme::Theme;
 ///
 /// The optional `path` is stored for error diagnostics only.
 pub fn load_from_str(kdl_str: &str, path: Option<&Path>) -> Result<Theme, OpalineError> {
-    let document: KdlDocument = kdl_str.parse().map_err(|source: kdl::KdlError| OpalineError::Parse {
-        path: path.map(Path::to_path_buf),
-        message: source.to_string(),
-    })?;
+    let document: KdlDocument =
+        kdl_str
+            .parse()
+            .map_err(|source: kdl::KdlError| OpalineError::Parse {
+                path: path.map(Path::to_path_buf),
+                message: source.to_string(),
+            })?;
     let theme_file = parse_theme_file(&document, path)?;
 
     let resolved = resolver::resolve(&theme_file)?;
@@ -31,7 +34,10 @@ pub fn load_from_file(path: impl AsRef<Path>) -> Result<Theme, OpalineError> {
     load_from_str(&contents, Some(path))
 }
 
-fn parse_theme_file(document: &KdlDocument, path: Option<&Path>) -> Result<ThemeFile, OpalineError> {
+fn parse_theme_file(
+    document: &KdlDocument,
+    path: Option<&Path>,
+) -> Result<ThemeFile, OpalineError> {
     let mut meta = None;
     let mut palette = std::collections::HashMap::new();
     let mut tokens = std::collections::HashMap::new();
@@ -95,7 +101,10 @@ fn parse_meta(node: &KdlNode, path: Option<&Path>) -> Result<ThemeMeta, OpalineE
     )?;
 
     let Some(name) = prop_string(node, "name") else {
-        return Err(parse_error(path, "meta node missing string property 'name'"));
+        return Err(parse_error(
+            path,
+            "meta node missing string property 'name'",
+        ));
     };
 
     let variant = match prop_string(node, "variant").as_deref() {
@@ -217,7 +226,10 @@ fn reject_unknown_properties(
         let Some(name) = entry.name() else {
             continue;
         };
-        if !allowed.iter().any(|allowed_name| *allowed_name == name.value()) {
+        if !allowed
+            .iter()
+            .any(|allowed_name| *allowed_name == name.value())
+        {
             return Err(parse_error(
                 path,
                 &format!(

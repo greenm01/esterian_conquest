@@ -24,7 +24,7 @@ use crate::native::NativeApp;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
-use self::state::{LobbyMouseGesture, LobbyRoute, LobbyTab, ThreadPaneFocus};
+use self::state::{HostedSyncPhase, LobbyMouseGesture, LobbyRoute, LobbyTab, ThreadPaneFocus};
 
 pub use self::state::LobbyApp;
 
@@ -58,6 +58,7 @@ struct LobbyMouseRenderState {
     show_manual: bool,
     show_help: bool,
     show_resume_sync_overlay: bool,
+    hosted_sync_phase: HostedSyncPhase,
     sandbox_join_notice: Option<String>,
     network_status: state::LobbyNetworkStatus,
     should_quit: bool,
@@ -156,7 +157,7 @@ impl LobbyApp {
         self.state.status_message = None;
         self.gate_reset_deadline = None;
         self.gate_reset_action = None;
-        self.state.show_resume_sync_overlay = false;
+        self.set_hosted_sync_phase(HostedSyncPhase::Idle);
         self.state.route = LobbyRoute::MatrixLocked;
         self.mouse_gesture = LobbyMouseGesture::None;
         self.matrix_rain.reset();
@@ -226,8 +227,109 @@ impl LobbyApp {
     }
 
     fn dismiss_resume_sync_overlay(&mut self) {
-        self.state.show_resume_sync_overlay = false;
+        if matches!(
+            self.state.hosted_sync_phase,
+            HostedSyncPhase::ResumingHostedGame { .. }
+        ) {
+            self.state.hosted_sync_phase = HostedSyncPhase::Idle;
+        }
+        self.refresh_resume_sync_overlay();
         update::maybe_open_home_manual(self);
+    }
+
+    fn refresh_resume_sync_overlay(&mut self) {
+        let hosted_route = matches!(self.state.route, LobbyRoute::HostedGame | LobbyRoute::SubmitTurn)
+            && self.state.hosted_game.is_some();
+        self.state.show_resume_sync_overlay =
+            hosted_route && self.state.hosted_sync_phase.is_resuming_hosted_game();
+    }
+
+    fn set_hosted_sync_phase(&mut self, phase: HostedSyncPhase) {
+        self.state.hosted_sync_phase = phase;
+        self.refresh_resume_sync_overlay();
+    }
+
+    fn begin_hosted_resume_sync(&mut self) {
+        let phase = self
+            .state
+            .hosted_game
+            .as_ref()
+            .map(|hosted| HostedSyncPhase::ResumingHostedGame {
+                game_id: hosted.row.game_id.clone(),
+            })
+            .unwrap_or(HostedSyncPhase::Idle);
+        self.set_hosted_sync_phase(phase);
+    }
+
+    fn complete_hosted_sync_from_cached_state(&mut self) -> bool {
+        if matches!(
+            self.state.hosted_sync_phase,
+            HostedSyncPhase::Idle | HostedSyncPhase::AwaitingTurnReceipt { .. }
+        ) {
+            return false;
+        }
+        if let Some(hosted) = self.state.hosted_game.as_mut() {
+            if !matches!(
+                self.state.hosted_sync_phase,
+                HostedSyncPhase::ResumingHostedGame { .. }
+            ) && hosted.submit_status.is_none()
+            {
+                hosted.submit_status =
+                    Some("Hosted dashboard synchronized from nc-host.".to_string());
+            }
+        }
+        self.set_hosted_sync_phase(HostedSyncPhase::Idle);
+        true
+    }
+
+    fn apply_active_hosted_poll_update(
+        &mut self,
+        active_game: &transport::ActiveHostedGamePollUpdate,
+    ) -> bool {
+        let Some(current_game_id) = self
+            .state
+            .hosted_game
+            .as_ref()
+            .map(|hosted| hosted.row.game_id.as_str())
+        else {
+            return false;
+        };
+        if active_game.game_id.as_deref() != Some(current_game_id) {
+            if matches!(
+                self.state.hosted_sync_phase,
+                HostedSyncPhase::ResumingHostedGame { .. }
+            ) && self.state.network_status == state::LobbyNetworkStatus::Synced
+            {
+                return self.complete_hosted_sync_from_cached_state();
+            }
+            return false;
+        }
+
+        let mut changed = false;
+        if let Some(receipt) = active_game.turn_receipt.as_ref() {
+            changed |= update::apply_active_turn_receipt(self, receipt);
+        }
+        if let Some(promoted_hash) = active_game.promoted_state_hash.as_deref() {
+            let current_hash = self
+                .state
+                .hosted_game
+                .as_ref()
+                .map(|hosted| hosted.snapshot.state_hash.as_str());
+            if current_hash == Some(promoted_hash) {
+                changed |= self.complete_hosted_sync_from_cached_state();
+            } else if update::reload_hosted_dashboard_from_cached_snapshot(self) {
+                changed = true;
+                changed |= self.complete_hosted_sync_from_cached_state();
+            }
+        } else if matches!(
+            self.state.hosted_sync_phase,
+            HostedSyncPhase::ResumingHostedGame { .. }
+        ) && self.state.network_status == state::LobbyNetworkStatus::Synced
+        {
+            changed |= self.complete_hosted_sync_from_cached_state();
+        }
+
+        changed
     }
 
     fn mouse_render_state(&self) -> LobbyMouseRenderState {
@@ -256,6 +358,7 @@ impl LobbyApp {
             show_manual: self.state.show_manual,
             show_help: self.state.show_help,
             show_resume_sync_overlay: self.state.show_resume_sync_overlay,
+            hosted_sync_phase: self.state.hosted_sync_phase.clone(),
             sandbox_join_notice: self.state.sandbox_join_notice.clone(),
             network_status: self.state.network_status,
             should_quit: self.should_quit,
@@ -270,7 +373,7 @@ impl LobbyApp {
             .and_then(|hosted| hosted.dashboard.debug_render_signature())
             .unwrap_or_else(|| "-".to_string());
         format!(
-            "route={:?} tab={:?} net={:?} joined={} open={} notices={} contacts={} threads={} inbox={} help={} manual={} resume_sync={} hosted={} hosted_sig={} popup_pos={} gesture={:?} status={}",
+            "route={:?} tab={:?} net={:?} joined={} open={} notices={} contacts={} threads={} inbox={} help={} manual={} resume_sync={} sync_game={} hosted={} hosted_sig={} popup_pos={} gesture={:?} status={}",
             self.state.route,
             self.state.active_tab,
             self.state.network_status,
@@ -283,6 +386,7 @@ impl LobbyApp {
             self.state.show_help,
             self.state.show_manual,
             self.state.show_resume_sync_overlay,
+            self.state.hosted_sync_phase.current_game_id().unwrap_or("-"),
             self.state.hosted_game.is_some(),
             hosted_signature,
             self.popup_position.is_some(),
@@ -528,20 +632,16 @@ impl LobbyApp {
         if self.freeze_live_updates {
             return false;
         }
-        match self.transport.poll_updates() {
-            Ok(Some(loaded)) => {
+        let active_game_id = self
+            .state
+            .hosted_game
+            .as_ref()
+            .map(|hosted| hosted.row.game_id.as_str());
+        match self.transport.poll_updates(active_game_id) {
+            Ok(Some(update)) => {
                 let before = self.mouse_render_state();
-                self.state.apply_loaded(loaded);
-                if self.state.route == LobbyRoute::HostedGame
-                    && update::reload_hosted_dashboard_from_cached_snapshot(self)
-                {
-                    self.log_diagnostic_state_change(
-                        "poll_updates.hosted_reload",
-                        &before,
-                        &self.mouse_render_state(),
-                    );
-                    return true;
-                }
+                self.state.apply_loaded(update.loaded);
+                let hosted_changed = self.apply_active_hosted_poll_update(&update.active_game);
                 if self.state.route == LobbyRoute::Home
                     && self.state.active_tab == LobbyTab::Comms
                     && self.state.thread_pane_focus == ThreadPaneFocus::Chat
@@ -563,12 +663,16 @@ impl LobbyApp {
                 }
                 if self.state.show_resume_sync_overlay
                     && self.state.network_status == state::LobbyNetworkStatus::Synced
+                    && !matches!(
+                        self.state.hosted_sync_phase,
+                        HostedSyncPhase::ResumingHostedGame { .. }
+                    )
                 {
                     self.dismiss_resume_sync_overlay();
                 }
                 let after = self.mouse_render_state();
                 self.log_diagnostic_state_change("poll_updates.apply_loaded", &before, &after);
-                before != after
+                hosted_changed || before != after
             }
             Ok(None) => false,
             Err(err) => {
@@ -878,6 +982,10 @@ impl NativeApp for LobbyApp {
 
     fn saved_window_state(&self) -> Option<self::storage::settings::PersistedWindowState> {
         self.state.settings.persisted_window_state()
+    }
+
+    fn native_window_ready(&mut self, window: &winit::window::Window) {
+        self.clipboard.attach_window(window);
     }
 
     fn persist_window_state(

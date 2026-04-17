@@ -1,28 +1,34 @@
 use anyhow::{Context, Result};
+use chrono::Utc;
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CrosstermEvent},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{io, time::{Duration, Instant}};
-use tokio::sync::mpsc;
-use chrono::Utc;
-use rpassword::read_password;
 use nc_client::keychain::{
-    Keychain, active_keys, load_keychain_from, now_iso8601, push_new_identity,
-    save_keychain_to, Identity, IdentityType,
+    Identity, IdentityType, Keychain, active_keys, load_keychain_from, now_iso8601,
+    push_new_identity, save_keychain_to,
 };
 use nostr_sdk::ToBech32;
+use ratatui::{Terminal, backend::CrosstermBackend};
+use rpassword::read_password;
 use std::path::PathBuf;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
+use tokio::sync::mpsc;
 
 mod app;
-mod ui;
 mod network;
+mod ui;
 
-use crate::app::{App, SysopMessage, update::{self, UpdateResult}};
-use crate::network::{SysopClient, NetworkEvent};
+use crate::app::{
+    App, SysopMessage,
+    update::{self, UpdateResult},
+};
+use crate::network::{NetworkEvent, SysopClient};
 
 const SYSOP_APP_DIR_NAME: &str = "nc-nostr-sysop";
 
@@ -147,9 +153,11 @@ async fn run_tui(args: Args) -> Result<()> {
     let keychain = load_keychain_from(&password, &keychain_path)
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .ok_or_else(|| anyhow::anyhow!("keychain not found; run `nc-nostr-sysop init` first"))?;
-    
+
     let keys = active_keys(&keychain).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let relay = args.relay.unwrap_or_else(|| "ws://127.0.0.1:8080".to_string());
+    let relay = args
+        .relay
+        .unwrap_or_else(|| "ws://127.0.0.1:8080".to_string());
 
     // Setup terminal
     enable_raw_mode()?;
@@ -160,7 +168,10 @@ async fn run_tui(args: Args) -> Result<()> {
 
     // App state
     let mut app = App::new();
-    app.sysop_npub = keys.public_key().to_bech32().map_err(|e| anyhow::anyhow!("{e}"))?;
+    app.sysop_npub = keys
+        .public_key()
+        .to_bech32()
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     app.relay_count = 1; // Basic for now
     app.connection_status = "Connected".to_string();
 

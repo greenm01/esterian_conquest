@@ -492,8 +492,8 @@ mod tests {
     use super::{
         RenderSnapshot, changed_spans, fingerprint_row, frame_background, redraw_snapshot_diff,
     };
-    use crate::native::color_to_rgb;
     use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
+    use crate::native::color_to_rgb;
 
     fn style() -> CellStyle {
         CellStyle::new(GameColor::White, GameColor::Black, false)
