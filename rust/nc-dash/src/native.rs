@@ -1,6 +1,6 @@
 use crate::geometry::ScreenGeometry;
 use crate::input::{
-    KeyModifiers, MouseButton, MouseEvent, MouseEventKind, key_event_from_winit,
+    KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, key_event_from_winit,
     key_modifiers_from_winit,
 };
 use crate::lobby::storage::settings::PersistedWindowState;
@@ -116,6 +116,7 @@ enum NativeMsg {
     WindowResized {
         pixel_width: u32,
         pixel_height: u32,
+        scale_factor: f64,
     },
 }
 
@@ -452,9 +453,9 @@ impl<T: NativeApp> NativeShell<T> {
             NativeMsg::WindowResized {
                 pixel_width,
                 pixel_height,
+                scale_factor,
             } => {
-                if self.resize_to_window_pixels(pixel_width, pixel_height, self.window_scale_factor)
-                {
+                if self.resize_to_window_pixels(pixel_width, pixel_height, scale_factor) {
                     self.push_state_effects(&mut effects, true, NativeRedrawCause::Resize);
                 }
             }
@@ -686,6 +687,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             NativeMsg::WindowResized {
                 pixel_width: initial_size.width,
                 pixel_height: initial_size.height,
+                scale_factor: window.scale_factor(),
             },
             false,
         );
@@ -743,6 +745,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     NativeMsg::WindowResized {
                         pixel_width: size.width,
                         pixel_height: size.height,
+                        scale_factor: window.scale_factor(),
                     },
                     false,
                 );
@@ -757,6 +760,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     NativeMsg::WindowResized {
                         pixel_width: size.width,
                         pixel_height: size.height,
+                        scale_factor: window.scale_factor(),
                     },
                     false,
                 );
@@ -826,6 +830,23 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     NativeMsg::KeyInput(key),
                     true,
                 );
+            }
+            WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
+                for ch in text.chars() {
+                    let key =
+                        KeyEvent::new(KeyCode::Char(ch), key_modifiers_from_winit(shell.modifiers));
+                    self.diagnostics
+                        .borrow_mut()
+                        .set_last_input_cause(NativeInputCause::Key);
+                    shell.app.note_user_activity(Instant::now());
+                    dispatch(
+                        shell,
+                        window.as_ref(),
+                        &self.diagnostics,
+                        NativeMsg::KeyInput(key),
+                        true,
+                    );
+                }
             }
             WindowEvent::RedrawRequested => {
                 shell.redraw_requested = false;
@@ -1029,6 +1050,9 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                     }
                     window.request_redraw();
                     shell.redraw_requested = true;
+                    if let Some(deadline) = shell.app.next_wakeup() {
+                        event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+                    }
                 }
                 RedrawSchedule::Deferred(deadline) => {
                     event_loop.set_control_flow(ControlFlow::WaitUntil(
@@ -1061,9 +1085,8 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                             }
                             window.request_redraw();
                             shell.redraw_requested = true;
-                        } else {
-                            event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
                         }
+                        event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
                     }
                 }
             }
@@ -1517,6 +1540,13 @@ fn sync_window_input_state<T: NativeApp>(
     let wants_text_input = shell.app.wants_text_input();
     if sync_text_input_enabled(&mut shell.text_input_enabled, wants_text_input) {
         window.set_ime_allowed(wants_text_input);
+        if wants_text_input {
+            let size = window.inner_size();
+            window.set_ime_cursor_area(
+                winit::dpi::PhysicalPosition::new(0, 0),
+                winit::dpi::PhysicalSize::new(size.width.max(1), size.height.max(1)),
+            );
+        }
         shell.needs_redraw = true;
     }
 }

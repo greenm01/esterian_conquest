@@ -17,7 +17,7 @@ use super::chrome::{
 use super::layout::{popup_rect, scroll_offset};
 
 const FOOTER_HEIGHT: u16 = 5;
-const SETTINGS_ROWS: [&str; 7] = [
+pub(crate) const SETTINGS_ROWS: [&str; 7] = [
     "Handle",
     "Idle Lock",
     "Mouse Follow",
@@ -28,9 +28,9 @@ const SETTINGS_ROWS: [&str; 7] = [
 ];
 
 type HelpRow = (&'static str, &'static str);
-const THEME_PICKER_PANEL_GAP: u16 = 1;
-const THEME_PICKER_PANEL_CHROME: u16 = 2;
-const THEME_PICKER_POPUP_CHROME: u16 = 2;
+pub(crate) const THEME_PICKER_PANEL_GAP: u16 = 1;
+pub(crate) const THEME_PICKER_PANEL_CHROME: u16 = 2;
+pub(crate) const THEME_PICKER_POPUP_CHROME: u16 = 2;
 
 const MY_GAMES_HELP_ROWS: &[HelpRow] = &[
     ("Tab", "cycle dashboard tabs"),
@@ -726,7 +726,7 @@ fn theme_preview_lines(app: &LobbyApp) -> Vec<String> {
     ]
 }
 
-fn theme_picker_dimensions(app: &LobbyApp) -> (usize, usize, usize, usize) {
+pub(crate) fn theme_picker_dimensions(app: &LobbyApp) -> (usize, usize, usize, usize) {
     let themes = app.state.available_themes();
     let list_width = themes
         .iter()
@@ -750,7 +750,7 @@ fn theme_picker_dimensions(app: &LobbyApp) -> (usize, usize, usize, usize) {
     )
 }
 
-fn theme_picker_panel_widths(
+pub(crate) fn theme_picker_panel_widths(
     available_width: u16,
     desired_list_width: u16,
     desired_preview_width: u16,

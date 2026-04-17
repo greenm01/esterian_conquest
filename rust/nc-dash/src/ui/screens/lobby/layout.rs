@@ -265,3 +265,48 @@ fn tab_header_rows(tab: LobbyTab) -> usize {
         LobbyTab::Comms => 1,
     }
 }
+
+pub fn hit_test_settings(app: &LobbyApp, column: u16, row: u16) -> Option<usize> {
+    let popup = active_popup_rect(app)?;
+    if app.state.route != LobbyRoute::Settings {
+        return None;
+    }
+    let inner = super::chrome::popup_inner(popup);
+    if !contains(inner, column, row) {
+        return None;
+    }
+    let relative_row = row.saturating_sub(inner.y) as usize;
+    (relative_row < super::popups::SETTINGS_ROWS.len()).then_some(relative_row)
+}
+
+pub fn hit_test_theme_picker(app: &LobbyApp, column: u16, row: u16) -> Option<usize> {
+    let popup = active_popup_rect(app)?;
+    if app.state.route != LobbyRoute::ThemePicker {
+        return None;
+    }
+    let inner = super::chrome::popup_inner(popup);
+    if !contains(inner, column, row) {
+        return None;
+    }
+    let (list_inner_width, preview_inner_width, _, _) = super::popups::theme_picker_dimensions(app);
+    let (list_panel_width, _) = super::popups::theme_picker_panel_widths(
+        inner.width,
+        list_inner_width as u16 + super::popups::THEME_PICKER_PANEL_CHROME,
+        preview_inner_width as u16 + super::popups::THEME_PICKER_PANEL_CHROME,
+    );
+    let [list_area, _] =
+        Layout::horizontal([Constraint::Length(list_panel_width), Constraint::Length(0)])
+            .spacing(super::popups::THEME_PICKER_PANEL_GAP)
+            .areas(inner);
+
+    let list_inner = super::chrome::panel_inner(list_area);
+    if !contains(list_inner, column, row) {
+        return None;
+    }
+    let themes = app.state.available_themes();
+    let visible_rows = list_inner.height as usize;
+    let scroll = scroll_offset(themes.len(), visible_rows, app.state.theme_selected);
+    let relative_row = row.saturating_sub(list_inner.y) as usize;
+    let absolute_row = scroll + relative_row;
+    (absolute_row < themes.len()).then_some(absolute_row)
+}

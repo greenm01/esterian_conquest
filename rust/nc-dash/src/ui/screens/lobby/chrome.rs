@@ -60,6 +60,14 @@ pub(super) fn popup_block<'a>(title: &'a str, border_style: Style) -> Block<'a> 
         .title_style(with_panel_bg(styles.title))
 }
 
+pub(crate) fn popup_inner(area: Rect) -> Rect {
+    popup_block("", Style::default()).inner(area)
+}
+
+pub(crate) fn panel_inner(area: Rect) -> Rect {
+    panel_block("", false).inner(area)
+}
+
 pub(super) fn network_style(status: LobbyNetworkStatus) -> Style {
     let styles = theme::tui_theme();
     match status {

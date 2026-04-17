@@ -315,7 +315,7 @@ impl CellGridWindowRenderer {
             format: TextureFormat::Bgra8UnormSrgb,
             width: size.width.max(1),
             height: size.height.max(1),
-            present_mode: PresentMode::Fifo,
+            present_mode: PresentMode::AutoVsync,
             alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,

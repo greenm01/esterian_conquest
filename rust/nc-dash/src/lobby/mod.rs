@@ -9,7 +9,7 @@ pub mod update;
 
 use crate::buffer::PlayfieldBuffer;
 use crate::geometry::ScreenGeometry;
-use crate::input::KeyEvent;
+use crate::input::{KeyCode, KeyEvent};
 use crate::input::{MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
 use tracing::info;
@@ -95,6 +95,7 @@ impl LobbyApp {
             gate_reset_action: None,
             matrix_rain: onboarding::MatrixRain::new(120, 40),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
+            next_cache_save_at: now + Duration::from_secs(10),
             diagnostic_mode: options.native.diagnostic_mode,
             freeze_live_updates: options.native.freeze_live_updates,
         }
@@ -122,6 +123,7 @@ impl LobbyApp {
             gate_reset_action: None,
             matrix_rain: onboarding::MatrixRain::new(matrix_width, matrix_height),
             next_matrix_frame_at: now + MATRIX_FRAME_STEP,
+            next_cache_save_at: now + Duration::from_secs(10),
             diagnostic_mode: false,
             freeze_live_updates: false,
         };
@@ -582,6 +584,13 @@ impl LobbyApp {
                         .or(Some(self.next_matrix_frame_at))
                 });
         }
+
+        let network_wakeup = if self.transport.is_unlocked() && !self.freeze_live_updates {
+            Some(Instant::now() + Duration::from_millis(50))
+        } else {
+            None
+        };
+
         if !self.transport.is_unlocked() {
             return match (gate_reset_wakeup, cursor_wakeup) {
                 (Some(gate), Some(cursor)) => Some(gate.min(cursor)),
@@ -590,26 +599,25 @@ impl LobbyApp {
                 (None, None) => None,
             };
         }
+
         let minutes = self.state.settings.lock_timeout_minutes;
-        if minutes == 0 {
-            return match (gate_reset_wakeup, cursor_wakeup) {
-                (Some(gate), Some(cursor)) => Some(gate.min(cursor)),
-                (Some(gate), None) => Some(gate),
-                (None, Some(cursor)) => Some(cursor),
-                (None, None) => None,
-            };
+        let idle = if minutes == 0 {
+            None
+        } else {
+            Some(self.last_activity_at + Duration::from_secs(u64::from(minutes) * 60))
+        };
+
+        let mut next = network_wakeup;
+        if let Some(gate) = gate_reset_wakeup {
+            next = Some(next.map_or(gate, |n| n.min(gate)));
         }
-        let idle = self.last_activity_at + Duration::from_secs(u64::from(minutes) * 60);
-        Some(
-            gate_reset_wakeup
-                .map(|gate| {
-                    cursor_wakeup
-                        .map(|cursor| gate.min(cursor.min(idle)))
-                        .unwrap_or_else(|| gate.min(idle))
-                })
-                .or_else(|| cursor_wakeup.map(|cursor| cursor.min(idle)))
-                .unwrap_or(idle),
-        )
+        if let Some(cursor) = cursor_wakeup {
+            next = Some(next.map_or(cursor, |n| n.min(cursor)));
+        }
+        if let Some(idle_time) = idle {
+            next = Some(next.map_or(idle_time, |n| n.min(idle_time)));
+        }
+        next
     }
 
     fn on_idle_at(&mut self, now: Instant) -> bool {
@@ -646,6 +654,12 @@ impl LobbyApp {
                 self.enter_session_lock();
                 return true;
             }
+        }
+        if self.transport.is_unlocked() && now >= self.next_cache_save_at {
+            if let Err(err) = self.transport.flush_cache() {
+                tracing::error!("failed to flush lobby cache: {err}");
+            }
+            self.next_cache_save_at = now + Duration::from_secs(10);
         }
         if self.freeze_live_updates {
             return false;
@@ -920,6 +934,28 @@ impl LobbyApp {
             return;
         }
 
+        if self.state.route == LobbyRoute::Settings {
+            if let Some(selected) = ui::hit_test_settings(self, mouse.column, mouse.row) {
+                self.state.settings_selected = selected;
+                update::apply_key(
+                    self,
+                    KeyEvent::new(KeyCode::Enter, crate::input::KeyModifiers::NONE),
+                );
+                return;
+            }
+        }
+
+        if self.state.route == LobbyRoute::ThemePicker {
+            if let Some(selected) = ui::hit_test_theme_picker(self, mouse.column, mouse.row) {
+                self.state.theme_selected = selected;
+                update::apply_key(
+                    self,
+                    KeyEvent::new(KeyCode::Enter, crate::input::KeyModifiers::NONE),
+                );
+                return;
+            }
+        }
+
         if self.state.route != LobbyRoute::Home {
             return;
         }
@@ -1011,7 +1047,19 @@ impl NativeApp for LobbyApp {
     }
 
     fn wants_text_input(&self) -> bool {
-        matches!(self.state.route, LobbyRoute::FirstRun | LobbyRoute::Locked)
+        matches!(
+            self.state.route,
+            LobbyRoute::FirstRun
+                | LobbyRoute::Locked
+                | LobbyRoute::EditHandle
+                | LobbyRoute::AddContact
+                | LobbyRoute::ComposeInvite
+                | LobbyRoute::ComposeThread
+                | LobbyRoute::GameInboxThread
+                | LobbyRoute::SubmitTurn
+        ) || (self.state.route == LobbyRoute::Home
+            && self.state.active_tab == crate::lobby::state::LobbyTab::Comms
+            && self.state.thread_pane_focus == crate::lobby::state::ThreadPaneFocus::Chat)
     }
 
     fn persist_window_state(

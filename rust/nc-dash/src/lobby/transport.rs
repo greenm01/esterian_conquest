@@ -168,6 +168,7 @@ struct UnlockedClient {
     live_session: Option<HostedLiveSession>,
     relay_url: Option<String>,
     network_status: LobbyNetworkStatus,
+    cache_dirty: bool,
 }
 
 pub struct LobbyTransport {
@@ -227,6 +228,17 @@ impl LobbyTransport {
         self.unlocked.is_some()
     }
 
+    pub fn flush_cache(&mut self) -> Result<(), String> {
+        let Some(unlocked) = self.unlocked.as_mut() else {
+            return Ok(());
+        };
+        if unlocked.cache_dirty {
+            save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+            unlocked.cache_dirty = false;
+        }
+        Ok(())
+    }
+
     pub fn lock(&mut self) {
         self.unlocked = None;
     }
@@ -271,6 +283,7 @@ impl LobbyTransport {
             live_session,
             relay_url,
             network_status: initial_network_status_from_session(has_session),
+            cache_dirty: false,
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
             bootstrap_request_session(unlocked);
@@ -313,6 +326,7 @@ impl LobbyTransport {
             live_session,
             relay_url,
             network_status: initial_network_status_from_session(has_session),
+            cache_dirty: false,
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
             bootstrap_request_session(unlocked);
@@ -373,7 +387,7 @@ impl LobbyTransport {
         let Some(active_game) = apply_live_updates(unlocked, active_game_id) else {
             return Ok(None);
         };
-        save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
+        unlocked.cache_dirty = true;
         Ok(Some(LobbyPollUpdate {
             loaded: build_loaded_state(
                 unlocked,
@@ -2234,7 +2248,8 @@ mod tests {
             session: None,
             live_session: None,
             relay_url: Some("ws://127.0.0.1:8080".to_string()),
-            network_status: LobbyNetworkStatus::Connected,
+            network_status: LobbyNetworkStatus::Synced,
+            cache_dirty: false,
         }
     }
 
