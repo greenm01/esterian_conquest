@@ -17,6 +17,7 @@ pub enum TransportCommand {
         nsec: String,
         reply_to: Sender<Result<LobbySnapshot, String>>,
     },
+    Disconnect,
 }
 
 #[derive(Debug)]
@@ -42,6 +43,10 @@ impl TransportActor {
             nsec,
             reply_to,
         });
+    }
+
+    pub fn disconnect(&self) {
+        let _ = self.tx.send(TransportCommand::Disconnect);
     }
 }
 
@@ -75,6 +80,9 @@ fn transport_loop(rx: Receiver<TransportCommand>) {
                     let _ = reply_to.send(Err(format!("invalid active identity: {err}")));
                 }
             },
+            Ok(TransportCommand::Disconnect) => {
+                active = None;
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }

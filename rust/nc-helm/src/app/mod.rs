@@ -210,6 +210,7 @@ pub enum Effect {
         relay_url: String,
         nsec: String,
     },
+    DisconnectTransport,
     Quit,
 }
 

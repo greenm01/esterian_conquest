@@ -196,6 +196,9 @@ impl Runtime {
                         }
                     });
                 }
+                Effect::DisconnectTransport => {
+                    self.transport.disconnect();
+                }
                 Effect::Quit => event_loop.exit(),
             }
         }

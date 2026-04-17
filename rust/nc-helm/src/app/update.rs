@@ -100,6 +100,9 @@ fn handle_lobby_updated(
     model: &mut Model,
     result: Result<crate::transport::LobbySnapshot, String>,
 ) -> Vec<Effect> {
+    if !matches!(model.route, Route::Lobby(_)) {
+        return Vec::new();
+    }
     match result {
         Ok(snapshot) => {
             model.network = NetworkState::Synced;
@@ -279,6 +282,17 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
         KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
             model.should_quit = true;
             vec![Effect::Quit]
+        }
+        KeyCode::Char('l') | KeyCode::Char('L') => {
+            model.session = None;
+            model.network = NetworkState::Idle;
+            model.games.clear();
+            model.notices.clear();
+            model.route = Route::Locked(super::LockedModel {
+                password_input: String::new(),
+                status: Some("Session locked.".to_string()),
+            });
+            vec![Effect::DisconnectTransport]
         }
         KeyCode::Char('?') | KeyCode::Char('h') | KeyCode::Char('H') => {
             lobby.help_open = true;

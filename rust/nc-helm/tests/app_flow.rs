@@ -103,3 +103,43 @@ fn lobby_update_populates_games_and_notices() {
     assert_eq!(app.model().games.len(), 1);
     assert_eq!(app.model().notices.len(), 1);
 }
+
+#[test]
+fn lock_action_disconnects_transport_and_returns_to_locked_route() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Enter)));
+    let effects = app.dispatch(Msg::Key(key(KeyCode::Char('l'))));
+    assert!(matches!(effects.as_slice(), [Effect::DisconnectTransport]));
+    match &app.model().route {
+        Route::Locked(locked) => {
+            assert_eq!(locked.status.as_deref(), Some("Session locked."));
+            assert!(locked.password_input.is_empty());
+        }
+        other => panic!("expected locked route, got {other:?}"),
+    }
+    assert!(app.model().session.is_none());
+    assert!(app.model().games.is_empty());
+    assert!(app.model().notices.is_empty());
+}
+
+#[test]
+fn tab_switching_changes_rendered_lobby_content() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Enter)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("HOME"));
+
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Tab)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("OPEN GAMES"));
+
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Tab)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("COMMS"));
+
+    let _ = app.dispatch(Msg::Key(key(KeyCode::Tab)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("SETTINGS"));
+}

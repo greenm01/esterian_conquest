@@ -251,8 +251,12 @@ fn render_lobby(
     );
 
     draw_tabs(buffer, lobby);
-    draw_games_table(buffer, model, lobby);
-    draw_notices(buffer, geometry, model);
+    match lobby.active_tab {
+        LobbyTab::Home => draw_home(buffer, geometry, model),
+        LobbyTab::OpenGames => draw_open_games(buffer, geometry, model, lobby),
+        LobbyTab::Comms => draw_comms(buffer, geometry, model),
+        LobbyTab::Settings => draw_settings(buffer, geometry, model),
+    }
     draw_footer(buffer, geometry, model, lobby);
 
     if let Some(status) = &lobby.status {
@@ -266,6 +270,142 @@ fn render_lobby(
     if lobby.help_open {
         draw_help_popup(buffer, geometry);
     }
+}
+
+fn draw_home(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+    buffer.write_text(5, 3, "HOME", ACCENT);
+    buffer.write_text(
+        7,
+        3,
+        "NC-HELM runs the hosted lobby on a fresh TEA runtime.",
+        BODY,
+    );
+    buffer.write_text(
+        8,
+        3,
+        "Background sync is isolated from the window loop.",
+        BODY,
+    );
+    buffer.write_text(10, 3, "Session", ACCENT);
+    if let Some(session) = &model.session {
+        buffer.write_text(
+            11,
+            5,
+            session
+                .active_handle
+                .as_deref()
+                .unwrap_or("anonymous identity"),
+            BODY,
+        );
+        buffer.write_text_clipped(12, 5, &session.active_npub, DIM);
+    } else {
+        buffer.write_text(11, 5, "No active session", WARN);
+    }
+    buffer.write_text(14, 3, "Lobby Snapshot", ACCENT);
+    buffer.write_text(15, 5, &format!("Open games : {}", model.games.len()), BODY);
+    buffer.write_text(
+        16,
+        5,
+        &format!("Notices    : {}", model.notices.len()),
+        BODY,
+    );
+    buffer.write_text(18, 3, "Shortcuts", ACCENT);
+    buffer.write_text(19, 5, "2 opens the game catalog.", BODY);
+    buffer.write_text(20, 5, "3 opens lobby notices/COMMS.", BODY);
+    buffer.write_text(21, 5, "4 opens settings and lock controls.", BODY);
+    draw_status_panel(buffer, geometry, model);
+}
+
+fn draw_open_games(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    lobby: &super::LobbyModel,
+) {
+    draw_games_table(buffer, model, lobby);
+    draw_status_panel(buffer, geometry, model);
+    if let Some(selected) = model.games.get(lobby.selected_game) {
+        let top = geometry.height().saturating_sub(11);
+        draw_frame(buffer, geometry.width().saturating_sub(34), 5, 30, 10, DIM);
+        let left = geometry.width().saturating_sub(32);
+        buffer.write_text(5, left, " SELECTED GAME ", ACCENT);
+        buffer.write_text_clipped(7, left, &selected.name, BODY);
+        buffer.write_text_clipped(8, left, &format!("Host  : {}", selected.host), BODY);
+        buffer.write_text_clipped(9, left, &format!("Tier  : {}", selected.tier), BODY);
+        buffer.write_text_clipped(10, left, &format!("Seats : {}", selected.seats), BODY);
+        buffer.write_text_clipped(11, left, &format!("Turn  : {}", selected.when), BODY);
+        buffer.write_text_clipped(12, left, &selected.game_id, DIM);
+        buffer.write_text_clipped(top + 2, 4, "Use Up/Down to change selection.", DIM);
+    }
+}
+
+fn draw_comms(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+    buffer.write_text(5, 3, "COMMS", ACCENT);
+    draw_frame(buffer, 2, 6, geometry.width().saturating_sub(4), 14, DIM);
+    buffer.write_text(6, 4, " LOBBY NOTICES ", ACCENT);
+    if model.notices.is_empty() {
+        buffer.write_text(9, 5, "No recent notices from the relay.", DIM);
+    } else {
+        for (idx, notice) in model.notices.iter().take(10).enumerate() {
+            buffer.write_text_clipped(8 + idx, 5, notice, BODY);
+        }
+    }
+    buffer.write_text(22, 3, "Direct replies and threads are not wired yet.", WARN);
+    draw_status_panel(buffer, geometry, model);
+}
+
+fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+    buffer.write_text(5, 3, "SETTINGS", ACCENT);
+    draw_frame(buffer, 2, 6, geometry.width().saturating_sub(4), 16, DIM);
+    buffer.write_text(6, 4, " CLIENT SETTINGS ", ACCENT);
+    buffer.write_text_clipped(8, 5, &format!("Relay URL    : {}", model.relay_url), BODY);
+    buffer.write_text(
+        9,
+        5,
+        &format!(
+            "Window Focus : {}",
+            if model.window_focused { "yes" } else { "no" }
+        ),
+        BODY,
+    );
+    buffer.write_text(
+        10,
+        5,
+        &format!(
+            "Text Input   : {}",
+            if model.wants_text_input() {
+                "armed"
+            } else {
+                "off"
+            }
+        ),
+        BODY,
+    );
+    if let Some(session) = &model.session {
+        buffer.write_text(
+            12,
+            5,
+            &format!(
+                "Handle       : {}",
+                session.active_handle.as_deref().unwrap_or("unset")
+            ),
+            BODY,
+        );
+        buffer.write_text_clipped(
+            13,
+            5,
+            &format!("Identity     : {}", session.active_npub),
+            BODY,
+        );
+    }
+    buffer.write_text(
+        16,
+        5,
+        "L : Lock the local session and stop background sync",
+        ACCENT,
+    );
+    buffer.write_text(18, 5, "Esc/Q : Quit nc-helm", DIM);
+    draw_status_panel(buffer, geometry, model);
 }
 
 fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message: &str) {
@@ -329,16 +469,25 @@ fn draw_games_table(buffer: &mut PlayfieldBuffer, model: &Model, lobby: &super::
     }
 }
 
-fn draw_notices(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+fn draw_status_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
     let top = geometry.height().saturating_sub(11);
     draw_frame(buffer, 2, top, geometry.width().saturating_sub(4), 8, DIM);
-    buffer.write_text(top, 4, " NOTICES ", ACCENT);
-    if model.notices.is_empty() {
-        buffer.write_text(top + 2, 4, "No recent lobby notices.", DIM);
-        return;
-    }
-    for (idx, notice) in model.notices.iter().take(4).enumerate() {
-        buffer.write_text_clipped(top + 1 + idx, 4, notice, BODY);
+    buffer.write_text(top, 4, " STATUS ", ACCENT);
+    let lines = [
+        format!(
+            "Network : {}",
+            match model.network {
+                NetworkState::Idle => "idle",
+                NetworkState::Connecting => "connecting",
+                NetworkState::Synced => "synced",
+                NetworkState::Error => "error",
+            }
+        ),
+        format!("Games   : {}", model.games.len()),
+        format!("Notices : {}", model.notices.len()),
+    ];
+    for (idx, line) in lines.into_iter().enumerate() {
+        buffer.write_text_clipped(top + 2 + idx, 4, &line, BODY);
     }
 }
 
@@ -352,7 +501,7 @@ fn draw_footer(
     let footer = if lobby.help_open {
         "Any key closes help."
     } else {
-        "Tab next tab   ? help   Up/Down select   Esc quit"
+        "Tab next tab   ? help   Up/Down select   L lock   Esc quit"
     };
     buffer.write_text_clipped(row, 3, footer, DIM);
     if let Some(selected) = model.games.get(lobby.selected_game) {
