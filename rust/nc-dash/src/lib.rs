@@ -8,6 +8,7 @@ mod coords;
 mod dashboard_launch;
 mod diplomacy_view;
 mod geometry;
+pub mod input;
 mod inbox;
 mod layout;
 pub mod lobby;
@@ -35,7 +36,6 @@ pub use app::state::DashApp;
 pub use buffer::PlayfieldBuffer;
 pub use geometry::ScreenGeometry;
 pub use lobby::LobbyApp;
-pub use rendered::{RenderedUi, blit_rendered_ui};
 pub use startup::{LobbyStartupOptions, NativeLaunchOptions, parse_launch_command};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -56,16 +56,6 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 
 pub fn main_entry() -> Result<(), Box<dyn std::error::Error>> {
     run(std::env::args())
-}
-
-#[doc(hidden)]
-pub fn build_native_terminal_for_repro(
-    window: std::sync::Arc<winit::window::Window>,
-) -> Result<
-    ratatui::Terminal<ratatui_wgpu::WgpuBackend<'static, 'static>>,
-    Box<dyn std::error::Error>,
-> {
-    native_grid::build_native_terminal(window)
 }
 
 fn run_dashboard_from_dir(
@@ -121,6 +111,39 @@ pub fn run_sample_hosted_snapshot_native_repro(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let snapshot = sample_hosted_dashboard_snapshot();
     run_hosted_snapshot_native_repro(&snapshot, native_options)
+}
+
+#[doc(hidden)]
+pub fn run_sample_hosted_wrapper_snapshot_native_repro(
+    native_options: startup::NativeLaunchOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let snapshot = sample_hosted_dashboard_snapshot();
+    let geometry = crate::geometry::ScreenGeometry::new(120, 40);
+    let seat = u8::try_from(snapshot.player_seat)?;
+    let mut dashboard = crate::lobby::hosted::dashboard::build_hosted_dash_app(&snapshot, geometry)?;
+    dashboard.initialize_hosted_turn_draft();
+    let submit_input = dashboard.hosted_turn_text().unwrap_or_default();
+    let mut app = crate::lobby::LobbyApp::new_for_tests(
+        crate::lobby::state::LobbyRoute::HostedGame,
+        geometry,
+    );
+    app.state.hosted_game = Some(crate::lobby::state::HostedGameView {
+        row: crate::lobby::models::JoinedGameRow::new(
+            &snapshot.game_id,
+            "joined",
+            &snapshot.player_name,
+            "nc-host",
+            "ws://127.0.0.1:8080",
+            "daemon",
+            Some(seat),
+            &format!("y{} t{}", snapshot.year, snapshot.turn),
+        ),
+        snapshot,
+        dashboard,
+        submit_input,
+        submit_status: Some("Hosted dashboard loaded from sample snapshot.".to_string()),
+    });
+    native::run(app, native_options)
 }
 
 #[doc(hidden)]

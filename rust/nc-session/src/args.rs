@@ -2,7 +2,27 @@
 
 use std::path::PathBuf;
 
-use nc_ui::terminal::{ColorMode, OutputEncoding};
+/// Wire encoding for terminal output.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OutputEncoding {
+    /// UTF-8 (default). Modern terminals, SyncTERM in UTF-8 mode.
+    #[default]
+    Utf8,
+    /// CP437 single-byte. Classic BBS doors, SyncTERM in CP437 mode.
+    Cp437,
+}
+
+/// Color depth supported by the target terminal.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ColorMode {
+    /// Classic 16-color ANSI.
+    Ansi16,
+    /// 256-color xterm palette.
+    Color256,
+    /// 24-bit RGB truecolor.
+    #[default]
+    TrueColor,
+}
 
 /// Common launch arguments shared between nc-game and nc-dash.
 ///

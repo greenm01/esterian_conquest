@@ -19,9 +19,15 @@ fn parse_backend(value: &str) -> Result<NativeBackendPreference, Box<dyn std::er
     }
 }
 
-fn parse_args(
-) -> Result<(NativeLaunchOptions, Option<String>, String, std::path::PathBuf), Box<dyn std::error::Error>>
-{
+fn parse_args() -> Result<
+    (
+        NativeLaunchOptions,
+        Option<String>,
+        String,
+        std::path::PathBuf,
+    ),
+    Box<dyn std::error::Error>,
+> {
     let mut native = NativeLaunchOptions::default();
     let mut explicit_windowed = false;
     let mut explicit_fullscreen = false;
@@ -115,10 +121,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let snapshot: GameState = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
-    run_unlocked_hosted_wrapper_snapshot_native_repro(
-        &password,
-        relay_override,
-        &snapshot,
-        native,
-    )
+    run_unlocked_hosted_wrapper_snapshot_native_repro(&password, relay_override, &snapshot, native)
 }

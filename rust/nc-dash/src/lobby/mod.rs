@@ -11,8 +11,8 @@ pub mod update;
 
 use crate::buffer::PlayfieldBuffer;
 use crate::geometry::ScreenGeometry;
-use crossterm::event::KeyEvent;
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crate::input::KeyEvent;
+use crate::input::{MouseButton, MouseEvent, MouseEventKind};
 use std::time::{Duration, Instant};
 use tracing::info;
 
@@ -21,7 +21,6 @@ use crate::modal::{
     modal_close_button_contains, render_modal_box,
 };
 use crate::native::NativeApp;
-use crate::rendered::RenderedUi;
 use crate::startup::LobbyStartupOptions;
 use crate::theme;
 
@@ -130,14 +129,6 @@ impl LobbyApp {
 
     pub fn render_for_test(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         <Self as NativeApp>::render_playfield(self)
-    }
-
-    #[doc(hidden)]
-    pub fn render_ui_for_repro(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-        Ok(RenderedUi::from_playfield(
-            &<Self as NativeApp>::render_playfield(self)?,
-            theme::tui_theme().cursor,
-        ))
     }
 
     pub fn dispatch_mouse_event_for_test(&mut self, mouse: MouseEvent) -> bool {
@@ -820,7 +811,7 @@ impl NativeApp for LobbyApp {
     fn dispatch_key_event(&mut self, key: KeyEvent) {
         if self.state.show_resume_sync_overlay {
             match key.code {
-                crossterm::event::KeyCode::Esc | crossterm::event::KeyCode::Enter => {
+                crate::input::KeyCode::Esc | crate::input::KeyCode::Enter => {
                     self.dismiss_resume_sync_overlay();
                 }
                 _ => {}
@@ -850,13 +841,25 @@ impl NativeApp for LobbyApp {
         if self.state.route == LobbyRoute::HostedGame {
             let before = self.mouse_render_state();
             let mut changed = false;
+            let draft_before = self
+                .state
+                .hosted_game
+                .as_ref()
+                .and_then(|hosted| hosted.dashboard.hosted_turn_draft.clone());
             if let Some(hosted) = self.state.hosted_game.as_mut() {
                 changed = hosted.dashboard.dispatch_mouse_event(mouse);
                 if hosted.dashboard.should_quit {
                     self.should_quit = true;
                 }
             }
-            update::sync_hosted_dashboard_draft(self);
+            let draft_after = self
+                .state
+                .hosted_game
+                .as_ref()
+                .and_then(|hosted| hosted.dashboard.hosted_turn_draft.clone());
+            if draft_before != draft_after {
+                update::sync_hosted_dashboard_draft(self);
+            }
             return changed || before != self.mouse_render_state();
         }
 
@@ -943,7 +946,7 @@ fn network_dialog_label(status: state::LobbyNetworkStatus) -> &'static str {
 mod tests {
     use super::*;
     use crate::native::NativeApp;
-    use crossterm::event::KeyModifiers;
+    use crate::input::KeyModifiers;
 
     #[test]
     fn popup_drag_reports_dragging_surface_state() {

@@ -735,7 +735,10 @@ mod tests {
         );
 
         let close_col = modal_close_button_col(rect).expect("close button col") as usize;
-        assert_eq!(close_col + MODAL_CLOSE_BUTTON.len(), rect.x as usize + rect.width as usize - 2);
+        assert_eq!(
+            close_col + MODAL_CLOSE_BUTTON.len(),
+            rect.x as usize + rect.width as usize - 2
+        );
         assert_eq!(buffer.row(rect.y as usize)[close_col].ch, '[');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, 'x');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 2].ch, ']');

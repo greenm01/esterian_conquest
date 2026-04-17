@@ -6,7 +6,7 @@ use crate::native_grid::{
     logical_window_size_for_grid, terminal_grid_for_pixels,
 };
 use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
-use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_log::LogLevel;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -50,7 +50,7 @@ pub(crate) trait NativeApp {
     fn persist_window_state(&mut self, _state: PersistedWindowState) -> Result<(), String> {
         Ok(())
     }
-    fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent);
+    fn dispatch_key_event(&mut self, key: crate::input::KeyEvent);
     fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool;
     fn resize_canvas(&mut self, cols: u16, rows: u16);
     fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>>;
@@ -95,7 +95,7 @@ enum PendingPointer {
 #[derive(Clone, Copy, Debug)]
 enum NativeMsg {
     CloseRequested,
-    KeyInput(crossterm::event::KeyEvent),
+    KeyInput(crate::input::KeyEvent),
     ModifiersChanged(ModifiersState),
     MouseButton {
         button: WinitMouseButton,
@@ -1503,7 +1503,7 @@ mod tests {
     use crate::geometry::ScreenGeometry;
     use crate::lobby::storage::settings::PersistedWindowState;
     use crate::startup::{NativeBackendPreference, NativeLaunchOptions, NativeWindowMode};
-    use crossterm::event::{MouseEvent, MouseEventKind};
+    use crate::input::{MouseEvent, MouseEventKind};
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -1527,7 +1527,7 @@ mod tests {
         assert_eq!(pointer_event_kind(false), MouseEventKind::Moved);
         assert_eq!(
             pointer_event_kind(true),
-            MouseEventKind::Drag(crossterm::event::MouseButton::Left)
+            MouseEventKind::Drag(crate::input::MouseButton::Left)
         );
     }
 
@@ -1971,7 +1971,7 @@ mod tests {
             self.geometry
         }
 
-        fn dispatch_key_event(&mut self, _key: crossterm::event::KeyEvent) {}
+        fn dispatch_key_event(&mut self, _key: crate::input::KeyEvent) {}
 
         fn dispatch_mouse_event(&mut self, mouse: MouseEvent) -> bool {
             self.mouse_dispatch_count += 1;

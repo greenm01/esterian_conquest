@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crate::input::{KeyCode, KeyEvent, KeyModifiers};
 use nc_client::hosted::store::HostedDraftStatus;
 use nc_client::password::validate_new_password;
 use nc_client::paths::data_root;

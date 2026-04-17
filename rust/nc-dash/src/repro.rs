@@ -4,7 +4,7 @@ use crate::geometry::ScreenGeometry;
 use crate::native::{self, NativeApp};
 use crate::startup::NativeLaunchOptions;
 use crate::theme;
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,

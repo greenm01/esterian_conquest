@@ -1,5 +1,6 @@
 use nc_dash::{
-    NativeLaunchOptions, lobby::hosted::dashboard::build_hosted_dash_app,
+    NativeLaunchOptions,
+    lobby::hosted::dashboard::build_hosted_dash_app,
     run_hosted_snapshot_native_repro,
     startup::{NativeBackendPreference, NativeWindowMode},
 };

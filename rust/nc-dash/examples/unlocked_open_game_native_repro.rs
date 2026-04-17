@@ -19,9 +19,15 @@ fn parse_backend(value: &str) -> Result<NativeBackendPreference, Box<dyn std::er
     }
 }
 
-fn parse_args(
-) -> Result<(NativeLaunchOptions, Option<String>, String, std::path::PathBuf), Box<dyn std::error::Error>>
-{
+fn parse_args() -> Result<
+    (
+        NativeLaunchOptions,
+        Option<String>,
+        String,
+        std::path::PathBuf,
+    ),
+    Box<dyn std::error::Error>,
+> {
     let mut native = NativeLaunchOptions::default();
     let mut explicit_windowed = false;
     let mut explicit_fullscreen = false;

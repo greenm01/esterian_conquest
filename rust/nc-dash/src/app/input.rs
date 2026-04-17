@@ -1,6 +1,6 @@
 //! Key event → Action mapping.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crate::input::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::state::{ActiveOverlay, PanelFocus};
 

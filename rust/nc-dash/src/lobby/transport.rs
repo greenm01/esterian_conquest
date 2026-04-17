@@ -229,15 +229,14 @@ impl LobbyTransport {
         let cache = ClientCache::empty();
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
-        let (session, live_session) =
-            build_sessions(
-                &keychain,
-                relay_url.as_deref(),
-                self.disable_hosted_sessions,
-                self.disable_live_session,
-                self.disable_live_private_stream,
-            )
-                .map_err(|err| err.to_string())?;
+        let (session, live_session) = build_sessions(
+            &keychain,
+            relay_url.as_deref(),
+            self.disable_hosted_sessions,
+            self.disable_live_session,
+            self.disable_live_private_stream,
+        )
+        .map_err(|err| err.to_string())?;
         let mut catalog = Vec::new();
         let handle_mode =
             validate_local_handle_before_save(session.as_ref(), &mut catalog, &cache, &keychain)?;
@@ -277,15 +276,14 @@ impl LobbyTransport {
         let cache_result = load_cache_with_recovery(password, &cache_path());
         let config = load_config().map_err(|err| err.to_string())?;
         let relay_url = effective_relay(self.relay_override.as_deref(), &config)?;
-        let (session, live_session) =
-            build_sessions(
-                &keychain,
-                relay_url.as_deref(),
-                self.disable_hosted_sessions,
-                self.disable_live_session,
-                self.disable_live_private_stream,
-            )
-                .map_err(|err| err.to_string())?;
+        let (session, live_session) = build_sessions(
+            &keychain,
+            relay_url.as_deref(),
+            self.disable_hosted_sessions,
+            self.disable_live_session,
+            self.disable_live_private_stream,
+        )
+        .map_err(|err| err.to_string())?;
         let has_session = session.is_some();
         self.unlocked = Some(UnlockedClient {
             password: password.to_string(),
@@ -939,11 +937,12 @@ fn prepare_open_game(
             loaded: None,
         })?;
     let handle = current_handle(&unlocked.keychain);
-    let player_pubkey = current_player_pubkey(&unlocked.keychain).map_err(|err| LobbyOpenGameError {
-        code: None,
-        message: err.to_string(),
-        loaded: None,
-    })?;
+    let player_pubkey =
+        current_player_pubkey(&unlocked.keychain).map_err(|err| LobbyOpenGameError {
+            code: None,
+            message: err.to_string(),
+            loaded: None,
+        })?;
     let hosted_store = open_hosted_state_store().map_err(|err| LobbyOpenGameError {
         code: None,
         message: err.to_string(),
@@ -982,7 +981,10 @@ fn fetch_open_game_state(
         &row.game_id,
         &row.daemon_pubkey,
         context.baseline.as_ref().map(|state| state.turn),
-        context.baseline.as_ref().map(|state| state.state_hash.as_str()),
+        context
+            .baseline
+            .as_ref()
+            .map(|state| state.state_hash.as_str()),
         context.handle.as_deref(),
         context.baseline.as_ref(),
     )

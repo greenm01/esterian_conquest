@@ -1,4 +1,3 @@
-mod legacy;
 mod primitives;
 
 use std::borrow::Cow;
@@ -6,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crate::input::{KeyCode, KeyEvent, KeyModifiers};
 use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
     SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight, fontdb,
@@ -28,8 +27,6 @@ use tracing::info;
 
 use crate::buffer::{CellStyle, PlayfieldBuffer};
 use crate::theme;
-
-pub use legacy::build_native_terminal;
 
 pub const DEFAULT_FONT_HEIGHT_PX: u32 = 20;
 
@@ -756,6 +753,7 @@ fn build_font_system() -> FontSystem {
     let fonts = [
         PRIMARY_REGULAR_FONT,
         PRIMARY_BOLD_FONT,
+        PRIMARY_ITALIC_FONT,
         FALLBACK_REGULAR_FONT,
         FALLBACK_BOLD_FONT,
     ]

@@ -16,7 +16,7 @@ use crate::table_filter::{
     format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
 use crate::table_selection;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
@@ -34,7 +34,6 @@ use crate::native::NativeApp;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
-use crate::rendered::RenderedUi;
 use std::time::{Duration, Instant};
 
 const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);
@@ -158,7 +157,7 @@ impl DashApp {
         self.overlay == ActiveOverlay::None && self.popup == ActivePopup::None
     }
 
-    pub(crate) fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {
+    pub(crate) fn dispatch_key_event(&mut self, key: crate::input::KeyEvent) {
         if !self.is_terminal_too_small {
             self.handle_key(key);
         } else if key.modifiers.contains(KeyModifiers::ALT)
@@ -201,15 +200,7 @@ impl DashApp {
     }
 
     #[doc(hidden)]
-    pub fn render_ui_for_repro(&self) -> Result<RenderedUi, Box<dyn std::error::Error>> {
-        Ok(RenderedUi::from_playfield(
-            &<Self as NativeApp>::render_playfield(self)?,
-            crate::theme::tui_theme().cursor,
-        ))
-    }
-
-    #[doc(hidden)]
-    pub fn dispatch_key_event_for_repro(&mut self, key: crossterm::event::KeyEvent) {
+    pub fn dispatch_key_event_for_repro(&mut self, key: crate::input::KeyEvent) {
         Self::dispatch_key_event(self, key);
     }
 
@@ -380,7 +371,7 @@ impl DashApp {
         false
     }
 
-    fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
+    fn handle_key(&mut self, key: crate::input::KeyEvent) {
         if key.modifiers.contains(KeyModifiers::ALT) && matches!(key.code, KeyCode::Char('q' | 'Q'))
         {
             self.popup_position = None;
@@ -2086,7 +2077,7 @@ impl NativeApp for DashApp {
             .map_err(|err| err.to_string())
     }
 
-    fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {
+    fn dispatch_key_event(&mut self, key: crate::input::KeyEvent) {
         Self::dispatch_key_event(self, key);
     }
 
@@ -2620,7 +2611,7 @@ mod tests {
     use crate::native::NativeApp;
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crate::planet_view;
-    use crossterm::event::{
+    use crate::input::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
     use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot};
@@ -2672,23 +2663,23 @@ mod tests {
         let mut app = dash_app();
         app.handle_key(KeyEvent::new(
             KeyCode::Char('0'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('2'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char(','),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('0'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('3'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
 
         assert_eq!([app.crosshair_x, app.crosshair_y], [2, 3]);
@@ -2700,11 +2691,11 @@ mod tests {
         let mut app = dash_app();
         app.handle_key(KeyEvent::new(
             KeyCode::Char('0'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('2'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
 
         assert_eq!([app.crosshair_x, app.crosshair_y], [2, 1]);
@@ -2716,23 +2707,23 @@ mod tests {
         let mut app = dash_app();
         app.handle_key(KeyEvent::new(
             KeyCode::Char('0'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('1'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char(','),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('2'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('3'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
 
         assert!(app.crosshair_x <= 18);
@@ -2744,15 +2735,15 @@ mod tests {
         let mut app = dash_app();
         app.handle_key(KeyEvent::new(
             KeyCode::Char('0'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('2'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char(']'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
 
         assert!(app.map_coord_input.is_empty());
@@ -2764,35 +2755,35 @@ mod tests {
 
         app.handle_key(KeyEvent::new(
             KeyCode::Char('='),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         app.handle_key(KeyEvent::new(
             KeyCode::Char('='),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         assert_eq!(app.map_zoom_level, 2);
 
         app.handle_key(KeyEvent::new(
             KeyCode::Char('-'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         assert_eq!(app.map_zoom_level, 1);
 
         app.handle_key(KeyEvent::new(
             KeyCode::Char('z'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         assert_eq!(app.map_zoom_level, 0);
 
         assert_eq!(app.map_view_mode, MapViewMode::Readable);
         app.handle_key(KeyEvent::new(
             KeyCode::Char('v'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         assert_eq!(app.map_view_mode, MapViewMode::Fill);
         app.handle_key(KeyEvent::new(
             KeyCode::Char('v'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
         assert_eq!(app.map_view_mode, MapViewMode::Readable);
     }
@@ -2805,7 +2796,7 @@ mod tests {
 
         app.handle_key(KeyEvent::new(
             KeyCode::Char('v'),
-            crossterm::event::KeyModifiers::NONE,
+            crate::input::KeyModifiers::NONE,
         ));
 
         assert!(app.is_terminal_too_small);

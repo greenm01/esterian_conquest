@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use nc_dash::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use nc_dash::ScreenGeometry;
 use nc_dash::lobby::LobbyApp;
 use nc_dash::lobby::hosted::dashboard::build_hosted_dash_app;
@@ -9,6 +9,7 @@ use nc_dash::lobby::state::{
 };
 use nc_dash::lobby::transport::LobbyLoadedState;
 use nc_dash::lobby::update::apply_key;
+use nc_data::TurnSubmission;
 use nc_nostr::state_sync::{
     GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
     HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
@@ -70,10 +71,7 @@ fn top_right_border_click(app: &LobbyApp) -> (u16, u16) {
     (right.saturating_sub(1) as u16, row as u16)
 }
 
-fn popup_title_row_bounds(
-    buffer: &nc_dash::PlayfieldBuffer,
-    title: &str,
-) -> (usize, usize, usize) {
+fn popup_title_row_bounds(buffer: &nc_dash::PlayfieldBuffer, title: &str) -> (usize, usize, usize) {
     let row = (0..buffer.height())
         .find(|&row| find_token_in_row(buffer, row, title).is_some())
         .expect("popup title row");
@@ -371,6 +369,33 @@ fn alt_q_in_hosted_game_opens_in_game_quit_confirm() {
     };
     assert!(lines.contains("QUIT"));
     assert!(!lines.contains("Quit NC? Y/[N]"));
+}
+
+#[test]
+fn hosted_mouse_move_does_not_persist_unchanged_draft() {
+    let mut app = LobbyApp::new_for_tests(LobbyRoute::HostedGame, ScreenGeometry::new(120, 40));
+    let mut hosted = hosted_game_view();
+    hosted.dashboard.hosted_turn_draft = Some(TurnSubmission {
+        player_record_index_1_based: hosted.dashboard.player_record_index_1_based,
+        year: hosted.dashboard.game_data.conquest.game_year(),
+        tax_rate: None,
+        diplomacy: Vec::new(),
+        planets: Vec::new(),
+        fleets: Vec::new(),
+        messages: Vec::new(),
+    });
+    app.state.hosted_game = Some(hosted);
+
+    let changed = app.dispatch_mouse_event_for_test(mouse(MouseEventKind::Moved, 0, 0));
+
+    assert!(!changed);
+    assert_eq!(
+        app.state
+            .hosted_game
+            .as_ref()
+            .and_then(|hosted| hosted.submit_status.as_deref()),
+        None
+    );
 }
 
 #[test]

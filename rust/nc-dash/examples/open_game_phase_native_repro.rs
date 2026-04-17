@@ -1,7 +1,6 @@
 use nc_dash::{
     NativeLaunchOptions, run_unlocked_cache_write_snapshot_native_repro,
-    run_unlocked_fetch_only_open_game_native_repro,
-    run_unlocked_persisted_snapshot_native_repro,
+    run_unlocked_fetch_only_open_game_native_repro, run_unlocked_persisted_snapshot_native_repro,
     startup::{NativeBackendPreference, NativeWindowMode},
 };
 use nc_nostr::state_sync::GameState;
