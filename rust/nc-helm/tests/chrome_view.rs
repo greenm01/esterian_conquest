@@ -1,6 +1,6 @@
 mod support;
 
-use nc_helm::{App, BootSnapshot, Msg};
+use nc_helm::{App, BootSnapshot, Msg, ScreenGeometry};
 
 use crate::support::{dummy_session, key};
 
@@ -28,9 +28,10 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
     let header = buffer.plain_line(0);
     let tab_strip = "[My Games] [Open Games] [Comms] [Settings]";
     assert_eq!(buffer.row(0)[0].ch, ' ');
-    assert!(header.contains("Nostrian Conquest <v"));
+    assert!(buffer.has_overlay_text("Nostrian Conquest"));
+    assert!(header.contains("<v"));
     assert!(!header.contains("beta"));
-    assert_eq!(header.find("Nostrian Conquest <v"), Some(1));
+    assert!(!header.contains("Nostrian Conquest"));
     assert_eq!(
         header.find("captain"),
         Some((buffer.width() - "captain".len()) / 2)
@@ -81,4 +82,41 @@ fn help_popup_uses_left_help_tag_and_right_close_tag() {
     let buffer = app.view();
     assert!(buffer.plain_line(12).contains("┐ HELP ┌"));
     assert!(buffer.plain_line(12).contains("┐ [X] ┌"));
+}
+
+#[test]
+fn undersized_lobby_view_falls_back_instead_of_panicking() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(10, 5)));
+
+    let buffer = app.view();
+    assert!(buffer.plain_line(0).contains("Window"));
+    assert!(buffer.plain_line(1).contains("Minimum"));
+}
+
+#[test]
+fn undersized_first_run_view_falls_back_instead_of_panicking() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
+        has_keychain: false,
+        relay_url: Some("ws://127.0.0.1:8080".to_string()),
+    })));
+    let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(10, 5)));
+
+    let buffer = app.view();
+    assert!(buffer.plain_line(0).contains("Window"));
+}
+
+#[test]
+fn undersized_locked_view_falls_back_instead_of_panicking() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
+        has_keychain: true,
+        relay_url: Some("ws://127.0.0.1:8080".to_string()),
+    })));
+    let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(10, 5)));
+
+    let buffer = app.view();
+    assert!(buffer.plain_line(0).contains("Window"));
 }

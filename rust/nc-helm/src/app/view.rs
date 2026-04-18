@@ -1,6 +1,7 @@
 use super::{
     DEFAULT_GEOMETRY, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT, HELP_POPUP_WIDTH,
-    LOBBY_TAB_ROW, LobbyTab, Model, NetworkState, Route, centered_box_geometry,
+    LOBBY_TAB_ROW, LobbyTab, MIN_SUPPORTED_GEOMETRY, Model, NetworkState, Route,
+    centered_box_geometry,
     chrome::{draw_panel, draw_top_tag_right},
     lobby_tab_bounds, mask,
 };
@@ -22,6 +23,8 @@ const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
 const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
 const GATE_LOGO_BLOCK_ROWS: usize = 7;
 const COMMAND_PANEL_HEIGHT: usize = 3;
+const HEADER_WORDMARK: &str = "Nostrian Conquest";
+const HEADER_WORDMARK_WIDTH: usize = 22;
 
 struct GateLayout {
     content_left: usize,
@@ -125,6 +128,13 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
     };
     let mut buffer = PlayfieldBuffer::new(geometry.width(), geometry.height(), body());
     fill(&mut buffer, body());
+
+    if geometry.width() < MIN_SUPPORTED_GEOMETRY.width()
+        || geometry.height() < MIN_SUPPORTED_GEOMETRY.height()
+    {
+        render_too_small(&mut buffer, geometry);
+        return buffer;
+    }
 
     match &model.route {
         Route::Boot(boot) => render_boot(&mut buffer, geometry, &boot.status),
@@ -278,10 +288,7 @@ fn render_lobby(
     lobby: &super::LobbyModel,
 ) {
     let reserve_status_row = lobby.status.is_some();
-    let title = format!(
-        "Nostrian Conquest <v{}>",
-        short_version_label(env!("CARGO_PKG_VERSION"))
-    );
+    let version = format!("<v{}>", short_version_label(env!("CARGO_PKG_VERSION")));
     let network = format!(
         "NETWORK: {}",
         match model.network {
@@ -292,10 +299,11 @@ fn render_lobby(
         }
     );
     let title_col = 1usize;
+    let version_col = title_col + HEADER_WORDMARK_WIDTH + 1;
     let network_col = geometry
         .width()
         .saturating_sub(network.chars().count().saturating_add(1));
-    let left_gap_start = title_col + title.chars().count() + 1;
+    let left_gap_start = version_col + version.chars().count() + 1;
     let right_gap_end = network_col.saturating_sub(1);
     let network_status = match model.network {
         NetworkState::Idle => "IDLE",
@@ -303,27 +311,32 @@ fn render_lobby(
         NetworkState::Synced => "SYNCED",
         NetworkState::Error => "ERROR",
     };
-    buffer.write_text_clipped(0, title_col, &title, root_title());
+    buffer.push_overlay_text(
+        HEADER_WORDMARK,
+        OverlayTextFamily::Stormfaze,
+        root_title(),
+        title_col,
+        0,
+        HEADER_WORDMARK_WIDTH,
+        1,
+    );
+    buffer.write_text_clipped(0, version_col, &version, label());
     if let Some(session) = &model.session {
         let identity = session
             .active_handle
             .as_deref()
             .unwrap_or(session.active_npub.as_str());
-        let available_width = right_gap_end
-            .saturating_sub(left_gap_start)
-            .saturating_add(1);
-        if available_width > 0 {
+        if right_gap_end >= left_gap_start {
+            let available_width = right_gap_end - left_gap_start + 1;
             let identity_text: String = identity.chars().take(available_width).collect();
             let centered_col = geometry
                 .width()
                 .saturating_sub(identity_text.chars().count())
                 / 2;
-            let identity_col = centered_col.clamp(
-                left_gap_start,
-                right_gap_end
-                    .saturating_sub(identity_text.chars().count())
-                    .saturating_add(1),
-            );
+            let max_col = right_gap_end
+                .saturating_sub(identity_text.chars().count())
+                .saturating_add(1);
+            let identity_col = centered_col.clamp(left_gap_start, max_col);
             buffer.write_text_clipped(0, identity_col, &identity_text, body());
         }
     }
@@ -616,6 +629,20 @@ fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message:
         buffer.write_text_clipped(top + 4, left + 3, message, panel());
         buffer.write_text(top + 6, left + 3, "Press Q or Esc to quit.", panel_dim());
     });
+}
+
+fn render_too_small(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
+    let minimum = format!(
+        "Minimum supported size: {}x{}",
+        MIN_SUPPORTED_GEOMETRY.width(),
+        MIN_SUPPORTED_GEOMETRY.height()
+    );
+    let current = format!("Current grid: {}x{}", geometry.width(), geometry.height());
+
+    buffer.write_text_clipped(0, 0, "Window too small for nc-helm.", warning());
+    buffer.write_text_clipped(1, 0, &minimum, panel_dim());
+    buffer.write_text_clipped(2, 0, &current, panel_dim());
+    buffer.write_text_clipped(4, 0, "Resize larger to restore the full lobby.", panel());
 }
 
 fn draw_tabs(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, lobby: &super::LobbyModel) {

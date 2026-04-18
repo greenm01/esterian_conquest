@@ -129,6 +129,12 @@ impl PlayfieldBuffer {
         &self.overlay_texts
     }
 
+    pub fn has_overlay_text(&self, text: &str) -> bool {
+        self.overlay_texts
+            .iter()
+            .any(|overlay| overlay.text == text)
+    }
+
     pub fn row(&self, row: usize) -> &[Cell] {
         assert!(
             row < self.height,

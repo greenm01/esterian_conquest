@@ -40,7 +40,7 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::window::{Fullscreen, Window, WindowAttributes};
 
 use crate::Point;
-use crate::app::{App, Effect, Msg, Route};
+use crate::app::{App, Effect, MIN_SUPPORTED_GEOMETRY, Msg, Route};
 use crate::geometry;
 use crate::input::{
     MouseButton, MouseEvent, MouseEventKind, key_event_from_winit, key_modifiers_from_winit,
@@ -161,6 +161,7 @@ impl Runtime {
     ) -> Result<Arc<Window>, Box<dyn std::error::Error>> {
         let geometry = self.app.model().geometry;
         let size = geometry::logical_window_size_for_grid(geometry.width(), geometry.height());
+        let min_size = minimum_window_size();
         let mut attributes = WindowAttributes::default()
             .with_title("Nostrian Conquest - nc-helm")
             .with_resizable(true)
@@ -168,7 +169,8 @@ impl Runtime {
                 self.session_backend,
                 std::env::var("XDG_CURRENT_DESKTOP").ok().as_deref(),
             ))
-            .with_inner_size(size);
+            .with_inner_size(size)
+            .with_min_inner_size(min_size);
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -850,13 +852,22 @@ fn apply_backend_preference(
     }
 }
 
+fn minimum_window_size() -> winit::dpi::LogicalSize<f64> {
+    geometry::logical_window_size_for_grid(
+        MIN_SUPPORTED_GEOMETRY.width(),
+        MIN_SUPPORTED_GEOMETRY.height(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         ResizeObservation, ResizeShrinkTracker, ResizeVerdict, SessionBackend,
-        backend_supports_programmatic_focus, classify_resize, session_backend_label,
-        window_decorations_for_session,
+        backend_supports_programmatic_focus, classify_resize, minimum_window_size,
+        session_backend_label, window_decorations_for_session,
     };
+    use crate::app::MIN_SUPPORTED_GEOMETRY;
+    use crate::geometry;
 
     #[test]
     fn wayland_backend_disables_programmatic_focus() {
@@ -917,6 +928,17 @@ mod tests {
             Some("COSMIC")
         ));
         assert!(window_decorations_for_session(SessionBackend::X11, None));
+    }
+
+    #[test]
+    fn minimum_window_size_matches_supported_grid_floor() {
+        assert_eq!(
+            minimum_window_size(),
+            geometry::logical_window_size_for_grid(
+                MIN_SUPPORTED_GEOMETRY.width(),
+                MIN_SUPPORTED_GEOMETRY.height()
+            )
+        );
     }
 
     #[test]

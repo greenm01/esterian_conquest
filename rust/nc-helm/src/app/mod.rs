@@ -9,6 +9,7 @@ use crate::{PlayfieldBuffer, Point, ScreenGeometry};
 
 pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
 pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
+pub(crate) const MIN_SUPPORTED_GEOMETRY: ScreenGeometry = ScreenGeometry::new(68, 24);
 pub const HELP_POPUP_WIDTH: usize = 60;
 pub const HELP_POPUP_HEIGHT: usize = 11;
 pub const HELP_CLOSE_LABEL: &str = "[X]";
