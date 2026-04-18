@@ -26,6 +26,9 @@ use nc_nostr::lobby_notice::LobbyNotice as NoticePayload;
 use nc_nostr::pubkeys::hex_to_npub;
 use nc_nostr::state_sync::{GameState, StateErrorCode, apply_state_delta};
 use nc_nostr::turn_commands::{TurnReceipt, TurnReceiptStatus};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use super::models::{
     DirectContactRow, GameInboxMessage, GameInboxRow, JoinedGameRow, LobbyNotice, OpenGameRow,
@@ -44,6 +47,7 @@ const HANDLE_UPDATED_LOCAL_MESSAGE: &str =
 const HANDLE_VERIFIED_MESSAGE: &str = "Handle verified with nc-host.";
 const HANDLE_UPDATED_VERIFIED_MESSAGE: &str = "Handle updated and verified with nc-host.";
 const REQUEST_BOOTSTRAP_LOOKBACK_SECS: u64 = 30 * 24 * 60 * 60;
+const PASSIVE_POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 fn format_catalog_created_date(created_at: Option<i64>) -> String {
     created_at
@@ -166,6 +170,7 @@ struct UnlockedClient {
     catalog: Vec<CatalogGame>,
     session: Option<HostedClientSession>,
     live_session: Option<HostedLiveSession>,
+    bootstrap_rx: Option<Receiver<BootstrapResult>>,
     relay_url: Option<String>,
     network_status: LobbyNetworkStatus,
     cache_dirty: bool,
@@ -176,6 +181,7 @@ pub struct LobbyTransport {
     disable_hosted_sessions: bool,
     disable_live_session: bool,
     disable_live_private_stream: bool,
+    diagnostic_mode: bool,
     unlocked: Option<UnlockedClient>,
 }
 
@@ -206,6 +212,18 @@ enum HandleSaveMode {
     LocalOnly,
 }
 
+struct BootstrapResult {
+    catalog: Vec<CatalogGame>,
+    notices: Vec<NoticePayload>,
+    network_status: LobbyNetworkStatus,
+}
+
+enum BootstrapPoll {
+    Pending,
+    Disconnected,
+    Ready(BootstrapResult),
+}
+
 impl LobbyTransport {
     pub fn new(relay_override: Option<String>, native: NativeLaunchOptions) -> Self {
         Self {
@@ -213,6 +231,7 @@ impl LobbyTransport {
             disable_hosted_sessions: native.disable_hosted_sessions,
             disable_live_session: native.disable_live_session,
             disable_live_private_stream: native.disable_live_private_stream,
+            diagnostic_mode: native.diagnostic_mode,
             unlocked: None,
         }
     }
@@ -226,6 +245,15 @@ impl LobbyTransport {
 
     pub fn is_unlocked(&self) -> bool {
         self.unlocked.is_some()
+    }
+
+    pub fn next_poll_deadline(&self, now: Instant) -> Option<Instant> {
+        let unlocked = self.unlocked.as_ref()?;
+        if unlocked.live_session.is_some() || unlocked.bootstrap_rx.is_some() {
+            Some(now + PASSIVE_POLL_INTERVAL)
+        } else {
+            None
+        }
     }
 
     pub fn flush_cache(&mut self) -> Result<(), String> {
@@ -281,12 +309,13 @@ impl LobbyTransport {
             catalog,
             session,
             live_session,
+            bootstrap_rx: None,
             relay_url,
             network_status: initial_network_status_from_session(has_session),
             cache_dirty: false,
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
-            bootstrap_request_session(unlocked);
+            start_bootstrap_worker(unlocked, self.diagnostic_mode);
             Ok(build_loaded_state(
                 unlocked,
                 Some(match handle_mode {
@@ -324,12 +353,13 @@ impl LobbyTransport {
             catalog: Vec::new(),
             session,
             live_session,
+            bootstrap_rx: None,
             relay_url,
             network_status: initial_network_status_from_session(has_session),
             cache_dirty: false,
         });
         if let Some(unlocked) = self.unlocked.as_mut() {
-            bootstrap_request_session(unlocked);
+            start_bootstrap_worker(unlocked, self.diagnostic_mode);
             Ok(build_loaded_state(
                 unlocked,
                 cache_result.status_message,
@@ -347,10 +377,11 @@ impl LobbyTransport {
             .as_mut()
             .ok_or_else(|| "keychain is locked".to_string())?;
         if unlocked.live_session.is_none() {
-            bootstrap_request_session(unlocked);
+            start_bootstrap_worker(unlocked, self.diagnostic_mode);
         }
-        let changed = apply_live_updates(unlocked, None);
-        if changed.is_some() {
+        let bootstrap_changed = poll_bootstrap_updates(unlocked);
+        let live_changed = apply_live_updates(unlocked, None);
+        if bootstrap_changed || live_changed.is_some() {
             save_cache(&unlocked.cache, &unlocked.password).map_err(|err| err.to_string())?;
             return Ok(build_loaded_state(
                 unlocked,
@@ -384,9 +415,11 @@ impl LobbyTransport {
         let Some(unlocked) = self.unlocked.as_mut() else {
             return Ok(None);
         };
-        let Some(active_game) = apply_live_updates(unlocked, active_game_id) else {
+        let bootstrap_changed = poll_bootstrap_updates(unlocked);
+        let active_game = apply_live_updates(unlocked, active_game_id);
+        if !bootstrap_changed && active_game.is_none() {
             return Ok(None);
-        };
+        }
         unlocked.cache_dirty = true;
         Ok(Some(LobbyPollUpdate {
             loaded: build_loaded_state(
@@ -395,7 +428,7 @@ impl LobbyTransport {
                 LobbyStatusTone::Info,
                 Some(unlocked.network_status),
             ),
-            active_game,
+            active_game: active_game.unwrap_or_default(),
         }))
     }
 
@@ -1309,20 +1342,75 @@ fn apply_live_updates(
     Some(active_game)
 }
 
-fn bootstrap_request_session(unlocked: &mut UnlockedClient) {
+fn start_bootstrap_worker(unlocked: &mut UnlockedClient, diagnostic_mode: bool) {
+    if unlocked.bootstrap_rx.is_some() {
+        return;
+    }
     let Some(session) = unlocked.session.clone() else {
         return;
     };
-    if unlocked.live_session.is_some() {
-        return;
-    }
+    let (tx, rx) = mpsc::channel();
+    unlocked.bootstrap_rx = Some(rx);
+    thread::spawn(move || {
+        let started = Instant::now();
+        if diagnostic_mode {
+            tracing::info!("lobby bootstrap worker started");
+        }
+        let result = fetch_bootstrap_result(session);
+        if diagnostic_mode {
+            tracing::info!(
+                elapsed_ms = started.elapsed().as_millis() as u64,
+                status = result.network_status.label(),
+                "lobby bootstrap worker finished"
+            );
+        }
+        let _ = tx.send(result);
+    });
+}
 
+fn poll_bootstrap_updates(unlocked: &mut UnlockedClient) -> bool {
+    match take_bootstrap_result(unlocked) {
+        BootstrapPoll::Pending => false,
+        BootstrapPoll::Disconnected => {
+            let changed = unlocked.network_status != LobbyNetworkStatus::Error;
+            unlocked.network_status = LobbyNetworkStatus::Error;
+            changed
+        }
+        BootstrapPoll::Ready(result) => {
+            let mut changed = unlocked.network_status != result.network_status;
+            unlocked.network_status = result.network_status;
+            if !result.catalog.is_empty() {
+                apply_catalog(unlocked, &result.catalog);
+                changed = true;
+            }
+            if !result.notices.is_empty() {
+                apply_notices(unlocked, result.notices);
+                changed = true;
+            }
+            changed
+        }
+    }
+}
+
+fn take_bootstrap_result(unlocked: &mut UnlockedClient) -> BootstrapPoll {
+    let outcome = match unlocked.bootstrap_rx.as_ref().map(Receiver::try_recv) {
+        Some(Ok(result)) => BootstrapPoll::Ready(result),
+        Some(Err(TryRecvError::Disconnected)) => BootstrapPoll::Disconnected,
+        Some(Err(TryRecvError::Empty)) | None => return BootstrapPoll::Pending,
+    };
+    unlocked.bootstrap_rx = None;
+    outcome
+}
+
+fn fetch_bootstrap_result(session: HostedClientSession) -> BootstrapResult {
     let mut any_success = false;
     let mut saw_error = false;
+    let mut catalog = Vec::new();
+    let mut notices = Vec::new();
 
     match session.fetch_catalog() {
-        Ok(catalog) => {
-            apply_catalog(unlocked, &catalog);
+        Ok(fetched) => {
+            catalog = fetched;
             any_success = true;
         }
         Err(err) => {
@@ -1332,8 +1420,8 @@ fn bootstrap_request_session(unlocked: &mut UnlockedClient) {
     }
 
     match session.fetch_lobby_notices(REQUEST_BOOTSTRAP_LOOKBACK_SECS) {
-        Ok(notices) => {
-            apply_notices(unlocked, notices);
+        Ok(fetched) => {
+            notices = fetched;
             any_success = true;
         }
         Err(err) => {
@@ -1342,13 +1430,17 @@ fn bootstrap_request_session(unlocked: &mut UnlockedClient) {
         }
     }
 
-    unlocked.network_status = if any_success {
-        LobbyNetworkStatus::Synced
-    } else if saw_error {
-        LobbyNetworkStatus::Error
-    } else {
-        LobbyNetworkStatus::Connected
-    };
+    BootstrapResult {
+        catalog,
+        notices,
+        network_status: if any_success {
+            LobbyNetworkStatus::Synced
+        } else if saw_error {
+            LobbyNetworkStatus::Error
+        } else {
+            LobbyNetworkStatus::Connected
+        },
+    }
 }
 
 fn apply_live_update(
@@ -2247,6 +2339,7 @@ mod tests {
             catalog: Vec::new(),
             session: None,
             live_session: None,
+            bootstrap_rx: None,
             relay_url: Some("ws://127.0.0.1:8080".to_string()),
             network_status: LobbyNetworkStatus::Synced,
             cache_dirty: false,
@@ -2370,6 +2463,64 @@ mod tests {
 
         assert!(sessions.0.is_some());
         assert!(sessions.1.is_some());
+    }
+
+    #[test]
+    fn next_poll_deadline_requires_pending_transport_work() {
+        let mut transport = LobbyTransport::new(None, NativeLaunchOptions::default());
+        let now = Instant::now();
+
+        assert!(transport.next_poll_deadline(now).is_none());
+
+        transport.unlocked = Some(unlocked_with_game("joined"));
+        assert!(transport.next_poll_deadline(now).is_none());
+
+        let (tx, rx) = mpsc::channel();
+        let unlocked = transport.unlocked.as_mut().expect("unlocked");
+        unlocked.bootstrap_rx = Some(rx);
+        assert_eq!(
+            transport.next_poll_deadline(now),
+            Some(now + PASSIVE_POLL_INTERVAL)
+        );
+        drop(tx);
+    }
+
+    #[test]
+    fn poll_updates_applies_bootstrap_results() {
+        let mut transport = LobbyTransport::new(None, NativeLaunchOptions::default());
+        let (tx, rx) = mpsc::channel();
+        transport.unlocked = Some(unlocked_with_game("joined"));
+        let unlocked = transport.unlocked.as_mut().expect("unlocked");
+        unlocked.network_status = LobbyNetworkStatus::Connecting;
+        unlocked.bootstrap_rx = Some(rx);
+
+        tx.send(BootstrapResult {
+            catalog: vec![catalog_game(
+                "bootstrap-game",
+                "daemon",
+                CatalogState::Listed,
+                1,
+            )],
+            notices: vec![NoticePayload {
+                notice_id: "notice-001".to_string(),
+                sender_npub: "npub1bootstrap".to_string(),
+                sender_handle: Some("host".to_string()),
+                body: "Bootstrapped.".to_string(),
+                created_at: 1_700_000_000,
+            }],
+            network_status: LobbyNetworkStatus::Synced,
+        })
+        .expect("bootstrap result");
+
+        let update = transport
+            .poll_updates(None)
+            .expect("poll updates")
+            .expect("bootstrap update");
+
+        assert_eq!(update.loaded.network_status, LobbyNetworkStatus::Synced);
+        assert_eq!(update.loaded.open_games.len(), 1);
+        assert_eq!(update.loaded.open_games[0].game_id, "bootstrap-game");
+        assert_eq!(update.loaded.notices.len(), 1);
     }
 
     #[test]

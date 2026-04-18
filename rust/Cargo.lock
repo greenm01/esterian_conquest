@@ -3275,7 +3275,6 @@ dependencies = [
  "glyphon",
  "nc-client",
  "nc-nostr",
- "nc-ui",
  "nostr-sdk",
  "pollster",
  "rusqlite",

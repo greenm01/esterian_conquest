@@ -66,18 +66,21 @@ pub struct StorageActor {
 }
 
 impl StorageActor {
-    pub fn start() -> Self {
+    pub fn start() -> Result<Self, String> {
+        let db = AppDatabase::open_default().map_err(|err| err.to_string())?;
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
-            if let Err(err) = storage_loop(rx) {
+            if let Err(err) = storage_loop(db, rx) {
                 eprintln!("nc-helm storage actor failed: {err}");
             }
         });
-        Self { tx }
+        Ok(Self { tx })
     }
 
-    pub fn load_boot(&self, reply_to: Sender<Result<BootSnapshot, String>>) {
-        let _ = self.tx.send(StorageCommand::LoadBoot { reply_to });
+    pub fn load_boot(&self, reply_to: Sender<Result<BootSnapshot, String>>) -> Result<(), String> {
+        self.tx
+            .send(StorageCommand::LoadBoot { reply_to })
+            .map_err(|_| "storage actor unavailable".to_string())
     }
 
     pub fn create_identity(
@@ -86,29 +89,45 @@ impl StorageActor {
         password: String,
         relay_url: String,
         reply_to: Sender<Result<StoredSession, String>>,
-    ) {
-        let _ = self.tx.send(StorageCommand::CreateIdentity {
-            handle,
-            password,
-            relay_url,
-            reply_to,
-        });
+    ) -> Result<(), String> {
+        self.tx
+            .send(StorageCommand::CreateIdentity {
+                handle,
+                password,
+                relay_url,
+                reply_to,
+            })
+            .map_err(|_| "storage actor unavailable".to_string())
     }
 
-    pub fn save_relay_url(&self, relay_url: String, reply_to: Sender<Result<String, String>>) {
-        let _ = self.tx.send(StorageCommand::SaveRelayUrl {
-            relay_url,
-            reply_to,
-        });
+    pub fn save_relay_url(
+        &self,
+        relay_url: String,
+        reply_to: Sender<Result<String, String>>,
+    ) -> Result<(), String> {
+        self.tx
+            .send(StorageCommand::SaveRelayUrl {
+                relay_url,
+                reply_to,
+            })
+            .map_err(|_| "storage actor unavailable".to_string())
     }
 
-    pub fn unlock(&self, password: String, reply_to: Sender<Result<StoredSession, String>>) {
-        let _ = self.tx.send(StorageCommand::Unlock { password, reply_to });
+    pub fn unlock(
+        &self,
+        password: String,
+        reply_to: Sender<Result<StoredSession, String>>,
+    ) -> Result<(), String> {
+        self.tx
+            .send(StorageCommand::Unlock { password, reply_to })
+            .map_err(|_| "storage actor unavailable".to_string())
     }
 }
 
-fn storage_loop(rx: Receiver<StorageCommand>) -> Result<(), Box<dyn std::error::Error>> {
-    let db = AppDatabase::open_default()?;
+fn storage_loop(
+    db: AppDatabase,
+    rx: Receiver<StorageCommand>,
+) -> Result<(), Box<dyn std::error::Error>> {
     while let Ok(command) = rx.recv() {
         match command {
             StorageCommand::LoadBoot { reply_to } => {

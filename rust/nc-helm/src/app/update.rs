@@ -1,12 +1,13 @@
 use nc_client::password::validate_new_password;
 use nc_nostr::hosted::relay_url_to_invite_host;
-use nc_ui::ScreenGeometry;
 
 use super::{
     Effect, GameRow, LobbyTab, Model, Msg, NetworkState, Route, active_session_from_stored,
-    bootstrap_route, field_string_mut, handle_help_click, is_printable_key, lobby_route,
+    append_text, bootstrap_route, field_string_mut, handle_help_click, is_printable_key,
+    lobby_route,
 };
 use crate::input::{KeyCode, MouseButton, MouseEventKind};
+use crate::ScreenGeometry;
 
 pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
     match msg {
@@ -24,6 +25,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
         Msg::LobbyUpdated(result) => handle_lobby_updated(model, result),
         Msg::RelaySaved(result) => handle_relay_saved(model, result),
         Msg::Key(key) => handle_key(model, key),
+        Msg::TextInput(text) => handle_text_input(model, &text),
         Msg::Mouse(mouse) => handle_mouse(model, mouse),
     }
 }
@@ -166,14 +168,14 @@ fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
 
 fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effect> {
     if mouse.kind == MouseEventKind::Down(MouseButton::Left)
-        && handle_help_click(model, mouse.column, mouse.row)
+        && handle_help_click(model, mouse.position)
     {
         return Vec::new();
     }
 
     if let Route::Lobby(lobby) = &mut model.route {
         if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-            let row = usize::from(mouse.row);
+            let row = mouse.position.row.as_usize();
             if (7..(7 + model.games.len())).contains(&row) {
                 let index = row - 7;
                 lobby.active_tab = LobbyTab::OpenGames;
@@ -182,6 +184,24 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
         }
     }
     Vec::new()
+}
+
+fn handle_text_input(model: &mut Model, text: &str) -> Vec<Effect> {
+    match &mut model.route {
+        Route::FirstRun(first_run) => {
+            append_text(field_string_mut(first_run), text);
+            Vec::new()
+        }
+        Route::Locked(locked) => {
+            append_text(&mut locked.password_input, text);
+            Vec::new()
+        }
+        Route::Lobby(lobby) if lobby.active_tab == LobbyTab::Settings && lobby.editing_relay => {
+            append_text(&mut lobby.relay_draft, text);
+            Vec::new()
+        }
+        _ => Vec::new(),
+    }
 }
 
 fn handle_first_run_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {

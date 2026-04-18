@@ -1,11 +1,10 @@
 mod update;
 mod view;
 
-use nc_ui::{GameColor, PlayfieldBuffer, ScreenGeometry};
-
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use crate::storage::{BootSnapshot, StoredSession};
 use crate::transport::LobbySnapshot;
+use crate::{GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
 pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
 pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
@@ -190,6 +189,7 @@ pub enum Msg {
     Resize(ScreenGeometry),
     FocusChanged(bool),
     Key(KeyEvent),
+    TextInput(String),
     Mouse(MouseEvent),
     BootLoaded(Result<BootSnapshot, String>),
     IdentityCreated(Result<StoredSession, String>),
@@ -258,7 +258,7 @@ fn active_session_from_stored(stored: StoredSession, password: String) -> Sessio
     }
 }
 
-fn handle_help_click(model: &mut Model, column: u16, row: u16) -> bool {
+fn handle_help_click(model: &mut Model, position: Point) -> bool {
     let Route::Lobby(lobby) = &mut model.route else {
         return false;
     };
@@ -270,8 +270,8 @@ fn handle_help_click(model: &mut Model, column: u16, row: u16) -> bool {
     let left = (width.saturating_sub(popup_width)) / 2;
     let top = 8usize;
     let close_col = left + popup_width.saturating_sub(4);
-    let row = usize::from(row);
-    let column = usize::from(column);
+    let row = position.row.as_usize();
+    let column = position.column.as_usize();
     if row >= top && row <= top + 10 && column >= left && column <= left + popup_width {
         if row == top && column >= close_col && column <= close_col + 2 {
             lobby.help_open = false;
@@ -289,6 +289,10 @@ fn is_printable_key(key: KeyEvent) -> Option<char> {
         KeyCode::Char(ch) => Some(ch),
         _ => None,
     }
+}
+
+fn append_text(target: &mut String, text: &str) {
+    target.extend(text.chars().filter(|ch| !ch.is_control()));
 }
 
 fn field_string_mut(model: &mut FirstRunModel) -> &mut String {

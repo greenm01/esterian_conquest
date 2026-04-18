@@ -32,6 +32,16 @@ use winit::window::{Fullscreen, Icon, Window, WindowAttributes, WindowId};
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
+use winit::platform::startup_notify::{
+    EventLoopExtStartupNotify, WindowAttributesExtStartupNotify, reset_activation_token_env,
+};
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::WindowAttributesExtWindows;
@@ -183,6 +193,7 @@ struct NativeDiagnostics {
     last_input_cause: Option<NativeInputCause>,
     last_redraw_cause: Option<NativeRedrawCause>,
     last_signature: Option<String>,
+    activation_token_present: Option<bool>,
     event_seq: u64,
     redraw_seq: u64,
     render_seq: u64,
@@ -200,6 +211,7 @@ impl NativeDiagnostics {
             last_input_cause: None,
             last_redraw_cause: None,
             last_signature: None,
+            activation_token_present: None,
             event_seq: 0,
             redraw_seq: 0,
             render_seq: 0,
@@ -261,6 +273,17 @@ impl NativeDiagnostics {
 
     fn set_last_signature(&mut self, signature: String) {
         self.last_signature = Some(signature);
+    }
+
+    fn set_activation_token_present(&mut self, present: bool) {
+        self.activation_token_present = Some(present);
+        if self.diagnostic_mode {
+            info!(
+                target: "nc_dash::native",
+                present,
+                "native activation token"
+            );
+        }
     }
 }
 
@@ -335,6 +358,7 @@ struct NativeShell<T: NativeApp> {
     render_count: u64,
     window_has_focus: Option<bool>,
     text_input_enabled: Option<bool>,
+    programmatic_focus_supported: bool,
 }
 
 impl<T: NativeApp> NativeShell<T> {
@@ -344,6 +368,7 @@ impl<T: NativeApp> NativeShell<T> {
         window_pixel_height: u32,
         window_scale_factor: f64,
         persist_window_state: bool,
+        programmatic_focus_supported: bool,
     ) -> Self {
         let last_persisted_window_state = app.saved_window_state();
         Self {
@@ -367,6 +392,7 @@ impl<T: NativeApp> NativeShell<T> {
             render_count: 0,
             window_has_focus: Some(false),
             text_input_enabled: None,
+            programmatic_focus_supported,
         }
     }
 
@@ -630,7 +656,12 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
         self.diagnostics
             .borrow_mut()
             .set_stage(NativeStage::WindowCreate);
-        let window = match event_loop.create_window(self.window_attrs.clone()) {
+        let window_attrs = apply_startup_activation_token(
+            event_loop,
+            self.window_attrs.clone(),
+            &self.diagnostics,
+        );
+        let window = match event_loop.create_window(window_attrs) {
             Ok(w) => Arc::new(w),
             Err(err) => {
                 crate::show_fatal_error(&native_error(
@@ -669,6 +700,7 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
             initial_size.height,
             window.scale_factor(),
             self.native_options.window_mode != NativeWindowMode::BorderlessFullscreen,
+            backend_supports_programmatic_focus(self.session_backend),
         );
         shell.serialize_redraws = self.native_options.serialize_redraws;
         if shell.serialize_redraws && self.native_options.diagnostic_mode {
@@ -721,6 +753,13 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 );
             }
             WindowEvent::Focused(focused) => {
+                if self.native_options.diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native",
+                        focused,
+                        "window focus event"
+                    );
+                }
                 if focused {
                     shell.window_has_focus = Some(true);
                     sync_window_input_state(shell, window.as_ref());
@@ -767,6 +806,14 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 sync_window_state(shell, window.as_ref());
             }
             WindowEvent::CursorMoved { position, .. } => {
+                if self.native_options.diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native",
+                        x = position.x,
+                        y = position.y,
+                        "cursor moved"
+                    );
+                }
                 self.diagnostics
                     .borrow_mut()
                     .set_last_input_cause(NativeInputCause::MouseMove);
@@ -781,6 +828,9 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 );
             }
             WindowEvent::CursorLeft { .. } => {
+                if self.native_options.diagnostic_mode {
+                    info!(target: "nc_dash::native", "cursor left");
+                }
                 self.diagnostics
                     .borrow_mut()
                     .set_last_input_cause(NativeInputCause::MouseMove);
@@ -793,6 +843,15 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 );
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                if self.native_options.diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native",
+                        button = ?button,
+                        pressed = state.is_pressed(),
+                        focused = shell.window_has_focus,
+                        "mouse input"
+                    );
+                }
                 self.diagnostics.borrow_mut().set_last_input_cause(
                     match (button, state.is_pressed()) {
                         (WinitMouseButton::Left, true) => NativeInputCause::MouseDownLeft,
@@ -816,7 +875,19 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 );
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                let Some(key) = key_event_from_winit(&event, shell.modifiers) else {
+                let key = key_event_from_winit(&event, shell.modifiers);
+                if self.native_options.diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native",
+                        state = ?event.state,
+                        text = event.text.as_deref().unwrap_or_default(),
+                        logical_key = ?event.logical_key,
+                        converted = key.is_some(),
+                        focused = shell.window_has_focus,
+                        "keyboard input"
+                    );
+                }
+                let Some(key) = key else {
                     return;
                 };
                 self.diagnostics
@@ -832,6 +903,14 @@ impl<T: NativeApp> ApplicationHandler for NativeEventHandler<T> {
                 );
             }
             WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
+                if self.native_options.diagnostic_mode {
+                    info!(
+                        target: "nc_dash::native",
+                        text = %text,
+                        focused = shell.window_has_focus,
+                        "ime commit"
+                    );
+                }
                 for ch in text.chars() {
                     let key =
                         KeyEvent::new(KeyCode::Char(ch), key_modifiers_from_winit(shell.modifiers));
@@ -1140,6 +1219,49 @@ fn native_window_icon() -> Option<Icon> {
     Icon::from_rgba(rgba.into_raw(), width, height).ok()
 }
 
+fn backend_supports_programmatic_focus(session_backend: &str) -> bool {
+    session_backend != "wayland"
+}
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+fn apply_startup_activation_token(
+    event_loop: &ActiveEventLoop,
+    mut window_attrs: WindowAttributes,
+    diagnostics: &Rc<RefCell<NativeDiagnostics>>,
+) -> WindowAttributes {
+    let token = event_loop.read_token_from_env();
+    reset_activation_token_env();
+    diagnostics
+        .borrow_mut()
+        .set_activation_token_present(token.is_some());
+    if let Some(token) = token {
+        window_attrs = window_attrs.with_activation_token(token);
+    }
+    window_attrs
+}
+
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+)))]
+fn apply_startup_activation_token(
+    _event_loop: &ActiveEventLoop,
+    window_attrs: WindowAttributes,
+    diagnostics: &Rc<RefCell<NativeDiagnostics>>,
+) -> WindowAttributes {
+    diagnostics.borrow_mut().set_activation_token_present(false);
+    window_attrs
+}
+
 pub fn run<T: NativeApp>(
     app: T,
     native_options: NativeLaunchOptions,
@@ -1163,6 +1285,14 @@ pub fn run<T: NativeApp>(
                 diagnostics.borrow_mut().log_init_error = Some(err.to_string());
             }
         }
+    }
+    if native_options.diagnostic_mode {
+        info!(
+            target: "nc_dash::native",
+            session_backend,
+            backend = native_options.backend_preference.cli_label(),
+            "native startup"
+        );
     }
 
     diagnostics
@@ -1339,6 +1469,12 @@ fn native_error(
             .map(NativeRedrawCause::label)
             .unwrap_or("unknown")
     );
+    if let Some(present) = diagnostics.activation_token_present {
+        message.push_str(&format!(
+            ", activation_token: {}",
+            if present { "yes" } else { "no" }
+        ));
+    }
     if let Some(signature) = diagnostics.last_signature.as_deref() {
         message.push_str(&format!("; signature: {signature}"));
     }
@@ -1520,6 +1656,9 @@ fn sync_window_focus_state<T: NativeApp>(
     shell: &mut NativeShell<T>,
     window: &winit::window::Window,
 ) {
+    if !shell.programmatic_focus_supported {
+        return;
+    }
     if sync_window_focus_requested(&mut shell.window_has_focus, shell.app.wants_window_focus()) {
         window.focus_window();
     }
@@ -1540,13 +1679,6 @@ fn sync_window_input_state<T: NativeApp>(
     let wants_text_input = shell.app.wants_text_input();
     if sync_text_input_enabled(&mut shell.text_input_enabled, wants_text_input) {
         window.set_ime_allowed(wants_text_input);
-        if wants_text_input {
-            let size = window.inner_size();
-            window.set_ime_cursor_area(
-                winit::dpi::PhysicalPosition::new(0, 0),
-                winit::dpi::PhysicalSize::new(size.width.max(1), size.height.max(1)),
-            );
-        }
         shell.needs_redraw = true;
     }
 }
@@ -1622,10 +1754,10 @@ mod tests {
     use super::{
         DRAG_REDRAW_INTERVAL, HOVER_REDRAW_INTERVAL, NativeApp, NativeDiagnostics, NativeEffect,
         NativeInputCause, NativeMsg, NativeRedrawCause, NativeShell, NativeStage, PendingPointer,
-        RedrawSchedule, WinitMouseButton, coalesce_pointer_move, map_event_loop_error,
-        native_error, native_window_icon, next_pointer_dispatch, pointer_coords,
-        pointer_event_kind, resolve_window_policy, sync_text_input_enabled,
-        sync_window_focus_requested,
+        RedrawSchedule, WinitMouseButton, backend_supports_programmatic_focus,
+        coalesce_pointer_move, map_event_loop_error, native_error, native_window_icon,
+        next_pointer_dispatch, pointer_coords, pointer_event_kind, resolve_window_policy,
+        sync_text_input_enabled, sync_window_focus_requested,
     };
     use crate::geometry::ScreenGeometry;
     use crate::input::{MouseEvent, MouseEventKind};
@@ -1941,12 +2073,19 @@ mod tests {
     }
 
     #[test]
+    fn wayland_backend_does_not_support_programmatic_focus() {
+        assert!(!backend_supports_programmatic_focus("wayland"));
+        assert!(backend_supports_programmatic_focus("x11"));
+    }
+
+    #[test]
     fn native_error_includes_backend_and_stage_context() {
         let mut diagnostics = NativeDiagnostics::new(true);
         diagnostics.set_stage(NativeStage::RendererInit);
         diagnostics.set_last_input_cause(NativeInputCause::MouseMove);
         diagnostics.set_last_redraw_cause(NativeRedrawCause::Mouse);
         diagnostics.set_last_signature("route=HostedGame crosshair=8,10".to_string());
+        diagnostics.set_activation_token_present(true);
         diagnostics.log_path = Some(PathBuf::from("/tmp/nc-dash.log"));
         let message = native_error(
             "unable to initialize nc-dash renderer",
@@ -1966,6 +2105,7 @@ mod tests {
         assert!(message.contains("renderer: glyphon-wgpu"));
         assert!(message.contains("last_input: mouse_move"));
         assert!(message.contains("last_redraw: mouse"));
+        assert!(message.contains("activation_token: yes"));
         assert!(message.contains("signature: route=HostedGame crosshair=8,10"));
         assert!(message.contains("/tmp/nc-dash.log"));
     }
@@ -2083,7 +2223,14 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        NativeShell::new(app, window_pixel_width, window_pixel_height, 1.0, false)
+        NativeShell::new(
+            app,
+            window_pixel_width,
+            window_pixel_height,
+            1.0,
+            false,
+            true,
+        )
     }
 
     fn test_drag_shell(
@@ -2107,6 +2254,7 @@ mod tests {
             window_pixel_height,
             1.0,
             false,
+            true,
         )
     }
 
@@ -2127,6 +2275,7 @@ mod tests {
             54,
             1.0,
             false,
+            true,
         )
     }
 

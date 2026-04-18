@@ -1,0 +1,108 @@
+mod support;
+
+use nc_helm::{App, Effect, GameRow, LobbySnapshot, Msg, Route};
+
+use crate::support::{dummy_session, key};
+
+#[test]
+fn lobby_help_closes_on_any_key_and_reopens_on_question_mark() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(lobby.help_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(!lobby.help_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(lobby.help_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+}
+
+#[test]
+fn lobby_update_populates_games_and_notices() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::LobbyUpdated(Ok(LobbySnapshot {
+        games: vec![GameRow {
+            game_id: "phase-sapling-awful".to_string(),
+            name: "Phase Sapling".to_string(),
+            host: "daemon".to_string(),
+            tier: "sandbox".to_string(),
+            seats: "1/4".to_string(),
+            when: "Y3001 T1".to_string(),
+        }],
+        notices: vec!["sysop: sandbox reset tonight".to_string()],
+    })));
+    assert_eq!(app.model().games.len(), 1);
+    assert_eq!(app.model().notices.len(), 1);
+}
+
+#[test]
+fn lock_action_disconnects_transport_and_returns_to_locked_route() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+    assert!(matches!(effects.as_slice(), [Effect::DisconnectTransport]));
+    match &app.model().route {
+        Route::Locked(locked) => {
+            assert_eq!(locked.status.as_deref(), Some("Session locked."));
+            assert!(locked.password_input.is_empty());
+        }
+        other => panic!("expected locked route, got {other:?}"),
+    }
+    assert!(app.model().session.is_none());
+    assert!(app.model().games.is_empty());
+    assert!(app.model().notices.is_empty());
+}
+
+#[test]
+fn tab_switching_changes_rendered_lobby_content() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("HOME"));
+
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("OPEN GAMES"));
+
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("COMMS"));
+
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
+    let buffer = app.view();
+    assert!(buffer.plain_line(5).contains("SETTINGS"));
+}
+
+#[test]
+fn settings_relay_edit_emits_save_and_reconnect_effects() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('4'))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
+    for _ in 0.."ws://127.0.0.1:8080".chars().count() {
+        let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Backspace)));
+    }
+    for ch in "ws://relay.example".chars() {
+        let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char(ch))));
+    }
+    let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    assert!(matches!(
+        effects.as_slice(),
+        [
+            Effect::SaveRelayUrl { relay_url: saved },
+            Effect::DisconnectTransport,
+            Effect::ConnectTransport { relay_url: connected, .. }
+        ] if saved == "ws://relay.example" && connected == "ws://relay.example"
+    ));
+}

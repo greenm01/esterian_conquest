@@ -586,7 +586,7 @@ impl LobbyApp {
         }
 
         let network_wakeup = if self.transport.is_unlocked() && !self.freeze_live_updates {
-            Some(Instant::now() + Duration::from_millis(50))
+            self.transport.next_poll_deadline(Instant::now())
         } else {
             None
         };

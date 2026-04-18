@@ -4,9 +4,8 @@ use std::sync::Arc;
 
 use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight, fontdb,
+    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight, fontdb,
 };
-use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 use wgpu::{
     self, BindGroup, BindGroupLayout, CommandEncoderDescriptor, CompositeAlphaMode, Device,
     DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations, Queue,
@@ -14,15 +13,12 @@ use wgpu::{
     SamplerDescriptor, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension,
     TextureFormat, TextureUsages, TextureViewDescriptor,
 };
-use winit::dpi::{LogicalSize, PhysicalPosition};
+use winit::dpi::PhysicalPosition;
 use winit::event_loop::ActiveEventLoop;
 
-const FONT_SIZE: f32 = 18.0;
-const LINE_HEIGHT: f32 = 24.0;
-const LEFT_INSET: f32 = 1.0;
-const TOP_INSET: f32 = 2.0;
-const CELL_WIDTH: f32 = 12.0;
-const CELL_HEIGHT: f32 = 24.0;
+use crate::geometry::{GridMapper, GridMetrics, caret_rect};
+use crate::grid::{CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
+
 const BACKGROUND_SHADER: &str = r#"
 @group(0) @binding(0) var background_tex: texture_2d<f32>;
 @group(0) @binding(1) var background_sampler: sampler;
@@ -76,20 +72,6 @@ const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
 ));
 
-#[derive(Clone, Copy, Debug)]
-struct CellMetrics {
-    width_px: usize,
-    height_px: usize,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct TextMetrics {
-    font_size_px: f32,
-    line_height_px: f32,
-    left_inset_px: f32,
-    top_inset_px: f32,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TextBufferKey {
     text: Arc<str>,
@@ -121,7 +103,7 @@ pub struct Renderer {
     surface_config: SurfaceConfiguration,
     font_system: FontSystem,
     swash_cache: SwashCache,
-    viewport: Viewport,
+    viewport: glyphon::Viewport,
     atlas: TextAtlas,
     text_renderer: TextRenderer,
     text_buffers: HashMap<TextBufferKey, CachedTextCell>,
@@ -130,8 +112,7 @@ pub struct Renderer {
     background_sampler: Sampler,
     background_texture: BackgroundTexture,
     background_pixels: Vec<u8>,
-    cell_metrics: CellMetrics,
-    text_metrics: TextMetrics,
+    grid_metrics: GridMetrics,
 }
 
 impl Renderer {
@@ -139,9 +120,6 @@ impl Renderer {
         window: Arc<winit::window::Window>,
         event_loop: &ActiveEventLoop,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let scale_factor = window.scale_factor();
-        let cell_metrics = cell_metrics_for_scale(scale_factor);
-        let text_metrics = text_metrics_for_scale(scale_factor);
         let instance = Instance::new(InstanceDescriptor::new_with_display_handle(Box::new(
             event_loop.owned_display_handle(),
         )));
@@ -165,10 +143,11 @@ impl Renderer {
         };
         surface.configure(&device, &surface_config);
 
-        let font_system = build_font_system();
+        let mut font_system = build_font_system();
+        let grid_metrics = GridMetrics::for_scale(window.scale_factor(), &mut font_system);
         let swash_cache = SwashCache::new();
         let cache = Cache::new(&device);
-        let viewport = Viewport::new(&device, &cache);
+        let viewport = glyphon::Viewport::new(&device, &cache);
         let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
         let text_renderer =
             TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
@@ -208,9 +187,32 @@ impl Renderer {
             background_sampler,
             background_texture,
             background_pixels,
-            cell_metrics,
-            text_metrics,
+            grid_metrics,
         })
+    }
+
+    pub fn grid_geometry_for_window(&mut self, width: u32, height: u32) -> ScreenGeometry {
+        self.sync_scale_metrics();
+        let cols = (width.max(1) as usize / self.grid_metrics.cell.width_px).max(1);
+        let rows = (height.max(1) as usize / self.grid_metrics.cell.height_px).max(1);
+        ScreenGeometry::new(cols, rows)
+    }
+
+    pub fn cell_position_at_pixel(
+        &mut self,
+        window: &winit::window::Window,
+        geometry: ScreenGeometry,
+        position: PhysicalPosition<f64>,
+    ) -> Option<Point> {
+        self.sync_scale_metrics();
+        let size = window.inner_size();
+        GridMapper::centered(
+            size.width as usize,
+            size.height as usize,
+            geometry,
+            self.grid_metrics.cell,
+        )
+        .pixel_to_cell(position)
     }
 
     pub fn render(
@@ -303,32 +305,20 @@ impl Renderer {
                 .render(&self.atlas, &self.viewport, &mut pass)?;
         }
 
+        self.window.pre_present_notify();
         self.queue.submit(Some(encoder.finish()));
         frame.present();
         self.atlas.trim();
         Ok(())
     }
 
-    pub fn cell_position_at_pixel(
-        &self,
-        window: &winit::window::Window,
-        position: PhysicalPosition<f64>,
-    ) -> Option<(u16, u16)> {
-        let size = window.inner_size();
-        cell_position_at_pixel(
-            self.surface_config.width as usize / self.cell_metrics.width_px,
-            self.surface_config.height as usize / self.cell_metrics.height_px,
-            size.width,
-            size.height,
-            window.scale_factor(),
-            position,
-        )
-    }
-
     fn sync_scale_metrics(&mut self) {
         let scale_factor = self.window.scale_factor();
-        self.cell_metrics = cell_metrics_for_scale(scale_factor);
-        self.text_metrics = text_metrics_for_scale(scale_factor);
+        let updated = GridMetrics::for_scale(scale_factor, &mut self.font_system);
+        if updated != self.grid_metrics {
+            self.grid_metrics = updated;
+            self.text_buffers.clear();
+        }
     }
 
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> Vec<TextPlacement> {
@@ -341,13 +331,11 @@ impl Renderer {
             pixel.copy_from_slice(&body_bg);
         }
 
-        let grid_pixel_width = playfield.width() * self.cell_metrics.width_px;
-        let grid_pixel_height = playfield.height() * self.cell_metrics.height_px;
-        let x_offset = frame_width.saturating_sub(grid_pixel_width) / 2;
-        let y_offset = frame_height.saturating_sub(grid_pixel_height) / 2;
-        let cursor = playfield
+        let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
+        let mapper = GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
+        let cursor_rect = playfield
             .cursor()
-            .map(|(col, row)| (usize::from(col), usize::from(row)));
+            .map(|point| caret_rect(point, mapper, self.grid_metrics.text));
         let mut placements = Vec::new();
 
         for row_idx in 0..playfield.height() {
@@ -356,31 +344,25 @@ impl Renderer {
             let mut run_text = String::new();
             for col_idx in 0..playfield.width() {
                 let source = playfield.row(row_idx)[col_idx];
-                let style = if cursor == Some((col_idx, row_idx)) {
-                    CellStyle::new(source.style.bg, source.style.fg, source.style.bold)
-                } else {
-                    source.style
-                };
-                let cell_x = x_offset + col_idx * self.cell_metrics.width_px;
-                let cell_y = y_offset + row_idx * self.cell_metrics.height_px;
+                let style = source.style;
+                let rect = mapper.cell_rect(Point::from_usize(col_idx, row_idx));
                 fill_rect_rgba(
                     &mut self.background_pixels,
                     frame_width,
-                    cell_x,
-                    cell_y,
-                    self.cell_metrics.width_px,
-                    self.cell_metrics.height_px,
+                    rect.x,
+                    rect.y,
+                    rect.width,
+                    rect.height,
                     color_to_rgba(style.bg),
                 );
                 if source.ch == ' ' {
                     flush_run(
                         self,
+                        mapper,
                         &mut placements,
                         &mut run_start,
                         &mut run_style,
                         &mut run_text,
-                        x_offset,
-                        y_offset,
                         row_idx,
                         col_idx,
                     );
@@ -394,12 +376,11 @@ impl Renderer {
                 } else {
                     flush_run(
                         self,
+                        mapper,
                         &mut placements,
                         &mut run_start,
                         &mut run_style,
                         &mut run_text,
-                        x_offset,
-                        y_offset,
                         row_idx,
                         col_idx,
                     );
@@ -410,14 +391,25 @@ impl Renderer {
             }
             flush_run(
                 self,
+                mapper,
                 &mut placements,
                 &mut run_start,
                 &mut run_style,
                 &mut run_text,
-                x_offset,
-                y_offset,
                 row_idx,
                 playfield.width(),
+            );
+        }
+
+        if let Some(caret) = cursor_rect {
+            fill_rect_rgba(
+                &mut self.background_pixels,
+                frame_width,
+                caret.x,
+                caret.y,
+                caret.width,
+                caret.height,
+                color_to_rgba(GameColor::BrightWhite),
             );
         }
 
@@ -450,14 +442,14 @@ impl Renderer {
         let mut buffer = GlyphBuffer::new(
             &mut self.font_system,
             Metrics::new(
-                self.text_metrics.font_size_px,
-                self.text_metrics.line_height_px,
+                self.grid_metrics.text.font_size_px,
+                self.grid_metrics.text.line_height_px,
             ),
         );
         buffer.set_size(
             &mut self.font_system,
             None,
-            Some(self.cell_metrics.height_px as f32),
+            Some(self.grid_metrics.cell.height_px as f32),
         );
         let attrs = Attrs::new().family(Family::Monospace).weight(if key.bold {
             Weight::BOLD
@@ -504,8 +496,7 @@ fn build_font_system() -> FontSystem {
     db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
         FALLBACK_REGULAR_FONT,
     ))));
-    let primary_family = PRIMARY_FONT_FAMILY.to_string();
-    db.set_monospace_family(primary_family);
+    db.set_monospace_family(PRIMARY_FONT_FAMILY.to_string());
     font_system
 }
 
@@ -617,12 +608,11 @@ impl BackgroundTexture {
 
 fn flush_run(
     renderer: &mut Renderer,
+    mapper: GridMapper,
     placements: &mut Vec<TextPlacement>,
     run_start: &mut Option<usize>,
     run_style: &mut Option<CellStyle>,
     run_text: &mut String,
-    x_offset: usize,
-    y_offset: usize,
     row_idx: usize,
     end_col: usize,
 ) {
@@ -638,95 +628,22 @@ fn flush_run(
         bold: style.bold,
     };
     renderer.ensure_text_buffer(key.clone());
-    let left = x_offset as f32
-        + start_col as f32 * renderer.cell_metrics.width_px as f32
-        + renderer.text_metrics.left_inset_px;
-    let top = y_offset as f32
-        + row_idx as f32 * renderer.cell_metrics.height_px as f32
-        + renderer.text_metrics.top_inset_px;
+    let start = Point::from_usize(start_col, row_idx);
+    let text_origin = mapper.text_origin(start, renderer.grid_metrics.text);
+    let start_rect = mapper.cell_rect(start);
     placements.push(TextPlacement {
         key,
-        left,
-        top,
+        left: text_origin.left,
+        top: text_origin.top,
         bounds: TextBounds {
-            left: (x_offset + start_col * renderer.cell_metrics.width_px) as i32,
-            top: (y_offset + row_idx * renderer.cell_metrics.height_px) as i32,
-            right: (x_offset + end_col * renderer.cell_metrics.width_px) as i32,
-            bottom: (y_offset + (row_idx + 1) * renderer.cell_metrics.height_px) as i32,
+            left: start_rect.x as i32,
+            top: start_rect.y as i32,
+            right: (mapper.origin_x + end_col * mapper.cell.width_px) as i32,
+            bottom: (start_rect.y + mapper.cell.height_px) as i32,
         },
         color: style.fg,
     });
     run_text.clear();
-}
-
-fn cell_metrics_for_scale(scale_factor: f64) -> CellMetrics {
-    CellMetrics {
-        width_px: (CELL_WIDTH * scale_factor as f32).round().max(1.0) as usize,
-        height_px: (CELL_HEIGHT * scale_factor as f32).round().max(1.0) as usize,
-    }
-}
-
-fn text_metrics_for_scale(scale_factor: f64) -> TextMetrics {
-    let scale = scale_factor as f32;
-    TextMetrics {
-        font_size_px: (FONT_SIZE * scale).max(1.0),
-        line_height_px: (LINE_HEIGHT * scale).max(1.0),
-        left_inset_px: LEFT_INSET * scale,
-        top_inset_px: TOP_INSET * scale,
-    }
-}
-
-pub fn logical_window_size_for_grid(cols: usize, rows: usize) -> LogicalSize<f64> {
-    LogicalSize::new(
-        (cols as f32 * CELL_WIDTH) as f64,
-        (rows as f32 * CELL_HEIGHT) as f64,
-    )
-}
-
-pub fn terminal_grid_for_pixels(
-    pixel_width: u32,
-    pixel_height: u32,
-    scale_factor: f64,
-) -> (u16, u16) {
-    let metrics = cell_metrics_for_scale(scale_factor);
-    let cols = (pixel_width.max(1) as usize / metrics.width_px).max(1);
-    let rows = (pixel_height.max(1) as usize / metrics.height_px).max(1);
-    (
-        cols.min(u16::MAX as usize) as u16,
-        rows.min(u16::MAX as usize) as u16,
-    )
-}
-
-pub fn cell_position_at_pixel(
-    grid_cols: usize,
-    grid_rows: usize,
-    window_pixel_width: u32,
-    window_pixel_height: u32,
-    scale_factor: f64,
-    position: PhysicalPosition<f64>,
-) -> Option<(u16, u16)> {
-    if !position.x.is_finite() || !position.y.is_finite() || position.x < 0.0 || position.y < 0.0 {
-        return None;
-    }
-    let metrics = cell_metrics_for_scale(scale_factor);
-    let x = position.x.floor() as usize;
-    let y = position.y.floor() as usize;
-    let grid_pixel_width = grid_cols.checked_mul(metrics.width_px)?;
-    let grid_pixel_height = grid_rows.checked_mul(metrics.height_px)?;
-    let x_offset = (window_pixel_width as usize).saturating_sub(grid_pixel_width) / 2;
-    let y_offset = (window_pixel_height as usize).saturating_sub(grid_pixel_height) / 2;
-    if x < x_offset || y < y_offset {
-        return None;
-    }
-    let local_x = x - x_offset;
-    let local_y = y - y_offset;
-    if local_x >= grid_pixel_width || local_y >= grid_pixel_height {
-        return None;
-    }
-    Some((
-        (local_x / metrics.width_px) as u16,
-        (local_y / metrics.height_px) as u16,
-    ))
 }
 
 fn fill_rect_rgba(
@@ -811,4 +728,56 @@ fn ansi_indexed_rgb(index: u8) -> (u8, u8, u8) {
 fn glyphon_color(color: GameColor) -> Color {
     let [r, g, b, _] = color_to_rgba(color);
     Color::rgb(r, g, b)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::geometry::{GridMapper, GridMetrics, caret_rect};
+    use crate::grid::{Point, ScreenGeometry};
+
+    fn mapper() -> (GridMapper, GridMetrics) {
+        let metrics = GridMetrics {
+            cell: crate::geometry::CellMetrics {
+                width_px: 12,
+                height_px: 24,
+            },
+            text: crate::geometry::TextMetrics {
+                font_size_px: 18.0,
+                line_height_px: 24.0,
+            },
+        };
+        (
+            GridMapper::centered(1200, 900, ScreenGeometry::new(100, 36), metrics.cell),
+            metrics,
+        )
+    }
+
+    #[test]
+    fn caret_rect_tracks_columns_by_cell_width() {
+        let (mapper, metrics) = mapper();
+        let start = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
+        let next = caret_rect(Point::from_usize(32, 16), mapper, metrics.text);
+        assert_eq!(next.x - start.x, metrics.cell.width_px);
+        assert_eq!(start.y, next.y);
+    }
+
+    #[test]
+    fn caret_rect_tracks_rows_by_cell_height() {
+        let (mapper, metrics) = mapper();
+        let handle = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
+        let password = caret_rect(Point::from_usize(31, 18), mapper, metrics.text);
+        assert_eq!(password.x, handle.x);
+        assert_eq!(password.y - handle.y, metrics.cell.height_px * 2);
+    }
+
+    #[test]
+    fn caret_rect_uses_text_origin_from_cell_mapping() {
+        let (mapper, metrics) = mapper();
+        let rect = mapper.cell_rect(Point::from_usize(31, 16));
+        let caret = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
+        assert_eq!(caret.x, rect.x);
+        assert_eq!(caret.y, rect.y);
+        assert_eq!(caret.width, 2);
+        assert_eq!(caret.height, 24);
+    }
 }

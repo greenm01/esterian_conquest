@@ -1,8 +1,7 @@
-use nc_ui::{CellStyle, GameColor, PlayfieldBuffer, ScreenGeometry};
-
 use super::{
     DEFAULT_GEOMETRY, FirstRunField, LobbyTab, Model, NetworkState, Route, mask, status_color,
 };
+use crate::{CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry};
 
 const BODY: CellStyle = CellStyle::new(
     GameColor::BrightWhite,
@@ -31,6 +30,10 @@ const PANEL: CellStyle = CellStyle::new(
     GameColor::Rgb(0x19, 0x1b, 0x26),
     false,
 );
+const FORM_FIELD_LABEL_WIDTH: usize = 9;
+const FORM_FIELD_TRACK_WIDTH: usize = 30;
+const SETTINGS_FIELD_LABEL_WIDTH: usize = 12;
+const SETTINGS_FIELD_TRACK_WIDTH: usize = 44;
 
 pub fn render(model: &Model) -> PlayfieldBuffer {
     let geometry = if model.geometry.width() == 0 || model.geometry.height() == 0 {
@@ -96,37 +99,45 @@ fn render_first_run(
                 "Tab cycles fields. Enter submits. Esc quits.",
                 DIM,
             );
-            field_row(
+            draw_boxed_input_row(
                 buffer,
                 left + 3,
                 top + 6,
+                FORM_FIELD_LABEL_WIDTH,
+                FORM_FIELD_TRACK_WIDTH,
                 "Handle",
                 &first_run.handle_input,
                 first_run.active_field == FirstRunField::Handle,
                 false,
             );
-            field_row(
+            draw_boxed_input_row(
                 buffer,
                 left + 3,
                 top + 8,
+                FORM_FIELD_LABEL_WIDTH,
+                FORM_FIELD_TRACK_WIDTH,
                 "Password",
                 &first_run.password_input,
                 first_run.active_field == FirstRunField::Password,
                 true,
             );
-            field_row(
+            draw_boxed_input_row(
                 buffer,
                 left + 3,
                 top + 10,
+                FORM_FIELD_LABEL_WIDTH,
+                FORM_FIELD_TRACK_WIDTH,
                 "Confirm",
                 &first_run.confirm_input,
                 first_run.active_field == FirstRunField::Confirm,
                 true,
             );
-            field_row(
+            draw_boxed_input_row(
                 buffer,
                 left + 3,
                 top + 12,
+                FORM_FIELD_LABEL_WIDTH,
+                FORM_FIELD_TRACK_WIDTH,
                 "Relay",
                 &first_run.relay_input,
                 first_run.active_field == FirstRunField::Relay,
@@ -141,38 +152,6 @@ fn render_first_run(
             if let Some(status) = &first_run.status {
                 buffer.write_text(top + 14, left + 3, status, status_style(status));
             }
-            place_field_cursor(
-                buffer,
-                left + 15,
-                top + 6,
-                &first_run.handle_input,
-                first_run.active_field == FirstRunField::Handle,
-                false,
-            );
-            place_field_cursor(
-                buffer,
-                left + 15,
-                top + 8,
-                &first_run.password_input,
-                first_run.active_field == FirstRunField::Password,
-                true,
-            );
-            place_field_cursor(
-                buffer,
-                left + 15,
-                top + 10,
-                &first_run.confirm_input,
-                first_run.active_field == FirstRunField::Confirm,
-                true,
-            );
-            place_field_cursor(
-                buffer,
-                left + 15,
-                top + 12,
-                &first_run.relay_input,
-                first_run.active_field == FirstRunField::Relay,
-                false,
-            );
         },
     );
 }
@@ -197,19 +176,13 @@ fn render_locked(
                 ACCENT,
             );
             buffer.write_text(top + 3, left + 3, &format!("Relay: {relay_url}"), DIM);
-            field_row(
+            draw_boxed_input_row(
                 buffer,
                 left + 3,
                 top + 6,
+                FORM_FIELD_LABEL_WIDTH,
+                FORM_FIELD_TRACK_WIDTH,
                 "Password",
-                &locked.password_input,
-                true,
-                true,
-            );
-            place_field_cursor(
-                buffer,
-                left + 15,
-                top + 6,
                 &locked.password_input,
                 true,
                 true,
@@ -363,12 +336,16 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
     } else {
         (model.relay_url.as_str(), false)
     };
-    buffer.write_text(8, 5, "Relay URL    : ", DIM);
-    buffer.write_text_clipped(
+    draw_boxed_input_row(
+        buffer,
+        5,
         8,
-        20,
+        SETTINGS_FIELD_LABEL_WIDTH,
+        SETTINGS_FIELD_TRACK_WIDTH,
+        "Relay URL",
         relay_draft,
-        if editing_relay { ACCENT } else { BODY },
+        editing_relay,
+        false,
     );
     buffer.write_text(
         9,
@@ -422,10 +399,6 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
         ACCENT,
     );
     buffer.write_text(18, 5, "Esc/Q : Quit nc-helm", DIM);
-    if editing_relay {
-        let column = (20 + relay_draft.chars().count()).min(buffer.width().saturating_sub(1));
-        buffer.set_cursor(column as u16, 8);
-    }
     draw_status_panel(buffer, geometry, model);
 }
 
@@ -621,43 +594,36 @@ fn fill_rect(
     }
 }
 
-fn field_row(
+fn draw_boxed_input_row(
     buffer: &mut PlayfieldBuffer,
     left: usize,
     row: usize,
+    label_width: usize,
+    track_width: usize,
     label: &str,
     value: &str,
     active: bool,
     masked: bool,
 ) {
     let field_style = if active { ACCENT } else { BODY };
-    buffer.write_text(row, left, &format!("{label:<9}: "), DIM);
+    let field_left = left + label_width + 2;
+    let field_width = track_width.min(buffer.width().saturating_sub(field_left));
+    let text_col = field_left.saturating_add(1);
+    buffer.write_text(row, left, &format!("{label:<label_width$}: "), DIM);
+    buffer.fill_rect(row, field_left, field_width, 1, BODY);
     let shown = if masked {
         mask(value)
     } else {
         value.to_string()
     };
-    buffer.write_text_clipped(row, left + 12, &shown, field_style);
-}
-
-fn place_field_cursor(
-    buffer: &mut PlayfieldBuffer,
-    left: usize,
-    row: usize,
-    value: &str,
-    active: bool,
-    masked: bool,
-) {
-    if !active {
-        return;
+    buffer.write_text_clipped(row, text_col, &shown, field_style);
+    if active && field_width > 0 {
+        let max_col = field_left + field_width - 1;
+        let cursor_col = (text_col + shown.chars().count()).min(max_col);
+        if cursor_col < buffer.width() {
+            buffer.set_cursor(Point::new(Column(cursor_col), Row(row)));
+        }
     }
-    let shown_len = if masked {
-        value.chars().count()
-    } else {
-        value.chars().count()
-    };
-    let column = (left + shown_len).min(buffer.width().saturating_sub(1));
-    buffer.set_cursor(column as u16, row as u16);
 }
 
 fn truncate(value: &str, width: usize) -> String {

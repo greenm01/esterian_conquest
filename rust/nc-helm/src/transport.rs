@@ -37,16 +37,20 @@ impl TransportActor {
         relay_url: String,
         nsec: String,
         reply_to: Sender<Result<LobbySnapshot, String>>,
-    ) {
-        let _ = self.tx.send(TransportCommand::Connect {
-            relay_url,
-            nsec,
-            reply_to,
-        });
+    ) -> Result<(), String> {
+        self.tx
+            .send(TransportCommand::Connect {
+                relay_url,
+                nsec,
+                reply_to,
+            })
+            .map_err(|_| "transport actor unavailable".to_string())
     }
 
-    pub fn disconnect(&self) {
-        let _ = self.tx.send(TransportCommand::Disconnect);
+    pub fn disconnect(&self) -> Result<(), String> {
+        self.tx
+            .send(TransportCommand::Disconnect)
+            .map_err(|_| "transport actor unavailable".to_string())
     }
 }
 

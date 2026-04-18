@@ -1,3 +1,4 @@
+use crate::Point;
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
@@ -71,8 +72,7 @@ pub enum MouseEventKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MouseEvent {
     pub kind: MouseEventKind,
-    pub column: u16,
-    pub row: u16,
+    pub position: Point,
     pub modifiers: KeyModifiers,
 }
 
