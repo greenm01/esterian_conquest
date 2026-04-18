@@ -78,11 +78,28 @@ impl<'a> StyledSpan<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum OverlayTextFamily {
+    Stormfaze,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct OverlayText {
+    pub text: String,
+    pub family: OverlayTextFamily,
+    pub style: CellStyle,
+    pub left_col: usize,
+    pub top_row: usize,
+    pub width_cols: usize,
+    pub height_rows: usize,
+}
+
 pub struct PlayfieldBuffer {
     width: usize,
     height: usize,
     cells: Vec<Cell>,
     cursor: Option<Point>,
+    overlay_texts: Vec<OverlayText>,
 }
 
 impl PlayfieldBuffer {
@@ -92,6 +109,7 @@ impl PlayfieldBuffer {
             height,
             cells: vec![Cell::new(' ', base_style); width * height],
             cursor: None,
+            overlay_texts: Vec::new(),
         }
     }
 
@@ -105,6 +123,10 @@ impl PlayfieldBuffer {
 
     pub fn cursor(&self) -> Option<Point> {
         self.cursor
+    }
+
+    pub(crate) fn overlay_texts(&self) -> &[OverlayText] {
+        &self.overlay_texts
     }
 
     pub fn row(&self, row: usize) -> &[Cell] {
@@ -242,6 +264,30 @@ impl PlayfieldBuffer {
 
     pub fn clear_cursor(&mut self) {
         self.cursor = None;
+    }
+
+    pub(crate) fn push_overlay_text(
+        &mut self,
+        text: impl Into<String>,
+        family: OverlayTextFamily,
+        style: CellStyle,
+        left_col: usize,
+        top_row: usize,
+        width_cols: usize,
+        height_rows: usize,
+    ) {
+        if width_cols == 0 || height_rows == 0 {
+            return;
+        }
+        self.overlay_texts.push(OverlayText {
+            text: text.into(),
+            family,
+            style,
+            left_col,
+            top_row,
+            width_cols,
+            height_rows,
+        });
     }
 
     pub fn plain_line(&self, row: usize) -> String {

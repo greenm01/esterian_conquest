@@ -327,7 +327,7 @@ fn field_string_mut(model: &mut FirstRunModel) -> &mut String {
 }
 
 fn mask(value: &str) -> String {
-    "*".repeat(value.chars().count())
+    "●".repeat(value.chars().count())
 }
 
 fn status_color(status: NetworkState) -> GameColor {

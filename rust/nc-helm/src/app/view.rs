@@ -4,8 +4,9 @@ use super::{
     LobbyTab, Model, NetworkState, Route, centered_box_geometry, mask, status_color,
 };
 use crate::{
-    BackgroundMode, CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry,
+    CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry,
 };
+use crate::grid::OverlayTextFamily;
 
 const BODY: CellStyle = CellStyle::new(
     GameColor::BrightWhite,
@@ -59,6 +60,11 @@ const PANEL_ACCENT: CellStyle = CellStyle::new(
     GameColor::Rgb(0x19, 0x1b, 0x26),
     true,
 );
+const PANEL_BRAND: CellStyle = CellStyle::new(
+    GameColor::BrightCyan,
+    GameColor::Rgb(0x19, 0x1b, 0x26),
+    false,
+);
 const PANEL_WARN: CellStyle = CellStyle::new(
     GameColor::BrightYellow,
     GameColor::Rgb(0x19, 0x1b, 0x26),
@@ -75,9 +81,24 @@ const PANEL_BORDER: CellStyle = CellStyle::new(
     false,
 );
 const FORM_FIELD_LABEL_WIDTH: usize = 9;
-const FORM_FIELD_TRACK_WIDTH: usize = 30;
 const SETTINGS_FIELD_LABEL_WIDTH: usize = 12;
 const SETTINGS_FIELD_TRACK_WIDTH: usize = 44;
+const FIRST_RUN_GATE_WIDTH: usize = 68;
+const FIRST_RUN_GATE_HEIGHT: usize = 22;
+const LOCKED_GATE_WIDTH: usize = 60;
+const LOCKED_GATE_HEIGHT: usize = 13;
+const LOCKED_GATE_HEIGHT_WITH_STATUS: usize = 15;
+const GATE_SIDE_PADDING: usize = 3;
+const GATE_LOGO_WIDTH_INSET: usize = 3;
+const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
+const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
+const GATE_LOGO_BLOCK_ROWS: usize = 7;
+
+struct GateLayout {
+    content_left: usize,
+    content_width: usize,
+    next_row: usize,
+}
 
 pub fn render(model: &Model) -> PlayfieldBuffer {
     let geometry = if model.geometry.width() == 0 || model.geometry.height() == 0 {
@@ -128,123 +149,111 @@ fn render_first_run(
     relay_url: &str,
     first_run: &super::FirstRunModel,
 ) {
-    centered_box(
+    let layout = render_gate_shell(
         buffer,
         geometry,
-        68,
-        15,
+        FIRST_RUN_GATE_WIDTH,
+        FIRST_RUN_GATE_HEIGHT,
         "CREATE IDENTITY",
-        |buffer, left, top| {
-            buffer.write_text(
-                top + 2,
-                left + 3,
-                "NC-HELM stores encrypted player keys in SQLite.",
-                PANEL_ACCENT,
-            );
-            buffer.write_text(
-                top + 3,
-                left + 3,
-                "Tab cycles fields. Enter submits. Esc quits.",
-                PANEL_DIM,
-            );
-            draw_boxed_input_row(
-                buffer,
-                left + 3,
-                top + 6,
-                FORM_FIELD_LABEL_WIDTH,
-                FORM_FIELD_TRACK_WIDTH,
-                "Handle",
-                &first_run.handle_input,
-                first_run.active_field == FirstRunField::Handle,
-                false,
-            );
-            draw_boxed_input_row(
-                buffer,
-                left + 3,
-                top + 8,
-                FORM_FIELD_LABEL_WIDTH,
-                FORM_FIELD_TRACK_WIDTH,
-                "Password",
-                &first_run.password_input,
-                first_run.active_field == FirstRunField::Password,
-                true,
-            );
-            draw_boxed_input_row(
-                buffer,
-                left + 3,
-                top + 10,
-                FORM_FIELD_LABEL_WIDTH,
-                FORM_FIELD_TRACK_WIDTH,
-                "Confirm",
-                &first_run.confirm_input,
-                first_run.active_field == FirstRunField::Confirm,
-                true,
-            );
-            draw_boxed_input_row(
-                buffer,
-                left + 3,
-                top + 12,
-                FORM_FIELD_LABEL_WIDTH,
-                FORM_FIELD_TRACK_WIDTH,
-                "Relay",
-                &first_run.relay_input,
-                first_run.active_field == FirstRunField::Relay,
-                false,
-            );
-            buffer.write_text(
-                top + 13,
-                left + 3,
-                &format!("Active relay: {relay_url}"),
-                PANEL_DIM,
-            );
-            if let Some(status) = &first_run.status {
-                buffer.write_text(top + 14, left + 3, status, panel_status_style(status));
-            }
-        },
+        first_run.status.as_deref(),
+        &[
+            "NC-HELM stores encrypted player keys in SQLite.",
+            "Tab cycles fields. Enter submits. Esc quits.",
+        ],
+    );
+    let track_width = gate_track_width(layout.content_width);
+    draw_boxed_input_row(
+        buffer,
+        layout.content_left,
+        layout.next_row,
+        FORM_FIELD_LABEL_WIDTH,
+        track_width,
+        "Handle",
+        &first_run.handle_input,
+        first_run.active_field == FirstRunField::Handle,
+        false,
+    );
+    draw_boxed_input_row(
+        buffer,
+        layout.content_left,
+        layout.next_row + 1,
+        FORM_FIELD_LABEL_WIDTH,
+        track_width,
+        "Password",
+        &first_run.password_input,
+        first_run.active_field == FirstRunField::Password,
+        true,
+    );
+    draw_boxed_input_row(
+        buffer,
+        layout.content_left,
+        layout.next_row + 2,
+        FORM_FIELD_LABEL_WIDTH,
+        track_width,
+        "Confirm",
+        &first_run.confirm_input,
+        first_run.active_field == FirstRunField::Confirm,
+        true,
+    );
+    draw_boxed_input_row(
+        buffer,
+        layout.content_left,
+        layout.next_row + 3,
+        FORM_FIELD_LABEL_WIDTH,
+        track_width,
+        "Relay",
+        &first_run.relay_input,
+        first_run.active_field == FirstRunField::Relay,
+        false,
+    );
+    buffer.write_text_clipped(
+        layout.next_row + 5,
+        layout.content_left,
+        &format!("Active relay: {relay_url}"),
+        PANEL_DIM,
     );
 }
 
 fn render_locked(
     buffer: &mut PlayfieldBuffer,
     geometry: ScreenGeometry,
-    relay_url: &str,
+    _relay_url: &str,
     locked: &super::LockedModel,
 ) {
-    centered_box(
+    let height = if locked.status.is_some() {
+        LOCKED_GATE_HEIGHT_WITH_STATUS
+    } else {
+        LOCKED_GATE_HEIGHT
+    };
+    let (left, top, width, height) = centered_box_geometry(geometry, LOCKED_GATE_WIDTH, height);
+    draw_panel(
         buffer,
-        geometry,
-        60,
-        11,
-        "UNLOCK KEYCHAIN",
-        |buffer, left, top| {
-            buffer.write_text(
-                top + 2,
-                left + 3,
-                "Enter your local keychain password.",
-                PANEL_ACCENT,
-            );
-            buffer.write_text(
-                top + 3,
-                left + 3,
-                &format!("Relay: {relay_url}"),
-                PANEL_DIM,
-            );
-            draw_boxed_input_row(
-                buffer,
-                left + 3,
-                top + 6,
-                FORM_FIELD_LABEL_WIDTH,
-                FORM_FIELD_TRACK_WIDTH,
-                "Password",
-                &locked.password_input,
-                true,
-                true,
-            );
-            if let Some(status) = &locked.status {
-                buffer.write_text(top + 8, left + 3, status, panel_status_style(status));
-            }
-            buffer.write_text(top + 9, left + 3, "Press Esc to quit.", PANEL_DIM);
-        },
+        left,
+        top,
+        width,
+        height,
+        PANEL_BORDER,
+        PANEL_ACCENT,
+        Some(PANEL),
+        Some("UNLOCK KEYCHAIN"),
+        None,
+    );
+    let content_left = left + GATE_SIDE_PADDING;
+    let mut row = top + 2;
+    if let Some(status) = &locked.status {
+        buffer.write_text_clipped(row, content_left, status, panel_status_style(status));
+        row += 2;
+    }
+    let use_stormfaze = width >= GATE_STORMFAZE_MIN_WIDTH && height >= GATE_STORMFAZE_MIN_HEIGHT;
+    draw_gate_wordmark(buffer, left, row, width, use_stormfaze);
+    row += if use_stormfaze { GATE_LOGO_BLOCK_ROWS } else { 2 };
+    let password_row = row + 1;
+    draw_inline_unlock_password_row(buffer, content_left, password_row, &locked.password_input);
+    buffer.write_text(
+        password_row + 1,
+        content_left,
+        "Press Esc to quit.",
+        PANEL_DIM,
     );
 }
 
@@ -688,6 +697,100 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
     }
 }
 
+fn render_gate_shell(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    width: usize,
+    height: usize,
+    title: &str,
+    status: Option<&str>,
+    copy_lines: &[&str],
+) -> GateLayout {
+    let (left, top, width, height) = centered_box_geometry(geometry, width, height);
+    draw_panel(
+        buffer,
+        left,
+        top,
+        width,
+        height,
+        PANEL_BORDER,
+        PANEL_ACCENT,
+        Some(PANEL),
+        Some(title),
+        None,
+    );
+
+    let content_left = left + GATE_SIDE_PADDING;
+    let content_width = width.saturating_sub(GATE_SIDE_PADDING * 2 + 2);
+    let mut row = top + 2;
+
+    if let Some(status) = status {
+        buffer.write_text_clipped(row, content_left, status, panel_status_style(status));
+        row += 2;
+    }
+
+    let use_stormfaze = width >= GATE_STORMFAZE_MIN_WIDTH && height >= GATE_STORMFAZE_MIN_HEIGHT;
+    draw_gate_wordmark(buffer, left, row, width, use_stormfaze);
+    row += if use_stormfaze { GATE_LOGO_BLOCK_ROWS } else { 2 };
+
+    if !copy_lines.is_empty() {
+        for (idx, line) in copy_lines.iter().enumerate() {
+            buffer.write_text_clipped(
+                row + idx,
+                content_left,
+                line,
+                if idx == 0 { PANEL_ACCENT } else { PANEL_DIM },
+            );
+        }
+        row += copy_lines.len() + 1;
+    }
+
+    GateLayout {
+        content_left,
+        content_width,
+        next_row: row,
+    }
+}
+
+fn draw_gate_wordmark(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    width: usize,
+    use_stormfaze: bool,
+) {
+    let logo_left = left + GATE_LOGO_WIDTH_INSET;
+    let logo_width = width.saturating_sub(GATE_LOGO_WIDTH_INSET * 2);
+    if use_stormfaze {
+        buffer.push_overlay_text(
+            "NOSTRIAN",
+            OverlayTextFamily::Stormfaze,
+            PANEL_BRAND,
+            logo_left,
+            top,
+            logo_width,
+            4,
+        );
+        buffer.push_overlay_text(
+            "CONQUEST",
+            OverlayTextFamily::Stormfaze,
+            PANEL_BRAND,
+            logo_left,
+            top + 3,
+            logo_width,
+            4,
+        );
+        return;
+    }
+
+    let line_one = "NOSTRIAN";
+    let line_two = "CONQUEST";
+    let line_one_col = left + width.saturating_sub(line_one.chars().count()) / 2;
+    let line_two_col = left + width.saturating_sub(line_two.chars().count()) / 2;
+    buffer.write_text_clipped(top, line_one_col, line_one, PANEL_BRAND);
+    buffer.write_text_clipped(top + 1, line_two_col, line_two, PANEL_BRAND);
+}
+
 fn fill(buffer: &mut PlayfieldBuffer, style: CellStyle) {
     for row in 0..buffer.height() {
         buffer.fill_row(row, style);
@@ -730,8 +833,8 @@ fn draw_boxed_input_row(
     masked: bool,
 ) {
     let field_style = if active { PANEL_ACCENT } else { PANEL_BODY };
-    let track_style = PANEL_BODY.with_background_mode(BackgroundMode::TextBand);
-    let value_style = field_style.with_background_mode(BackgroundMode::TextBand);
+    let track_style = PANEL_BODY;
+    let value_style = field_style;
     let field_left = left + label_width + 2;
     let field_width = track_width.min(buffer.width().saturating_sub(field_left));
     let text_col = field_left.saturating_add(1);
@@ -752,8 +855,28 @@ fn draw_boxed_input_row(
     }
 }
 
+fn draw_inline_unlock_password_row(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    row: usize,
+    value: &str,
+) {
+    let prefix = "Password: ";
+    let shown = "X".repeat(value.chars().count());
+    buffer.write_text(row, left, prefix, PANEL_DIM);
+    buffer.write_text_clipped(row, left + prefix.chars().count(), &shown, PANEL_ACCENT);
+    let cursor_col = left + prefix.chars().count() + shown.chars().count();
+    if cursor_col < buffer.width() {
+        buffer.set_cursor(Point::new(Column(cursor_col), Row(row)));
+    }
+}
+
 fn truncate(value: &str, width: usize) -> String {
     value.chars().take(width).collect()
+}
+
+fn gate_track_width(content_width: usize) -> usize {
+    content_width.saturating_sub(FORM_FIELD_LABEL_WIDTH + 3)
 }
 
 fn status_style(status: &str) -> CellStyle {

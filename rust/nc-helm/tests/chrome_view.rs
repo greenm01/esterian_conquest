@@ -13,9 +13,9 @@ fn first_run_view_uses_unicode_centered_box_chrome() {
     })));
 
     let buffer = app.view();
-    assert_eq!(buffer.row(10)[16].ch, '╭');
-    assert_eq!(buffer.row(10)[83].ch, '╮');
-    assert!(buffer.plain_line(10).contains("┐ CREATE IDENTITY ┌"));
+    assert_eq!(buffer.row(7)[16].ch, '╭');
+    assert_eq!(buffer.row(7)[83].ch, '╮');
+    assert!(buffer.plain_line(7).contains("┐ CREATE IDENTITY ┌"));
 }
 
 #[test]

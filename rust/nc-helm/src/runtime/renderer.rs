@@ -41,7 +41,10 @@ use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
 use crate::geometry::{GridMapper, GridMetrics, caret_rect};
-use crate::grid::{BackgroundMode, CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
+use crate::grid::{
+    BackgroundMode, CellStyle, GameColor, OverlayText, OverlayTextFamily, PlayfieldBuffer, Point,
+    ScreenGeometry,
+};
 
 /// Fullscreen-quad shader that uploads the CPU `background_pixels` buffer.
 ///
@@ -105,25 +108,39 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 }
 "#;
 
-const PRIMARY_FONT_FAMILY: &str = "0xProto Nerd Font Mono";
+const PRIMARY_FONT_FAMILY: &str = "JetBrains Mono";
 const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Regular.ttf"
+    "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
 ));
 const PRIMARY_BOLD_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Bold.ttf"
+    "/../nc-connect/assets/fonts/JetBrainsMono-Bold.ttf"
 ));
 const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
 ));
+const STORMFAZE_FONT_FAMILY: &str = "Stormfaze";
+const STORMFAZE_REGULAR_FONT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../docs/assets/fonts/Stormfaze.otf"
+));
 
 /// Cache key for shaped glyphon buffers. Same string + weight reuses one
 /// shaped layout across cells/rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum TextFamilyKey {
+    Monospace,
+    Named(&'static str),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TextBufferKey {
     text: Arc<str>,
+    family: TextFamilyKey,
+    font_size_bits: u32,
+    line_height_bits: u32,
     bold: bool,
 }
 
@@ -537,6 +554,8 @@ impl Renderer {
             );
         }
 
+        prepare_overlay_texts(self, mapper, playfield.overlay_texts(), &mut placements);
+
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture: &self.background_texture.texture,
@@ -569,20 +588,25 @@ impl Renderer {
         let mut buffer = GlyphBuffer::new(
             &mut self.font_system,
             Metrics::new(
-                self.grid_metrics.text.font_size_px,
-                self.grid_metrics.text.line_height_px,
+                f32::from_bits(key.font_size_bits),
+                f32::from_bits(key.line_height_bits),
             ),
         );
         buffer.set_size(
             &mut self.font_system,
             None,
-            Some(self.grid_metrics.cell.height_px as f32),
+            Some(f32::from_bits(key.line_height_bits).max(1.0)),
         );
-        let attrs = Attrs::new().family(Family::Monospace).weight(if key.bold {
-            Weight::BOLD
-        } else {
-            Weight::NORMAL
-        });
+        let attrs = Attrs::new()
+            .family(match key.family {
+                TextFamilyKey::Monospace => Family::Monospace,
+                TextFamilyKey::Named(name) => Family::Name(name),
+            })
+            .weight(if key.bold {
+                Weight::BOLD
+            } else {
+                Weight::NORMAL
+            });
         buffer.set_text(
             &mut self.font_system,
             key.text.as_ref(),
@@ -619,8 +643,7 @@ impl Renderer {
 /// fallback. The primary family is set so glyphon resolves `Family::Monospace`
 /// to the bundled face rather than whatever the OS picks.
 fn build_font_system() -> FontSystem {
-    let mut font_system = FontSystem::new();
-    let db = font_system.db_mut();
+    let mut db = fontdb::Database::new();
     db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
         PRIMARY_REGULAR_FONT,
     ))));
@@ -630,8 +653,11 @@ fn build_font_system() -> FontSystem {
     db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
         FALLBACK_REGULAR_FONT,
     ))));
+    db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
+        STORMFAZE_REGULAR_FONT,
+    ))));
     db.set_monospace_family(PRIMARY_FONT_FAMILY.to_string());
-    font_system
+    FontSystem::new_with_locale_and_db(String::from("en-US"), db)
 }
 
 /// Build the wgpu render pipeline that draws the background texture as a
@@ -771,10 +797,13 @@ fn flush_run(
     if run_text.is_empty() {
         return;
     }
-    let key = TextBufferKey {
-        text: Arc::<str>::from(run_text.as_str()),
-        bold: style.bold,
-    };
+    let key = make_text_key(
+        Arc::<str>::from(run_text.as_str()),
+        TextFamilyKey::Monospace,
+        renderer.grid_metrics.text.font_size_px,
+        renderer.grid_metrics.text.line_height_px,
+        style.bold,
+    );
     renderer.ensure_text_buffer(key.clone());
     let overhang = renderer
         .text_buffers
@@ -806,6 +835,138 @@ fn flush_run(
         color: style.fg,
     });
     run_text.clear();
+}
+
+fn prepare_overlay_texts(
+    renderer: &mut Renderer,
+    mapper: GridMapper,
+    overlays: &[OverlayText],
+    placements: &mut Vec<TextPlacement>,
+) {
+    for overlay in overlays {
+        if overlay.text.is_empty() {
+            continue;
+        }
+        let bounds = overlay_pixel_bounds(mapper, overlay);
+        if bounds.width <= 1 || bounds.height <= 1 {
+            continue;
+        }
+        let family = match overlay.family {
+            OverlayTextFamily::Stormfaze => TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
+        };
+        let font_size = fit_overlay_font_size(
+            &mut renderer.font_system,
+            &overlay.text,
+            family,
+            bounds.width as f32,
+            bounds.height as f32,
+        );
+        if font_size <= 0.0 {
+            continue;
+        }
+        let key = make_text_key(
+            Arc::<str>::from(overlay.text.as_str()),
+            family,
+            font_size,
+            font_size,
+            overlay.style.bold,
+        );
+        renderer.ensure_text_buffer(key.clone());
+        let cached = renderer
+            .text_buffers
+            .get(&key)
+            .expect("overlay text buffer exists after shaping");
+        let measured_width = cached
+            .buffer
+            .layout_runs()
+            .next()
+            .map(|run| run.line_w)
+            .unwrap_or(0.0);
+        let line_height = f32::from_bits(key.line_height_bits);
+        placements.push(TextPlacement {
+            key,
+            left: bounds.x as f32 + ((bounds.width as f32 - measured_width).max(0.0) / 2.0),
+            top: bounds.y as f32 + ((bounds.height as f32 - line_height).max(0.0) / 2.0),
+            bounds: TextBounds {
+                left: bounds.x as i32,
+                top: bounds.y as i32,
+                right: bounds.x.saturating_add(bounds.width) as i32,
+                bottom: bounds.y.saturating_add(bounds.height) as i32,
+            },
+            color: overlay.style.fg,
+        });
+    }
+}
+
+fn overlay_pixel_bounds(mapper: GridMapper, overlay: &OverlayText) -> crate::geometry::PhysicalRect {
+    let top_left = mapper.cell_rect(Point::from_usize(overlay.left_col, overlay.top_row));
+    crate::geometry::PhysicalRect {
+        x: top_left.x,
+        y: top_left.y,
+        width: overlay.width_cols.saturating_mul(mapper.cell.width_px),
+        height: overlay.height_rows.saturating_mul(mapper.cell.height_px),
+    }
+}
+
+fn make_text_key(
+    text: Arc<str>,
+    family: TextFamilyKey,
+    font_size_px: f32,
+    line_height_px: f32,
+    bold: bool,
+) -> TextBufferKey {
+    TextBufferKey {
+        text,
+        family,
+        font_size_bits: font_size_px.to_bits(),
+        line_height_bits: line_height_px.to_bits(),
+        bold,
+    }
+}
+
+fn fit_overlay_font_size(
+    font_system: &mut FontSystem,
+    text: &str,
+    family: TextFamilyKey,
+    max_width_px: f32,
+    max_height_px: f32,
+) -> f32 {
+    let max_height_px = max_height_px.floor().max(1.0);
+    let mut low = 1usize;
+    let mut high = max_height_px as usize;
+    let mut best = 0usize;
+    while low <= high {
+        let mid = (low + high) / 2;
+        let width = measure_single_line_width(font_system, text, family, mid as f32);
+        if width <= max_width_px.max(1.0) {
+            best = mid;
+            low = mid.saturating_add(1);
+        } else {
+            high = mid.saturating_sub(1);
+        }
+    }
+    best as f32
+}
+
+fn measure_single_line_width(
+    font_system: &mut FontSystem,
+    text: &str,
+    family: TextFamilyKey,
+    font_size_px: f32,
+) -> f32 {
+    let mut buffer = GlyphBuffer::new(font_system, Metrics::new(font_size_px, font_size_px));
+    buffer.set_size(font_system, None, Some(font_size_px.max(1.0)));
+    let attrs = Attrs::new().family(match family {
+        TextFamilyKey::Monospace => Family::Monospace,
+        TextFamilyKey::Named(name) => Family::Name(name),
+    });
+    buffer.set_text(font_system, text, &attrs, Shaping::Advanced, None);
+    buffer.shape_until_scroll(font_system, false);
+    buffer
+        .layout_runs()
+        .next()
+        .map(|run| run.line_w)
+        .unwrap_or(0.0)
 }
 
 fn measure_text_overhang(
@@ -888,10 +1049,15 @@ fn glyphon_color(color: GameColor) -> Color {
 
 #[cfg(test)]
 mod tests {
+    use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, fontdb};
+
     use crate::geometry::{GridMapper, GridMetrics, caret_rect};
     use crate::grid::{Point, ScreenGeometry};
 
-    use super::{TextOverhang, expanded_text_bounds};
+    use super::{
+        PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, build_font_system,
+        expanded_text_bounds, measure_single_line_width,
+    };
 
     fn mapper() -> (GridMapper, GridMetrics) {
         let metrics = GridMetrics {
@@ -983,5 +1149,89 @@ mod tests {
         assert_eq!(bounds.left, 0);
         assert_eq!(bounds.right, 120);
         assert_eq!(bounds.bottom, 24);
+    }
+
+    #[test]
+    fn stormfaze_wordmark_shapes_with_nonzero_width() {
+        let mut font_system = build_font_system();
+        let width = measure_single_line_width(
+            &mut font_system,
+            "NOSTRIAN",
+            TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
+            48.0,
+        );
+        assert!(width > 0.0, "Stormfaze wordmark should shape to a visible width");
+    }
+
+    #[test]
+    fn stormfaze_query_resolves_to_bundled_face() {
+        let font_system = build_font_system();
+        let face_id = font_system.db().query(&fontdb::Query {
+            families: &[fontdb::Family::Name(STORMFAZE_FONT_FAMILY)],
+            weight: fontdb::Weight::NORMAL,
+            stretch: fontdb::Stretch::Normal,
+            style: fontdb::Style::Normal,
+        });
+        let face = face_id
+            .and_then(|id| font_system.db().face(id))
+            .expect("Stormfaze face should be present in the bundled font database");
+        assert!(
+            face.families
+                .iter()
+                .any(|(family, _)| family == STORMFAZE_FONT_FAMILY),
+            "resolved face should belong to the Stormfaze family"
+        );
+    }
+
+    #[test]
+    fn monospace_query_resolves_to_jetbrains_mono() {
+        let font_system = build_font_system();
+        let face_id = font_system.db().query(&fontdb::Query {
+            families: &[fontdb::Family::Monospace],
+            weight: fontdb::Weight::NORMAL,
+            stretch: fontdb::Stretch::Normal,
+            style: fontdb::Style::Normal,
+        });
+        let face = face_id
+            .and_then(|id| font_system.db().face(id))
+            .expect("monospace query should resolve to the bundled primary face");
+        assert!(
+            face.families
+                .iter()
+                .any(|(family, _)| family == PRIMARY_FONT_FAMILY),
+            "monospace query should resolve to JetBrains Mono"
+        );
+    }
+
+    #[test]
+    fn stormfaze_wordmark_glyphs_use_stormfaze_face() {
+        let mut font_system = build_font_system();
+        let mut buffer = GlyphBuffer::new(&mut font_system, Metrics::new(48.0, 48.0));
+        buffer.set_size(&mut font_system, None, Some(48.0));
+        buffer.set_text(
+            &mut font_system,
+            "NOSTRIAN",
+            &Attrs::new().family(Family::Name(STORMFAZE_FONT_FAMILY)),
+            Shaping::Advanced,
+            None,
+        );
+        buffer.shape_until_scroll(&mut font_system, false);
+
+        let font_id = buffer
+            .layout_runs()
+            .flat_map(|run| run.glyphs.iter())
+            .next()
+            .map(|glyph| glyph.font_id)
+            .expect("Stormfaze wordmark should produce at least one glyph");
+        let face = font_system
+            .db()
+            .face(font_id)
+            .expect("shaped Stormfaze glyph should resolve to a known face");
+        assert!(
+            face.families
+                .iter()
+                .any(|(family, _)| family == STORMFAZE_FONT_FAMILY),
+            "glyphs should resolve to the Stormfaze face instead of a fallback family"
+        );
     }
 }

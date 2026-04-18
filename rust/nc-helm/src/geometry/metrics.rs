@@ -217,7 +217,7 @@ mod tests {
     // Load the same fonts the renderer uses so the probe sees a real monospace face.
     const PRIMARY_REGULAR: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Regular.ttf"
+        "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
     ));
     const FALLBACK_REGULAR: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -225,15 +225,15 @@ mod tests {
     ));
 
     fn font_system_with_bundled_font() -> super::FontSystem {
-        let mut fs = super::FontSystem::new();
-        fs.db_mut().load_font_source(glyphon::fontdb::Source::Binary(
-            Arc::new(Cow::Borrowed(PRIMARY_REGULAR)),
-        ));
-        fs.db_mut().load_font_source(glyphon::fontdb::Source::Binary(
-            Arc::new(Cow::Borrowed(FALLBACK_REGULAR)),
-        ));
-        fs.db_mut().set_monospace_family("0xProto Nerd Font Mono".to_string());
-        fs
+        let mut db = glyphon::fontdb::Database::new();
+        db.load_font_source(glyphon::fontdb::Source::Binary(Arc::new(Cow::Borrowed(
+            PRIMARY_REGULAR,
+        ))));
+        db.load_font_source(glyphon::fontdb::Source::Binary(Arc::new(Cow::Borrowed(
+            FALLBACK_REGULAR,
+        ))));
+        db.set_monospace_family("JetBrains Mono".to_string());
+        super::FontSystem::new_with_locale_and_db(String::from("en-US"), db)
     }
 
     /// The probe must place the band in the upper portion of the line box, not at or

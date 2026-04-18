@@ -11,16 +11,16 @@ fn first_run_cursor_starts_at_handle_origin_and_advances_with_input() {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
     })));
-    assert_eq!(view_cursor(&app), Point::from_usize(31, 16));
+    assert_eq!(view_cursor(&app), Point::from_usize(31, 19));
 
     for ch in "captain".chars() {
         let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char(ch))));
     }
     let buffer = app.view();
-    assert!(buffer.plain_line(16).contains("captain"));
+    assert!(buffer.plain_line(19).contains("captain"));
     assert_eq!(
         buffer.cursor().expect("cursor should be set"),
-        Point::from_usize(38, 16)
+        Point::from_usize(38, 19)
     );
 }
 
@@ -32,7 +32,7 @@ fn first_run_tab_moves_cursor_to_password_origin() {
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
     })));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
-    assert_eq!(view_cursor(&app), Point::from_usize(31, 18));
+    assert_eq!(view_cursor(&app), Point::from_usize(31, 20));
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn locked_cursor_starts_at_password_origin() {
         has_keychain: true,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
     })));
-    assert_eq!(view_cursor(&app), Point::from_usize(35, 18));
+    assert_eq!(view_cursor(&app), Point::from_usize(33, 21));
 }
 
 #[test]
