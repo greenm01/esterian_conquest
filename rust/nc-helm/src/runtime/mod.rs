@@ -16,7 +16,7 @@ use winit::keyboard::ModifiersState;
     target_os = "openbsd"
 ))]
 use winit::platform::startup_notify::{
-    EventLoopExtStartupNotify, WindowAttributesExtStartupNotify, reset_activation_token_env,
+    reset_activation_token_env, EventLoopExtStartupNotify, WindowAttributesExtStartupNotify,
 };
 #[cfg(any(
     target_os = "linux",
@@ -25,7 +25,9 @@ use winit::platform::startup_notify::{
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-use winit::platform::wayland::EventLoopBuilderExtWayland;
+use winit::platform::wayland::{
+    EventLoopBuilderExtWayland, EventLoopExtWayland, WindowAttributesExtWayland,
+};
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -39,7 +41,7 @@ use winit::window::{Fullscreen, Window, WindowAttributes};
 use crate::app::{App, Effect, Msg, Route};
 use crate::geometry;
 use crate::input::{
-    MouseButton, MouseEvent, MouseEventKind, key_event_from_winit, key_modifiers_from_winit,
+    key_event_from_winit, key_modifiers_from_winit, MouseButton, MouseEvent, MouseEventKind,
 };
 use crate::startup::{LaunchTargetOptions, NativeBackendPreference, NativeWindowMode};
 use crate::storage::{BootSnapshot, StorageActor, StoredSession};
@@ -51,10 +53,19 @@ pub fn run(options: LaunchTargetOptions) -> Result<(), Box<dyn std::error::Error
     let mut builder = EventLoop::<RuntimeEvent>::with_user_event();
     apply_backend_preference(&mut builder, options.native.backend_preference);
     let event_loop = builder.build()?;
+    let session_backend = detect_session_backend(&event_loop, options.native.backend_preference);
     let proxy = event_loop.create_proxy();
     let storage = StorageActor::start().map_err(|err| format!("storage init failed: {err}"))?;
     let transport = TransportActor::start();
-    let mut runtime = Runtime::new(options, proxy, app, storage, transport, effects);
+    let mut runtime = Runtime::new(
+        options,
+        session_backend,
+        proxy,
+        app,
+        storage,
+        transport,
+        effects,
+    );
     event_loop.run_app(&mut runtime)?;
     Ok(())
 }
@@ -68,8 +79,23 @@ enum RuntimeEvent {
     RelaySaved(Result<String, String>),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionBackend {
+    Wayland,
+    X11,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct ResizeObservation {
+    pixel_width: u32,
+    pixel_height: u32,
+    scale_factor: f64,
+}
+
 struct Runtime {
     options: LaunchTargetOptions,
+    session_backend: SessionBackend,
     proxy: EventLoopProxy<RuntimeEvent>,
     app: App,
     storage: StorageActor,
@@ -79,12 +105,14 @@ struct Runtime {
     renderer: Option<renderer::Renderer>,
     modifiers: ModifiersState,
     pointer_cell: Option<Point>,
+    last_resize_observation: Option<ResizeObservation>,
     needs_redraw: bool,
 }
 
 impl Runtime {
     fn new(
         options: LaunchTargetOptions,
+        session_backend: SessionBackend,
         proxy: EventLoopProxy<RuntimeEvent>,
         app: App,
         storage: StorageActor,
@@ -93,6 +121,7 @@ impl Runtime {
     ) -> Self {
         Self {
             options,
+            session_backend,
             proxy,
             app,
             storage,
@@ -102,6 +131,7 @@ impl Runtime {
             renderer: None,
             modifiers: ModifiersState::empty(),
             pointer_cell: None,
+            last_resize_observation: None,
             needs_redraw: true,
         }
     }
@@ -116,10 +146,18 @@ impl Runtime {
             .with_title("Nostrian Conquest - nc-helm")
             .with_resizable(true)
             .with_inner_size(size);
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
+        {
+            attributes = attributes.with_name("nc-helm", "nc-helm");
+        }
         match self.options.native.window_mode {
-            NativeWindowMode::MaximizedWindow => {
-                attributes = attributes.with_maximized(true);
-            }
+            NativeWindowMode::Windowed => {}
             NativeWindowMode::BorderlessFullscreen => {
                 attributes = attributes.with_fullscreen(Some(Fullscreen::Borderless(None)));
             }
@@ -143,6 +181,7 @@ impl Runtime {
 
     fn dispatch(&mut self, msg: Msg, event_loop: &ActiveEventLoop) {
         let msg_label = msg_label(&msg);
+        let sync_window_input_state = !matches!(msg, Msg::Resize(_));
         let effects = self.app.dispatch(msg);
         self.diagnostic_log(&format!(
             "state: msg={} route={} focus={} network={:?}",
@@ -153,7 +192,9 @@ impl Runtime {
         ));
         self.pending_effects.extend(effects);
         self.process_effects(event_loop);
-        self.sync_window_input_state();
+        if sync_window_input_state {
+            self.sync_window_input_state();
+        }
         self.needs_redraw = true;
         if self.app.model().should_quit {
             event_loop.exit();
@@ -262,17 +303,60 @@ impl Runtime {
             return;
         };
         window.set_ime_allowed(self.app.model().wants_text_input());
-        if self.app.model().wants_window_focus() && !self.app.model().window_focused {
+        if backend_supports_programmatic_focus(self.session_backend)
+            && self.app.model().wants_window_focus()
+            && !self.app.model().window_focused
+        {
             window.focus_window();
         }
     }
 
-    fn sync_geometry_from_window(&mut self, window: Arc<Window>, event_loop: &ActiveEventLoop) {
+    fn observe_resize(&mut self, observation: ResizeObservation) -> bool {
+        observe_resize(&mut self.last_resize_observation, observation)
+    }
+
+    fn diagnostic_resize_event(
+        &self,
+        label: &str,
+        event_width: u32,
+        event_height: u32,
+        scale_factor: f64,
+    ) {
+        if !self.options.native.diagnostic_mode {
+            return;
+        }
+        let backend = session_backend_label(self.session_backend);
+        if let Some(window) = self.window.as_ref() {
+            let inner = window.inner_size();
+            let outer = window.outer_size();
+            self.diagnostic_log(&format!(
+                "event: {label} backend={backend} event={}x{} inner={}x{} outer={}x{} scale={scale_factor:.3}",
+                event_width,
+                event_height,
+                inner.width,
+                inner.height,
+                outer.width,
+                outer.height
+            ));
+        } else {
+            self.diagnostic_log(&format!(
+                "event: {label} backend={backend} event={}x{} scale={scale_factor:.3}",
+                event_width, event_height
+            ));
+        }
+    }
+
+    fn sync_geometry_from_size(
+        &mut self,
+        pixel_width: u32,
+        pixel_height: u32,
+        scale_factor: f64,
+        event_loop: &ActiveEventLoop,
+    ) {
         let Some(renderer) = &mut self.renderer else {
             return;
         };
-        let size = window.inner_size();
-        let geometry = renderer.grid_geometry_for_window(size.width, size.height);
+        let geometry = renderer.grid_geometry_for_pixels(pixel_width, pixel_height, scale_factor);
         if self.app.model().geometry == geometry {
             return;
         }
@@ -283,7 +367,10 @@ impl Runtime {
 impl ApplicationHandler<RuntimeEvent> for Runtime {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
-            self.diagnostic_log("event: resumed");
+            self.diagnostic_log(&format!(
+                "event: resumed backend={}",
+                session_backend_label(self.session_backend)
+            ));
             match self.create_window(event_loop) {
                 Ok(window) => {
                     let renderer = match renderer::Renderer::new(window.clone(), event_loop) {
@@ -298,8 +385,20 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     };
                     self.window = Some(window);
                     self.renderer = Some(renderer);
-                    if let Some(window) = self.window.clone() {
-                        self.sync_geometry_from_window(window, event_loop);
+                    if let Some(window) = self.window.as_ref() {
+                        let size = window.inner_size();
+                        let scale_factor = window.scale_factor();
+                        let _ = self.observe_resize(ResizeObservation {
+                            pixel_width: size.width,
+                            pixel_height: size.height,
+                            scale_factor,
+                        });
+                        self.sync_geometry_from_size(
+                            size.width,
+                            size.height,
+                            scale_factor,
+                            event_loop,
+                        );
                     }
                     self.needs_redraw = true;
                     self.process_effects(event_loop);
@@ -405,9 +504,41 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     );
                 }
             }
-            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                if let Some(window) = self.window.clone() {
-                    self.sync_geometry_from_window(window, event_loop);
+            WindowEvent::Resized(size) => {
+                let scale_factor = self
+                    .window
+                    .as_ref()
+                    .map(|window| window.scale_factor())
+                    .unwrap_or(1.0);
+                let observation = ResizeObservation {
+                    pixel_width: size.width,
+                    pixel_height: size.height,
+                    scale_factor,
+                };
+                if !self.observe_resize(observation) {
+                    return;
+                }
+                self.diagnostic_resize_event("Resized", size.width, size.height, scale_factor);
+                self.sync_geometry_from_size(size.width, size.height, scale_factor, event_loop);
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(window) = self.window.as_ref() {
+                    let size = window.inner_size();
+                    let observation = ResizeObservation {
+                        pixel_width: size.width,
+                        pixel_height: size.height,
+                        scale_factor,
+                    };
+                    if !self.observe_resize(observation) {
+                        return;
+                    }
+                    self.diagnostic_resize_event(
+                        "ScaleFactorChanged",
+                        size.width,
+                        size.height,
+                        scale_factor,
+                    );
+                    self.sync_geometry_from_size(size.width, size.height, scale_factor, event_loop);
                 }
             }
             WindowEvent::RedrawRequested => {
@@ -435,6 +566,69 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 window.request_redraw();
             }
         }
+    }
+}
+
+fn backend_supports_programmatic_focus(session_backend: SessionBackend) -> bool {
+    session_backend != SessionBackend::Wayland
+}
+
+fn observe_resize(
+    last_resize_observation: &mut Option<ResizeObservation>,
+    observation: ResizeObservation,
+) -> bool {
+    if *last_resize_observation == Some(observation) {
+        return false;
+    }
+    *last_resize_observation = Some(observation);
+    true
+}
+
+fn session_backend_label(session_backend: SessionBackend) -> &'static str {
+    match session_backend {
+        SessionBackend::Wayland => "wayland",
+        SessionBackend::X11 => "x11",
+        SessionBackend::Unknown => "unknown",
+    }
+}
+
+fn detect_session_backend(
+    event_loop: &EventLoop<RuntimeEvent>,
+    backend_preference: NativeBackendPreference,
+) -> SessionBackend {
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        if event_loop.is_wayland() {
+            SessionBackend::Wayland
+        } else if matches!(backend_preference, NativeBackendPreference::X11)
+            || std::env::var_os("DISPLAY").is_some()
+            || matches!(
+                std::env::var("XDG_SESSION_TYPE").ok().as_deref(),
+                Some("x11")
+            )
+        {
+            SessionBackend::X11
+        } else {
+            SessionBackend::Unknown
+        }
+    }
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )))]
+    {
+        let _ = event_loop;
+        let _ = backend_preference;
+        SessionBackend::Unknown
     }
 }
 
@@ -490,5 +684,79 @@ fn apply_backend_preference(
         NativeBackendPreference::X11 => {
             builder.with_x11();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        backend_supports_programmatic_focus, observe_resize, session_backend_label,
+        ResizeObservation, SessionBackend,
+    };
+
+    #[test]
+    fn wayland_backend_disables_programmatic_focus() {
+        assert!(!backend_supports_programmatic_focus(
+            SessionBackend::Wayland
+        ));
+        assert!(backend_supports_programmatic_focus(SessionBackend::X11));
+        assert!(backend_supports_programmatic_focus(SessionBackend::Unknown));
+    }
+
+    #[test]
+    fn backend_labels_match_expected_cli_terms() {
+        assert_eq!(session_backend_label(SessionBackend::Wayland), "wayland");
+        assert_eq!(session_backend_label(SessionBackend::X11), "x11");
+        assert_eq!(session_backend_label(SessionBackend::Unknown), "unknown");
+    }
+
+    #[test]
+    fn resize_observation_equality_requires_exact_match() {
+        let base = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 800,
+            scale_factor: 1.25,
+        };
+        assert_eq!(base, base);
+        assert_ne!(
+            base,
+            ResizeObservation {
+                pixel_width: 1201,
+                ..base
+            }
+        );
+        assert_ne!(
+            base,
+            ResizeObservation {
+                pixel_height: 801,
+                ..base
+            }
+        );
+        assert_ne!(
+            base,
+            ResizeObservation {
+                scale_factor: 1.5,
+                ..base
+            }
+        );
+    }
+
+    #[test]
+    fn observe_resize_rejects_exact_duplicates() {
+        let first = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 800,
+            scale_factor: 1.25,
+        };
+        let mut last = None;
+        assert!(observe_resize(&mut last, first));
+        assert!(!observe_resize(&mut last, first));
+        assert!(observe_resize(
+            &mut last,
+            ResizeObservation {
+                pixel_height: 801,
+                ..first
+            }
+        ));
     }
 }

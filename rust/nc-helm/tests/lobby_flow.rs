@@ -97,19 +97,19 @@ fn tab_switching_changes_rendered_lobby_content() {
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
     let buffer = app.view();
-    assert!(buffer.plain_line(5).contains("HOME"));
+    assert!(buffer.plain_line(4).contains("HOME"));
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
     let buffer = app.view();
-    assert!(buffer.plain_line(5).contains("OPEN GAMES"));
+    assert!(buffer.plain_line(4).contains("OPEN GAMES"));
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
     let buffer = app.view();
-    assert!(buffer.plain_line(5).contains("COMMS"));
+    assert!(buffer.plain_line(4).contains("COMMS"));
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
     let buffer = app.view();
-    assert!(buffer.plain_line(5).contains("SETTINGS"));
+    assert!(buffer.plain_line(4).contains("SETTINGS"));
 }
 
 #[test]

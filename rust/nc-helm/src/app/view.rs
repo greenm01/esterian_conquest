@@ -1,12 +1,11 @@
 use super::{
-    chrome::{draw_panel, draw_top_tag, draw_top_tag_right},
     DEFAULT_GEOMETRY, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT, HELP_POPUP_WIDTH,
-    LobbyTab, Model, NetworkState, Route, centered_box_geometry, mask, status_color,
-};
-use crate::{
-    CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry,
+    LobbyTab, Model, NetworkState, Route, centered_box_geometry,
+    chrome::{draw_panel, draw_top_tag, draw_top_tag_right},
+    mask, status_color,
 };
 use crate::grid::OverlayTextFamily;
+use crate::{CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry};
 
 const BODY: CellStyle = CellStyle::new(
     GameColor::BrightWhite,
@@ -70,11 +69,8 @@ const PANEL_WARN: CellStyle = CellStyle::new(
     GameColor::Rgb(0x19, 0x1b, 0x26),
     true,
 );
-const PANEL_ERROR: CellStyle = CellStyle::new(
-    GameColor::BrightRed,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    true,
-);
+const PANEL_ERROR: CellStyle =
+    CellStyle::new(GameColor::BrightRed, GameColor::Rgb(0x19, 0x1b, 0x26), true);
 const PANEL_BORDER: CellStyle = CellStyle::new(
     GameColor::Rgb(0x7f, 0x91, 0x7b),
     GameColor::Rgb(0x19, 0x1b, 0x26),
@@ -108,18 +104,6 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
     };
     let mut buffer = PlayfieldBuffer::new(geometry.width(), geometry.height(), BODY);
     fill(&mut buffer, BODY);
-    draw_panel(
-        &mut buffer,
-        0,
-        0,
-        geometry.width(),
-        geometry.height(),
-        ROOT_BORDER,
-        ROOT_TITLE,
-        None,
-        Some("nc-helm"),
-        None,
-    );
 
     match &model.route {
         Route::Boot(boot) => render_boot(&mut buffer, geometry, &boot.status),
@@ -138,7 +122,12 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
 
 fn render_boot(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, status: &str) {
     centered_box(buffer, geometry, 52, 9, "NC-HELM", |buffer, left, top| {
-        buffer.write_text(top + 2, left + 3, "Booting local player client...", PANEL_ACCENT);
+        buffer.write_text(
+            top + 2,
+            left + 3,
+            "Booting local player client...",
+            PANEL_ACCENT,
+        );
         buffer.write_text(top + 4, left + 3, status, PANEL_BODY);
     });
 }
@@ -246,7 +235,11 @@ fn render_locked(
     }
     let use_stormfaze = width >= GATE_STORMFAZE_MIN_WIDTH && height >= GATE_STORMFAZE_MIN_HEIGHT;
     draw_gate_wordmark(buffer, left, row, width, use_stormfaze);
-    row += if use_stormfaze { GATE_LOGO_BLOCK_ROWS } else { 2 };
+    row += if use_stormfaze {
+        GATE_LOGO_BLOCK_ROWS
+    } else {
+        2
+    };
     let password_row = row + 1;
     draw_inline_unlock_password_row(buffer, content_left, password_row, &locked.password_input);
     buffer.write_text(
@@ -268,14 +261,14 @@ fn render_lobby(
             .active_handle
             .as_deref()
             .unwrap_or(session.active_npub.as_str());
-        buffer.write_text_clipped(1, 28, identity, BODY);
+        buffer.write_text_clipped(0, 25, identity, BODY);
     }
     let network_style = CellStyle::new(status_color(model.network), BODY.bg, true);
-    buffer.write_text(1, 3, "NOSTRIAN CONQUEST", ROOT_TITLE);
-    buffer.write_text(1, geometry.width().saturating_sub(28), "NETWORK:", DIM);
+    buffer.write_text(0, 1, "NOSTRIAN CONQUEST", ROOT_TITLE);
+    buffer.write_text(0, geometry.width().saturating_sub(25), "NETWORK:", DIM);
     buffer.write_text(
-        1,
-        geometry.width().saturating_sub(17),
+        0,
+        geometry.width().saturating_sub(14),
         match model.network {
             NetworkState::Idle => "IDLE",
             NetworkState::Connecting => "CONNECTING",
@@ -296,8 +289,8 @@ fn render_lobby(
 
     if let Some(status) = &lobby.status {
         buffer.write_text(
-            geometry.height().saturating_sub(3),
-            3,
+            geometry.height().saturating_sub(2),
+            1,
             status,
             status_style(status),
         );
@@ -310,9 +303,9 @@ fn render_lobby(
 fn draw_home(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
     draw_panel(
         buffer,
-        2,
-        5,
-        geometry.width().saturating_sub(4),
+        1,
+        4,
+        geometry.width().saturating_sub(2),
         17,
         PANEL_BORDER,
         PANEL_ACCENT,
@@ -321,49 +314,49 @@ fn draw_home(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Mod
         None,
     );
     buffer.write_text(
-        7,
-        5,
+        6,
+        4,
         "NC-HELM runs the hosted lobby on a fresh TEA runtime.",
         PANEL_BODY,
     );
     buffer.write_text(
-        8,
-        5,
+        7,
+        4,
         "Background sync is isolated from the window loop.",
         PANEL_BODY,
     );
-    buffer.write_text(10, 5, "Session", PANEL_ACCENT);
+    buffer.write_text(9, 4, "Session", PANEL_ACCENT);
     if let Some(session) = &model.session {
         buffer.write_text(
-            11,
-            7,
+            10,
+            6,
             session
                 .active_handle
                 .as_deref()
                 .unwrap_or("anonymous identity"),
             PANEL_BODY,
         );
-        buffer.write_text_clipped(12, 7, &session.active_npub, PANEL_DIM);
+        buffer.write_text_clipped(11, 6, &session.active_npub, PANEL_DIM);
     } else {
-        buffer.write_text(11, 7, "No active session", PANEL_WARN);
+        buffer.write_text(10, 6, "No active session", PANEL_WARN);
     }
-    buffer.write_text(14, 5, "Lobby Snapshot", PANEL_ACCENT);
+    buffer.write_text(13, 4, "Lobby Snapshot", PANEL_ACCENT);
     buffer.write_text(
-        15,
-        7,
+        14,
+        6,
         &format!("Open games : {}", model.games.len()),
         PANEL_BODY,
     );
     buffer.write_text(
-        16,
-        7,
+        15,
+        6,
         &format!("Notices    : {}", model.notices.len()),
         PANEL_BODY,
     );
-    buffer.write_text(18, 5, "Shortcuts", PANEL_ACCENT);
-    buffer.write_text(19, 7, "2 opens the game catalog.", PANEL_BODY);
-    buffer.write_text(20, 7, "3 opens lobby notices/COMMS.", PANEL_BODY);
-    buffer.write_text(21, 7, "4 opens settings and lock controls.", PANEL_BODY);
+    buffer.write_text(17, 4, "Shortcuts", PANEL_ACCENT);
+    buffer.write_text(18, 6, "2 opens the game catalog.", PANEL_BODY);
+    buffer.write_text(19, 6, "3 opens lobby notices/COMMS.", PANEL_BODY);
+    buffer.write_text(20, 6, "4 opens settings and lock controls.", PANEL_BODY);
     draw_status_panel(buffer, geometry, model);
 }
 
@@ -376,10 +369,10 @@ fn draw_open_games(
     let table_width = geometry.width().saturating_sub(36);
     draw_panel(
         buffer,
-        2,
-        5,
+        1,
+        4,
         table_width,
-        geometry.height().saturating_sub(16),
+        geometry.height().saturating_sub(15),
         PANEL_BORDER,
         PANEL_ACCENT,
         Some(PANEL),
@@ -389,11 +382,11 @@ fn draw_open_games(
     draw_games_table(buffer, model, lobby);
     draw_status_panel(buffer, geometry, model);
     if let Some(selected) = model.games.get(lobby.selected_game) {
-        let top = geometry.height().saturating_sub(11);
+        let top = geometry.height().saturating_sub(10);
         draw_panel(
             buffer,
-            geometry.width().saturating_sub(34),
-            5,
+            geometry.width().saturating_sub(33),
+            4,
             30,
             10,
             PANEL_BORDER,
@@ -402,23 +395,23 @@ fn draw_open_games(
             Some("SELECTED GAME"),
             None,
         );
-        let left = geometry.width().saturating_sub(32);
-        buffer.write_text_clipped(7, left, &selected.name, PANEL_BODY);
-        buffer.write_text_clipped(8, left, &format!("Host  : {}", selected.host), PANEL_BODY);
-        buffer.write_text_clipped(9, left, &format!("Tier  : {}", selected.tier), PANEL_BODY);
-        buffer.write_text_clipped(10, left, &format!("Seats : {}", selected.seats), PANEL_BODY);
-        buffer.write_text_clipped(11, left, &format!("Turn  : {}", selected.when), PANEL_BODY);
-        buffer.write_text_clipped(12, left, &selected.game_id, PANEL_DIM);
-        buffer.write_text_clipped(top + 2, 4, "Use Up/Down to change selection.", DIM);
+        let left = geometry.width().saturating_sub(31);
+        buffer.write_text_clipped(6, left, &selected.name, PANEL_BODY);
+        buffer.write_text_clipped(7, left, &format!("Host  : {}", selected.host), PANEL_BODY);
+        buffer.write_text_clipped(8, left, &format!("Tier  : {}", selected.tier), PANEL_BODY);
+        buffer.write_text_clipped(9, left, &format!("Seats : {}", selected.seats), PANEL_BODY);
+        buffer.write_text_clipped(10, left, &format!("Turn  : {}", selected.when), PANEL_BODY);
+        buffer.write_text_clipped(11, left, &selected.game_id, PANEL_DIM);
+        buffer.write_text_clipped(top + 2, 3, "Use Up/Down to change selection.", DIM);
     }
 }
 
 fn draw_comms(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
     draw_panel(
         buffer,
-        2,
-        5,
-        geometry.width().saturating_sub(4),
+        1,
+        4,
+        geometry.width().saturating_sub(2),
         17,
         PANEL_BORDER,
         PANEL_ACCENT,
@@ -428,9 +421,9 @@ fn draw_comms(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Mo
     );
     draw_panel(
         buffer,
-        4,
-        7,
-        geometry.width().saturating_sub(8),
+        3,
+        6,
+        geometry.width().saturating_sub(6),
         11,
         PANEL_BORDER,
         PANEL_ACCENT,
@@ -439,22 +432,27 @@ fn draw_comms(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Mo
         None,
     );
     if model.notices.is_empty() {
-        buffer.write_text(11, 7, "No recent notices from the relay.", PANEL_DIM);
+        buffer.write_text(10, 6, "No recent notices from the relay.", PANEL_DIM);
     } else {
         for (idx, notice) in model.notices.iter().take(10).enumerate() {
-            buffer.write_text_clipped(9 + idx, 7, notice, PANEL_BODY);
+            buffer.write_text_clipped(8 + idx, 6, notice, PANEL_BODY);
         }
     }
-    buffer.write_text(20, 5, "Direct replies and threads are not wired yet.", PANEL_WARN);
+    buffer.write_text(
+        19,
+        4,
+        "Direct replies and threads are not wired yet.",
+        PANEL_WARN,
+    );
     draw_status_panel(buffer, geometry, model);
 }
 
 fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
     draw_panel(
         buffer,
-        2,
-        5,
-        geometry.width().saturating_sub(4),
+        1,
+        4,
+        geometry.width().saturating_sub(2),
         17,
         PANEL_BORDER,
         PANEL_ACCENT,
@@ -469,8 +467,8 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
     };
     draw_boxed_input_row(
         buffer,
-        5,
-        8,
+        4,
+        7,
         SETTINGS_FIELD_LABEL_WIDTH,
         SETTINGS_FIELD_TRACK_WIDTH,
         "Relay URL",
@@ -479,8 +477,8 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
         false,
     );
     buffer.write_text(
-        9,
-        5,
+        8,
+        4,
         &format!(
             "Window Focus : {}",
             if model.window_focused { "yes" } else { "no" }
@@ -488,8 +486,8 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
         PANEL_BODY,
     );
     buffer.write_text(
-        10,
-        5,
+        9,
+        4,
         &format!(
             "Text Input   : {}",
             if model.wants_text_input() {
@@ -502,8 +500,8 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
     );
     if let Some(session) = &model.session {
         buffer.write_text(
-            12,
-            5,
+            11,
+            4,
             &format!(
                 "Handle       : {}",
                 session.active_handle.as_deref().unwrap_or("unset")
@@ -511,31 +509,40 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
             PANEL_BODY,
         );
         buffer.write_text_clipped(
-            13,
-            5,
+            12,
+            4,
             &format!("Identity     : {}", session.active_npub),
             PANEL_BODY,
         );
     }
     buffer.write_text(
-        15,
-        5,
+        14,
+        4,
         "R : Edit relay URL   Enter : Save relay   Esc : Cancel edit",
-        if editing_relay { PANEL_ACCENT } else { PANEL_DIM },
+        if editing_relay {
+            PANEL_ACCENT
+        } else {
+            PANEL_DIM
+        },
     );
     buffer.write_text(
-        16,
-        5,
+        15,
+        4,
         "L : Lock the local session and stop background sync",
         PANEL_ACCENT,
     );
-    buffer.write_text(18, 5, "Esc/Q : Quit nc-helm", PANEL_DIM);
+    buffer.write_text(17, 4, "Esc/Q : Quit nc-helm", PANEL_DIM);
     draw_status_panel(buffer, geometry, model);
 }
 
 fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message: &str) {
     centered_box(buffer, geometry, 64, 9, "FATAL", |buffer, left, top| {
-        buffer.write_text(top + 2, left + 3, "The nc-helm bootstrap failed.", PANEL_ERROR);
+        buffer.write_text(
+            top + 2,
+            left + 3,
+            "The nc-helm bootstrap failed.",
+            PANEL_ERROR,
+        );
         buffer.write_text_clipped(top + 4, left + 3, message, PANEL_BODY);
         buffer.write_text(top + 6, left + 3, "Press Q or Esc to quit.", PANEL_DIM);
     });
@@ -548,29 +555,37 @@ fn draw_tabs(buffer: &mut PlayfieldBuffer, lobby: &super::LobbyModel) {
         ("3 COMMS", LobbyTab::Comms),
         ("4 SETTINGS", LobbyTab::Settings),
     ];
-    let mut col = 3usize;
+    let mut col = 1usize;
     for (label, tab) in tabs {
         let title_style = if lobby.active_tab == tab {
             ROOT_TITLE
         } else {
             DIM
         };
-        let width = draw_top_tag(buffer, 3, col, buffer.width().saturating_sub(col), label, ROOT_BORDER, title_style);
+        let width = draw_top_tag(
+            buffer,
+            2,
+            col,
+            buffer.width().saturating_sub(col),
+            label,
+            ROOT_BORDER,
+            title_style,
+        );
         col += width + 2;
     }
 }
 
 fn draw_games_table(buffer: &mut PlayfieldBuffer, model: &Model, lobby: &super::LobbyModel) {
     buffer.write_text(
-        7,
-        5,
+        6,
+        4,
         "STAT  NAME                 HOST         TYPE     SEATS  YEAR",
         PANEL_DIM,
     );
     if model.games.is_empty() {
         buffer.write_text(
-            9,
-            5,
+            8,
+            4,
             "No open games synced yet. Leave the client running.",
             PANEL_WARN,
         );
@@ -591,17 +606,17 @@ fn draw_games_table(buffer: &mut PlayfieldBuffer, model: &Model, lobby: &super::
             truncate(&row.seats, 6),
             truncate(&row.when, 10),
         );
-        buffer.write_text_clipped(8 + index, 5, &line, style);
+        buffer.write_text_clipped(7 + index, 4, &line, style);
     }
 }
 
 fn draw_status_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
-    let top = geometry.height().saturating_sub(11);
+    let top = geometry.height().saturating_sub(10);
     draw_panel(
         buffer,
-        2,
+        1,
         top,
-        geometry.width().saturating_sub(4),
+        geometry.width().saturating_sub(2),
         8,
         PANEL_BORDER,
         PANEL_ACCENT,
@@ -623,7 +638,7 @@ fn draw_status_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, mod
         format!("Notices : {}", model.notices.len()),
     ];
     for (idx, line) in lines.into_iter().enumerate() {
-        buffer.write_text_clipped(top + 2 + idx, 4, &line, PANEL_BODY);
+        buffer.write_text_clipped(top + 2 + idx, 3, &line, PANEL_BODY);
     }
 }
 
@@ -633,22 +648,23 @@ fn draw_footer(
     model: &Model,
     lobby: &super::LobbyModel,
 ) {
-    let row = geometry.height().saturating_sub(2);
+    let row = geometry.height().saturating_sub(1);
     let footer = if lobby.help_open {
         "Any key closes help."
     } else {
         "Tab next tab   ? help   Up/Down select   L lock   Esc quit"
     };
-    buffer.write_text_clipped(row, 3, footer, DIM);
+    buffer.write_text_clipped(row, 1, footer, DIM);
     if let Some(selected) = model.games.get(lobby.selected_game) {
         let text = format!("Selected: {}", selected.game_id);
-        let start = geometry.width().saturating_sub(text.len() + 3);
+        let start = geometry.width().saturating_sub(text.len() + 1);
         buffer.write_text_clipped(row, start, &text, DIM);
     }
 }
 
 fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
-    let (left, top, width, height) = centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT);
+    let (left, top, width, height) =
+        centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT);
     draw_panel(
         buffer,
         left,
@@ -731,7 +747,11 @@ fn render_gate_shell(
 
     let use_stormfaze = width >= GATE_STORMFAZE_MIN_WIDTH && height >= GATE_STORMFAZE_MIN_HEIGHT;
     draw_gate_wordmark(buffer, left, row, width, use_stormfaze);
-    row += if use_stormfaze { GATE_LOGO_BLOCK_ROWS } else { 2 };
+    row += if use_stormfaze {
+        GATE_LOGO_BLOCK_ROWS
+    } else {
+        2
+    };
 
     if !copy_lines.is_empty() {
         for (idx, line) in copy_lines.iter().enumerate() {

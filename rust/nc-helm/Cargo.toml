@@ -17,4 +17,4 @@ nostr-sdk = { version = "0.44", features = ["nip44"] }
 pollster = "0.4"
 rusqlite = { version = "0.31", features = ["bundled"] }
 wgpu = "29.0.0"
-winit = "0.30"
+winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita-notitle"] }

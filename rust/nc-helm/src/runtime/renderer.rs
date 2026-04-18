@@ -26,8 +26,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use glyphon::{
-    Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight, fontdb,
+    fontdb, Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution,
+    Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight,
 };
 use wgpu::{
     self, BindGroup, BindGroupLayout, CommandEncoderDescriptor, CompositeAlphaMode, Device,
@@ -40,7 +40,7 @@ use winit::dpi::PhysicalPosition;
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
-use crate::geometry::{GridMapper, GridMetrics, caret_rect};
+use crate::geometry::{caret_rect, GridMapper, GridMetrics};
 use crate::grid::{
     BackgroundMode, CellStyle, GameColor, OverlayText, OverlayTextFamily, PlayfieldBuffer, Point,
     ScreenGeometry,
@@ -270,14 +270,14 @@ impl Renderer {
         })
     }
 
-    /// Pixel size of the grid that fits inside `(width, height)` at the
-    /// current DPI scale. Cell metrics are re-probed in case the DPI factor
-    /// changed since the last call.
-    pub fn grid_geometry_for_window(&mut self, width: u32, height: u32) -> ScreenGeometry {
-        self.sync_scale_metrics();
-        let cols = (width.max(1) as usize / self.grid_metrics.cell.width_px).max(1);
-        let rows = (height.max(1) as usize / self.grid_metrics.cell.height_px).max(1);
-        ScreenGeometry::new(cols, rows)
+    pub fn grid_geometry_for_pixels(
+        &mut self,
+        width: u32,
+        height: u32,
+        scale_factor: f64,
+    ) -> ScreenGeometry {
+        self.sync_scale_metrics_for_scale(scale_factor);
+        fit_grid_to_pixels(width, height, self.grid_metrics.cell)
     }
 
     /// Map a window-local pixel position to a grid cell, or `None` if the
@@ -411,7 +411,10 @@ impl Renderer {
     /// metrics differ from the cached set, drop the shaped-text cache so
     /// every run is reshaped at the new size on the next frame.
     fn sync_scale_metrics(&mut self) {
-        let scale_factor = self.window.scale_factor();
+        self.sync_scale_metrics_for_scale(self.window.scale_factor());
+    }
+
+    fn sync_scale_metrics_for_scale(&mut self, scale_factor: f64) {
         let updated = GridMetrics::for_scale(scale_factor, &mut self.font_system);
         if updated != self.grid_metrics {
             self.grid_metrics = updated;
@@ -445,7 +448,8 @@ impl Renderer {
         }
 
         let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
-        let mapper = GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
+        let mapper =
+            GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
         let cursor_rect = playfield
             .cursor()
             .map(|point| caret_rect(point, mapper, self.grid_metrics.text));
@@ -616,7 +620,8 @@ impl Renderer {
         );
         buffer.shape_until_scroll(&mut self.font_system, false);
         let overhang = measure_text_overhang(&mut self.font_system, &mut self.swash_cache, &buffer);
-        self.text_buffers.insert(key, CachedTextCell { buffer, overhang });
+        self.text_buffers
+            .insert(key, CachedTextCell { buffer, overhang });
     }
 
     /// Resize the swapchain surface and the background texture if the
@@ -770,6 +775,16 @@ impl BackgroundTexture {
     }
 }
 
+fn fit_grid_to_pixels(
+    width: u32,
+    height: u32,
+    cell: crate::geometry::CellMetrics,
+) -> ScreenGeometry {
+    let cols = (width.max(1) as usize / cell.width_px).max(1);
+    let rows = (height.max(1) as usize / cell.height_px).max(1);
+    ScreenGeometry::new(cols, rows)
+}
+
 /// Finalise an in-progress text run, if any.
 ///
 /// Looks up the text origin and bounding box for the run's cell range and
@@ -898,7 +913,10 @@ fn prepare_overlay_texts(
     }
 }
 
-fn overlay_pixel_bounds(mapper: GridMapper, overlay: &OverlayText) -> crate::geometry::PhysicalRect {
+fn overlay_pixel_bounds(
+    mapper: GridMapper,
+    overlay: &OverlayText,
+) -> crate::geometry::PhysicalRect {
     let top_left = mapper.cell_rect(Point::from_usize(overlay.left_col, overlay.top_row));
     crate::geometry::PhysicalRect {
         x: top_left.x,
@@ -985,7 +1003,8 @@ fn measure_text_overhang(
     for run in buffer.layout_runs() {
         for glyph in run.glyphs.iter() {
             let physical = glyph.physical((0.0, 0.0), 1.0);
-            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key) else {
+            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key)
+            else {
                 continue;
             };
             let glyph_left = physical.x + image.placement.left as i32;
@@ -1025,13 +1044,9 @@ fn expanded_text_bounds(
         .saturating_add(overhang.advance_width_px)
         .saturating_add(overhang.right_px)
         .min(frame_width_px);
-    let right = right_px
-        .max(ink_right)
-        .min(frame_width_px) as i32;
+    let right = right_px.max(ink_right).min(frame_width_px) as i32;
     let top = top_px.min(frame_height_px) as i32;
-    let bottom = top_px
-        .saturating_add(cell_height_px)
-        .min(frame_height_px) as i32;
+    let bottom = top_px.saturating_add(cell_height_px).min(frame_height_px) as i32;
     TextBounds {
         left,
         top,
@@ -1049,14 +1064,14 @@ fn glyphon_color(color: GameColor) -> Color {
 
 #[cfg(test)]
 mod tests {
-    use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, fontdb};
+    use glyphon::{fontdb, Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping};
 
-    use crate::geometry::{GridMapper, GridMetrics, caret_rect};
+    use crate::geometry::{caret_rect, GridMapper, GridMetrics};
     use crate::grid::{Point, ScreenGeometry};
 
     use super::{
-        PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, build_font_system,
-        expanded_text_bounds, measure_single_line_width,
+        build_font_system, expanded_text_bounds, fit_grid_to_pixels, measure_single_line_width,
+        TextFamilyKey, TextOverhang, PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY,
     };
 
     fn mapper() -> (GridMapper, GridMetrics) {
@@ -1160,7 +1175,10 @@ mod tests {
             TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
             48.0,
         );
-        assert!(width > 0.0, "Stormfaze wordmark should shape to a visible width");
+        assert!(
+            width > 0.0,
+            "Stormfaze wordmark should shape to a visible width"
+        );
     }
 
     #[test]
@@ -1201,6 +1219,18 @@ mod tests {
                 .any(|(family, _)| family == PRIMARY_FONT_FAMILY),
             "monospace query should resolve to JetBrains Mono"
         );
+    }
+
+    #[test]
+    fn fit_grid_to_pixels_is_stable_for_repeated_inputs() {
+        let cell = crate::geometry::CellMetrics {
+            width_px: 12,
+            height_px: 24,
+        };
+        let first = fit_grid_to_pixels(1200, 900, cell);
+        let second = fit_grid_to_pixels(1200, 900, cell);
+        assert_eq!(first, second);
+        assert_eq!(first, ScreenGeometry::new(100, 37));
     }
 
     #[test]

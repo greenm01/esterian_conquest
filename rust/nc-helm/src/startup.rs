@@ -1,14 +1,14 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NativeWindowMode {
     #[default]
-    MaximizedWindow,
+    Windowed,
     BorderlessFullscreen,
 }
 
 impl NativeWindowMode {
     pub fn cli_label(self) -> &'static str {
         match self {
-            Self::MaximizedWindow => "windowed",
+            Self::Windowed => "windowed",
             Self::BorderlessFullscreen => "fullscreen",
         }
     }
@@ -89,7 +89,7 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
                     return Err("cannot combine --windowed and --fullscreen".into());
                 }
                 explicit_windowed = true;
-                native.window_mode = NativeWindowMode::MaximizedWindow;
+                native.window_mode = NativeWindowMode::Windowed;
                 i += 1;
             }
             "--fullscreen" => {
@@ -143,7 +143,7 @@ pub fn print_usage() {
     eprintln!("OPTIONS:");
     eprintln!("    --help, -h       Show this help");
     eprintln!("    --relay <url>    Override the hosted relay for this session");
-    eprintln!("    --windowed       Open in a decorated system window");
+    eprintln!("    --windowed       Open in a normal decorated resizable window");
     eprintln!("    --fullscreen     Force borderless fullscreen for this session");
     eprintln!("    --backend <...>  Select native backend: auto (default), wayland, or x11");
     eprintln!("    --diagnostic     Enable verbose native diagnostics");

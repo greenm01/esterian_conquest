@@ -27,5 +27,5 @@ fn text_input_updates_settings_relay_draft() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
     let _ = app.dispatch(Msg::TextInput("relay".to_string()));
     let buffer = app.view();
-    assert!(buffer.plain_line(8).contains("relay"));
+    assert!(buffer.plain_line(7).contains("relay"));
 }

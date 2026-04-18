@@ -52,5 +52,5 @@ fn settings_relay_edit_cursor_tracks_the_relay_draft() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('4'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
-    assert_eq!(view_cursor(&app), Point::from_usize(39, 8));
+    assert_eq!(view_cursor(&app), Point::from_usize(38, 7));
 }

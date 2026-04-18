@@ -25,13 +25,12 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
 
     let buffer = app.view();
-    assert_eq!(buffer.row(0)[0].ch, '╭');
-    assert_eq!(buffer.row(0)[99].ch, '╮');
-    assert!(buffer.plain_line(0).contains("┐ nc-helm ┌"));
-    assert!(buffer.plain_line(3).contains("┐ 1 HOME ┌"));
-    assert_eq!(buffer.row(5)[2].ch, '╭');
-    assert!(buffer.plain_line(5).contains("┐ HOME ┌"));
-    assert!(buffer.plain_line(25).contains("┐ STATUS ┌"));
+    assert_eq!(buffer.row(0)[0].ch, ' ');
+    assert!(buffer.plain_line(0).contains("NOSTRIAN CONQUEST"));
+    assert!(buffer.plain_line(2).contains("┐ 1 HOME ┌"));
+    assert_eq!(buffer.row(4)[1].ch, '╭');
+    assert!(buffer.plain_line(4).contains("┐ HOME ┌"));
+    assert!(buffer.plain_line(26).contains("┐ STATUS ┌"));
 }
 
 #[test]
