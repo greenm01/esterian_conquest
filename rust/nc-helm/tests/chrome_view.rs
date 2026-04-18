@@ -10,6 +10,7 @@ fn first_run_view_uses_unicode_centered_box_chrome() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
 
     let buffer = app.view();
@@ -101,6 +102,7 @@ fn undersized_first_run_view_falls_back_instead_of_panicking() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(10, 5)));
 
@@ -114,6 +116,7 @@ fn undersized_locked_view_falls_back_instead_of_panicking() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: true,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(10, 5)));
 

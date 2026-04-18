@@ -6,6 +6,7 @@ fn first_run_input_track_uses_full_cell_backgrounds() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let buffer = app.view();
     let row = buffer.row(19);
@@ -19,6 +20,7 @@ fn locked_view_uses_inline_masked_password_text() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: true,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let buffer = app.view();
     let mut found_password = false;

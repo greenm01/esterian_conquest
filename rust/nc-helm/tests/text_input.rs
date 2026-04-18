@@ -10,6 +10,7 @@ fn text_input_updates_unlock_password_field() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: true,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let _ = app.dispatch(Msg::TextInput("é".to_string()));
     match &app.model().route {

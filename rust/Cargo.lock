@@ -3271,6 +3271,7 @@ dependencies = [
 name = "nc-helm"
 version = "1.0.0-beta.2"
 dependencies = [
+ "chrono",
  "dirs 5.0.1",
  "glyphon",
  "nc-client",

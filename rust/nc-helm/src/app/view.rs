@@ -141,6 +141,7 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
         Route::FirstRun(first_run) => {
             render_first_run(&mut buffer, geometry, model.relay_url.as_str(), first_run)
         }
+        Route::MatrixLocked => render_matrix_locked(&mut buffer, geometry, model),
         Route::Locked(locked) => {
             render_locked(&mut buffer, geometry, model.relay_url.as_str(), locked)
         }
@@ -149,6 +150,49 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
     }
 
     buffer
+}
+
+fn render_matrix_locked(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+    let background = body().bg;
+    let trail_style = CellStyle::new(theme::idle_network_color(), background, false);
+    let head_style = CellStyle::new(theme::synced_network_color(), background, true);
+
+    let frame = model.matrix_rain.frame();
+    for x in 0..geometry.width() {
+        for y in 0..geometry.height() {
+            let glyph = model.matrix_rain.glyph_at(x, y, frame);
+            let style = if (x + y) % 11 == 0 {
+                head_style
+            } else {
+                trail_style
+            };
+            buffer.set_cell(y, x, glyph, style);
+        }
+    }
+
+    let width = 44usize.min(geometry.width().saturating_sub(2));
+    let height = 7usize.min(geometry.height().saturating_sub(2));
+    let (left, top, width, height) = centered_box_geometry(geometry, width, height);
+    draw_panel(
+        buffer,
+        left,
+        top,
+        width,
+        height,
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
+        Some("SESSION LOCKED"),
+        None,
+    );
+    buffer.write_text_clipped(top + 2, left + 3, "Matrix lock is active.", panel_accent());
+    buffer.write_text_clipped(
+        top + 3,
+        left + 3,
+        "Press any key to open the unlock gate.",
+        panel(),
+    );
+    buffer.write_text_clipped(top + 4, left + 3, "Alt+Q quits.", panel_dim());
 }
 
 fn render_boot(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, status: &str) {
@@ -372,62 +416,27 @@ fn draw_my_games(
     model: &Model,
     reserve_status_row: bool,
 ) {
+    let height = content_panel_height(geometry, 4, reserve_status_row);
     draw_panel(
         buffer,
         1,
         4,
         geometry.width().saturating_sub(2),
-        content_panel_height(geometry, 4, reserve_status_row),
+        height,
         theme::panel_border_style(),
         panel_accent(),
         Some(panel()),
         Some("MY GAMES"),
         None,
     );
-    buffer.write_text(
+    render_my_games_table(
+        buffer,
+        3,
         6,
-        4,
-        "NC-HELM runs the hosted lobby on a fresh TEA runtime.",
-        panel(),
+        geometry.width().saturating_sub(6),
+        height.saturating_sub(4),
+        model,
     );
-    buffer.write_text(
-        7,
-        4,
-        "Background sync is isolated from the window loop.",
-        panel(),
-    );
-    buffer.write_text(9, 4, "Session", panel_accent());
-    if let Some(session) = &model.session {
-        buffer.write_text(
-            10,
-            6,
-            session
-                .active_handle
-                .as_deref()
-                .unwrap_or("anonymous identity"),
-            panel(),
-        );
-        buffer.write_text_clipped(11, 6, &session.active_npub, panel_dim());
-    } else {
-        buffer.write_text(10, 6, "No active session", panel_warning());
-    }
-    buffer.write_text(13, 4, "Lobby Snapshot", panel_accent());
-    buffer.write_text(
-        14,
-        6,
-        &format!("Open games : {}", model.games.len()),
-        panel(),
-    );
-    buffer.write_text(
-        15,
-        6,
-        &format!("Notices    : {}", model.notices.len()),
-        panel(),
-    );
-    buffer.write_text(17, 4, "Shortcuts", panel_accent());
-    buffer.write_text(18, 6, "O opens the game catalog.", panel());
-    buffer.write_text(19, 6, "C opens lobby notices and comms.", panel());
-    buffer.write_text(20, 6, "S opens settings and lock controls.", panel());
 }
 
 fn draw_open_games(
@@ -437,48 +446,28 @@ fn draw_open_games(
     lobby: &super::LobbyModel,
     reserve_status_row: bool,
 ) {
-    let table_width = geometry.width().saturating_sub(36);
+    let _ = lobby;
+    let height = content_panel_height(geometry, 4, reserve_status_row);
     draw_panel(
         buffer,
         1,
         4,
-        table_width,
-        content_panel_height(geometry, 4, reserve_status_row),
+        geometry.width().saturating_sub(2),
+        height,
         theme::panel_border_style(),
         panel_accent(),
         Some(panel()),
-        Some("OPEN GAMES"),
+        Some("OPEN GAMES AVAILABLE TO JOIN"),
         None,
     );
-    draw_games_table(buffer, model, lobby);
-    if let Some(selected) = model.games.get(lobby.selected_game) {
-        draw_panel(
-            buffer,
-            geometry.width().saturating_sub(33),
-            4,
-            30,
-            content_panel_height(geometry, 4, reserve_status_row),
-            theme::panel_border_style(),
-            panel_accent(),
-            Some(panel()),
-            Some("SELECTED GAME"),
-            None,
-        );
-        let left = geometry.width().saturating_sub(31);
-        let bottom = content_bottom_row(geometry, reserve_status_row);
-        buffer.write_text_clipped(6, left, &selected.name, panel());
-        buffer.write_text_clipped(7, left, &format!("Host  : {}", selected.host), panel());
-        buffer.write_text_clipped(8, left, &format!("Tier  : {}", selected.tier), panel());
-        buffer.write_text_clipped(9, left, &format!("Seats : {}", selected.seats), panel());
-        buffer.write_text_clipped(10, left, &format!("Turn  : {}", selected.when), panel());
-        buffer.write_text_clipped(11, left, &selected.game_id, panel_dim());
-        buffer.write_text_clipped(
-            bottom.saturating_sub(1),
-            left,
-            "Use Up/Down to change selection.",
-            panel_dim(),
-        );
-    }
+    render_open_games_table(
+        buffer,
+        3,
+        6,
+        geometry.width().saturating_sub(6),
+        height.saturating_sub(4),
+        model,
+    );
 }
 
 fn draw_comms(
@@ -600,6 +589,19 @@ fn draw_settings(
         );
     }
     buffer.write_text(
+        10,
+        4,
+        &format!(
+            "Idle Lock    : {}",
+            if model.lock_timeout_minutes == 0 {
+                "Off".to_string()
+            } else {
+                format!("{} min", model.lock_timeout_minutes)
+            }
+        ),
+        panel(),
+    );
+    buffer.write_text(
         14,
         4,
         "R : Edit relay URL   Enter : Save relay   Esc : Cancel edit",
@@ -615,7 +617,8 @@ fn draw_settings(
         "L : Lock the local session and stop background sync",
         panel_accent(),
     );
-    buffer.write_text(17, 4, "Alt+Q : Quit nc-helm", panel_dim());
+    buffer.write_text(16, 4, "I : Cycle idle lock timeout", panel_accent());
+    buffer.write_text(18, 4, "Alt+Q : Quit nc-helm", panel_dim());
 }
 
 fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message: &str) {
@@ -662,38 +665,113 @@ fn draw_tabs(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, lobby: &sup
     }
 }
 
-fn draw_games_table(buffer: &mut PlayfieldBuffer, model: &Model, lobby: &super::LobbyModel) {
-    buffer.write_text(
-        6,
-        4,
-        "STAT  NAME                 HOST         TYPE     SEATS  YEAR",
-        panel_dim(),
-    );
-    if model.games.is_empty() {
-        buffer.write_text(
-            8,
-            4,
-            "No open games synced yet. Leave the client running.",
+fn render_my_games_table(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    width: usize,
+    height: usize,
+    model: &Model,
+) {
+    let columns = [
+        TableColumn::left("Status", 10),
+        TableColumn::fill("Game"),
+        TableColumn::left("Type", 9),
+        TableColumn::right("Seat", 6),
+        TableColumn::right("Time (Y:T)", 12),
+    ];
+    render_table_header(buffer, left, top, width, &columns);
+    if model.my_games.is_empty() {
+        buffer.write_text_clipped(
+            top + 2,
+            left,
+            "<no games yet - press 'j' to join an open game>",
             panel_warning(),
         );
         return;
     }
-    for (index, row) in model.games.iter().enumerate() {
-        let style = if index == lobby.selected_game {
+    let visible_rows = height.saturating_sub(1);
+    for (index, row) in model.my_games.iter().take(visible_rows).enumerate() {
+        let style = if index == lobby_selected_my_game(model) {
             theme::selected_panel_row_style()
         } else {
             panel()
         };
-        let line = format!(
-            "{:<5} {:<20} {:<12} {:<8} {:<6} {}",
-            "open",
-            truncate(&row.name, 20),
-            truncate(&row.host, 12),
-            truncate(&row.tier, 8),
-            truncate(&row.seats, 6),
-            truncate(&row.when, 10),
+        let values = [
+            joined_game_status_label(&row.status).to_string(),
+            row.game.clone(),
+            row.game_tier.clone(),
+            row.seat
+                .map(|seat| seat.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            formatted_turn_summary(&row.turn_summary),
+        ];
+        render_table_row(
+            buffer,
+            left,
+            top + 1 + index,
+            width,
+            &columns,
+            &values,
+            style,
         );
-        buffer.write_text_clipped(7 + index, 4, &line, style);
+    }
+}
+
+fn render_open_games_table(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    width: usize,
+    height: usize,
+    model: &Model,
+) {
+    let columns = [
+        TableColumn::left("Status", 10),
+        TableColumn::fill("Game"),
+        TableColumn::left("Host", 12),
+        TableColumn::left("Type", 9),
+        TableColumn::right("Seats", 7),
+        TableColumn::right("Map", 7),
+        TableColumn::right("Created", 10),
+        TableColumn::right("Time", 12),
+    ];
+    render_table_header(buffer, left, top, width, &columns);
+    if model.open_games.is_empty() {
+        buffer.write_text_clipped(
+            top + 2,
+            left,
+            "<no open games - check back later or ask the sysop in COMMS>",
+            panel_warning(),
+        );
+        return;
+    }
+    let visible_rows = height.saturating_sub(1);
+    for (index, row) in model.open_games.iter().take(visible_rows).enumerate() {
+        let style = if index == lobby_selected_open_game(model) {
+            theme::selected_panel_row_style()
+        } else {
+            panel()
+        };
+        let values = [
+            row.status.clone(),
+            row.game.clone(),
+            row.host.clone(),
+            row.game_tier.clone(),
+            format!("{}/{}", row.open_seats, row.total_seats),
+            map_size_summary(row.total_seats),
+            row.created_date.clone(),
+            formatted_turn_summary(&row.turn_summary),
+        ];
+        render_table_row(
+            buffer,
+            left,
+            top + 1 + index,
+            width,
+            &columns,
+            &values,
+            style,
+        );
     }
 }
 
@@ -786,7 +864,7 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
         "NC-HELM is the new TEA player client.",
         "",
         "M/O/C/S : switch lobby tabs",
-        "Up/Down : move the open-game cursor",
+        "Up/Down : move the active table cursor",
         "? or H  : reopen this help popup",
         "Q or Esc: close this popup",
         "Alt+Q   : quit the client",
@@ -1054,4 +1132,157 @@ fn panel_status_style(status: &str) -> CellStyle {
     } else {
         panel_warning()
     }
+}
+
+#[derive(Clone, Copy)]
+struct TableColumn {
+    title: &'static str,
+    width: Option<usize>,
+    align_right: bool,
+}
+
+impl TableColumn {
+    fn left(title: &'static str, width: usize) -> Self {
+        Self {
+            title,
+            width: Some(width),
+            align_right: false,
+        }
+    }
+
+    fn right(title: &'static str, width: usize) -> Self {
+        Self {
+            title,
+            width: Some(width),
+            align_right: true,
+        }
+    }
+
+    fn fill(title: &'static str) -> Self {
+        Self {
+            title,
+            width: None,
+            align_right: false,
+        }
+    }
+}
+
+fn render_table_header(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    width: usize,
+    columns: &[TableColumn],
+) {
+    let widths = resolve_table_widths(width, columns);
+    let mut col = left;
+    for (index, column) in columns.iter().enumerate() {
+        let cell = format_table_cell(column.title, widths[index], column.align_right);
+        buffer.write_text_clipped(top, col, &cell, panel_dim());
+        col += widths[index] + 1;
+    }
+}
+
+fn render_table_row(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    width: usize,
+    columns: &[TableColumn],
+    values: &[String],
+    style: CellStyle,
+) {
+    let widths = resolve_table_widths(width, columns);
+    let mut col = left;
+    for (index, column) in columns.iter().enumerate() {
+        let value = values.get(index).map(String::as_str).unwrap_or("");
+        let cell = format_table_cell(value, widths[index], column.align_right);
+        buffer.write_text_clipped(top, col, &cell, style);
+        col += widths[index] + 1;
+    }
+}
+
+fn resolve_table_widths(width: usize, columns: &[TableColumn]) -> Vec<usize> {
+    let gaps = columns.len().saturating_sub(1);
+    let fixed = columns
+        .iter()
+        .filter_map(|column| column.width)
+        .sum::<usize>();
+    let fill_count = columns
+        .iter()
+        .filter(|column| column.width.is_none())
+        .count();
+    let remaining = width.saturating_sub(fixed + gaps);
+    let fill_width = if fill_count == 0 {
+        0
+    } else {
+        remaining / fill_count
+    };
+    columns
+        .iter()
+        .map(|column| column.width.unwrap_or(fill_width.max(8)))
+        .collect()
+}
+
+fn format_table_cell(value: &str, width: usize, align_right: bool) -> String {
+    let clipped = truncate(value, width);
+    if align_right {
+        format!("{clipped:>width$}")
+    } else {
+        format!("{clipped:<width$}")
+    }
+}
+
+fn lobby_selected_my_game(model: &Model) -> usize {
+    match &model.route {
+        Route::Lobby(lobby) => lobby.selected_my_game,
+        _ => 0,
+    }
+}
+
+fn lobby_selected_open_game(model: &Model) -> usize {
+    match &model.route {
+        Route::Lobby(lobby) => lobby.selected_open_game,
+        _ => 0,
+    }
+}
+
+fn split_turn_summary(summary: &str) -> (String, String) {
+    let mut parts = summary.split_whitespace();
+    let year = parts
+        .next()
+        .map(|part| part.trim_start_matches(['Y', 'y']).to_string())
+        .filter(|part| !part.is_empty())
+        .unwrap_or_else(|| summary.to_string());
+    let turn = parts
+        .next()
+        .map(|part| part.trim_start_matches(['T', 't']).to_string())
+        .unwrap_or_else(|| "0".to_string());
+    (year, turn)
+}
+
+fn formatted_turn_summary(summary: &str) -> String {
+    let (year, turn) = split_turn_summary(summary);
+    format!("Y{year}:T{turn}")
+}
+
+fn joined_game_status_label(status: &str) -> &str {
+    match status {
+        "requested" | "approved" => "Requested",
+        "rejected" => "Rejected",
+        "joined" => "Joined",
+        "expired" => "Expired",
+        "final" => "Final",
+        other => other,
+    }
+}
+
+fn map_size_summary(total_seats: u8) -> String {
+    let edge = match total_seats {
+        0..=4 => 18,
+        5..=9 => 27,
+        10..=16 => 36,
+        _ => 45,
+    };
+    format!("{edge}x{edge}")
 }

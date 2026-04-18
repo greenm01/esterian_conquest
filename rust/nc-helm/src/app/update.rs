@@ -2,23 +2,35 @@ use nc_client::password::validate_new_password;
 use nc_nostr::hosted::relay_url_to_invite_host;
 
 use super::{
-    Effect, GameRow, LOBBY_TAB_ROW, LobbyTab, Model, Msg, NetworkState, Route,
+    Effect, LOBBY_TAB_ROW, LOCK_TIMEOUT_OPTIONS, LobbyTab, Model, Msg, NetworkState, Route,
     active_session_from_stored, append_text, bootstrap_route, field_string_mut, handle_help_click,
-    is_printable_key, lobby_route, lobby_tab_bounds,
+    is_printable_key, lobby_route,
 };
 use crate::ScreenGeometry;
 use crate::input::{KeyCode, KeyModifiers, MouseButton, MouseEventKind};
+
+const TABLE_DATA_ROW_START: usize = 7;
 
 pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
     match msg {
         Msg::Resize(geometry) => {
             model.geometry = geometry;
+            model
+                .matrix_rain
+                .reset_for_size(geometry.width(), geometry.height());
             Vec::new()
         }
         Msg::FocusChanged(focused) => {
             model.window_focused = focused;
             Vec::new()
         }
+        Msg::MatrixFrame => {
+            if matches!(model.route, Route::MatrixLocked) {
+                model.matrix_rain.advance();
+            }
+            Vec::new()
+        }
+        Msg::IdleLock => handle_idle_lock(model),
         Msg::BootLoaded(result) => handle_boot_loaded(model, result),
         Msg::IdentityCreated(result) => handle_identity_created(model, result),
         Msg::Unlocked(result) => handle_unlocked(model, result),
@@ -42,6 +54,7 @@ fn handle_boot_loaded(
                     .clone()
                     .unwrap_or_else(|| model.relay_url.clone());
             }
+            model.lock_timeout_minutes = snapshot.lock_timeout_minutes;
             model.route = bootstrap_route(&snapshot, model.relay_url.clone());
             Vec::new()
         }
@@ -59,12 +72,18 @@ fn handle_identity_created(
     match result {
         Ok(stored) => {
             let relay_url = model.relay_url.clone();
+            let cache = stored.cache.clone();
             let session = active_session_from_stored(stored, current_password(model));
             let nsec = session.active_nsec.clone();
+            model.cache = cache.clone();
             model.session = Some(session);
             model.route = lobby_route(Some("Identity created.".to_string()), relay_url.clone());
             model.network = NetworkState::Connecting;
-            vec![Effect::ConnectTransport { relay_url, nsec }]
+            vec![Effect::ConnectTransport {
+                relay_url,
+                nsec,
+                cache,
+            }]
         }
         Err(err) => {
             if let Route::FirstRun(first_run) = &mut model.route {
@@ -82,12 +101,18 @@ fn handle_unlocked(
     match result {
         Ok(stored) => {
             let relay_url = model.relay_url.clone();
+            let cache = stored.cache.clone();
             let session = active_session_from_stored(stored, current_password(model));
             let nsec = session.active_nsec.clone();
+            model.cache = cache.clone();
             model.session = Some(session);
             model.route = lobby_route(Some("Keychain unlocked.".to_string()), relay_url.clone());
             model.network = NetworkState::Connecting;
-            vec![Effect::ConnectTransport { relay_url, nsec }]
+            vec![Effect::ConnectTransport {
+                relay_url,
+                nsec,
+                cache,
+            }]
         }
         Err(err) => {
             if let Route::Locked(locked) = &mut model.route {
@@ -109,13 +134,24 @@ fn handle_lobby_updated(
     match result {
         Ok(snapshot) => {
             model.network = NetworkState::Synced;
-            model.games = snapshot.games;
+            model.cache = snapshot.cache;
+            model.my_games = snapshot.my_games;
+            model.open_games = snapshot.open_games;
             model.notices = snapshot.notices;
             if let Route::Lobby(lobby) = &mut model.route {
-                if lobby.selected_game >= model.games.len() {
-                    lobby.selected_game = model.games.len().saturating_sub(1);
-                }
+                lobby.selected_my_game = lobby
+                    .selected_my_game
+                    .min(model.my_games.len().saturating_sub(1));
+                lobby.selected_open_game = lobby
+                    .selected_open_game
+                    .min(model.open_games.len().saturating_sub(1));
                 lobby.status = None;
+            }
+            if let Some(session) = &model.session {
+                return vec![Effect::SaveClientCache {
+                    cache: model.cache.clone(),
+                    password: session.password.clone(),
+                }];
             }
         }
         Err(err) => {
@@ -161,6 +197,7 @@ fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
             _ => Vec::new(),
         },
         Route::FirstRun(_) => handle_first_run_key(model, key),
+        Route::MatrixLocked => handle_matrix_locked_key(model, key),
         Route::Locked(_) => handle_locked_key(model, key),
         Route::Lobby(_) => handle_lobby_key(model, key),
     }
@@ -173,24 +210,37 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
         return Vec::new();
     }
 
-    if let Route::Lobby(lobby) = &mut model.route {
-        if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-            let row = mouse.position.row.as_usize();
-            let column = mouse.position.column.as_usize();
-            if row == LOBBY_TAB_ROW {
-                for (tab, start, end) in lobby_tab_bounds(model.geometry) {
-                    if column >= start && column < end {
-                        lobby.active_tab = tab;
-                        return Vec::new();
-                    }
-                }
-            }
-            if (7..(7 + model.games.len())).contains(&row) {
-                let index = row - 7;
-                lobby.active_tab = LobbyTab::OpenGames;
-                lobby.selected_game = index.min(model.games.len().saturating_sub(1));
+    let Route::Lobby(lobby) = &mut model.route else {
+        return Vec::new();
+    };
+    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+        return Vec::new();
+    }
+
+    let row = mouse.position.row.as_usize();
+    let column = mouse.position.column.as_usize();
+    if row == LOBBY_TAB_ROW {
+        for (tab, start, end) in super::lobby_tab_bounds(model.geometry) {
+            if column >= start && column < end {
+                lobby.active_tab = tab;
+                return Vec::new();
             }
         }
+    }
+
+    if row < TABLE_DATA_ROW_START || row >= model.geometry.height().saturating_sub(4) {
+        return Vec::new();
+    }
+
+    let index = row.saturating_sub(TABLE_DATA_ROW_START);
+    match lobby.active_tab {
+        LobbyTab::MyGames if !model.my_games.is_empty() => {
+            lobby.selected_my_game = index.min(model.my_games.len().saturating_sub(1));
+        }
+        LobbyTab::OpenGames if !model.open_games.is_empty() => {
+            lobby.selected_open_game = index.min(model.open_games.len().saturating_sub(1));
+        }
+        _ => {}
     }
     Vec::new()
 }
@@ -268,6 +318,22 @@ fn handle_first_run_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<E
     }
 }
 
+fn handle_matrix_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    match key.code {
+        KeyCode::Esc => {
+            model.should_quit = true;
+            vec![Effect::Quit]
+        }
+        _ => {
+            model.route = Route::Locked(super::LockedModel {
+                password_input: String::new(),
+                status: Some("Session locked.".to_string()),
+            });
+            Vec::new()
+        }
+    }
+}
+
 fn handle_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
     let Route::Locked(locked) = &mut model.route else {
         return Vec::new();
@@ -305,9 +371,7 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
     };
     if lobby.help_open {
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                lobby.help_open = false;
-            }
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => lobby.help_open = false,
             _ => {}
         }
         return Vec::new();
@@ -336,6 +400,7 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
                     effects.push(Effect::ConnectTransport {
                         relay_url,
                         nsec: session.active_nsec.clone(),
+                        cache: model.cache.clone(),
                     });
                 }
                 return effects;
@@ -365,24 +430,17 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             Vec::new()
         }
         KeyCode::Up => {
-            lobby.selected_game = lobby.selected_game.saturating_sub(1);
+            lobby.set_selected_index(lobby.selected_index().saturating_sub(1));
             Vec::new()
         }
         KeyCode::Down => {
-            let max_index = model.games.len().saturating_sub(1);
-            lobby.selected_game = (lobby.selected_game + 1).min(max_index);
+            let max_index = match lobby.active_tab {
+                LobbyTab::MyGames => model.my_games.len().saturating_sub(1),
+                LobbyTab::OpenGames => model.open_games.len().saturating_sub(1),
+                _ => 0,
+            };
+            lobby.set_selected_index((lobby.selected_index() + 1).min(max_index));
             Vec::new()
-        }
-        KeyCode::Char('l') | KeyCode::Char('L') => {
-            model.session = None;
-            model.network = NetworkState::Idle;
-            model.games.clear();
-            model.notices.clear();
-            model.route = Route::Locked(super::LockedModel {
-                password_input: String::new(),
-                status: Some("Session locked.".to_string()),
-            });
-            vec![Effect::DisconnectTransport]
         }
         KeyCode::Char('?') | KeyCode::Char('h') | KeyCode::Char('H') => {
             lobby.help_open = true;
@@ -410,7 +468,53 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             lobby.status = Some("Editing relay URL. Enter saves, Esc cancels.".to_string());
             Vec::new()
         }
+        KeyCode::Char('i') | KeyCode::Char('I') if lobby.active_tab == LobbyTab::Settings => {
+            let next = cycle_lock_timeout(model.lock_timeout_minutes);
+            model.lock_timeout_minutes = next;
+            lobby.status = Some(format!(
+                "Idle lock timeout set to {}.",
+                lock_timeout_label(next)
+            ));
+            vec![Effect::SaveLockTimeout {
+                lock_timeout_minutes: next,
+            }]
+        }
+        KeyCode::Char('l') | KeyCode::Char('L') => lock_session(model),
         _ => Vec::new(),
+    }
+}
+
+fn handle_idle_lock(model: &mut Model) -> Vec<Effect> {
+    if !matches!(model.route, Route::Lobby(_)) || model.lock_timeout_minutes == 0 {
+        return Vec::new();
+    }
+    lock_session(model)
+}
+
+fn lock_session(model: &mut Model) -> Vec<Effect> {
+    model.session = None;
+    model.network = NetworkState::Idle;
+    model.my_games.clear();
+    model.open_games.clear();
+    model.notices.clear();
+    model.matrix_rain.reset();
+    model.route = Route::MatrixLocked;
+    vec![Effect::DisconnectTransport]
+}
+
+fn cycle_lock_timeout(current: u16) -> u16 {
+    let index = LOCK_TIMEOUT_OPTIONS
+        .iter()
+        .position(|value| *value == current)
+        .unwrap_or(0);
+    LOCK_TIMEOUT_OPTIONS[(index + 1) % LOCK_TIMEOUT_OPTIONS.len()]
+}
+
+fn lock_timeout_label(value: u16) -> String {
+    if value == 0 {
+        "Off".to_string()
+    } else {
+        format!("{value} min")
     }
 }
 
@@ -433,6 +537,3 @@ fn is_quit_shortcut(key: crate::input::KeyEvent) -> bool {
 
 #[allow(dead_code)]
 fn _assert_screen_geometry_send(_: ScreenGeometry) {}
-
-#[allow(dead_code)]
-fn _assert_row_send(_: GameRow) {}

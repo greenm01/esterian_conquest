@@ -10,6 +10,7 @@ fn first_run_cursor_starts_at_handle_origin_and_advances_with_input() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     assert_eq!(view_cursor(&app), Point::from_usize(31, 19));
 
@@ -30,6 +31,7 @@ fn first_run_tab_moves_cursor_to_password_origin() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
     assert_eq!(view_cursor(&app), Point::from_usize(31, 20));
@@ -41,6 +43,7 @@ fn locked_cursor_starts_at_password_origin() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: true,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     assert_eq!(view_cursor(&app), Point::from_usize(33, 21));
 }

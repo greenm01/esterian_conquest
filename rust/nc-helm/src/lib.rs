@@ -8,7 +8,7 @@ mod storage;
 mod theme;
 mod transport;
 
-pub use app::{App, Effect, GameRow, Msg, Route};
+pub use app::{App, Effect, Msg, MyGameRow, OpenGameRow, Route};
 pub use grid::{
     AnsiColor, BackgroundMode, Cell, CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row,
     ScreenGeometry, StyledSpan,

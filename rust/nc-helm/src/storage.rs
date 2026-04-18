@@ -3,14 +3,19 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use nc_client::cache::{ClientCache, parse_cache_str, render_cache};
 use nc_client::keychain::crypto::{decrypt_blob, encrypt_blob};
 use nc_client::keychain::io::{parse_keychain_str, render_keychain};
 use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::app::{DEFAULT_LOCK_TIMEOUT_MINUTES, normalize_lock_timeout_minutes};
+
 const DB_FILENAME: &str = "helm.db";
 const KEYCHAIN_KEY: &str = "active_keychain";
+const CACHE_KEY: &str = "client_cache";
 const RELAY_KEY: &str = "relay_url";
+const LOCK_TIMEOUT_KEY: &str = "lock_timeout_minutes";
 
 const INIT_SQL: &str = r#"
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -29,11 +34,13 @@ CREATE TABLE IF NOT EXISTS app_secrets (
 pub struct BootSnapshot {
     pub has_keychain: bool,
     pub relay_url: Option<String>,
+    pub lock_timeout_minutes: u16,
 }
 
 #[derive(Debug, Clone)]
 pub struct StoredSession {
     pub keychain: Keychain,
+    pub cache: ClientCache,
     pub active_npub: String,
     pub active_nsec: String,
     pub active_handle: Option<String>,
@@ -47,6 +54,15 @@ pub enum StorageCommand {
     SaveRelayUrl {
         relay_url: String,
         reply_to: Sender<Result<String, String>>,
+    },
+    SaveClientCache {
+        cache: ClientCache,
+        password: String,
+        reply_to: Sender<Result<(), String>>,
+    },
+    SaveLockTimeout {
+        lock_timeout_minutes: u16,
+        reply_to: Sender<Result<u16, String>>,
     },
     CreateIdentity {
         handle: String,
@@ -100,6 +116,34 @@ impl StorageActor {
             .map_err(|_| "storage actor unavailable".to_string())
     }
 
+    pub fn save_client_cache(
+        &self,
+        cache: ClientCache,
+        password: String,
+        reply_to: Sender<Result<(), String>>,
+    ) -> Result<(), String> {
+        self.tx
+            .send(StorageCommand::SaveClientCache {
+                cache,
+                password,
+                reply_to,
+            })
+            .map_err(|_| "storage actor unavailable".to_string())
+    }
+
+    pub fn save_lock_timeout(
+        &self,
+        lock_timeout_minutes: u16,
+        reply_to: Sender<Result<u16, String>>,
+    ) -> Result<(), String> {
+        self.tx
+            .send(StorageCommand::SaveLockTimeout {
+                lock_timeout_minutes,
+                reply_to,
+            })
+            .map_err(|_| "storage actor unavailable".to_string())
+    }
+
     pub fn save_relay_url(
         &self,
         relay_url: String,
@@ -138,6 +182,19 @@ fn storage_loop(
                 reply_to,
             } => {
                 let _ = reply_to.send(db.save_relay_url(&relay_url));
+            }
+            StorageCommand::SaveClientCache {
+                cache,
+                password,
+                reply_to,
+            } => {
+                let _ = reply_to.send(db.save_client_cache(&cache, &password));
+            }
+            StorageCommand::SaveLockTimeout {
+                lock_timeout_minutes,
+                reply_to,
+            } => {
+                let _ = reply_to.send(db.save_lock_timeout(lock_timeout_minutes));
             }
             StorageCommand::CreateIdentity {
                 handle,
@@ -193,9 +250,22 @@ impl AppDatabase {
             .optional()
             .map_err(|err| err.to_string())?
             .unwrap_or(false);
+        let lock_timeout_minutes = self
+            .conn
+            .query_row(
+                "SELECT value FROM app_meta WHERE key = ?1",
+                params![LOCK_TIMEOUT_KEY],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|err| err.to_string())?
+            .and_then(|value| value.parse::<u16>().ok())
+            .map(normalize_lock_timeout_minutes)
+            .unwrap_or(DEFAULT_LOCK_TIMEOUT_MINUTES);
         Ok(BootSnapshot {
             has_keychain,
             relay_url,
+            lock_timeout_minutes,
         })
     }
 
@@ -206,10 +276,13 @@ impl AppDatabase {
         relay_url: &str,
     ) -> Result<StoredSession, String> {
         let mut keychain = Keychain::empty();
+        let cache = ClientCache::empty();
         push_new_identity(&mut keychain, now_iso8601(), Some(handle.to_string()))
             .map_err(|err| err.to_string())?;
         let rendered = render_keychain(&keychain);
         let payload = encrypt_blob(&rendered, password).map_err(|err| err.to_string())?;
+        let cache_payload =
+            encrypt_blob(&render_cache(&cache), password).map_err(|err| err.to_string())?;
         self.conn
             .execute(
                 "INSERT INTO app_secrets (key, payload, updated_at)
@@ -220,13 +293,22 @@ impl AppDatabase {
             .map_err(|err| err.to_string())?;
         self.conn
             .execute(
+                "INSERT INTO app_secrets (key, payload, updated_at)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
+                params![CACHE_KEY, cache_payload, now_unix_seconds()],
+            )
+            .map_err(|err| err.to_string())?;
+        self.conn
+            .execute(
                 "INSERT INTO app_meta (key, value)
                  VALUES (?1, ?2)
                  ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 params![RELAY_KEY, relay_url],
             )
             .map_err(|err| err.to_string())?;
-        build_stored_session(keychain)
+        self.save_lock_timeout(DEFAULT_LOCK_TIMEOUT_MINUTES)?;
+        build_stored_session(keychain, cache)
     }
 
     fn save_relay_url(&self, relay_url: &str) -> Result<String, String> {
@@ -254,16 +336,58 @@ impl AppDatabase {
             .ok_or_else(|| "No local keychain found.".to_string())?;
         let plaintext = decrypt_blob(&payload, password).map_err(|err| err.to_string())?;
         let keychain = parse_keychain_str(&plaintext).map_err(|err| err.to_string())?;
-        build_stored_session(keychain)
+        let cache = self
+            .conn
+            .query_row(
+                "SELECT payload FROM app_secrets WHERE key = ?1",
+                params![CACHE_KEY],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .optional()
+            .map_err(|err| err.to_string())?
+            .map(|payload| decrypt_blob(&payload, password).map_err(|err| err.to_string()))
+            .transpose()?
+            .map(|plaintext| parse_cache_str(&plaintext).map_err(|err| err.to_string()))
+            .transpose()?
+            .unwrap_or_else(ClientCache::empty);
+        build_stored_session(keychain, cache)
+    }
+
+    fn save_client_cache(&self, cache: &ClientCache, password: &str) -> Result<(), String> {
+        let payload =
+            encrypt_blob(&render_cache(cache), password).map_err(|err| err.to_string())?;
+        self.conn
+            .execute(
+                "INSERT INTO app_secrets (key, payload, updated_at)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
+                params![CACHE_KEY, payload, now_unix_seconds()],
+            )
+            .map_err(|err| err.to_string())?;
+        Ok(())
+    }
+
+    fn save_lock_timeout(&self, lock_timeout_minutes: u16) -> Result<u16, String> {
+        let normalized = normalize_lock_timeout_minutes(lock_timeout_minutes);
+        self.conn
+            .execute(
+                "INSERT INTO app_meta (key, value)
+                 VALUES (?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![LOCK_TIMEOUT_KEY, normalized.to_string()],
+            )
+            .map_err(|err| err.to_string())?;
+        Ok(normalized)
     }
 }
 
-fn build_stored_session(keychain: Keychain) -> Result<StoredSession, String> {
+fn build_stored_session(keychain: Keychain, cache: ClientCache) -> Result<StoredSession, String> {
     let active_identity = keychain
         .active_identity()
         .ok_or_else(|| "Keychain has no active identity.".to_string())?;
     let active_npub = active_identity_npub(&keychain).map_err(|err| err.to_string())?;
     Ok(StoredSession {
+        cache,
         active_handle: active_identity.handle.clone(),
         active_nsec: active_identity.nsec.clone(),
         active_npub,
@@ -293,7 +417,7 @@ fn db_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::AppDatabase;
+    use super::{AppDatabase, DEFAULT_LOCK_TIMEOUT_MINUTES};
 
     #[test]
     fn sqlite_keychain_round_trip_unlocks() {
@@ -312,6 +436,7 @@ mod tests {
         let unlocked = db.unlock("hunter2").expect("unlock keychain");
         assert_eq!(created.active_npub, unlocked.active_npub);
         assert_eq!(unlocked.active_handle.as_deref(), Some("captain"));
+        assert!(unlocked.cache.games.is_empty());
         let _ = std::fs::remove_file(path);
     }
 
@@ -329,6 +454,22 @@ mod tests {
         db.save_relay_url("ws://relay.example").expect("save relay");
         let snapshot = db.load_boot().expect("load boot snapshot");
         assert_eq!(snapshot.relay_url.as_deref(), Some("ws://relay.example"));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn boot_snapshot_defaults_lock_timeout() {
+        let path = std::env::temp_dir().join(format!(
+            "nc-helm-storage-lock-timeout-test-{}-{}.db",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("unix time")
+                .as_nanos()
+        ));
+        let db = AppDatabase::open(&path).expect("open app db");
+        let snapshot = db.load_boot().expect("load boot snapshot");
+        assert_eq!(snapshot.lock_timeout_minutes, DEFAULT_LOCK_TIMEOUT_MINUTES);
         let _ = std::fs::remove_file(path);
     }
 }

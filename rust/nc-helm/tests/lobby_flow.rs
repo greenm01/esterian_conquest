@@ -1,6 +1,7 @@
 mod support;
 
-use nc_helm::{App, Effect, GameRow, LobbySnapshot, Msg, Route};
+use nc_client::cache::ClientCache;
+use nc_helm::{App, Effect, LobbySnapshot, Msg, OpenGameRow, Route};
 
 use crate::support::{alt_key, dummy_session, key, left_click};
 
@@ -63,17 +64,23 @@ fn lobby_update_populates_games_and_notices() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::LobbyUpdated(Ok(LobbySnapshot {
-        games: vec![GameRow {
+        cache: ClientCache::empty(),
+        my_games: Vec::new(),
+        open_games: vec![OpenGameRow {
             game_id: "phase-sapling-awful".to_string(),
-            name: "Phase Sapling".to_string(),
+            status: "Open".to_string(),
+            game_tier: "Sandbox".to_string(),
+            game: "Phase Sapling".to_string(),
             host: "daemon".to_string(),
-            tier: "sandbox".to_string(),
-            seats: "1/4".to_string(),
-            when: "Y3001 T1".to_string(),
+            open_seats: 1,
+            total_seats: 4,
+            created_date: "3001-01-01".to_string(),
+            turn_summary: "Y3001 T1".to_string(),
+            summary: String::new(),
         }],
         notices: vec!["sysop: sandbox reset tonight".to_string()],
     })));
-    assert_eq!(app.model().games.len(), 1);
+    assert_eq!(app.model().open_games.len(), 1);
     assert_eq!(app.model().notices.len(), 1);
     match &app.model().route {
         Route::Lobby(lobby) => assert!(lobby.status.is_none()),
@@ -89,15 +96,27 @@ fn lock_action_disconnects_transport_and_returns_to_locked_route() {
     let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
     assert!(matches!(effects.as_slice(), [Effect::DisconnectTransport]));
     match &app.model().route {
-        Route::Locked(locked) => {
-            assert_eq!(locked.status.as_deref(), Some("Session locked."));
-            assert!(locked.password_input.is_empty());
-        }
+        Route::MatrixLocked => {}
         other => panic!("expected locked route, got {other:?}"),
     }
     assert!(app.model().session.is_none());
-    assert!(app.model().games.is_empty());
+    assert!(app.model().open_games.is_empty());
+    assert!(app.model().my_games.is_empty());
     assert!(app.model().notices.is_empty());
+}
+
+#[test]
+fn any_key_from_matrix_lock_opens_unlock_gate() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    match &app.model().route {
+        Route::Locked(locked) => assert!(locked.password_input.is_empty()),
+        other => panic!("expected locked route, got {other:?}"),
+    }
 }
 
 #[test]

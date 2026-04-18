@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use nc_client::cache::ClientCache;
 use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
 use nc_helm::{
     App, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, Point,
@@ -34,6 +35,7 @@ pub fn dummy_session(handle: &str) -> StoredSession {
     let active = keychain.active_identity().expect("active identity").clone();
     StoredSession {
         keychain,
+        cache: ClientCache::empty(),
         active_npub,
         active_nsec: active.nsec.clone(),
         active_handle: active.handle.clone(),

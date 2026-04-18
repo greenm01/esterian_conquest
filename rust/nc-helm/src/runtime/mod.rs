@@ -3,11 +3,13 @@ mod renderer;
 
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use winit::application::ApplicationHandler;
 use winit::event::{Ime, MouseButton as WinitMouseButton, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopBuilder, EventLoopProxy};
+use winit::event_loop::{
+    ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy,
+};
 use winit::keyboard::ModifiersState;
 #[cfg(any(
     target_os = "linux",
@@ -40,7 +42,7 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::window::{Fullscreen, Window, WindowAttributes};
 
 use crate::Point;
-use crate::app::{App, Effect, MIN_SUPPORTED_GEOMETRY, Msg, Route};
+use crate::app::{App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route};
 use crate::geometry;
 use crate::input::{
     MouseButton, MouseEvent, MouseEventKind, key_event_from_winit, key_modifiers_from_winit,
@@ -123,6 +125,7 @@ struct Runtime {
     last_user_input: Option<Instant>,
     mouse_buttons_held: u16,
     shrink_tracker: Option<ResizeShrinkTracker>,
+    next_matrix_frame_at: Option<Instant>,
 }
 
 impl Runtime {
@@ -152,6 +155,7 @@ impl Runtime {
             last_user_input: None,
             mouse_buttons_held: 0,
             shrink_tracker: None,
+            next_matrix_frame_at: None,
         }
     }
 
@@ -217,6 +221,12 @@ impl Runtime {
         ));
         self.pending_effects.extend(effects);
         self.process_effects(event_loop);
+        if self.app.model().session.is_some() && self.last_user_input.is_none() {
+            self.last_user_input = Some(Instant::now());
+        }
+        if !matches!(self.app.model().route, Route::MatrixLocked) {
+            self.next_matrix_frame_at = None;
+        }
         if sync_window_input_state {
             self.sync_window_input_state();
         }
@@ -292,11 +302,15 @@ impl Runtime {
                         }
                     });
                 }
-                Effect::ConnectTransport { relay_url, nsec } => {
+                Effect::ConnectTransport {
+                    relay_url,
+                    nsec,
+                    cache,
+                } => {
                     self.diagnostic_log("dispatch effect: ConnectTransport");
                     let proxy = self.proxy.clone();
                     let (tx, rx) = std::sync::mpsc::channel();
-                    if let Err(err) = self.transport.connect(relay_url, nsec, tx) {
+                    if let Err(err) = self.transport.connect(relay_url, nsec, cache, tx) {
                         self.dispatch(Msg::LobbyUpdated(Err(err)), event_loop);
                         continue;
                     }
@@ -311,6 +325,34 @@ impl Runtime {
                     if let Err(err) = self.transport.disconnect() {
                         self.dispatch(Msg::LobbyUpdated(Err(err)), event_loop);
                     }
+                }
+                Effect::SaveClientCache { cache, password } => {
+                    self.diagnostic_log("dispatch effect: SaveClientCache");
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.storage.save_client_cache(cache, password, tx) {
+                        self.diagnostic_log(&format!("save client cache failed: {err}"));
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(Err(err)) = rx.recv() {
+                            eprintln!("nc-helm cache save failed: {err}");
+                        }
+                    });
+                }
+                Effect::SaveLockTimeout {
+                    lock_timeout_minutes,
+                } => {
+                    self.diagnostic_log("dispatch effect: SaveLockTimeout");
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.storage.save_lock_timeout(lock_timeout_minutes, tx) {
+                        self.diagnostic_log(&format!("save lock timeout failed: {err}"));
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(Err(err)) = rx.recv() {
+                            eprintln!("nc-helm lock-timeout save failed: {err}");
+                        }
+                    });
                 }
                 Effect::Quit => event_loop.exit(),
             }
@@ -398,6 +440,33 @@ impl Runtime {
             return;
         }
         self.dispatch(Msg::Resize(geometry), event_loop);
+    }
+
+    fn scheduled_wakeup(&mut self, now: Instant) -> Option<Instant> {
+        let idle_deadline = match (
+            self.app.model().session.is_some(),
+            matches!(self.app.model().route, Route::Lobby(_)),
+            self.app.model().lock_timeout_minutes,
+            self.last_user_input,
+        ) {
+            (true, true, timeout, Some(last_input)) if timeout != 0 => {
+                Some(last_input + Duration::from_secs(u64::from(timeout) * 60))
+            }
+            _ => None,
+        };
+
+        let matrix_deadline = if matches!(self.app.model().route, Route::MatrixLocked) {
+            Some(
+                *self
+                    .next_matrix_frame_at
+                    .get_or_insert(now + MATRIX_FRAME_STEP),
+            )
+        } else {
+            self.next_matrix_frame_at = None;
+            None
+        };
+
+        combine_deadlines(idle_deadline, matrix_deadline)
     }
 }
 
@@ -639,11 +708,48 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        _event_loop.set_control_flow(ControlFlow::Wait);
+        let now = Instant::now();
+        if matches!(self.app.model().route, Route::MatrixLocked)
+            && self
+                .next_matrix_frame_at
+                .map(|deadline| deadline <= now)
+                .unwrap_or(false)
+        {
+            self.next_matrix_frame_at = Some(now + MATRIX_FRAME_STEP);
+            self.dispatch(Msg::MatrixFrame, _event_loop);
+        }
+        if self.app.model().session.is_some()
+            && matches!(self.app.model().route, Route::Lobby(_))
+            && self.app.model().lock_timeout_minutes != 0
+            && self
+                .last_user_input
+                .map(|last_input| {
+                    now >= last_input
+                        + Duration::from_secs(u64::from(self.app.model().lock_timeout_minutes) * 60)
+                })
+                .unwrap_or(false)
+        {
+            self.dispatch(Msg::IdleLock, _event_loop);
+            self.last_user_input = None;
+        }
         if self.needs_redraw {
             if let Some(window) = &self.window {
                 window.request_redraw();
             }
         }
+        if let Some(deadline) = self.scheduled_wakeup(Instant::now()) {
+            _event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+        }
+    }
+}
+
+fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<Instant> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.min(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
     }
 }
 
@@ -809,6 +915,7 @@ fn route_label(route: &Route) -> &'static str {
     match route {
         Route::Boot(_) => "Boot",
         Route::FirstRun(_) => "FirstRun",
+        Route::MatrixLocked => "MatrixLocked",
         Route::Locked(_) => "Locked",
         Route::Lobby(_) => "Lobby",
         Route::FatalError(_) => "FatalError",
@@ -819,6 +926,8 @@ fn msg_label(msg: &Msg) -> &'static str {
     match msg {
         Msg::Resize(_) => "Resize",
         Msg::FocusChanged(_) => "FocusChanged",
+        Msg::MatrixFrame => "MatrixFrame",
+        Msg::IdleLock => "IdleLock",
         Msg::Key(_) => "Key",
         Msg::TextInput(_) => "TextInput",
         Msg::Mouse(_) => "Mouse",
@@ -861,10 +970,12 @@ fn minimum_window_size() -> winit::dpi::LogicalSize<f64> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::{
         ResizeObservation, ResizeShrinkTracker, ResizeVerdict, SessionBackend,
-        backend_supports_programmatic_focus, classify_resize, minimum_window_size,
-        session_backend_label, window_decorations_for_session,
+        backend_supports_programmatic_focus, classify_resize, combine_deadlines,
+        minimum_window_size, session_backend_label, window_decorations_for_session,
     };
     use crate::app::MIN_SUPPORTED_GEOMETRY;
     use crate::geometry;
@@ -938,6 +1049,21 @@ mod tests {
                 MIN_SUPPORTED_GEOMETRY.width(),
                 MIN_SUPPORTED_GEOMETRY.height()
             )
+        );
+    }
+
+    #[test]
+    fn combine_deadlines_picks_the_earliest_present_deadline() {
+        let now = Instant::now();
+        assert_eq!(combine_deadlines(None, None), None);
+        assert_eq!(combine_deadlines(Some(now), None), Some(now));
+        assert_eq!(combine_deadlines(None, Some(now)), Some(now));
+        assert_eq!(
+            combine_deadlines(
+                Some(now + Duration::from_secs(2)),
+                Some(now + Duration::from_secs(1))
+            ),
+            Some(now + Duration::from_secs(1))
         );
     }
 

@@ -11,6 +11,7 @@ fn boot_without_keychain_enters_first_run() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://relay.example".to_string()),
+        lock_timeout_minutes: 10,
     })));
     match &app.model().route {
         Route::FirstRun(first_run) => {
@@ -26,6 +27,7 @@ fn first_run_submit_emits_create_identity_effect() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
     })));
     for ch in "captain".chars() {
         let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char(ch))));
@@ -53,6 +55,7 @@ fn relay_saved_updates_model_and_boot_snapshot() {
     let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
         has_keychain: false,
         relay_url: Some("ws://old-relay".to_string()),
+        lock_timeout_minutes: 10,
     })));
     let _ = app.dispatch(Msg::RelaySaved(Ok("ws://new-relay".to_string())));
     assert_eq!(app.model().relay_url, "ws://new-relay");
