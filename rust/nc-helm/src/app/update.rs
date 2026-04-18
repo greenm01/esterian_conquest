@@ -274,7 +274,7 @@ fn handle_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effe
                 locked.status = Some("Password cannot be empty.".to_string());
                 return Vec::new();
             }
-            locked.status = Some("Unlocking local keychain...".to_string());
+            locked.status = None;
             vec![Effect::Unlock { password }]
         }
         KeyCode::Esc => {
