@@ -3,6 +3,7 @@ mod renderer;
 
 use std::sync::Arc;
 use std::thread;
+use std::time::Instant;
 
 use winit::application::ApplicationHandler;
 use winit::event::{Ime, MouseButton as WinitMouseButton, WindowEvent};
@@ -93,6 +94,18 @@ struct ResizeObservation {
     scale_factor: f64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct ResizeShrinkTracker {
+    baseline_height: u32,
+    consecutive_shrinks: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ResizeVerdict {
+    Accept,
+    SpuriousShrink { restore_to: (u32, u32) },
+}
+
 struct Runtime {
     options: LaunchTargetOptions,
     session_backend: SessionBackend,
@@ -107,6 +120,9 @@ struct Runtime {
     pointer_cell: Option<Point>,
     last_resize_observation: Option<ResizeObservation>,
     needs_redraw: bool,
+    last_user_input: Option<Instant>,
+    mouse_buttons_held: u16,
+    shrink_tracker: Option<ResizeShrinkTracker>,
 }
 
 impl Runtime {
@@ -133,6 +149,9 @@ impl Runtime {
             pointer_cell: None,
             last_resize_observation: None,
             needs_redraw: true,
+            last_user_input: None,
+            mouse_buttons_held: 0,
+            shrink_tracker: None,
         }
     }
 
@@ -145,6 +164,10 @@ impl Runtime {
         let mut attributes = WindowAttributes::default()
             .with_title("Nostrian Conquest - nc-helm")
             .with_resizable(true)
+            .with_decorations(window_decorations_for_session(
+                self.session_backend,
+                std::env::var("XDG_CURRENT_DESKTOP").ok().as_deref(),
+            ))
             .with_inner_size(size);
         #[cfg(any(
             target_os = "linux",
@@ -311,8 +334,20 @@ impl Runtime {
         }
     }
 
-    fn observe_resize(&mut self, observation: ResizeObservation) -> bool {
-        observe_resize(&mut self.last_resize_observation, observation)
+    fn observe_resize(&mut self, observation: ResizeObservation) -> ResizeVerdict {
+        let now = Instant::now();
+        let input_recency_ms = self
+            .last_user_input
+            .map(|t| now.duration_since(t).as_millis() as u32);
+        let (verdict, new_tracker) = classify_resize(
+            &self.last_resize_observation,
+            observation,
+            &self.shrink_tracker,
+            input_recency_ms,
+        );
+        self.shrink_tracker = Some(new_tracker);
+        self.last_resize_observation = Some(observation);
+        verdict
     }
 
     fn diagnostic_resize_event(
@@ -464,6 +499,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 self.modifiers = modifiers.state();
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                self.last_user_input = Some(Instant::now());
                 if let Some(key) = key_event_from_winit(&event, self.modifiers) {
                     self.dispatch(Msg::Key(key), event_loop);
                 }
@@ -474,6 +510,9 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
+                if self.mouse_buttons_held > 0 {
+                    self.last_user_input = Some(Instant::now());
+                }
                 if let (Some(window), Some(renderer)) = (&self.window, &mut self.renderer) {
                     self.pointer_cell = renderer.cell_position_at_pixel(
                         window,
@@ -483,6 +522,12 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 }
             }
             WindowEvent::MouseInput { button, state, .. } => {
+                if state.is_pressed() {
+                    self.mouse_buttons_held += 1;
+                    self.last_user_input = Some(Instant::now());
+                } else {
+                    self.mouse_buttons_held = self.mouse_buttons_held.saturating_sub(1);
+                }
                 let button = match button {
                     WinitMouseButton::Left => Some(MouseButton::Left),
                     WinitMouseButton::Right => Some(MouseButton::Right),
@@ -515,11 +560,29 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     pixel_height: size.height,
                     scale_factor,
                 };
-                if !self.observe_resize(observation) {
-                    return;
+                let verdict = self.observe_resize(observation);
+                match verdict {
+                    ResizeVerdict::SpuriousShrink { restore_to } => {
+                        if self.options.native.diagnostic_mode {
+                            self.diagnostic_log(&format!(
+                                "event: Resized backend={} spurious=true event={}x{} baseline={}x{}",
+                                session_backend_label(self.session_backend),
+                                size.width,
+                                size.height,
+                                restore_to.1,
+                                restore_to.0
+                            ));
+                        }
+                        // Counter-configure was tried and cosmic-comp ignored it; min_inner_size
+                        // is now the primary defense against sctk-adwaita #67/#68. We still sync
+                        // geometry so the app model matches the actual surface.
+                        self.sync_geometry_from_size(size.width, size.height, scale_factor, event_loop);
+                    }
+                    ResizeVerdict::Accept => {
+                        self.diagnostic_resize_event("Resized", size.width, size.height, scale_factor);
+                        self.sync_geometry_from_size(size.width, size.height, scale_factor, event_loop);
+                    }
                 }
-                self.diagnostic_resize_event("Resized", size.width, size.height, scale_factor);
-                self.sync_geometry_from_size(size.width, size.height, scale_factor, event_loop);
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 if let Some(window) = self.window.as_ref() {
@@ -529,9 +592,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                         pixel_height: size.height,
                         scale_factor,
                     };
-                    if !self.observe_resize(observation) {
-                        return;
-                    }
+                    let _ = self.observe_resize(observation);
                     self.diagnostic_resize_event(
                         "ScaleFactorChanged",
                         size.width,
@@ -573,15 +634,69 @@ fn backend_supports_programmatic_focus(session_backend: SessionBackend) -> bool 
     session_backend != SessionBackend::Wayland
 }
 
-fn observe_resize(
-    last_resize_observation: &mut Option<ResizeObservation>,
+fn classify_resize(
+    last_observation: &Option<ResizeObservation>,
     observation: ResizeObservation,
-) -> bool {
-    if *last_resize_observation == Some(observation) {
-        return false;
+    shrink_tracker: &Option<ResizeShrinkTracker>,
+    input_recency_ms: Option<u32>,
+) -> (ResizeVerdict, ResizeShrinkTracker) {
+    let fresh_tracker = ResizeShrinkTracker {
+        baseline_height: observation.pixel_height,
+        consecutive_shrinks: 0,
+    };
+    let Some(last) = *last_observation else {
+        return (ResizeVerdict::Accept, fresh_tracker);
+    };
+    let same_width = observation.pixel_width == last.pixel_width;
+    let shrink = observation.pixel_height < last.pixel_height;
+    let grow = observation.pixel_height > last.pixel_height;
+    let no_recent_input = input_recency_ms.map_or(true, |ms| ms > 250);
+    let scale_unchanged = (observation.scale_factor - last.scale_factor).abs() < 0.001;
+
+    // User-driven or compositor-intended change: reset tracker baseline.
+    if !same_width || !scale_unchanged || !no_recent_input {
+        return (ResizeVerdict::Accept, fresh_tracker);
     }
-    *last_resize_observation = Some(observation);
-    true
+
+    // Grow without recent input (e.g. compositor restore): new baseline at the
+    // larger height.
+    if grow {
+        return (ResizeVerdict::Accept, fresh_tracker);
+    }
+
+    // No height change.
+    if !shrink {
+        let unchanged_tracker = shrink_tracker.unwrap_or(ResizeShrinkTracker {
+            baseline_height: last.pixel_height,
+            consecutive_shrinks: 0,
+        });
+        return (ResizeVerdict::Accept, unchanged_tracker);
+    }
+
+    // same_width && shrink && scale_unchanged && no_recent_input
+    // Baseline is sticky during a shrink run; only the first shrink establishes it
+    // when no tracker exists.
+    let baseline = shrink_tracker
+        .map(|t| t.baseline_height)
+        .unwrap_or(last.pixel_height);
+    let new_shrinks = shrink_tracker
+        .map(|t| t.consecutive_shrinks)
+        .unwrap_or(0)
+        .saturating_add(1);
+    let new_tracker = ResizeShrinkTracker {
+        baseline_height: baseline,
+        consecutive_shrinks: new_shrinks,
+    };
+    if new_shrinks >= 2 && observation.pixel_height <= baseline {
+        (
+            ResizeVerdict::SpuriousShrink {
+                restore_to: (baseline, last.pixel_width),
+            },
+            new_tracker,
+        )
+    } else {
+        (ResizeVerdict::Accept, new_tracker)
+    }
 }
 
 fn session_backend_label(session_backend: SessionBackend) -> &'static str {
@@ -590,6 +705,32 @@ fn session_backend_label(session_backend: SessionBackend) -> &'static str {
         SessionBackend::X11 => "x11",
         SessionBackend::Unknown => "unknown",
     }
+}
+
+/// Decide whether the window should be created with native decorations.
+///
+/// Cosmic-comp's server-side decorations path has a bug that shrinks the
+/// xdg_toplevel by 36 px on every `wl_surface.leave/enter(output)` pair,
+/// which fires whenever the pointer crosses the SSD titlebar edge. Requesting
+/// `decorations=false` makes winit ask for client-side decorations instead,
+/// which cosmic-comp honors and the shrink loop disappears. On every other
+/// platform/compositor we keep native decorations so users get a normal
+/// titlebar and standard resize/move behavior.
+fn window_decorations_for_session(
+    session_backend: SessionBackend,
+    xdg_current_desktop: Option<&str>,
+) -> bool {
+    if session_backend != SessionBackend::Wayland {
+        return true;
+    }
+    let is_cosmic = xdg_current_desktop
+        .map(|value| {
+            value
+                .split(':')
+                .any(|entry| entry.eq_ignore_ascii_case("COSMIC"))
+        })
+        .unwrap_or(false);
+    !is_cosmic
 }
 
 fn detect_session_backend(
@@ -690,8 +831,9 @@ fn apply_backend_preference(
 #[cfg(test)]
 mod tests {
     use super::{
-        backend_supports_programmatic_focus, observe_resize, session_backend_label,
-        ResizeObservation, SessionBackend,
+        backend_supports_programmatic_focus, classify_resize, session_backend_label,
+        window_decorations_for_session, ResizeObservation, ResizeShrinkTracker, ResizeVerdict,
+        SessionBackend,
     };
 
     #[test]
@@ -708,6 +850,48 @@ mod tests {
         assert_eq!(session_backend_label(SessionBackend::Wayland), "wayland");
         assert_eq!(session_backend_label(SessionBackend::X11), "x11");
         assert_eq!(session_backend_label(SessionBackend::Unknown), "unknown");
+    }
+
+    #[test]
+    fn cosmic_wayland_session_disables_decorations() {
+        assert!(!window_decorations_for_session(
+            SessionBackend::Wayland,
+            Some("COSMIC")
+        ));
+        assert!(!window_decorations_for_session(
+            SessionBackend::Wayland,
+            Some("cosmic")
+        ));
+        assert!(!window_decorations_for_session(
+            SessionBackend::Wayland,
+            Some("pop:COSMIC")
+        ));
+    }
+
+    #[test]
+    fn non_cosmic_wayland_keeps_decorations() {
+        assert!(window_decorations_for_session(
+            SessionBackend::Wayland,
+            Some("GNOME")
+        ));
+        assert!(window_decorations_for_session(
+            SessionBackend::Wayland,
+            Some("KDE")
+        ));
+        assert!(window_decorations_for_session(SessionBackend::Wayland, None));
+    }
+
+    #[test]
+    fn non_wayland_always_keeps_decorations() {
+        assert!(window_decorations_for_session(
+            SessionBackend::X11,
+            Some("COSMIC")
+        ));
+        assert!(window_decorations_for_session(
+            SessionBackend::Unknown,
+            Some("COSMIC")
+        ));
+        assert!(window_decorations_for_session(SessionBackend::X11, None));
     }
 
     #[test]
@@ -741,22 +925,260 @@ mod tests {
         );
     }
 
+    // Helper: drive classify_resize through a sequence of observations, threading
+    // the tracker state between calls just as observe_resize does at runtime.
+    fn run_sequence(
+        heights: &[u32],
+        width: u32,
+        scale: f64,
+        input_recency_ms: Option<u32>,
+    ) -> Vec<ResizeVerdict> {
+        let mut last: Option<ResizeObservation> = None;
+        let mut tracker: Option<ResizeShrinkTracker> = None;
+        let mut verdicts = Vec::new();
+        for &h in heights {
+            let obs = ResizeObservation {
+                pixel_width: width,
+                pixel_height: h,
+                scale_factor: scale,
+            };
+            let (verdict, new_tracker) = classify_resize(&last, obs, &tracker, input_recency_ms);
+            verdicts.push(verdict);
+            last = Some(obs);
+            tracker = Some(new_tracker);
+        }
+        verdicts
+    }
+
     #[test]
-    fn observe_resize_rejects_exact_duplicates() {
-        let first = ResizeObservation {
+    fn classify_resize_rejects_monotonic_shrink_sequence() {
+        // Thread tracker state through calls, same as observe_resize does at runtime.
+        let base = ResizeObservation {
             pixel_width: 1200,
-            pixel_height: 800,
-            scale_factor: 1.25,
+            pixel_height: 828,
+            scale_factor: 1.0,
         };
-        let mut last = None;
-        assert!(observe_resize(&mut last, first));
-        assert!(!observe_resize(&mut last, first));
-        assert!(observe_resize(
-            &mut last,
-            ResizeObservation {
-                pixel_height: 801,
-                ..first
+        let shrink1 = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 792,
+            scale_factor: 1.0,
+        };
+        let shrink2 = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 756,
+            scale_factor: 1.0,
+        };
+
+        // First call: no prior observation → Accept, tracker initialised.
+        let (v0, t0) = classify_resize(&None, base, &None, Some(1000));
+        assert_eq!(v0, ResizeVerdict::Accept);
+        assert_eq!(t0.consecutive_shrinks, 0);
+        assert_eq!(t0.baseline_height, 828);
+
+        // Second call: first shrink → Accept (shrinks=1, baseline stays 828).
+        let (v1, t1) = classify_resize(&Some(base), shrink1, &Some(t0), Some(1000));
+        assert_eq!(v1, ResizeVerdict::Accept);
+        assert_eq!(t1.consecutive_shrinks, 1);
+        assert_eq!(t1.baseline_height, 828);
+
+        // Third call: second shrink → SpuriousShrink (shrinks=2 >= threshold).
+        let (v2, t2) = classify_resize(&Some(shrink1), shrink2, &Some(t1), Some(1000));
+        assert_eq!(
+            v2,
+            ResizeVerdict::SpuriousShrink {
+                restore_to: (828, 1200)
             }
-        ));
+        );
+        assert_eq!(t2.consecutive_shrinks, 2);
+        assert_eq!(t2.baseline_height, 828);
+    }
+
+    #[test]
+    fn classify_resize_accepts_when_user_input_is_recent() {
+        let base = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 828,
+            scale_factor: 1.0,
+        };
+        let shrink1 = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 792,
+            scale_factor: 1.0,
+        };
+        let tracker_with_shrinks = Some(ResizeShrinkTracker {
+            baseline_height: 828,
+            consecutive_shrinks: 1,
+        });
+
+        let (verdict, _) =
+            classify_resize(&Some(base), shrink1, &tracker_with_shrinks, Some(50));
+        assert_eq!(verdict, ResizeVerdict::Accept);
+    }
+
+    #[test]
+    fn classify_resize_accepts_first_shrink() {
+        let base = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 828,
+            scale_factor: 1.0,
+        };
+        let shrink1 = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 792,
+            scale_factor: 1.0,
+        };
+
+        let (verdict, tracker) = classify_resize(&Some(base), shrink1, &None, Some(1000));
+        assert_eq!(verdict, ResizeVerdict::Accept);
+        assert_eq!(tracker.consecutive_shrinks, 1);
+        assert_eq!(tracker.baseline_height, 828);
+    }
+
+    #[test]
+    fn classify_resize_accepts_different_width() {
+        let base = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 828,
+            scale_factor: 1.0,
+        };
+        let different_width = ResizeObservation {
+            pixel_width: 1000,
+            pixel_height: 792,
+            scale_factor: 1.0,
+        };
+
+        let (verdict, tracker) =
+            classify_resize(&Some(base), different_width, &None, Some(1000));
+        assert_eq!(verdict, ResizeVerdict::Accept);
+        // Width change resets tracker: baseline is the new height, shrinks=0.
+        assert_eq!(tracker.consecutive_shrinks, 0);
+        assert_eq!(tracker.baseline_height, 792);
+    }
+
+    // --- new regression tests ---
+
+    #[test]
+    fn classify_resize_cosmic_full_sequence() {
+        // COSMIC sctk-adwaita shrink loop: 864 → 828 → 792 → … → 540 (10 steps).
+        // No user input throughout.
+        // Expected: first observation Accept (no prior), second Accept (shrinks=1),
+        // third onward all SpuriousShrink with restore_to=(864, 1200).
+        let heights: Vec<u32> = vec![864, 828, 792, 756, 720, 684, 648, 612, 576, 540];
+        let verdicts = run_sequence(&heights, 1200, 1.0, None);
+
+        assert_eq!(verdicts[0], ResizeVerdict::Accept); // no prior
+        assert_eq!(verdicts[1], ResizeVerdict::Accept); // shrinks=1
+        for v in &verdicts[2..] {
+            assert_eq!(
+                *v,
+                ResizeVerdict::SpuriousShrink {
+                    restore_to: (864, 1200)
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn classify_resize_grow_resets_baseline() {
+        // After a grow the baseline rises; a subsequent shrink loop restores to the
+        // new (larger) baseline, not the old one.
+        // Sequence: 864 → 828 (shrinks=1) → 900 (grow, baseline=900, shrinks=0)
+        //           → 864 (shrinks=1) → 828 (SpuriousShrink restore_to=900)
+        let heights: Vec<u32> = vec![864, 828, 900, 864, 828];
+        let verdicts = run_sequence(&heights, 1200, 1.0, None);
+
+        assert_eq!(verdicts[0], ResizeVerdict::Accept); // no prior
+        assert_eq!(verdicts[1], ResizeVerdict::Accept); // first shrink
+        assert_eq!(verdicts[2], ResizeVerdict::Accept); // grow → baseline=900
+        assert_eq!(verdicts[3], ResizeVerdict::Accept); // shrink from 900, shrinks=1
+        assert_eq!(
+            verdicts[4],
+            ResizeVerdict::SpuriousShrink {
+                restore_to: (900, 1200)
+            }
+        );
+    }
+
+    #[test]
+    fn classify_resize_recent_input_resets_tracker() {
+        // A shrink that arrives within 250 ms of user input is treated as
+        // user-driven: it resets the baseline to the shrunken height.
+        // A later shrink loop is then detected relative to the new baseline.
+        let base = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 864,
+            scale_factor: 1.0,
+        };
+        let user_shrink = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 828,
+            scale_factor: 1.0,
+        };
+        // First: accept with recent input (50 ms) → baseline resets to 828.
+        let (v0, t0) = classify_resize(&Some(base), user_shrink, &None, Some(50));
+        assert_eq!(v0, ResizeVerdict::Accept);
+        assert_eq!(t0.baseline_height, 828);
+        assert_eq!(t0.consecutive_shrinks, 0);
+
+        // Now feed two compositor shrinks without input → spurious at the third.
+        let shrink2 = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 792,
+            scale_factor: 1.0,
+        };
+        let shrink3 = ResizeObservation {
+            pixel_width: 1200,
+            pixel_height: 756,
+            scale_factor: 1.0,
+        };
+        let (v1, t1) = classify_resize(&Some(user_shrink), shrink2, &Some(t0), Some(1000));
+        assert_eq!(v1, ResizeVerdict::Accept);
+        assert_eq!(t1.baseline_height, 828); // sticky
+
+        let (v2, _) = classify_resize(&Some(shrink2), shrink3, &Some(t1), Some(1000));
+        assert_eq!(
+            v2,
+            ResizeVerdict::SpuriousShrink {
+                restore_to: (828, 1200)
+            }
+        );
+    }
+
+    #[test]
+    fn classify_resize_width_change_resets_tracker() {
+        // Accumulate two shrinks, then a width change resets the tracker so
+        // the following shrink run starts fresh.
+        let heights_before: Vec<u32> = vec![864, 828, 792]; // shrinks=0,1,spurious
+        let v_before = run_sequence(&heights_before, 1200, 1.0, None);
+        assert_eq!(v_before[2], ResizeVerdict::SpuriousShrink { restore_to: (864, 1200) });
+
+        // Now: different width resize → tracker reset → next two shrinks at new
+        // width are Accept (shrinks=1) then SpuriousShrink on the third.
+        let obs_wide = ResizeObservation {
+            pixel_width: 1000,
+            pixel_height: 864,
+            scale_factor: 1.0,
+        };
+        // Simulate starting fresh from a width-changed state.
+        let (v_wide, t_wide) = classify_resize(
+            &Some(ResizeObservation { pixel_width: 1200, pixel_height: 792, scale_factor: 1.0 }),
+            obs_wide,
+            &None,
+            Some(1000),
+        );
+        assert_eq!(v_wide, ResizeVerdict::Accept);
+        assert_eq!(t_wide.consecutive_shrinks, 0);
+        assert_eq!(t_wide.baseline_height, 864);
+
+        // Subsequent shrinks at the new width behave as a fresh sequence.
+        let shrink_a = ResizeObservation { pixel_width: 1000, pixel_height: 828, scale_factor: 1.0 };
+        let (va, ta) = classify_resize(&Some(obs_wide), shrink_a, &Some(t_wide), Some(1000));
+        assert_eq!(va, ResizeVerdict::Accept);
+        assert_eq!(ta.consecutive_shrinks, 1);
+        assert_eq!(ta.baseline_height, 864);
+
+        let shrink_b = ResizeObservation { pixel_width: 1000, pixel_height: 792, scale_factor: 1.0 };
+        let (vb, _) = classify_resize(&Some(shrink_a), shrink_b, &Some(ta), Some(1000));
+        assert_eq!(vb, ResizeVerdict::SpuriousShrink { restore_to: (864, 1000) });
     }
 }
