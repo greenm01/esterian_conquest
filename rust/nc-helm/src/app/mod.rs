@@ -1,3 +1,4 @@
+mod chrome;
 mod update;
 mod view;
 

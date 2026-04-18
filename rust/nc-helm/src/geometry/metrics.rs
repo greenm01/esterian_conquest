@@ -107,6 +107,10 @@ pub fn logical_window_size_for_grid(cols: usize, rows: usize) -> LogicalSize<f64
 /// Shape a single `M` and return its rounded advance in pixels. Monospace
 /// fonts give every cell the same advance, so this is also the cell width.
 fn probe_cell_width_px(font_system: &mut FontSystem, text: TextMetrics) -> usize {
+    probe_advance_px(font_system, text, "M")
+}
+
+fn probe_advance_px(font_system: &mut FontSystem, text: TextMetrics, sample: &str) -> usize {
     let mut buffer = GlyphBuffer::new(
         font_system,
         Metrics::new(text.font_size_px, text.line_height_px),
@@ -114,7 +118,7 @@ fn probe_cell_width_px(font_system: &mut FontSystem, text: TextMetrics) -> usize
     buffer.set_size(font_system, None, Some(text.line_height_px));
     buffer.set_text(
         font_system,
-        "M",
+        sample,
         &Attrs::new().family(Family::Monospace).weight(Weight::NORMAL),
         Shaping::Advanced,
         None,
@@ -208,18 +212,25 @@ mod tests {
     use std::borrow::Cow;
     use std::sync::Arc;
 
-    use super::GridMetrics;
+    use super::{FONT_SIZE, GridMetrics, LINE_HEIGHT, TextMetrics, probe_advance_px};
 
     // Load the same fonts the renderer uses so the probe sees a real monospace face.
     const PRIMARY_REGULAR: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../nc-connect/assets/fonts/0xProtoNerdFontMono-Regular.ttf"
     ));
+    const FALLBACK_REGULAR: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
+    ));
 
     fn font_system_with_bundled_font() -> super::FontSystem {
         let mut fs = super::FontSystem::new();
         fs.db_mut().load_font_source(glyphon::fontdb::Source::Binary(
             Arc::new(Cow::Borrowed(PRIMARY_REGULAR)),
+        ));
+        fs.db_mut().load_font_source(glyphon::fontdb::Source::Binary(
+            Arc::new(Cow::Borrowed(FALLBACK_REGULAR)),
         ));
         fs.db_mut().set_monospace_family("0xProto Nerd Font Mono".to_string());
         fs
@@ -275,5 +286,26 @@ mod tests {
             m.text.band_height_px,
             min_expected,
         );
+    }
+
+    #[test]
+    fn box_drawing_glyphs_match_cell_advance() {
+        let mut fs = font_system_with_bundled_font();
+        let text = TextMetrics {
+            font_size_px: FONT_SIZE,
+            line_height_px: LINE_HEIGHT,
+            baseline_px: 0,
+            band_top_px: 0,
+            band_height_px: 0,
+        };
+        let cell_width = probe_advance_px(&mut fs, text, "M");
+
+        for glyph in ["─", "│", "╭", "╮", "╰", "╯", "┐", "┌", "┘", "└"] {
+            let width = probe_advance_px(&mut fs, text, glyph);
+            assert_eq!(
+                width, cell_width,
+                "box glyph {glyph:?} should keep the same advance as the monospace cell width",
+            );
+        }
     }
 }

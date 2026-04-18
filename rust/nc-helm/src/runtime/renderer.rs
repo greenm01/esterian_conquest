@@ -39,6 +39,7 @@ use wgpu::{
 use winit::dpi::PhysicalPosition;
 use winit::event_loop::ActiveEventLoop;
 
+use super::primitives;
 use crate::geometry::{GridMapper, GridMetrics, caret_rect};
 use crate::grid::{BackgroundMode, CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
@@ -126,8 +127,16 @@ struct TextBufferKey {
     bold: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct TextOverhang {
+    left_px: usize,
+    right_px: usize,
+    advance_width_px: usize,
+}
+
 struct CachedTextCell {
     buffer: GlyphBuffer,
+    overhang: TextOverhang,
 }
 
 /// One run of contiguous styled text staged for the glyphon `TextRenderer`.
@@ -408,7 +417,7 @@ impl Renderer {
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> Vec<TextPlacement> {
         let frame_width = self.surface_config.width as usize;
         let frame_height = self.surface_config.height as usize;
-        let body_bg = color_to_rgba(GameColor::Rgb(0x12, 0x13, 0x1c));
+        let body_bg = primitives::color_to_rgba(GameColor::Rgb(0x12, 0x13, 0x1c));
         // Start every frame from the base body colour so cells outside the
         // grid (when the window doesn't divide evenly into cells) have a
         // defined colour rather than stale pixels from the previous frame.
@@ -438,14 +447,14 @@ impl Renderer {
                 } else {
                     mapper.cell_rect(point)
                 };
-                fill_rect_rgba(
+                primitives::fill_rect_rgba(
                     &mut self.background_pixels,
                     frame_width,
                     rect.x,
                     rect.y,
                     rect.width,
                     rect.height,
-                    color_to_rgba(style.bg),
+                    primitives::color_to_rgba(style.bg),
                 );
                 if source.ch == ' ' {
                     flush_run(
@@ -457,6 +466,29 @@ impl Renderer {
                         &mut run_text,
                         row_idx,
                         col_idx,
+                    );
+                    continue;
+                }
+                if primitives::should_draw_as_primitive(source.ch) {
+                    flush_run(
+                        self,
+                        mapper,
+                        &mut placements,
+                        &mut run_start,
+                        &mut run_style,
+                        &mut run_text,
+                        row_idx,
+                        col_idx,
+                    );
+                    primitives::draw_cell_primitive(
+                        &mut self.background_pixels,
+                        frame_width,
+                        rect.x,
+                        rect.y,
+                        rect.width,
+                        rect.height,
+                        source.ch,
+                        primitives::color_to_rgba(style.fg),
                     );
                     continue;
                 }
@@ -494,14 +526,14 @@ impl Renderer {
         }
 
         if let Some(caret) = cursor_rect {
-            fill_rect_rgba(
+            primitives::fill_rect_rgba(
                 &mut self.background_pixels,
                 frame_width,
                 caret.x,
                 caret.y,
                 caret.width,
                 caret.height,
-                color_to_rgba(GameColor::BrightWhite),
+                primitives::color_to_rgba(GameColor::BrightWhite),
             );
         }
 
@@ -559,7 +591,8 @@ impl Renderer {
             None,
         );
         buffer.shape_until_scroll(&mut self.font_system, false);
-        self.text_buffers.insert(key, CachedTextCell { buffer });
+        let overhang = measure_text_overhang(&mut self.font_system, &mut self.swash_cache, &buffer);
+        self.text_buffers.insert(key, CachedTextCell { buffer, overhang });
     }
 
     /// Resize the swapchain surface and the background texture if the
@@ -743,6 +776,11 @@ fn flush_run(
         bold: style.bold,
     };
     renderer.ensure_text_buffer(key.clone());
+    let overhang = renderer
+        .text_buffers
+        .get(&key)
+        .map(|cached| cached.overhang)
+        .expect("text buffer exists after shaping");
     let start = Point::from_usize(start_col, row_idx);
     let text_origin = mapper.text_origin(start, renderer.grid_metrics.text);
     let cell_rect = mapper.cell_rect(start);
@@ -755,112 +793,96 @@ fn flush_run(
         key,
         left: text_origin.left,
         top: text_origin.top,
-        bounds: TextBounds {
-            left: start_rect.x as i32,
-            top: start_rect.y as i32,
-            right: (mapper.origin_x + end_col * mapper.cell.width_px) as i32,
-            bottom: (start_rect.y + mapper.cell.height_px) as i32,
-        },
+        bounds: expanded_text_bounds(
+            text_origin.left.floor().max(0.0) as usize,
+            start_rect.x,
+            start_rect.y,
+            mapper.origin_x + end_col * mapper.cell.width_px,
+            mapper.cell.height_px,
+            renderer.surface_config.width as usize,
+            renderer.surface_config.height as usize,
+            overhang,
+        ),
         color: style.fg,
     });
     run_text.clear();
 }
 
-/// Fill an axis-aligned RGBA rectangle into a row-major pixel buffer.
-/// Pixels that fall outside `frame` are skipped silently so callers don't
-/// have to clip rects against the surface bounds.
-fn fill_rect_rgba(
-    frame: &mut [u8],
-    stride_px: usize,
-    x0: usize,
-    y0: usize,
-    width: usize,
-    height: usize,
-    color: [u8; 4],
-) {
-    for row in 0..height {
-        let row_start = ((y0 + row) * stride_px + x0) * 4;
-        for col in 0..width {
-            let pixel = row_start + col * 4;
-            if pixel + 4 <= frame.len() {
-                frame[pixel..pixel + 4].copy_from_slice(&color);
-            }
+fn measure_text_overhang(
+    font_system: &mut FontSystem,
+    swash_cache: &mut SwashCache,
+    buffer: &GlyphBuffer,
+) -> TextOverhang {
+    let advance_width = buffer
+        .layout_runs()
+        .next()
+        .map(|run| run.line_w.ceil().max(1.0) as i32)
+        .unwrap_or(1);
+    let mut ink_left = i32::MAX;
+    let mut ink_right = i32::MIN;
+
+    for run in buffer.layout_runs() {
+        for glyph in run.glyphs.iter() {
+            let physical = glyph.physical((0.0, 0.0), 1.0);
+            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key) else {
+                continue;
+            };
+            let glyph_left = physical.x + image.placement.left as i32;
+            let glyph_right = glyph_left + image.placement.width as i32;
+            ink_left = ink_left.min(glyph_left);
+            ink_right = ink_right.max(glyph_right);
         }
+    }
+
+    if ink_left == i32::MAX || ink_right <= ink_left {
+        return TextOverhang {
+            left_px: 0,
+            right_px: 0,
+            advance_width_px: advance_width as usize,
+        };
+    }
+
+    TextOverhang {
+        left_px: (-ink_left).max(0) as usize,
+        right_px: (ink_right - advance_width).max(0) as usize,
+        advance_width_px: advance_width as usize,
     }
 }
 
-/// Map a `GameColor` to opaque RGBA bytes for the CPU background buffer.
-/// Standard ANSI palette uses VGA-style values; bright variants use full
-/// 0xff intensity. `Indexed` defers to `ansi_indexed_rgb` for the 256-colour
-/// palette and `Rgb` is passed through unchanged.
-fn color_to_rgba(color: GameColor) -> [u8; 4] {
-    let (r, g, b) = match color {
-        GameColor::Black => (0x00, 0x00, 0x00),
-        GameColor::Red => (0x80, 0x00, 0x00),
-        GameColor::Green => (0x00, 0x80, 0x00),
-        GameColor::Yellow => (0x80, 0x80, 0x00),
-        GameColor::Blue => (0x00, 0x00, 0x80),
-        GameColor::Magenta => (0x80, 0x00, 0x80),
-        GameColor::Cyan => (0x00, 0x80, 0x80),
-        GameColor::White => (0xc0, 0xc0, 0xc0),
-        GameColor::BrightBlack => (0x80, 0x80, 0x80),
-        GameColor::BrightRed => (0xff, 0x00, 0x00),
-        GameColor::BrightGreen => (0x00, 0xff, 0x00),
-        GameColor::BrightYellow => (0xff, 0xff, 0x00),
-        GameColor::BrightBlue => (0x00, 0x00, 0xff),
-        GameColor::BrightMagenta => (0xff, 0x00, 0xff),
-        GameColor::BrightCyan => (0x00, 0xff, 0xff),
-        GameColor::BrightWhite => (0xff, 0xff, 0xff),
-        GameColor::Indexed(index) => ansi_indexed_rgb(index),
-        GameColor::Rgb(r, g, b) => (r, g, b),
-    };
-    [r, g, b, 0xff]
-}
-
-/// Resolve a 256-colour ANSI index into an `(r, g, b)` triple:
-/// - `0..=15`: VGA palette (matches `color_to_rgba`'s named entries).
-/// - `16..=231`: 6×6×6 colour cube; each channel takes one of
-///   `{0, 95, 135, 175, 215, 255}` per the xterm specification.
-/// - `232..=255`: 24-step grayscale ramp from `#080808` to `#eeeeee`.
-fn ansi_indexed_rgb(index: u8) -> (u8, u8, u8) {
-    match index {
-        0..=15 => match index {
-            0 => (0x00, 0x00, 0x00),
-            1 => (0x80, 0x00, 0x00),
-            2 => (0x00, 0x80, 0x00),
-            3 => (0x80, 0x80, 0x00),
-            4 => (0x00, 0x00, 0x80),
-            5 => (0x80, 0x00, 0x80),
-            6 => (0x00, 0x80, 0x80),
-            7 => (0xc0, 0xc0, 0xc0),
-            8 => (0x80, 0x80, 0x80),
-            9 => (0xff, 0x00, 0x00),
-            10 => (0x00, 0xff, 0x00),
-            11 => (0xff, 0xff, 0x00),
-            12 => (0x00, 0x00, 0xff),
-            13 => (0xff, 0x00, 0xff),
-            14 => (0x00, 0xff, 0xff),
-            _ => (0xff, 0xff, 0xff),
-        },
-        16..=231 => {
-            let idx = index - 16;
-            let b = idx % 6;
-            let g = (idx / 6) % 6;
-            let r = idx / 36;
-            let expand = |value: u8| if value == 0 { 0 } else { 55 + value * 40 };
-            (expand(r), expand(g), expand(b))
-        }
-        232..=255 => {
-            let value = 8 + (index - 232) * 10;
-            (value, value, value)
-        }
+fn expanded_text_bounds(
+    text_left_px: usize,
+    left_px: usize,
+    top_px: usize,
+    right_px: usize,
+    cell_height_px: usize,
+    frame_width_px: usize,
+    frame_height_px: usize,
+    overhang: TextOverhang,
+) -> TextBounds {
+    let left = left_px.saturating_sub(overhang.left_px).min(frame_width_px) as i32;
+    let ink_right = text_left_px
+        .saturating_add(overhang.advance_width_px)
+        .saturating_add(overhang.right_px)
+        .min(frame_width_px);
+    let right = right_px
+        .max(ink_right)
+        .min(frame_width_px) as i32;
+    let top = top_px.min(frame_height_px) as i32;
+    let bottom = top_px
+        .saturating_add(cell_height_px)
+        .min(frame_height_px) as i32;
+    TextBounds {
+        left,
+        top,
+        right,
+        bottom,
     }
 }
 
 /// Map a `GameColor` to a glyphon `Color` (alpha is dropped — the glyph
 /// renderer uses its own coverage for anti-aliasing).
 fn glyphon_color(color: GameColor) -> Color {
-    let [r, g, b, _] = color_to_rgba(color);
+    let [r, g, b, _] = primitives::color_to_rgba(color);
     Color::rgb(r, g, b)
 }
 
@@ -868,6 +890,8 @@ fn glyphon_color(color: GameColor) -> Color {
 mod tests {
     use crate::geometry::{GridMapper, GridMetrics, caret_rect};
     use crate::grid::{Point, ScreenGeometry};
+
+    use super::{TextOverhang, expanded_text_bounds};
 
     fn mapper() -> (GridMapper, GridMetrics) {
         let metrics = GridMetrics {
@@ -916,5 +940,48 @@ mod tests {
         assert_eq!(caret.y, rect.y);
         assert_eq!(caret.width, 2);
         assert_eq!(caret.height, rect.height);
+    }
+
+    #[test]
+    fn expanded_text_bounds_include_measured_overhang() {
+        let bounds = expanded_text_bounds(
+            101,
+            100,
+            50,
+            148,
+            24,
+            500,
+            400,
+            TextOverhang {
+                left_px: 1,
+                right_px: 2,
+                advance_width_px: 48,
+            },
+        );
+        assert_eq!(bounds.left, 99);
+        assert_eq!(bounds.right, 151);
+        assert_eq!(bounds.top, 50);
+        assert_eq!(bounds.bottom, 74);
+    }
+
+    #[test]
+    fn expanded_text_bounds_clamp_to_frame_edges() {
+        let bounds = expanded_text_bounds(
+            2,
+            0,
+            0,
+            120,
+            24,
+            120,
+            80,
+            TextOverhang {
+                left_px: 2,
+                right_px: 4,
+                advance_width_px: 120,
+            },
+        );
+        assert_eq!(bounds.left, 0);
+        assert_eq!(bounds.right, 120);
+        assert_eq!(bounds.bottom, 24);
     }
 }

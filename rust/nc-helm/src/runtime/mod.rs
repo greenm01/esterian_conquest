@@ -1,3 +1,4 @@
+mod primitives;
 mod renderer;
 
 use std::sync::Arc;
