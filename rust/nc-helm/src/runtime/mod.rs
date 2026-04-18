@@ -716,6 +716,13 @@ fn session_backend_label(session_backend: SessionBackend) -> &'static str {
 /// which cosmic-comp honors and the shrink loop disappears. On every other
 /// platform/compositor we keep native decorations so users get a normal
 /// titlebar and standard resize/move behavior.
+///
+/// TODO: remove this workaround once cosmic-comp stops shrinking SSD
+/// windows by 36 px on every drag. Tracked upstream as
+/// pop-os/cosmic-comp#2300 (follow-up to #1469, which was closed
+/// won't-fix but only covered the client-visible leave/enter events,
+/// not the SSD geometry recomputation that causes the shrink).
+/// COSMIC is currently in alpha/beta; revisit when the compositor stabilizes.
 fn window_decorations_for_session(
     session_backend: SessionBackend,
     xdg_current_desktop: Option<&str>,
