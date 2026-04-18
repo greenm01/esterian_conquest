@@ -1,81 +1,13 @@
 use super::{
     DEFAULT_GEOMETRY, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT, HELP_POPUP_WIDTH,
-    LobbyTab, Model, NetworkState, Route, centered_box_geometry,
-    chrome::{draw_panel, draw_top_tag, draw_top_tag_right},
-    mask, status_color,
+    LOBBY_TAB_ROW, LobbyTab, Model, NetworkState, Route, centered_box_geometry,
+    chrome::{draw_panel, draw_top_tag_right},
+    lobby_tab_bounds, mask,
 };
 use crate::grid::OverlayTextFamily;
-use crate::{CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry};
+use crate::theme;
+use crate::{CellStyle, Column, PlayfieldBuffer, Point, Row, ScreenGeometry, StyledSpan};
 
-const BODY: CellStyle = CellStyle::new(
-    GameColor::BrightWhite,
-    GameColor::Rgb(0x12, 0x13, 0x1c),
-    false,
-);
-const DIM: CellStyle = CellStyle::new(
-    GameColor::BrightBlack,
-    GameColor::Rgb(0x12, 0x13, 0x1c),
-    false,
-);
-const ACCENT: CellStyle = CellStyle::new(
-    GameColor::BrightCyan,
-    GameColor::Rgb(0x12, 0x13, 0x1c),
-    true,
-);
-const WARN: CellStyle = CellStyle::new(
-    GameColor::BrightYellow,
-    GameColor::Rgb(0x12, 0x13, 0x1c),
-    true,
-);
-const ERROR: CellStyle =
-    CellStyle::new(GameColor::BrightRed, GameColor::Rgb(0x12, 0x13, 0x1c), true);
-const PANEL: CellStyle = CellStyle::new(
-    GameColor::BrightWhite,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    false,
-);
-const ROOT_BORDER: CellStyle = CellStyle::new(
-    GameColor::Rgb(0x7f, 0x91, 0x7b),
-    GameColor::Rgb(0x12, 0x13, 0x1c),
-    false,
-);
-const ROOT_TITLE: CellStyle = CellStyle::new(
-    GameColor::BrightCyan,
-    GameColor::Rgb(0x12, 0x13, 0x1c),
-    true,
-);
-const PANEL_BODY: CellStyle = CellStyle::new(
-    GameColor::BrightWhite,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    false,
-);
-const PANEL_DIM: CellStyle = CellStyle::new(
-    GameColor::BrightBlack,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    false,
-);
-const PANEL_ACCENT: CellStyle = CellStyle::new(
-    GameColor::BrightCyan,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    true,
-);
-const PANEL_BRAND: CellStyle = CellStyle::new(
-    GameColor::BrightCyan,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    false,
-);
-const PANEL_WARN: CellStyle = CellStyle::new(
-    GameColor::BrightYellow,
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    true,
-);
-const PANEL_ERROR: CellStyle =
-    CellStyle::new(GameColor::BrightRed, GameColor::Rgb(0x19, 0x1b, 0x26), true);
-const PANEL_BORDER: CellStyle = CellStyle::new(
-    GameColor::Rgb(0x7f, 0x91, 0x7b),
-    GameColor::Rgb(0x19, 0x1b, 0x26),
-    false,
-);
 const FORM_FIELD_LABEL_WIDTH: usize = 9;
 const SETTINGS_FIELD_LABEL_WIDTH: usize = 12;
 const SETTINGS_FIELD_TRACK_WIDTH: usize = 44;
@@ -89,11 +21,100 @@ const GATE_LOGO_WIDTH_INSET: usize = 3;
 const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
 const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
 const GATE_LOGO_BLOCK_ROWS: usize = 7;
+const COMMAND_PANEL_HEIGHT: usize = 3;
 
 struct GateLayout {
     content_left: usize,
     content_width: usize,
     next_row: usize,
+}
+
+fn body() -> CellStyle {
+    theme::body_style()
+}
+
+fn label() -> CellStyle {
+    theme::label_style()
+}
+
+fn dim() -> CellStyle {
+    theme::dim_style()
+}
+
+fn accent() -> CellStyle {
+    theme::accent_style()
+}
+
+fn warning() -> CellStyle {
+    theme::warning_style()
+}
+
+fn error() -> CellStyle {
+    theme::error_style()
+}
+
+fn panel() -> CellStyle {
+    theme::panel_style()
+}
+
+fn panel_dim() -> CellStyle {
+    theme::panel_dim_style()
+}
+
+fn panel_accent() -> CellStyle {
+    theme::panel_accent_style()
+}
+
+fn panel_brand() -> CellStyle {
+    theme::panel_brand_style()
+}
+
+fn panel_warning() -> CellStyle {
+    theme::panel_warning_style()
+}
+
+fn panel_error() -> CellStyle {
+    theme::panel_error_style()
+}
+
+fn root_border() -> CellStyle {
+    theme::root_border_style()
+}
+
+fn root_title() -> CellStyle {
+    theme::root_title_style()
+}
+
+fn command_panel_top(geometry: ScreenGeometry) -> usize {
+    geometry.height().saturating_sub(COMMAND_PANEL_HEIGHT)
+}
+
+fn lobby_status_row(geometry: ScreenGeometry) -> usize {
+    command_panel_top(geometry).saturating_sub(1)
+}
+
+fn content_bottom_row(geometry: ScreenGeometry, reserve_status_row: bool) -> usize {
+    if reserve_status_row {
+        lobby_status_row(geometry).saturating_sub(1)
+    } else {
+        command_panel_top(geometry).saturating_sub(1)
+    }
+}
+
+fn content_panel_height(geometry: ScreenGeometry, top: usize, reserve_status_row: bool) -> usize {
+    content_bottom_row(geometry, reserve_status_row)
+        .saturating_sub(top)
+        .saturating_add(1)
+}
+
+fn network_style(network: NetworkState) -> CellStyle {
+    let fg = match network {
+        NetworkState::Idle => theme::idle_network_color(),
+        NetworkState::Connecting => theme::connecting_network_color(),
+        NetworkState::Synced => theme::synced_network_color(),
+        NetworkState::Error => theme::error_network_color(),
+    };
+    CellStyle::new(fg, body().bg, true)
 }
 
 pub fn render(model: &Model) -> PlayfieldBuffer {
@@ -102,8 +123,8 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
     } else {
         model.geometry
     };
-    let mut buffer = PlayfieldBuffer::new(geometry.width(), geometry.height(), BODY);
-    fill(&mut buffer, BODY);
+    let mut buffer = PlayfieldBuffer::new(geometry.width(), geometry.height(), body());
+    fill(&mut buffer, body());
 
     match &model.route {
         Route::Boot(boot) => render_boot(&mut buffer, geometry, &boot.status),
@@ -126,9 +147,9 @@ fn render_boot(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, status: &
             top + 2,
             left + 3,
             "Booting local player client...",
-            PANEL_ACCENT,
+            panel_accent(),
         );
-        buffer.write_text(top + 4, left + 3, status, PANEL_BODY);
+        buffer.write_text(top + 4, left + 3, status, panel());
     });
 }
 
@@ -199,7 +220,7 @@ fn render_first_run(
         layout.next_row + 5,
         layout.content_left,
         &format!("Active relay: {relay_url}"),
-        PANEL_DIM,
+        panel_dim(),
     );
 }
 
@@ -221,9 +242,9 @@ fn render_locked(
         top,
         width,
         height,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some("UNLOCK KEYCHAIN"),
         None,
     );
@@ -246,7 +267,7 @@ fn render_locked(
         password_row + 1,
         content_left,
         "Press Esc to quit.",
-        PANEL_DIM,
+        panel_dim(),
     );
 }
 
@@ -256,76 +277,113 @@ fn render_lobby(
     model: &Model,
     lobby: &super::LobbyModel,
 ) {
-    if let Some(session) = &model.session {
-        let identity = session
-            .active_handle
-            .as_deref()
-            .unwrap_or(session.active_npub.as_str());
-        buffer.write_text_clipped(0, 25, identity, BODY);
-    }
-    let network_style = CellStyle::new(status_color(model.network), BODY.bg, true);
-    buffer.write_text(0, 1, "NOSTRIAN CONQUEST", ROOT_TITLE);
-    buffer.write_text(0, geometry.width().saturating_sub(25), "NETWORK:", DIM);
-    buffer.write_text(
-        0,
-        geometry.width().saturating_sub(14),
+    let reserve_status_row = lobby.status.is_some();
+    let title = format!(
+        "Nostrian Conquest <v{}>",
+        short_version_label(env!("CARGO_PKG_VERSION"))
+    );
+    let network = format!(
+        "NETWORK: {}",
         match model.network {
             NetworkState::Idle => "IDLE",
             NetworkState::Connecting => "CONNECTING",
             NetworkState::Synced => "SYNCED",
             NetworkState::Error => "ERROR",
-        },
-        network_style,
+        }
+    );
+    let title_col = 1usize;
+    let network_col = geometry
+        .width()
+        .saturating_sub(network.chars().count().saturating_add(1));
+    let left_gap_start = title_col + title.chars().count() + 1;
+    let right_gap_end = network_col.saturating_sub(1);
+    let network_status = match model.network {
+        NetworkState::Idle => "IDLE",
+        NetworkState::Connecting => "CONNECTING",
+        NetworkState::Synced => "SYNCED",
+        NetworkState::Error => "ERROR",
+    };
+    buffer.write_text_clipped(0, title_col, &title, root_title());
+    if let Some(session) = &model.session {
+        let identity = session
+            .active_handle
+            .as_deref()
+            .unwrap_or(session.active_npub.as_str());
+        let available_width = right_gap_end
+            .saturating_sub(left_gap_start)
+            .saturating_add(1);
+        if available_width > 0 {
+            let identity_text: String = identity.chars().take(available_width).collect();
+            let centered_col = geometry
+                .width()
+                .saturating_sub(identity_text.chars().count())
+                / 2;
+            let identity_col = centered_col.clamp(
+                left_gap_start,
+                right_gap_end
+                    .saturating_sub(identity_text.chars().count())
+                    .saturating_add(1),
+            );
+            buffer.write_text_clipped(0, identity_col, &identity_text, body());
+        }
+    }
+    let label_len = network.len().saturating_sub(network_status.chars().count());
+    buffer.write_text(0, network_col, &network[..label_len], label());
+    buffer.write_text(
+        0,
+        network_col + label_len,
+        network_status,
+        network_style(model.network),
     );
 
-    draw_tabs(buffer, lobby);
+    draw_tabs(buffer, geometry, lobby);
     match lobby.active_tab {
-        LobbyTab::Home => draw_home(buffer, geometry, model),
-        LobbyTab::OpenGames => draw_open_games(buffer, geometry, model, lobby),
-        LobbyTab::Comms => draw_comms(buffer, geometry, model),
-        LobbyTab::Settings => draw_settings(buffer, geometry, model),
+        LobbyTab::MyGames => draw_my_games(buffer, geometry, model, reserve_status_row),
+        LobbyTab::OpenGames => draw_open_games(buffer, geometry, model, lobby, reserve_status_row),
+        LobbyTab::Comms => draw_comms(buffer, geometry, model, reserve_status_row),
+        LobbyTab::Settings => draw_settings(buffer, geometry, model, reserve_status_row),
     }
-    draw_footer(buffer, geometry, model, lobby);
+    draw_command_panel(buffer, geometry);
 
     if let Some(status) = &lobby.status {
-        buffer.write_text(
-            geometry.height().saturating_sub(2),
-            1,
-            status,
-            status_style(status),
-        );
+        buffer.write_text(lobby_status_row(geometry), 1, status, status_style(status));
     }
     if lobby.help_open {
         draw_help_popup(buffer, geometry);
     }
 }
 
-fn draw_home(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+fn draw_my_games(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    reserve_status_row: bool,
+) {
     draw_panel(
         buffer,
         1,
         4,
         geometry.width().saturating_sub(2),
-        17,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
-        Some("HOME"),
+        content_panel_height(geometry, 4, reserve_status_row),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
+        Some("MY GAMES"),
         None,
     );
     buffer.write_text(
         6,
         4,
         "NC-HELM runs the hosted lobby on a fresh TEA runtime.",
-        PANEL_BODY,
+        panel(),
     );
     buffer.write_text(
         7,
         4,
         "Background sync is isolated from the window loop.",
-        PANEL_BODY,
+        panel(),
     );
-    buffer.write_text(9, 4, "Session", PANEL_ACCENT);
+    buffer.write_text(9, 4, "Session", panel_accent());
     if let Some(session) = &model.session {
         buffer.write_text(
             10,
@@ -334,30 +392,29 @@ fn draw_home(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Mod
                 .active_handle
                 .as_deref()
                 .unwrap_or("anonymous identity"),
-            PANEL_BODY,
+            panel(),
         );
-        buffer.write_text_clipped(11, 6, &session.active_npub, PANEL_DIM);
+        buffer.write_text_clipped(11, 6, &session.active_npub, panel_dim());
     } else {
-        buffer.write_text(10, 6, "No active session", PANEL_WARN);
+        buffer.write_text(10, 6, "No active session", panel_warning());
     }
-    buffer.write_text(13, 4, "Lobby Snapshot", PANEL_ACCENT);
+    buffer.write_text(13, 4, "Lobby Snapshot", panel_accent());
     buffer.write_text(
         14,
         6,
         &format!("Open games : {}", model.games.len()),
-        PANEL_BODY,
+        panel(),
     );
     buffer.write_text(
         15,
         6,
         &format!("Notices    : {}", model.notices.len()),
-        PANEL_BODY,
+        panel(),
     );
-    buffer.write_text(17, 4, "Shortcuts", PANEL_ACCENT);
-    buffer.write_text(18, 6, "2 opens the game catalog.", PANEL_BODY);
-    buffer.write_text(19, 6, "3 opens lobby notices/COMMS.", PANEL_BODY);
-    buffer.write_text(20, 6, "4 opens settings and lock controls.", PANEL_BODY);
-    draw_status_panel(buffer, geometry, model);
+    buffer.write_text(17, 4, "Shortcuts", panel_accent());
+    buffer.write_text(18, 6, "O opens the game catalog.", panel());
+    buffer.write_text(19, 6, "C opens lobby notices and comms.", panel());
+    buffer.write_text(20, 6, "S opens settings and lock controls.", panel());
 }
 
 fn draw_open_games(
@@ -365,6 +422,7 @@ fn draw_open_games(
     geometry: ScreenGeometry,
     model: &Model,
     lobby: &super::LobbyModel,
+    reserve_status_row: bool,
 ) {
     let table_width = geometry.width().saturating_sub(36);
     draw_panel(
@@ -372,50 +430,59 @@ fn draw_open_games(
         1,
         4,
         table_width,
-        geometry.height().saturating_sub(15),
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        content_panel_height(geometry, 4, reserve_status_row),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some("OPEN GAMES"),
         None,
     );
     draw_games_table(buffer, model, lobby);
-    draw_status_panel(buffer, geometry, model);
     if let Some(selected) = model.games.get(lobby.selected_game) {
-        let top = geometry.height().saturating_sub(10);
         draw_panel(
             buffer,
             geometry.width().saturating_sub(33),
             4,
             30,
-            10,
-            PANEL_BORDER,
-            PANEL_ACCENT,
-            Some(PANEL),
+            content_panel_height(geometry, 4, reserve_status_row),
+            theme::panel_border_style(),
+            panel_accent(),
+            Some(panel()),
             Some("SELECTED GAME"),
             None,
         );
         let left = geometry.width().saturating_sub(31);
-        buffer.write_text_clipped(6, left, &selected.name, PANEL_BODY);
-        buffer.write_text_clipped(7, left, &format!("Host  : {}", selected.host), PANEL_BODY);
-        buffer.write_text_clipped(8, left, &format!("Tier  : {}", selected.tier), PANEL_BODY);
-        buffer.write_text_clipped(9, left, &format!("Seats : {}", selected.seats), PANEL_BODY);
-        buffer.write_text_clipped(10, left, &format!("Turn  : {}", selected.when), PANEL_BODY);
-        buffer.write_text_clipped(11, left, &selected.game_id, PANEL_DIM);
-        buffer.write_text_clipped(top + 2, 3, "Use Up/Down to change selection.", DIM);
+        let bottom = content_bottom_row(geometry, reserve_status_row);
+        buffer.write_text_clipped(6, left, &selected.name, panel());
+        buffer.write_text_clipped(7, left, &format!("Host  : {}", selected.host), panel());
+        buffer.write_text_clipped(8, left, &format!("Tier  : {}", selected.tier), panel());
+        buffer.write_text_clipped(9, left, &format!("Seats : {}", selected.seats), panel());
+        buffer.write_text_clipped(10, left, &format!("Turn  : {}", selected.when), panel());
+        buffer.write_text_clipped(11, left, &selected.game_id, panel_dim());
+        buffer.write_text_clipped(
+            bottom.saturating_sub(1),
+            left,
+            "Use Up/Down to change selection.",
+            panel_dim(),
+        );
     }
 }
 
-fn draw_comms(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+fn draw_comms(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    reserve_status_row: bool,
+) {
     draw_panel(
         buffer,
         1,
         4,
         geometry.width().saturating_sub(2),
-        17,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        content_panel_height(geometry, 4, reserve_status_row),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some("COMMS"),
         None,
     );
@@ -424,39 +491,43 @@ fn draw_comms(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Mo
         3,
         6,
         geometry.width().saturating_sub(6),
-        11,
-        PANEL_BORDER,
-        PANEL_ACCENT,
+        content_panel_height(geometry, 6, reserve_status_row),
+        theme::panel_border_style(),
+        panel_accent(),
         None,
         Some("LOBBY NOTICES"),
         None,
     );
     if model.notices.is_empty() {
-        buffer.write_text(10, 6, "No recent notices from the relay.", PANEL_DIM);
+        buffer.write_text(10, 6, "No recent notices from the relay.", panel_dim());
     } else {
         for (idx, notice) in model.notices.iter().take(10).enumerate() {
-            buffer.write_text_clipped(8 + idx, 6, notice, PANEL_BODY);
+            buffer.write_text_clipped(8 + idx, 6, notice, panel());
         }
     }
     buffer.write_text(
-        19,
+        content_bottom_row(geometry, reserve_status_row).saturating_sub(1),
         4,
         "Direct replies and threads are not wired yet.",
-        PANEL_WARN,
+        panel_warning(),
     );
-    draw_status_panel(buffer, geometry, model);
 }
 
-fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
+fn draw_settings(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    reserve_status_row: bool,
+) {
     draw_panel(
         buffer,
         1,
         4,
         geometry.width().saturating_sub(2),
-        17,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        content_panel_height(geometry, 4, reserve_status_row),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some("SETTINGS"),
         None,
     );
@@ -483,7 +554,7 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
             "Window Focus : {}",
             if model.window_focused { "yes" } else { "no" }
         ),
-        PANEL_BODY,
+        panel(),
     );
     buffer.write_text(
         9,
@@ -496,7 +567,7 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
                 "off"
             }
         ),
-        PANEL_BODY,
+        panel(),
     );
     if let Some(session) = &model.session {
         buffer.write_text(
@@ -506,13 +577,13 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
                 "Handle       : {}",
                 session.active_handle.as_deref().unwrap_or("unset")
             ),
-            PANEL_BODY,
+            panel(),
         );
         buffer.write_text_clipped(
             12,
             4,
             &format!("Identity     : {}", session.active_npub),
-            PANEL_BODY,
+            panel(),
         );
     }
     buffer.write_text(
@@ -520,19 +591,18 @@ fn draw_settings(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: 
         4,
         "R : Edit relay URL   Enter : Save relay   Esc : Cancel edit",
         if editing_relay {
-            PANEL_ACCENT
+            panel_accent()
         } else {
-            PANEL_DIM
+            panel_dim()
         },
     );
     buffer.write_text(
         15,
         4,
         "L : Lock the local session and stop background sync",
-        PANEL_ACCENT,
+        panel_accent(),
     );
-    buffer.write_text(17, 4, "Esc/Q : Quit nc-helm", PANEL_DIM);
-    draw_status_panel(buffer, geometry, model);
+    buffer.write_text(17, 4, "Alt+Q : Quit nc-helm", panel_dim());
 }
 
 fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message: &str) {
@@ -541,37 +611,27 @@ fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message:
             top + 2,
             left + 3,
             "The nc-helm bootstrap failed.",
-            PANEL_ERROR,
+            panel_error(),
         );
-        buffer.write_text_clipped(top + 4, left + 3, message, PANEL_BODY);
-        buffer.write_text(top + 6, left + 3, "Press Q or Esc to quit.", PANEL_DIM);
+        buffer.write_text_clipped(top + 4, left + 3, message, panel());
+        buffer.write_text(top + 6, left + 3, "Press Q or Esc to quit.", panel_dim());
     });
 }
 
-fn draw_tabs(buffer: &mut PlayfieldBuffer, lobby: &super::LobbyModel) {
-    let tabs = [
-        ("1 HOME", LobbyTab::Home),
-        ("2 OPEN GAMES", LobbyTab::OpenGames),
-        ("3 COMMS", LobbyTab::Comms),
-        ("4 SETTINGS", LobbyTab::Settings),
-    ];
-    let mut col = 1usize;
-    for (label, tab) in tabs {
-        let title_style = if lobby.active_tab == tab {
-            ROOT_TITLE
+fn draw_tabs(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, lobby: &super::LobbyModel) {
+    for (tab, start, _) in lobby_tab_bounds(geometry) {
+        let label = tab.label();
+        let label_style = if lobby.active_tab == tab {
+            root_title()
         } else {
-            DIM
+            dim()
         };
-        let width = draw_top_tag(
-            buffer,
-            2,
-            col,
-            buffer.width().saturating_sub(col),
-            label,
-            ROOT_BORDER,
-            title_style,
-        );
-        col += width + 2;
+        let spans = [
+            StyledSpan::new("[", root_border()),
+            StyledSpan::new(label, label_style),
+            StyledSpan::new("]", root_border()),
+        ];
+        let _ = buffer.write_spans_clipped(LOBBY_TAB_ROW, start, &spans);
     }
 }
 
@@ -580,22 +640,22 @@ fn draw_games_table(buffer: &mut PlayfieldBuffer, model: &Model, lobby: &super::
         6,
         4,
         "STAT  NAME                 HOST         TYPE     SEATS  YEAR",
-        PANEL_DIM,
+        panel_dim(),
     );
     if model.games.is_empty() {
         buffer.write_text(
             8,
             4,
             "No open games synced yet. Leave the client running.",
-            PANEL_WARN,
+            panel_warning(),
         );
         return;
     }
     for (index, row) in model.games.iter().enumerate() {
         let style = if index == lobby.selected_game {
-            CellStyle::new(GameColor::Black, GameColor::BrightCyan, true)
+            theme::selected_panel_row_style()
         } else {
-            PANEL_BODY
+            panel()
         };
         let line = format!(
             "{:<5} {:<20} {:<12} {:<8} {:<6} {}",
@@ -610,56 +670,64 @@ fn draw_games_table(buffer: &mut PlayfieldBuffer, model: &Model, lobby: &super::
     }
 }
 
-fn draw_status_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
-    let top = geometry.height().saturating_sub(10);
+fn draw_command_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
+    let top = command_panel_top(geometry);
+    let left = 1usize;
+    let width = geometry.width().saturating_sub(2);
     draw_panel(
         buffer,
-        1,
+        left,
         top,
-        geometry.width().saturating_sub(2),
-        8,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
-        Some("STATUS"),
+        width,
+        COMMAND_PANEL_HEIGHT,
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
+        Some("COMMANDS"),
         None,
     );
-    let lines = [
-        format!(
-            "Network : {}",
-            match model.network {
-                NetworkState::Idle => "idle",
-                NetworkState::Connecting => "connecting",
-                NetworkState::Synced => "synced",
-                NetworkState::Error => "error",
-            }
-        ),
-        format!("Games   : {}", model.games.len()),
-        format!("Notices : {}", model.notices.len()),
+    let bg = panel().bg;
+    let spans = [
+        StyledSpan::new("Alt+ ", theme::prompt_style_on(bg)),
+        StyledSpan::new("Q", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("uit ", theme::prompt_style_on(bg)),
+        StyledSpan::new("<", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("?", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("Keys ", theme::prompt_style_on(bg)),
+        StyledSpan::new("H", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("ints ", theme::prompt_style_on(bg)),
+        StyledSpan::new("L", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("ock ", theme::prompt_style_on(bg)),
+        StyledSpan::new("M", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("y Games ", theme::prompt_style_on(bg)),
+        StyledSpan::new("O", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("pen Games ", theme::prompt_style_on(bg)),
+        StyledSpan::new("C", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("omms ", theme::prompt_style_on(bg)),
+        StyledSpan::new("S", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("ettings", theme::prompt_style_on(bg)),
     ];
-    for (idx, line) in lines.into_iter().enumerate() {
-        buffer.write_text_clipped(top + 2 + idx, 3, &line, PANEL_BODY);
-    }
-}
-
-fn draw_footer(
-    buffer: &mut PlayfieldBuffer,
-    geometry: ScreenGeometry,
-    model: &Model,
-    lobby: &super::LobbyModel,
-) {
-    let row = geometry.height().saturating_sub(1);
-    let footer = if lobby.help_open {
-        "Any key closes help."
+    let text_width = spans
+        .iter()
+        .map(|span| span.text.chars().count())
+        .sum::<usize>();
+    let inner_left = left + 2;
+    let inner_width = width.saturating_sub(4);
+    let row = top + 1;
+    let start = if text_width >= inner_width {
+        inner_left
     } else {
-        "Tab next tab   ? help   Up/Down select   L lock   Esc quit"
+        inner_left + (inner_width - text_width) / 2
     };
-    buffer.write_text_clipped(row, 1, footer, DIM);
-    if let Some(selected) = model.games.get(lobby.selected_game) {
-        let text = format!("Selected: {}", selected.game_id);
-        let start = geometry.width().saturating_sub(text.len() + 1);
-        buffer.write_text_clipped(row, start, &text, DIM);
-    }
+    let _ = buffer.write_spans_clipped(row, start, &spans);
 }
 
 fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
@@ -671,9 +739,9 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
         top,
         width,
         height,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some("HELP"),
         None,
     );
@@ -683,17 +751,18 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
         left,
         width,
         HELP_CLOSE_LABEL,
-        PANEL_BORDER,
-        PANEL_ACCENT,
+        theme::panel_border_style(),
+        panel_accent(),
     );
 
     let lines = [
         "NC-HELM is the new TEA player client.",
         "",
-        "Tab     : switch lobby tabs",
+        "M/O/C/S : switch lobby tabs",
         "Up/Down : move the open-game cursor",
         "? or H  : reopen this help popup",
-        "Esc/Q   : quit the client",
+        "Q or Esc: close this popup",
+        "Alt+Q   : quit the client",
         "",
         "The lobby sync runs in the background.",
     ];
@@ -703,11 +772,11 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
             left + 3,
             line,
             if line.is_empty() {
-                PANEL_BODY
+                panel()
             } else if idx == 0 {
-                PANEL_ACCENT
+                panel_accent()
             } else {
-                PANEL_BODY
+                panel()
             },
         );
     }
@@ -729,9 +798,9 @@ fn render_gate_shell(
         top,
         width,
         height,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some(title),
         None,
     );
@@ -759,7 +828,11 @@ fn render_gate_shell(
                 row + idx,
                 content_left,
                 line,
-                if idx == 0 { PANEL_ACCENT } else { PANEL_DIM },
+                if idx == 0 {
+                    panel_accent()
+                } else {
+                    panel_dim()
+                },
             );
         }
         row += copy_lines.len() + 1;
@@ -785,7 +858,7 @@ fn draw_gate_wordmark(
         buffer.push_overlay_text(
             "NOSTRIAN",
             OverlayTextFamily::Stormfaze,
-            PANEL_BRAND,
+            panel_brand(),
             logo_left,
             top,
             logo_width,
@@ -794,7 +867,7 @@ fn draw_gate_wordmark(
         buffer.push_overlay_text(
             "CONQUEST",
             OverlayTextFamily::Stormfaze,
-            PANEL_BRAND,
+            panel_brand(),
             logo_left,
             top + 3,
             logo_width,
@@ -807,8 +880,8 @@ fn draw_gate_wordmark(
     let line_two = "CONQUEST";
     let line_one_col = left + width.saturating_sub(line_one.chars().count()) / 2;
     let line_two_col = left + width.saturating_sub(line_two.chars().count()) / 2;
-    buffer.write_text_clipped(top, line_one_col, line_one, PANEL_BRAND);
-    buffer.write_text_clipped(top + 1, line_two_col, line_two, PANEL_BRAND);
+    buffer.write_text_clipped(top, line_one_col, line_one, panel_brand());
+    buffer.write_text_clipped(top + 1, line_two_col, line_two, panel_brand());
 }
 
 fn fill(buffer: &mut PlayfieldBuffer, style: CellStyle) {
@@ -832,9 +905,9 @@ fn centered_box<F: FnOnce(&mut PlayfieldBuffer, usize, usize)>(
         top,
         width,
         height,
-        PANEL_BORDER,
-        PANEL_ACCENT,
-        Some(PANEL),
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
         Some(title),
         None,
     );
@@ -852,13 +925,13 @@ fn draw_boxed_input_row(
     active: bool,
     masked: bool,
 ) {
-    let field_style = if active { PANEL_ACCENT } else { PANEL_BODY };
-    let track_style = PANEL_BODY;
+    let field_style = if active { panel_accent() } else { panel() };
+    let track_style = panel();
     let value_style = field_style;
     let field_left = left + label_width + 2;
     let field_width = track_width.min(buffer.width().saturating_sub(field_left));
     let text_col = field_left.saturating_add(1);
-    buffer.write_text(row, left, &format!("{label:<label_width$}: "), PANEL_DIM);
+    buffer.write_text(row, left, &format!("{label:<label_width$}: "), panel_dim());
     buffer.fill_rect(row, field_left, field_width, 1, track_style);
     let shown = if masked {
         mask(value)
@@ -883,8 +956,8 @@ fn draw_inline_unlock_password_row(
 ) {
     let prefix = "Password: ";
     let shown = "X".repeat(value.chars().count());
-    buffer.write_text(row, left, prefix, PANEL_DIM);
-    buffer.write_text_clipped(row, left + prefix.chars().count(), &shown, PANEL_ACCENT);
+    buffer.write_text(row, left, prefix, panel_dim());
+    buffer.write_text_clipped(row, left + prefix.chars().count(), &shown, panel_accent());
     let cursor_col = left + prefix.chars().count() + shown.chars().count();
     if cursor_col < buffer.width() {
         buffer.set_cursor(Point::new(Column(cursor_col), Row(row)));
@@ -893,6 +966,27 @@ fn draw_inline_unlock_password_row(
 
 fn truncate(value: &str, width: usize) -> String {
     value.chars().take(width).collect()
+}
+
+fn short_version_label(version: &str) -> String {
+    let (release, prerelease) = match version.split_once('-') {
+        Some(parts) => parts,
+        None => return version.to_string(),
+    };
+    let mut release_parts = release.split('.');
+    let major = release_parts.next().unwrap_or(release);
+    let minor = release_parts.next().unwrap_or("0");
+    let release_label = format!("{major}.{minor}");
+    let prerelease_label = prerelease
+        .strip_prefix("beta.")
+        .map(|suffix| format!("b.{suffix}"))
+        .or_else(|| {
+            prerelease
+                .strip_prefix("alpha.")
+                .map(|suffix| format!("a.{suffix}"))
+        })
+        .unwrap_or_else(|| prerelease.to_string());
+    format!("{release_label}-{prerelease_label}")
 }
 
 fn gate_track_width(content_width: usize) -> usize {
@@ -905,11 +999,15 @@ fn status_style(status: &str) -> CellStyle {
         || status.contains("failed")
         || status.contains("empty")
     {
-        ERROR
-    } else if status.contains("sync") || status.contains("created") || status.contains("unlocked") {
-        ACCENT
+        error()
+    } else if status.contains("sync")
+        || status.contains("created")
+        || status.contains("unlocked")
+        || status.contains("saved")
+    {
+        accent()
     } else {
-        WARN
+        warning()
     }
 }
 
@@ -919,10 +1017,14 @@ fn panel_status_style(status: &str) -> CellStyle {
         || status.contains("failed")
         || status.contains("empty")
     {
-        PANEL_ERROR
-    } else if status.contains("sync") || status.contains("created") || status.contains("unlocked") {
-        PANEL_ACCENT
+        panel_error()
+    } else if status.contains("sync")
+        || status.contains("created")
+        || status.contains("unlocked")
+        || status.contains("saved")
+    {
+        panel_accent()
     } else {
-        PANEL_WARN
+        panel_warning()
     }
 }

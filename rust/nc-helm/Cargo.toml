@@ -14,6 +14,7 @@ glyphon = "0.11"
 nc-client = { path = "../nc-client" }
 nc-nostr = { path = "../nc-nostr" }
 nostr-sdk = { version = "0.44", features = ["nip44"] }
+opaline = { path = "../opaline", default-features = false, features = ["builtin-themes"] }
 pollster = "0.4"
 rusqlite = { version = "0.31", features = ["bundled"] }
 wgpu = "29.0.0"

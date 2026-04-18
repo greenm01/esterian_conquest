@@ -49,8 +49,8 @@ fn locked_cursor_starts_at_password_origin() {
 fn settings_relay_edit_cursor_tracks_the_relay_draft() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('4'))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
     assert_eq!(view_cursor(&app), Point::from_usize(38, 7));
 }

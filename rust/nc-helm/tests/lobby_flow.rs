@@ -2,10 +2,10 @@ mod support;
 
 use nc_helm::{App, Effect, GameRow, LobbySnapshot, Msg, Route};
 
-use crate::support::{dummy_session, key, left_click};
+use crate::support::{alt_key, dummy_session, key, left_click};
 
 #[test]
-fn lobby_help_closes_on_any_key_and_reopens_on_question_mark() {
+fn lobby_help_closes_on_q_or_escape_and_reopens_on_question_mark() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     match &app.model().route {
@@ -13,6 +13,11 @@ fn lobby_help_closes_on_any_key_and_reopens_on_question_mark() {
         other => panic!("expected lobby route, got {other:?}"),
     }
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(lobby.help_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('q'))));
     match &app.model().route {
         Route::Lobby(lobby) => assert!(!lobby.help_open),
         other => panic!("expected lobby route, got {other:?}"),
@@ -70,13 +75,17 @@ fn lobby_update_populates_games_and_notices() {
     })));
     assert_eq!(app.model().games.len(), 1);
     assert_eq!(app.model().notices.len(), 1);
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(lobby.status.is_none()),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
 }
 
 #[test]
 fn lock_action_disconnects_transport_and_returns_to_locked_route() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
     assert!(matches!(effects.as_slice(), [Effect::DisconnectTransport]));
     match &app.model().route {
@@ -92,32 +101,50 @@ fn lock_action_disconnects_transport_and_returns_to_locked_route() {
 }
 
 #[test]
-fn tab_switching_changes_rendered_lobby_content() {
+fn letter_shortcuts_switch_lobby_tabs() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let buffer = app.view();
-    assert!(buffer.plain_line(4).contains("HOME"));
+    assert!(buffer.plain_line(4).contains("MY GAMES"));
 
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('o'))));
     let buffer = app.view();
     assert!(buffer.plain_line(4).contains("OPEN GAMES"));
 
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('c'))));
     let buffer = app.view();
     assert!(buffer.plain_line(4).contains("COMMS"));
 
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
     let buffer = app.view();
     assert!(buffer.plain_line(4).contains("SETTINGS"));
+}
+
+#[test]
+fn left_clicking_tab_strip_switches_lobby_tabs() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+
+    let row = 2usize;
+    let line = app.view().plain_line(row);
+    let tag_offset = line
+        .find("[Open Games]")
+        .expect("open games tab should render");
+    let tag_col = line[..tag_offset].chars().count();
+    let _ = app.dispatch(Msg::Mouse(left_click(tag_col + 1, row)));
+
+    let buffer = app.view();
+    assert!(buffer.plain_line(4).contains("OPEN GAMES"));
 }
 
 #[test]
 fn settings_relay_edit_emits_save_and_reconnect_effects() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('4'))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
     for _ in 0.."ws://127.0.0.1:8080".chars().count() {
         let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Backspace)));
@@ -134,4 +161,15 @@ fn settings_relay_edit_emits_save_and_reconnect_effects() {
             Effect::ConnectTransport { relay_url: connected, .. }
         ] if saved == "ws://relay.example" && connected == "ws://relay.example"
     ));
+}
+
+#[test]
+fn alt_q_quits_the_lobby() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+
+    let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+    assert!(matches!(effects.as_slice(), [Effect::Quit]));
+    assert!(app.model().should_quit);
 }

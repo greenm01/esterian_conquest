@@ -119,7 +119,9 @@ fn probe_advance_px(font_system: &mut FontSystem, text: TextMetrics, sample: &st
     buffer.set_text(
         font_system,
         sample,
-        &Attrs::new().family(Family::Monospace).weight(Weight::NORMAL),
+        &Attrs::new()
+            .family(Family::Monospace)
+            .weight(Weight::NORMAL),
         Shaping::Advanced,
         None,
     );
@@ -161,7 +163,9 @@ fn probe_text_band(font_system: &mut FontSystem, text: TextMetrics) -> (usize, u
     buffer.set_text(
         font_system,
         "Hgyp|",
-        &Attrs::new().family(Family::Monospace).weight(Weight::NORMAL),
+        &Attrs::new()
+            .family(Family::Monospace)
+            .weight(Weight::NORMAL),
         Shaping::Advanced,
         None,
     );
@@ -182,7 +186,8 @@ fn probe_text_band(font_system: &mut FontSystem, text: TextMetrics) -> (usize, u
         let baseline = run.line_y.round() as i32;
         for glyph in run.glyphs.iter() {
             let physical = glyph.physical((0.0, 0.0), 1.0);
-            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key) else {
+            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key)
+            else {
                 continue;
             };
             // Screen-space (y-down) bitmap top: baseline minus the upward

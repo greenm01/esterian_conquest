@@ -3276,6 +3276,7 @@ dependencies = [
  "nc-client",
  "nc-nostr",
  "nostr-sdk",
+ "opaline",
  "pollster",
  "rusqlite",
  "wgpu",

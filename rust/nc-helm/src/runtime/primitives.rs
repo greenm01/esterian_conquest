@@ -43,11 +43,28 @@ pub(super) fn draw_cell_primitive(
             up,
             down,
         } => draw_square_box_glyph(
-            frame, stride_px, cell_x, cell_y, cell_width, cell_height, left, right, up, down, color,
+            frame,
+            stride_px,
+            cell_x,
+            cell_y,
+            cell_width,
+            cell_height,
+            left,
+            right,
+            up,
+            down,
+            color,
         ),
-        PrimitiveGlyph::Rounded(corner) => {
-            draw_rounded_corner(frame, stride_px, cell_x, cell_y, cell_width, cell_height, corner, color)
-        }
+        PrimitiveGlyph::Rounded(corner) => draw_rounded_corner(
+            frame,
+            stride_px,
+            cell_x,
+            cell_y,
+            cell_width,
+            cell_height,
+            corner,
+            color,
+        ),
     }
 }
 
@@ -292,13 +309,7 @@ fn draw_rounded_corner(
     for step in 1..=steps {
         let point = point_at(step as f32 / steps as f32);
         draw_line_rgba(
-            frame,
-            stride_px,
-            previous.0,
-            previous.1,
-            point.0,
-            point.1,
-            color,
+            frame, stride_px, previous.0, previous.1, point.0, point.1, color,
         );
         previous = point;
     }
@@ -392,11 +403,16 @@ mod tests {
 
     #[test]
     fn box_glyphs_route_to_primitives() {
-        for ch in ['─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼', '╭', '╮', '╯', '╰'] {
+        for ch in [
+            '─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼', '╭', '╮', '╯', '╰',
+        ] {
             assert!(should_draw_as_primitive(ch), "{ch} should use primitives");
         }
         for ch in ['A', '0', '?'] {
-            assert!(!should_draw_as_primitive(ch), "{ch} should stay on text rendering");
+            assert!(
+                !should_draw_as_primitive(ch),
+                "{ch} should stay on text rendering"
+            );
         }
     }
 
@@ -404,7 +420,16 @@ mod tests {
     fn square_box_primitive_stays_inside_cell_bounds() {
         let mut frame = vec![0; 20 * 18 * 4];
         fill_rect_rgba(&mut frame, 20, 0, 0, 20, 18, background());
-        draw_cell_primitive(&mut frame, 20, 0, 0, 10, 18, '┼', color_to_rgba(GameColor::White));
+        draw_cell_primitive(
+            &mut frame,
+            20,
+            0,
+            0,
+            10,
+            18,
+            '┼',
+            color_to_rgba(GameColor::White),
+        );
 
         for row in 0..18 {
             for col in 10..20 {

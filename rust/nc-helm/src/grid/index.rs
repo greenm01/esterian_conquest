@@ -101,4 +101,3 @@ impl Point {
         Self::new(Column(column), Row(row))
     }
 }
-

@@ -28,6 +28,12 @@ fn locked_view_uses_inline_masked_password_text() {
         found_password |= line.contains("Password: ");
         found_relay |= line.contains("Relay:");
     }
-    assert!(found_password, "unlock screen should render an inline masked password row");
-    assert!(!found_relay, "unlock screen should not render the relay line");
+    assert!(
+        found_password,
+        "unlock screen should render an inline masked password row"
+    );
+    assert!(
+        !found_relay,
+        "unlock screen should not render the relay line"
+    );
 }

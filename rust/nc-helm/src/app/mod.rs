@@ -5,13 +5,15 @@ mod view;
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use crate::storage::{BootSnapshot, StoredSession};
 use crate::transport::LobbySnapshot;
-use crate::{GameColor, PlayfieldBuffer, Point, ScreenGeometry};
+use crate::{PlayfieldBuffer, Point, ScreenGeometry};
 
 pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
 pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
 pub const HELP_POPUP_WIDTH: usize = 60;
 pub const HELP_POPUP_HEIGHT: usize = 11;
 pub const HELP_CLOSE_LABEL: &str = "[X]";
+pub(crate) const LOBBY_TAB_ROW: usize = 2;
+const LOBBY_TAB_GAP: usize = 1;
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -135,7 +137,7 @@ pub struct LockedModel {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LobbyTab {
-    Home,
+    MyGames,
     OpenGames,
     Comms,
     Settings,
@@ -144,10 +146,19 @@ pub enum LobbyTab {
 impl LobbyTab {
     fn next(self) -> Self {
         match self {
-            Self::Home => Self::OpenGames,
+            Self::MyGames => Self::OpenGames,
             Self::OpenGames => Self::Comms,
             Self::Comms => Self::Settings,
-            Self::Settings => Self::Home,
+            Self::Settings => Self::MyGames,
+        }
+    }
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::MyGames => "My Games",
+            Self::OpenGames => "Open Games",
+            Self::Comms => "Comms",
+            Self::Settings => "Settings",
         }
     }
 }
@@ -244,7 +255,7 @@ fn bootstrap_route(snapshot: &BootSnapshot, relay_url: String) -> Route {
 
 fn lobby_route(status: Option<String>, relay_url: String) -> Route {
     Route::Lobby(LobbyModel {
-        active_tab: LobbyTab::Home,
+        active_tab: LobbyTab::MyGames,
         help_open: true,
         selected_game: 0,
         editing_relay: false,
@@ -282,6 +293,32 @@ pub(crate) fn help_close_tag_bounds(geometry: ScreenGeometry) -> Option<(usize, 
     let (left, top, width, _) = help_popup_geometry(geometry);
     let col = chrome::top_tag_right_col(left, width, HELP_CLOSE_LABEL)?;
     Some((top, col, chrome::top_tag_width(HELP_CLOSE_LABEL)))
+}
+
+pub(crate) fn lobby_tab_bounds(geometry: ScreenGeometry) -> [(LobbyTab, usize, usize); 4] {
+    let tabs = [
+        LobbyTab::MyGames,
+        LobbyTab::OpenGames,
+        LobbyTab::Comms,
+        LobbyTab::Settings,
+    ];
+    let total_width = tabs
+        .iter()
+        .map(|tab| tab.label().chars().count() + 2)
+        .sum::<usize>()
+        + tabs.len().saturating_sub(1) * LOBBY_TAB_GAP;
+    let mut col = if total_width >= geometry.width() {
+        0
+    } else {
+        (geometry.width() - total_width) / 2
+    };
+    let mut bounds = [(LobbyTab::MyGames, 0, 0); 4];
+    for (index, tab) in tabs.iter().copied().enumerate() {
+        let width = tab.label().chars().count() + 2;
+        bounds[index] = (tab, col, col + width);
+        col += width + LOBBY_TAB_GAP;
+    }
+    bounds
 }
 
 fn handle_help_click(model: &mut Model, position: Point) -> bool {
@@ -328,13 +365,4 @@ fn field_string_mut(model: &mut FirstRunModel) -> &mut String {
 
 fn mask(value: &str) -> String {
     "●".repeat(value.chars().count())
-}
-
-fn status_color(status: NetworkState) -> GameColor {
-    match status {
-        NetworkState::Idle => GameColor::BrightBlack,
-        NetworkState::Connecting => GameColor::Yellow,
-        NetworkState::Synced => GameColor::BrightGreen,
-        NetworkState::Error => GameColor::BrightRed,
-    }
 }

@@ -2,12 +2,12 @@ use nc_client::password::validate_new_password;
 use nc_nostr::hosted::relay_url_to_invite_host;
 
 use super::{
-    Effect, GameRow, LobbyTab, Model, Msg, NetworkState, Route, active_session_from_stored,
-    append_text, bootstrap_route, field_string_mut, handle_help_click, is_printable_key,
-    lobby_route,
+    Effect, GameRow, LOBBY_TAB_ROW, LobbyTab, Model, Msg, NetworkState, Route,
+    active_session_from_stored, append_text, bootstrap_route, field_string_mut, handle_help_click,
+    is_printable_key, lobby_route, lobby_tab_bounds,
 };
-use crate::input::{KeyCode, MouseButton, MouseEventKind};
 use crate::ScreenGeometry;
+use crate::input::{KeyCode, KeyModifiers, MouseButton, MouseEventKind};
 
 pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
     match msg {
@@ -115,11 +115,7 @@ fn handle_lobby_updated(
                 if lobby.selected_game >= model.games.len() {
                     lobby.selected_game = model.games.len().saturating_sub(1);
                 }
-                lobby.status = Some(format!(
-                    "Catalog synced: {} games, {} notices.",
-                    model.games.len(),
-                    model.notices.len()
-                ));
+                lobby.status = None;
             }
         }
         Err(err) => {
@@ -151,6 +147,10 @@ fn handle_relay_saved(model: &mut Model, result: Result<String, String>) -> Vec<
 }
 
 fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    if is_quit_shortcut(key) {
+        model.should_quit = true;
+        return vec![Effect::Quit];
+    }
     match model.route {
         Route::Boot(_) => Vec::new(),
         Route::FatalError(_) => match key.code {
@@ -176,6 +176,15 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
     if let Route::Lobby(lobby) = &mut model.route {
         if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
             let row = mouse.position.row.as_usize();
+            let column = mouse.position.column.as_usize();
+            if row == LOBBY_TAB_ROW {
+                for (tab, start, end) in lobby_tab_bounds(model.geometry) {
+                    if column >= start && column < end {
+                        lobby.active_tab = tab;
+                        return Vec::new();
+                    }
+                }
+            }
             if (7..(7 + model.games.len())).contains(&row) {
                 let index = row - 7;
                 lobby.active_tab = LobbyTab::OpenGames;
@@ -296,7 +305,7 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
     };
     if lobby.help_open {
         match key.code {
-            KeyCode::Esc | KeyCode::Enter | KeyCode::Char(_) | KeyCode::Tab | KeyCode::BackTab => {
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 lobby.help_open = false;
             }
             _ => {}
@@ -364,10 +373,6 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             lobby.selected_game = (lobby.selected_game + 1).min(max_index);
             Vec::new()
         }
-        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-            model.should_quit = true;
-            vec![Effect::Quit]
-        }
         KeyCode::Char('l') | KeyCode::Char('L') => {
             model.session = None;
             model.network = NetworkState::Idle;
@@ -383,19 +388,19 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             lobby.help_open = true;
             Vec::new()
         }
-        KeyCode::Char('1') => {
-            lobby.active_tab = LobbyTab::Home;
+        KeyCode::Char('m') | KeyCode::Char('M') => {
+            lobby.active_tab = LobbyTab::MyGames;
             Vec::new()
         }
-        KeyCode::Char('2') => {
+        KeyCode::Char('o') | KeyCode::Char('O') => {
             lobby.active_tab = LobbyTab::OpenGames;
             Vec::new()
         }
-        KeyCode::Char('3') => {
+        KeyCode::Char('c') | KeyCode::Char('C') => {
             lobby.active_tab = LobbyTab::Comms;
             Vec::new()
         }
-        KeyCode::Char('4') => {
+        KeyCode::Char('s') | KeyCode::Char('S') => {
             lobby.active_tab = LobbyTab::Settings;
             Vec::new()
         }
@@ -419,6 +424,11 @@ fn current_password(model: &Model) -> String {
             .map(|session| session.password.clone())
             .unwrap_or_default(),
     }
+}
+
+fn is_quit_shortcut(key: crate::input::KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Char('q') | KeyCode::Char('Q'))
+        && key.modifiers.contains(KeyModifiers::ALT)
 }
 
 #[allow(dead_code)]

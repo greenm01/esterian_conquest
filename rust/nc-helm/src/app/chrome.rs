@@ -57,10 +57,23 @@ pub fn draw_panel(
     buffer.set_cell(top, left, TOP_LEFT, border_style);
     buffer.set_cell(top, left + width - 1, TOP_RIGHT, border_style);
     buffer.set_cell(top + height - 1, left, BOTTOM_LEFT, border_style);
-    buffer.set_cell(top + height - 1, left + width - 1, BOTTOM_RIGHT, border_style);
+    buffer.set_cell(
+        top + height - 1,
+        left + width - 1,
+        BOTTOM_RIGHT,
+        border_style,
+    );
 
     if let Some(title) = top_title {
-        draw_top_tag(buffer, top, left + 2, width, title, border_style, title_style);
+        draw_top_tag(
+            buffer,
+            top,
+            left + 2,
+            width,
+            title,
+            border_style,
+            title_style,
+        );
     }
     if let Some(title) = bottom_title {
         draw_bottom_tag(
@@ -126,7 +139,9 @@ pub fn top_tag_width(label: &str) -> usize {
 
 pub fn top_tag_right_col(left: usize, panel_width: usize, label: &str) -> Option<usize> {
     let width = top_tag_width(label);
-    panel_width.checked_sub(width + 2).map(|offset| left + offset)
+    panel_width
+        .checked_sub(width + 2)
+        .map(|offset| left + offset)
 }
 
 fn draw_bottom_tag(

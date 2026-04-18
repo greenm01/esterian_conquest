@@ -26,8 +26,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use glyphon::{
-    fontdb, Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution,
-    Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight,
+    Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
+    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight, fontdb,
 };
 use wgpu::{
     self, BindGroup, BindGroupLayout, CommandEncoderDescriptor, CompositeAlphaMode, Device,
@@ -40,11 +40,12 @@ use winit::dpi::PhysicalPosition;
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
-use crate::geometry::{caret_rect, GridMapper, GridMetrics};
+use crate::geometry::{GridMapper, GridMetrics, caret_rect};
 use crate::grid::{
     BackgroundMode, CellStyle, GameColor, OverlayText, OverlayTextFamily, PlayfieldBuffer, Point,
     ScreenGeometry,
 };
+use crate::theme;
 
 /// Fullscreen-quad shader that uploads the CPU `background_pixels` buffer.
 ///
@@ -384,7 +385,7 @@ impl Renderer {
                     depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color::BLACK),
+                        load: LoadOp::Clear(clear_color(theme::app_background())),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -437,7 +438,7 @@ impl Renderer {
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> Vec<TextPlacement> {
         let frame_width = self.surface_config.width as usize;
         let frame_height = self.surface_config.height as usize;
-        let body_bg = primitives::color_to_rgba(GameColor::Rgb(0x12, 0x13, 0x1c));
+        let body_bg = primitives::color_to_rgba(theme::app_background());
         // Start every frame from the base body colour so cells outside the
         // grid (when the window doesn't divide evenly into cells) have a
         // defined colour rather than stale pixels from the previous frame.
@@ -1062,16 +1063,26 @@ fn glyphon_color(color: GameColor) -> Color {
     Color::rgb(r, g, b)
 }
 
+fn clear_color(color: GameColor) -> wgpu::Color {
+    let [r, g, b, a] = primitives::color_to_rgba(color);
+    wgpu::Color {
+        r: f64::from(r) / 255.0,
+        g: f64::from(g) / 255.0,
+        b: f64::from(b) / 255.0,
+        a: f64::from(a) / 255.0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use glyphon::{fontdb, Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping};
+    use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, fontdb};
 
-    use crate::geometry::{caret_rect, GridMapper, GridMetrics};
+    use crate::geometry::{GridMapper, GridMetrics, caret_rect};
     use crate::grid::{Point, ScreenGeometry};
 
     use super::{
-        build_font_system, expanded_text_bounds, fit_grid_to_pixels, measure_single_line_width,
-        TextFamilyKey, TextOverhang, PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY,
+        PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, build_font_system,
+        expanded_text_bounds, fit_grid_to_pixels, measure_single_line_width,
     };
 
     fn mapper() -> (GridMapper, GridMetrics) {

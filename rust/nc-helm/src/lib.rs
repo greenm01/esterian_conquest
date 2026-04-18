@@ -5,6 +5,7 @@ mod input;
 mod runtime;
 mod startup;
 mod storage;
+mod theme;
 mod transport;
 
 pub use app::{App, Effect, GameRow, Msg, Route};
