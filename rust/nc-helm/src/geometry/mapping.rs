@@ -60,6 +60,19 @@ impl GridMapper {
         }
     }
 
+    pub fn text_band_rect(self, point: Point, text: TextMetrics) -> PhysicalRect {
+        let rect = self.cell_rect(point);
+        let top = rect.y + text.band_top_px.min(rect.height.saturating_sub(1));
+        let height = text.band_height_px.clamp(1, rect.height);
+        let clamped_top = top.min(rect.y + rect.height.saturating_sub(height));
+        PhysicalRect {
+            x: rect.x,
+            y: clamped_top,
+            width: rect.width,
+            height,
+        }
+    }
+
     pub fn pixel_to_cell(self, position: PhysicalPosition<f64>) -> Option<Point> {
         if !position.x.is_finite()
             || !position.y.is_finite()
@@ -90,3 +103,55 @@ impl GridMapper {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::GridMapper;
+    use crate::geometry::{CellMetrics, TextMetrics};
+    use crate::grid::{Point, ScreenGeometry};
+
+    fn mapper() -> (GridMapper, TextMetrics) {
+        let text = TextMetrics {
+            font_size_px: 18.0,
+            line_height_px: 24.0,
+            baseline_px: 18,
+            band_top_px: 5,
+            band_height_px: 14,
+        };
+        (
+            GridMapper::centered(
+                1200,
+                900,
+                ScreenGeometry::new(100, 36),
+                CellMetrics {
+                    width_px: 12,
+                    height_px: 24,
+                },
+            ),
+            text,
+        )
+    }
+
+    #[test]
+    fn text_band_rect_stays_within_the_cell_row() {
+        let (mapper, text) = mapper();
+        let cell = mapper.cell_rect(Point::from_usize(31, 16));
+        let band = mapper.text_band_rect(Point::from_usize(31, 16), text);
+        assert_eq!(band.x, cell.x);
+        assert_eq!(band.width, cell.width);
+        assert_eq!(band.y, cell.y + text.band_top_px);
+        assert_eq!(band.height, text.band_height_px);
+    }
+
+    #[test]
+    fn pixel_to_cell_floors_at_cell_boundaries() {
+        let (mapper, _) = mapper();
+        let cell = mapper.cell_rect(Point::from_usize(7, 4));
+        assert_eq!(
+            mapper.pixel_to_cell(winit::dpi::PhysicalPosition::new(
+                (cell.x + cell.width - 1) as f64,
+                (cell.y + cell.height - 1) as f64,
+            )),
+            Some(Point::from_usize(7, 4))
+        );
+    }
+}

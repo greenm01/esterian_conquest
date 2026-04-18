@@ -1,7 +1,9 @@
 use super::{
     DEFAULT_GEOMETRY, FirstRunField, LobbyTab, Model, NetworkState, Route, mask, status_color,
 };
-use crate::{CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry};
+use crate::{
+    BackgroundMode, CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry,
+};
 
 const BODY: CellStyle = CellStyle::new(
     GameColor::BrightWhite,
@@ -606,17 +608,19 @@ fn draw_boxed_input_row(
     masked: bool,
 ) {
     let field_style = if active { ACCENT } else { BODY };
+    let track_style = BODY.with_background_mode(BackgroundMode::TextBand);
+    let value_style = field_style.with_background_mode(BackgroundMode::TextBand);
     let field_left = left + label_width + 2;
     let field_width = track_width.min(buffer.width().saturating_sub(field_left));
     let text_col = field_left.saturating_add(1);
     buffer.write_text(row, left, &format!("{label:<label_width$}: "), DIM);
-    buffer.fill_rect(row, field_left, field_width, 1, BODY);
+    buffer.fill_rect(row, field_left, field_width, 1, track_style);
     let shown = if masked {
         mask(value)
     } else {
         value.to_string()
     };
-    buffer.write_text_clipped(row, text_col, &shown, field_style);
+    buffer.write_text_clipped(row, text_col, &shown, value_style);
     if active && field_width > 0 {
         let max_col = field_left + field_width - 1;
         let cursor_col = (text_col + shown.chars().count()).min(max_col);

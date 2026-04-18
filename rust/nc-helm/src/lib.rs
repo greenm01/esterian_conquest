@@ -9,8 +9,8 @@ mod transport;
 
 pub use app::{App, Effect, GameRow, Msg, Route};
 pub use grid::{
-    AnsiColor, Cell, CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry,
-    StyledSpan,
+    AnsiColor, BackgroundMode, Cell, CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row,
+    ScreenGeometry, StyledSpan,
 };
 pub use input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 pub use startup::{

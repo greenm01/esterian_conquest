@@ -1,3 +1,26 @@
+//! wgpu + glyphon GPU renderer for the nc-helm character grid.
+//!
+//! Each frame the renderer paints two layers:
+//!
+//! 1. **Background pixel buffer** (`background_pixels`): a CPU-side RGBA
+//!    image the size of the surface. The playfield's per-cell background
+//!    colour, `BackgroundMode::TextBand` strips, and the caret are all
+//!    written into this buffer with `fill_rect_rgba`. It is uploaded to a
+//!    GPU texture and drawn first as a fullscreen quad via the
+//!    [`BACKGROUND_SHADER`] pipeline.
+//! 2. **Glyph layer**: text runs are batched per (text, weight) into shaped
+//!    glyphon `Buffer`s, cached in `text_buffers`, and drawn on top by the
+//!    `glyphon::TextRenderer` using pixel-space coordinates from
+//!    `GridMapper::text_origin`.
+//!
+//! Coordinate conventions:
+//! - The CPU background buffer is row-major with row 0 at the top
+//!   (y-down), matching `GridMapper`.
+//! - wgpu NDC has y=+1 at the top of the screen and texture coords have
+//!   v=0 at the top, so the WGSL vertex shader pairs each NDC corner with
+//!   the matching texture corner (see [`BACKGROUND_SHADER`]).
+//! - glyphon takes pixel coordinates in the same y-down space.
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,8 +40,26 @@ use winit::dpi::PhysicalPosition;
 use winit::event_loop::ActiveEventLoop;
 
 use crate::geometry::{GridMapper, GridMetrics, caret_rect};
-use crate::grid::{CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
+use crate::grid::{BackgroundMode, CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
+/// Fullscreen-quad shader that uploads the CPU `background_pixels` buffer.
+///
+/// Six vertices form two triangles covering NDC `[-1, +1]` on both axes.
+/// The UV table maps each NDC corner to the matching texture corner so the
+/// background buffer (row 0 at top) renders right-side-up:
+///
+/// | NDC corner       | screen pos    | UV     | texel pos      |
+/// |------------------|---------------|--------|----------------|
+/// | `(-1, -1)`       | bottom-left   | `(0,1)`| bottom-left    |
+/// | `( 1, -1)`       | bottom-right  | `(1,1)`| bottom-right   |
+/// | `(-1,  1)`       | top-left      | `(0,0)`| top-left       |
+/// | `( 1,  1)`       | top-right     | `(1,0)`| top-right      |
+///
+/// Mismatching these (e.g. pairing NDC `(-1, -1)` with UV `(0, 0)`) sample
+/// the background texture vertically mirrored, which would put cell strips
+/// and the caret at the wrong rows while glyphon (which paints in
+/// pixel-space, independently of this quad) keeps text in place — producing
+/// labels that look offset from their input strips.
 const BACKGROUND_SHADER: &str = r#"
 @group(0) @binding(0) var background_tex: texture_2d<f32>;
 @group(0) @binding(1) var background_sampler: sampler;
@@ -38,13 +79,18 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
         vec2<f32>(1.0, -1.0),
         vec2<f32>(1.0, 1.0),
     );
+    // wgpu NDC: y=+1 is top of screen, y=-1 is bottom.
+    // wgpu texture coords: (0,0) is top-left, (0,1) is bottom-left.
+    // Map screen top vertices (y=+1) to texture top (v=0), and screen bottom
+    // vertices (y=-1) to texture bottom (v=1) so the background_pixels buffer
+    // (row 0 at top) renders right-side-up.
     var uvs = array<vec2<f32>, 6>(
-        vec2<f32>(0.0, 0.0),
-        vec2<f32>(1.0, 0.0),
         vec2<f32>(0.0, 1.0),
-        vec2<f32>(0.0, 1.0),
-        vec2<f32>(1.0, 0.0),
         vec2<f32>(1.0, 1.0),
+        vec2<f32>(0.0, 0.0),
+        vec2<f32>(0.0, 0.0),
+        vec2<f32>(1.0, 1.0),
+        vec2<f32>(1.0, 0.0),
     );
     var out: VertexOut;
     out.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
@@ -72,6 +118,8 @@ const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
     "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
 ));
 
+/// Cache key for shaped glyphon buffers. Same string + weight reuses one
+/// shaped layout across cells/rows.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TextBufferKey {
     text: Arc<str>,
@@ -82,6 +130,9 @@ struct CachedTextCell {
     buffer: GlyphBuffer,
 }
 
+/// One run of contiguous styled text staged for the glyphon `TextRenderer`.
+/// `bounds` clips the run horizontally to the cells it occupies so adjacent
+/// runs can't bleed into each other.
 struct TextPlacement {
     key: TextBufferKey,
     left: f32,
@@ -90,6 +141,8 @@ struct TextPlacement {
     color: GameColor,
 }
 
+/// GPU-side resources for the background image: a 2D texture sized to the
+/// surface, plus a pre-built bind group ready to attach during rendering.
 struct BackgroundTexture {
     texture: Texture,
     bind_group: BindGroup,
@@ -191,6 +244,9 @@ impl Renderer {
         })
     }
 
+    /// Pixel size of the grid that fits inside `(width, height)` at the
+    /// current DPI scale. Cell metrics are re-probed in case the DPI factor
+    /// changed since the last call.
     pub fn grid_geometry_for_window(&mut self, width: u32, height: u32) -> ScreenGeometry {
         self.sync_scale_metrics();
         let cols = (width.max(1) as usize / self.grid_metrics.cell.width_px).max(1);
@@ -198,6 +254,8 @@ impl Renderer {
         ScreenGeometry::new(cols, rows)
     }
 
+    /// Map a window-local pixel position to a grid cell, or `None` if the
+    /// pixel falls outside the centred grid area.
     pub fn cell_position_at_pixel(
         &mut self,
         window: &winit::window::Window,
@@ -215,6 +273,17 @@ impl Renderer {
         .pixel_to_cell(position)
     }
 
+    /// Render one frame of `playfield`.
+    ///
+    /// Steps, in order:
+    /// 1. Sync DPI metrics and reconfigure the surface if the window resized.
+    /// 2. Walk the playfield, paint per-cell backgrounds + caret into
+    ///    `background_pixels`, and collect text runs as `TextPlacement`s
+    ///    (see `prepare_playfield`).
+    /// 3. Upload `background_pixels` to the GPU texture and `prepare` the
+    ///    glyphon `TextRenderer` with the staged runs.
+    /// 4. Acquire the swapchain frame, draw the background quad, then the
+    ///    glyph layer on top, and present.
     pub fn render(
         &mut self,
         playfield: &PlayfieldBuffer,
@@ -312,6 +381,9 @@ impl Renderer {
         Ok(())
     }
 
+    /// Re-probe glyphon at the window's current DPI scale. If the resulting
+    /// metrics differ from the cached set, drop the shaped-text cache so
+    /// every run is reshaped at the new size on the next frame.
     fn sync_scale_metrics(&mut self) {
         let scale_factor = self.window.scale_factor();
         let updated = GridMetrics::for_scale(scale_factor, &mut self.font_system);
@@ -321,10 +393,25 @@ impl Renderer {
         }
     }
 
+    /// Paint per-cell backgrounds + caret into `background_pixels`, batch
+    /// adjacent same-style cells into glyphon text runs, and upload the
+    /// background image to the GPU.
+    ///
+    /// Returns the staged text placements; the caller hands them to
+    /// `glyphon::TextRenderer::prepare`.
+    ///
+    /// Run batching: contiguous non-space cells with identical `CellStyle`
+    /// become one shaped run. Spaces flush the current run because they
+    /// don't need glyph rendering — the background fill alone suffices, and
+    /// breaking on spaces lets adjacent runs differ in style without a
+    /// per-cell shaping cost.
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> Vec<TextPlacement> {
         let frame_width = self.surface_config.width as usize;
         let frame_height = self.surface_config.height as usize;
         let body_bg = color_to_rgba(GameColor::Rgb(0x12, 0x13, 0x1c));
+        // Start every frame from the base body colour so cells outside the
+        // grid (when the window doesn't divide evenly into cells) have a
+        // defined colour rather than stale pixels from the previous frame.
         self.background_pixels
             .resize(frame_width * frame_height * 4, 0);
         for pixel in self.background_pixels.chunks_exact_mut(4) {
@@ -345,7 +432,12 @@ impl Renderer {
             for col_idx in 0..playfield.width() {
                 let source = playfield.row(row_idx)[col_idx];
                 let style = source.style;
-                let rect = mapper.cell_rect(Point::from_usize(col_idx, row_idx));
+                let point = Point::from_usize(col_idx, row_idx);
+                let rect = if style.bg_mode == BackgroundMode::TextBand {
+                    mapper.text_band_rect(point, self.grid_metrics.text)
+                } else {
+                    mapper.cell_rect(point)
+                };
                 fill_rect_rgba(
                     &mut self.background_pixels,
                     frame_width,
@@ -435,6 +527,9 @@ impl Renderer {
         placements
     }
 
+    /// Shape `key` into a glyphon `Buffer` and cache it. No-op if already
+    /// cached. Buffers are sized to one cell row in height; horizontal size
+    /// is left unconstrained so wider runs lay out on a single line.
     fn ensure_text_buffer(&mut self, key: TextBufferKey) {
         if self.text_buffers.contains_key(&key) {
             return;
@@ -467,6 +562,9 @@ impl Renderer {
         self.text_buffers.insert(key, CachedTextCell { buffer });
     }
 
+    /// Resize the swapchain surface and the background texture if the
+    /// window dimensions changed. Width/height are clamped to at least 1
+    /// pixel so wgpu never sees a zero-sized surface.
     fn ensure_surface_size(&mut self, width: u32, height: u32) {
         if self.surface_config.width == width && self.surface_config.height == height {
             return;
@@ -484,6 +582,9 @@ impl Renderer {
     }
 }
 
+/// Build a `FontSystem` preloaded with the bundled monospace face plus a
+/// fallback. The primary family is set so glyphon resolves `Family::Monospace`
+/// to the bundled face rather than whatever the OS picks.
 fn build_font_system() -> FontSystem {
     let mut font_system = FontSystem::new();
     let db = font_system.db_mut();
@@ -500,6 +601,10 @@ fn build_font_system() -> FontSystem {
     font_system
 }
 
+/// Build the wgpu render pipeline that draws the background texture as a
+/// fullscreen quad using [`BACKGROUND_SHADER`]. The pipeline owns no vertex
+/// buffer; six vertex IDs are generated by `pass.draw(0..6, 0..1)` and the
+/// shader synthesises positions/UVs from `vertex_index`.
 fn create_background_pipeline(
     device: &Device,
     surface_format: TextureFormat,
@@ -606,6 +711,16 @@ impl BackgroundTexture {
     }
 }
 
+/// Finalise an in-progress text run, if any.
+///
+/// Looks up the text origin and bounding box for the run's cell range and
+/// pushes a `TextPlacement` so glyphon can draw it. The bounds clip the run
+/// to its cell range horizontally and to the cell row vertically — this
+/// prevents glyphs that overshoot their cell (wide italics, ligatures) from
+/// painting into a neighbour's strip.
+///
+/// Resets `run_start`, `run_style`, and `run_text` so the caller can begin
+/// the next run.
 fn flush_run(
     renderer: &mut Renderer,
     mapper: GridMapper,
@@ -630,7 +745,12 @@ fn flush_run(
     renderer.ensure_text_buffer(key.clone());
     let start = Point::from_usize(start_col, row_idx);
     let text_origin = mapper.text_origin(start, renderer.grid_metrics.text);
-    let start_rect = mapper.cell_rect(start);
+    let cell_rect = mapper.cell_rect(start);
+    let start_rect = if style.bg_mode == BackgroundMode::TextBand {
+        mapper.text_band_rect(start, renderer.grid_metrics.text)
+    } else {
+        cell_rect
+    };
     placements.push(TextPlacement {
         key,
         left: text_origin.left,
@@ -646,6 +766,9 @@ fn flush_run(
     run_text.clear();
 }
 
+/// Fill an axis-aligned RGBA rectangle into a row-major pixel buffer.
+/// Pixels that fall outside `frame` are skipped silently so callers don't
+/// have to clip rects against the surface bounds.
 fn fill_rect_rgba(
     frame: &mut [u8],
     stride_px: usize,
@@ -666,6 +789,10 @@ fn fill_rect_rgba(
     }
 }
 
+/// Map a `GameColor` to opaque RGBA bytes for the CPU background buffer.
+/// Standard ANSI palette uses VGA-style values; bright variants use full
+/// 0xff intensity. `Indexed` defers to `ansi_indexed_rgb` for the 256-colour
+/// palette and `Rgb` is passed through unchanged.
 fn color_to_rgba(color: GameColor) -> [u8; 4] {
     let (r, g, b) = match color {
         GameColor::Black => (0x00, 0x00, 0x00),
@@ -690,6 +817,11 @@ fn color_to_rgba(color: GameColor) -> [u8; 4] {
     [r, g, b, 0xff]
 }
 
+/// Resolve a 256-colour ANSI index into an `(r, g, b)` triple:
+/// - `0..=15`: VGA palette (matches `color_to_rgba`'s named entries).
+/// - `16..=231`: 6×6×6 colour cube; each channel takes one of
+///   `{0, 95, 135, 175, 215, 255}` per the xterm specification.
+/// - `232..=255`: 24-step grayscale ramp from `#080808` to `#eeeeee`.
 fn ansi_indexed_rgb(index: u8) -> (u8, u8, u8) {
     match index {
         0..=15 => match index {
@@ -725,6 +857,8 @@ fn ansi_indexed_rgb(index: u8) -> (u8, u8, u8) {
     }
 }
 
+/// Map a `GameColor` to a glyphon `Color` (alpha is dropped — the glyph
+/// renderer uses its own coverage for anti-aliasing).
 fn glyphon_color(color: GameColor) -> Color {
     let [r, g, b, _] = color_to_rgba(color);
     Color::rgb(r, g, b)
@@ -744,6 +878,9 @@ mod tests {
             text: crate::geometry::TextMetrics {
                 font_size_px: 18.0,
                 line_height_px: 24.0,
+                baseline_px: 18,
+                band_top_px: 5,
+                band_height_px: 14,
             },
         };
         (
@@ -773,11 +910,11 @@ mod tests {
     #[test]
     fn caret_rect_uses_text_origin_from_cell_mapping() {
         let (mapper, metrics) = mapper();
-        let rect = mapper.cell_rect(Point::from_usize(31, 16));
+        let rect = mapper.text_band_rect(Point::from_usize(31, 16), metrics.text);
         let caret = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
         assert_eq!(caret.x, rect.x);
         assert_eq!(caret.y, rect.y);
         assert_eq!(caret.width, 2);
-        assert_eq!(caret.height, 24);
+        assert_eq!(caret.height, rect.height);
     }
 }

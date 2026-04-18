@@ -25,15 +25,32 @@ pub enum GameColor {
 pub type AnsiColor = GameColor;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BackgroundMode {
+    Cell,
+    TextBand,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CellStyle {
     pub fg: GameColor,
     pub bg: GameColor,
     pub bold: bool,
+    pub bg_mode: BackgroundMode,
 }
 
 impl CellStyle {
     pub const fn new(fg: GameColor, bg: GameColor, bold: bool) -> Self {
-        Self { fg, bg, bold }
+        Self {
+            fg,
+            bg,
+            bold,
+            bg_mode: BackgroundMode::Cell,
+        }
+    }
+
+    pub const fn with_background_mode(mut self, bg_mode: BackgroundMode) -> Self {
+        self.bg_mode = bg_mode;
+        self
     }
 }
 
