@@ -2,7 +2,7 @@ mod support;
 
 use nc_helm::{App, Effect, GameRow, LobbySnapshot, Msg, Route};
 
-use crate::support::{dummy_session, key};
+use crate::support::{dummy_session, key, left_click};
 
 #[test]
 fn lobby_help_closes_on_any_key_and_reopens_on_question_mark() {
@@ -18,6 +18,35 @@ fn lobby_help_closes_on_any_key_and_reopens_on_question_mark() {
         other => panic!("expected lobby route, got {other:?}"),
     }
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(lobby.help_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+}
+
+#[test]
+fn lobby_help_clicking_close_tag_closes_popup() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+
+    let row = 12usize;
+    let line = app.view().plain_line(row);
+    let tag_offset = line.find("┐ [X] ┌").expect("close tag should render");
+    let tag_col = line[..tag_offset].chars().count();
+    let _ = app.dispatch(Msg::Mouse(left_click(tag_col + 3, row)));
+
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(!lobby.help_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+}
+
+#[test]
+fn lobby_help_clicking_body_does_not_close_popup() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Mouse(left_click(24, 14)));
+
     match &app.model().route {
         Route::Lobby(lobby) => assert!(lobby.help_open),
         other => panic!("expected lobby route, got {other:?}"),

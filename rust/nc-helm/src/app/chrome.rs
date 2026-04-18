@@ -97,6 +97,38 @@ pub fn draw_top_tag(
     )
 }
 
+pub fn draw_top_tag_right(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    left: usize,
+    panel_width: usize,
+    label: &str,
+    border_style: CellStyle,
+    title_style: CellStyle,
+) -> usize {
+    let Some(col) = top_tag_right_col(left, panel_width, label) else {
+        return 0;
+    };
+    draw_top_tag(
+        buffer,
+        row,
+        col,
+        left.saturating_add(panel_width).saturating_sub(col),
+        label,
+        border_style,
+        title_style,
+    )
+}
+
+pub fn top_tag_width(label: &str) -> usize {
+    label.chars().count() + 4
+}
+
+pub fn top_tag_right_col(left: usize, panel_width: usize, label: &str) -> Option<usize> {
+    let width = top_tag_width(label);
+    panel_width.checked_sub(width + 2).map(|offset| left + offset)
+}
+
 fn draw_bottom_tag(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -134,13 +166,13 @@ fn draw_tag(
         return 0;
     }
 
-    let max_label_width = available_width.saturating_sub(7);
+    let max_label_width = available_width.saturating_sub(4);
     if max_label_width == 0 {
         return 0;
     }
     let label = truncate_chars(label, max_label_width);
+    let width = top_tag_width(&label);
     let label_width = label.chars().count();
-    let width = label_width + 4;
     if col + width > buffer.width() {
         return 0;
     }

@@ -1,6 +1,7 @@
 use super::{
-    chrome::{draw_panel, draw_top_tag},
-    DEFAULT_GEOMETRY, FirstRunField, LobbyTab, Model, NetworkState, Route, mask, status_color,
+    chrome::{draw_panel, draw_top_tag, draw_top_tag_right},
+    DEFAULT_GEOMETRY, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT, HELP_POPUP_WIDTH,
+    LobbyTab, Model, NetworkState, Route, centered_box_geometry, mask, status_color,
 };
 use crate::{
     BackgroundMode, CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry,
@@ -638,30 +639,53 @@ fn draw_footer(
 }
 
 fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
-    centered_box(buffer, geometry, 60, 11, "HELP [X]", |buffer, left, top| {
-        let lines = [
-            "NC-HELM is the new TEA player client.",
-            "",
-            "Tab     : switch lobby tabs",
-            "Up/Down : move the open-game cursor",
-            "? or H  : reopen this help popup",
-            "Esc/Q   : quit the client",
-            "",
-            "The lobby sync runs in the background.",
-        ];
-        for (idx, line) in lines.iter().enumerate() {
-            buffer.write_text_clipped(
-                top + 2 + idx,
-                left + 3,
-                line,
-                if line.is_empty() {
-                    PANEL_BODY
-                } else {
-                    if idx == 0 { PANEL_ACCENT } else { PANEL_BODY }
-                },
-            );
-        }
-    });
+    let (left, top, width, height) = centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT);
+    draw_panel(
+        buffer,
+        left,
+        top,
+        width,
+        height,
+        PANEL_BORDER,
+        PANEL_ACCENT,
+        Some(PANEL),
+        Some("HELP"),
+        None,
+    );
+    draw_top_tag_right(
+        buffer,
+        top,
+        left,
+        width,
+        HELP_CLOSE_LABEL,
+        PANEL_BORDER,
+        PANEL_ACCENT,
+    );
+
+    let lines = [
+        "NC-HELM is the new TEA player client.",
+        "",
+        "Tab     : switch lobby tabs",
+        "Up/Down : move the open-game cursor",
+        "? or H  : reopen this help popup",
+        "Esc/Q   : quit the client",
+        "",
+        "The lobby sync runs in the background.",
+    ];
+    for (idx, line) in lines.iter().enumerate() {
+        buffer.write_text_clipped(
+            top + 2 + idx,
+            left + 3,
+            line,
+            if line.is_empty() {
+                PANEL_BODY
+            } else if idx == 0 {
+                PANEL_ACCENT
+            } else {
+                PANEL_BODY
+            },
+        );
+    }
 }
 
 fn fill(buffer: &mut PlayfieldBuffer, style: CellStyle) {
@@ -678,8 +702,7 @@ fn centered_box<F: FnOnce(&mut PlayfieldBuffer, usize, usize)>(
     title: &str,
     inner: F,
 ) {
-    let left = geometry.width().saturating_sub(width) / 2;
-    let top = geometry.height().saturating_sub(height) / 2;
+    let (left, top, width, height) = centered_box_geometry(geometry, width, height);
     draw_panel(
         buffer,
         left,

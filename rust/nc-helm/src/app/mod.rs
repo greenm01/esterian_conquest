@@ -9,6 +9,9 @@ use crate::{GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
 pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
 pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
+pub const HELP_POPUP_WIDTH: usize = 60;
+pub const HELP_POPUP_HEIGHT: usize = 11;
+pub const HELP_CLOSE_LABEL: &str = "[X]";
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -259,6 +262,28 @@ fn active_session_from_stored(stored: StoredSession, password: String) -> Sessio
     }
 }
 
+pub(crate) fn centered_box_geometry(
+    geometry: ScreenGeometry,
+    width: usize,
+    height: usize,
+) -> (usize, usize, usize, usize) {
+    let width = width.min(geometry.width());
+    let height = height.min(geometry.height());
+    let left = geometry.width().saturating_sub(width) / 2;
+    let top = geometry.height().saturating_sub(height) / 2;
+    (left, top, width, height)
+}
+
+pub(crate) fn help_popup_geometry(geometry: ScreenGeometry) -> (usize, usize, usize, usize) {
+    centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT)
+}
+
+pub(crate) fn help_close_tag_bounds(geometry: ScreenGeometry) -> Option<(usize, usize, usize)> {
+    let (left, top, width, _) = help_popup_geometry(geometry);
+    let col = chrome::top_tag_right_col(left, width, HELP_CLOSE_LABEL)?;
+    Some((top, col, chrome::top_tag_width(HELP_CLOSE_LABEL)))
+}
+
 fn handle_help_click(model: &mut Model, position: Point) -> bool {
     let Route::Lobby(lobby) = &mut model.route else {
         return false;
@@ -266,18 +291,14 @@ fn handle_help_click(model: &mut Model, position: Point) -> bool {
     if !lobby.help_open {
         return false;
     }
-    let width = model.geometry.width();
-    let popup_width = 60usize.min(width.saturating_sub(4));
-    let left = (width.saturating_sub(popup_width)) / 2;
-    let top = 8usize;
-    let close_col = left + popup_width.saturating_sub(4);
+    let (left, top, width, height) = help_popup_geometry(model.geometry);
     let row = position.row.as_usize();
     let column = position.column.as_usize();
-    if row >= top && row <= top + 10 && column >= left && column <= left + popup_width {
-        if row == top && column >= close_col && column <= close_col + 2 {
-            lobby.help_open = false;
-        } else {
-            lobby.help_open = false;
+    if row >= top && row < top + height && column >= left && column < left + width {
+        if let Some((close_row, close_col, close_width)) = help_close_tag_bounds(model.geometry) {
+            if row == close_row && column >= close_col && column < close_col + close_width {
+                lobby.help_open = false;
+            }
         }
         true
     } else {

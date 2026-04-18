@@ -1,10 +1,21 @@
 #![allow(dead_code)]
 
 use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
-use nc_helm::{App, KeyCode, KeyEvent, KeyModifiers, Point, StoredSession};
+use nc_helm::{
+    App, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, Point,
+    StoredSession,
+};
 
 pub fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
+}
+
+pub fn left_click(column: usize, row: usize) -> MouseEvent {
+    MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        position: Point::from_usize(column, row),
+        modifiers: KeyModifiers::NONE,
+    }
 }
 
 pub fn view_cursor(app: &App) -> Point {
