@@ -311,12 +311,21 @@ fn draw_cached<F>(
     F: Fn(&mut PlayfieldBuffer),
 {
     if entry.as_ref().is_some_and(|e| e.inputs_hash == inputs_hash) {
-        let cells = &entry.as_ref().unwrap().cells;
-        buf.blit_region(outer.row, outer.col, outer.width, outer.height, cells);
+        let cached = entry.as_ref().unwrap();
+        buf.blit_region(outer.row, outer.col, outer.width, outer.height, &cached.cells);
+        for glyph in &cached.overlay_glyphs {
+            buf.push_overlay_glyph_at(glyph.ch, glyph.style, glyph.center_col, glyph.center_row);
+        }
     } else {
+        let overlay_len_before = buf.overlay_glyphs().len();
         draw_fn(buf);
         let cells = buf.copy_region(outer.row, outer.col, outer.width, outer.height);
-        *entry = Some(CachedPanel { inputs_hash, cells });
+        let overlay_glyphs = buf.overlay_glyphs()[overlay_len_before..].to_vec();
+        *entry = Some(CachedPanel {
+            inputs_hash,
+            cells,
+            overlay_glyphs,
+        });
     }
 }
 
