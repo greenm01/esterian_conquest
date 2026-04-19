@@ -153,9 +153,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             } else {
                 base_style
             };
-            let marker_col = projected.continuous_marker_col(col_x);
-            let marker_row = projected.continuous_marker_row(row_y);
-            buf.push_overlay_glyph_at(sym, marker_style, marker_col, marker_row);
+            let marker_col = projected.sector_center_col(col_x);
+            let marker_row = projected.sector_center_row(row_y);
+            buf.set_cell(marker_row, marker_col, sym, marker_style);
         }
     }
 }
@@ -280,32 +280,26 @@ impl ProjectedMapGeometry {
         })
     }
 
-    /// Continuous midpoint column for the sector at `world_x`, in cell units.
+    /// Integer midpoint column for the sector at `world_x`, in cell units.
     ///
-    /// Returns the exact midpoint of that sector's rect derived from
-    /// `col_edges`.  Using per-sector rect midpoints (rather than a uniform
-    /// `extent / N` spacing) keeps the marker centred within the same rect that
-    /// owns the sector's axis label, so labels and markers stay visually aligned
-    /// even when `partition_edges` distributes widths unevenly across sectors.
-    /// Returns an `f32` so callers can pass a sub-cell fractional position to
-    /// the overlay pipeline instead of rounding to the nearest cell column.
-    fn continuous_marker_col(&self, world_x: u8) -> f32 {
+    /// Returns the exact cell column at the centre of that sector's rect.
+    /// All rendering for this panel routes through this integer centre so
+    /// markers, crosshair lines, and dots land on the same cell grid.
+    fn sector_center_col(&self, world_x: u8) -> usize {
         let i = usize::from(world_x.saturating_sub(self.x_min));
-        let left = self.col_edges.get(i).copied().unwrap_or(0) as f32;
-        let right = self.col_edges.get(i + 1).copied().unwrap_or(left as usize) as f32;
-        (left + right) / 2.0
+        let left = self.col_edges.get(i).copied().unwrap_or(0);
+        let right = self.col_edges.get(i + 1).copied().unwrap_or(left);
+        left + (right.saturating_sub(left)) / 2
     }
 
-    /// Continuous midpoint row for the sector at `world_y`, in cell units.
+    /// Integer midpoint row for the sector at `world_y`, in cell units.
     ///
-    /// Row index 0 corresponds to `y_max` (top of the map).  Like
-    /// [`Self::continuous_marker_col`], uses the per-sector rect midpoint from
-    /// `row_edges` so markers align with their sector's row label.
-    fn continuous_marker_row(&self, world_y: u8) -> f32 {
+    /// Row index 0 corresponds to `y_max` (top of the map).
+    fn sector_center_row(&self, world_y: u8) -> usize {
         let i = usize::from(self.y_max.saturating_sub(world_y));
-        let top = self.row_edges.get(i).copied().unwrap_or(0) as f32;
-        let bottom = self.row_edges.get(i + 1).copied().unwrap_or(top as usize) as f32;
-        (top + bottom) / 2.0
+        let top = self.row_edges.get(i).copied().unwrap_or(0);
+        let bottom = self.row_edges.get(i + 1).copied().unwrap_or(top);
+        top + (bottom.saturating_sub(top)) / 2
     }
 }
 
@@ -392,8 +386,8 @@ fn draw_full_crosshair(
     cx: u8,
     cy: u8,
 ) {
-    let ch_col = projected.continuous_marker_col(cx).round() as usize;
-    let ch_row = projected.continuous_marker_row(cy).round() as usize;
+    let ch_col = projected.sector_center_col(cx);
+    let ch_row = projected.sector_center_row(cy);
     let crosshair_style = theme::map_crosshair_style();
     let center_style = theme::map_center_style();
     let col_start = projected.col_edges.first().copied().unwrap_or(0);
@@ -595,7 +589,7 @@ fn marker_for_world(
 mod tests {
     use super::*;
     use crate::dashboard::app::state::DashApp;
-    use crate::dashboard::buffer::{OverlayGlyph, PlayfieldBuffer};
+    use crate::dashboard::buffer::PlayfieldBuffer;
     use crate::dashboard::geometry::ScreenGeometry;
     use crate::dashboard::layout::dashboard_layout;
     use crate::dashboard::theme;
@@ -767,17 +761,16 @@ mod tests {
         // (centred inside) but must still fit within it.
         assert!(widgets.center_map.map_block.last_col() <= widgets.center_map.outer.last_col());
         assert!(widgets.center_map.map_block.last_row() <= widgets.center_map.outer.last_row());
-        assert_eq!(
-            widgets.center_map.axis_row,
-            widgets.center_map.map_block.row
-        );
+        // Axis row sits at or below map_block top (inside the top gutter).
+        assert!(widgets.center_map.axis_row >= widgets.center_map.map_block.row);
+        assert!(widgets.center_map.axis_row <= widgets.center_map.map_block.last_row());
         assert_eq!(
             widgets.center_map.grid.col,
             widgets.center_map.map_block.col
         );
         assert_eq!(
             widgets.center_map.bottom_pad_row,
-            widgets.center_map.map_block.last_row()
+            widgets.center_map.grid.last_row()
         );
         assert!(axis_line.contains("01"));
         assert!(axis_line.contains("18"));
@@ -898,9 +891,10 @@ mod tests {
         // to a multiple of `map_size` and centred inside `outer`.
         assert!(frame.map_block.last_col() <= frame.outer.last_col());
         assert!(frame.map_block.last_row() <= frame.outer.last_row());
-        assert_eq!(frame.axis_row, frame.map_block.row);
+        assert!(frame.axis_row >= frame.map_block.row);
+        assert!(frame.axis_row <= frame.map_block.last_row());
         assert_eq!(frame.grid.col, frame.map_block.col);
-        assert_eq!(frame.bottom_pad_row, frame.map_block.last_row());
+        assert_eq!(frame.bottom_pad_row, frame.grid.last_row());
     }
 
     #[test]
@@ -935,8 +929,8 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let mid_row = projected.continuous_marker_row(app.crosshair_y).round() as usize;
-        let mid_col = projected.continuous_marker_col(app.crosshair_x).round() as usize;
+        let mid_row = projected.sector_center_row(app.crosshair_y);
+        let mid_col = projected.sector_center_col(app.crosshair_x);
         assert_eq!(buffer.row(mid_row)[mid_col].ch, CROSSHAIR_CENTER);
         if rect.width > 1 {
             assert_eq!(buffer.row(mid_row)[rect.col].ch, CROSSHAIR_HORIZONTAL);
@@ -979,7 +973,7 @@ mod tests {
         draw(&mut buffer, &app, frame);
 
         assert_eq!(
-            count_overlay_glyphs_in_rect(&buffer, rect, '·'),
+            count_char_in_rect(&buffer, rect, '·'),
             1,
             "single-dot mode should only show the center dot"
         );
@@ -1057,8 +1051,8 @@ mod tests {
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
         let rect = projected.sector_rect(coords).expect("planet sector rect");
-        let center_row = projected.continuous_marker_row(coords[1]);
-        let center_col = projected.continuous_marker_col(coords[0]);
+        let center_row = projected.sector_center_row(coords[1]);
+        let center_col = projected.sector_center_col(coords[0]);
 
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
@@ -1068,11 +1062,11 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        // Planet marker is in the overlay, not the cell grid.
-        let planet_overlay = find_overlay_glyph_at(&buffer, center_col, center_row);
-        assert!(
-            planet_overlay.map(|g| g.ch != '·').unwrap_or(false),
-            "world marker should appear as a non-dot overlay at the marker position"
+        // Planet marker is in the cell grid at the sector centre.
+        assert_ne!(
+            buffer.row(center_row)[center_col].ch,
+            '·',
+            "world marker should overwrite the dense dot at the sector centre"
         );
         assert_eq!(buffer.row(rect.row)[rect.col].ch, '·');
         assert_eq!(
@@ -1106,8 +1100,8 @@ mod tests {
         let rect = projected
             .sector_rect([app.crosshair_x, app.crosshair_y])
             .expect("crosshair rect");
-        let mid_row = projected.continuous_marker_row(app.crosshair_y).round() as usize;
-        let mid_col = projected.continuous_marker_col(app.crosshair_x).round() as usize;
+        let mid_row = projected.sector_center_row(app.crosshair_y);
+        let mid_col = projected.sector_center_col(app.crosshair_x);
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1160,13 +1154,13 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let fleet_col = projected.continuous_marker_col(coords[0]);
-        let fleet_row = projected.continuous_marker_row(coords[1]);
-        let fleet_glyph = find_overlay_glyph_at(&buffer, fleet_col, fleet_row);
-        assert_eq!(fleet_glyph.map(|g| g.ch), Some(FLEET_MARKER_EMPTY));
-        assert_eq!(fleet_glyph.map(|g| g.style), Some(theme::map_fleet_marker_style()));
-        let xh_row = projected.continuous_marker_row(app.crosshair_y).round() as usize;
-        let xh_col = projected.continuous_marker_col(app.crosshair_x).round() as usize;
+        let fleet_col = projected.sector_center_col(coords[0]);
+        let fleet_row = projected.sector_center_row(coords[1]);
+        let fleet_cell = &buffer.row(fleet_row)[fleet_col];
+        assert_eq!(fleet_cell.ch, FLEET_MARKER_EMPTY);
+        assert_eq!(fleet_cell.style, theme::map_fleet_marker_style());
+        let xh_row = projected.sector_center_row(app.crosshair_y);
+        let xh_col = projected.sector_center_col(app.crosshair_x);
         assert_eq!(buffer.row(xh_row)[xh_col].ch, CROSSHAIR_CENTER);
     }
 
@@ -1201,12 +1195,12 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let fleet_col = projected.continuous_marker_col(coords[0]);
-        let fleet_row = projected.continuous_marker_row(coords[1]);
-        let fleet_glyph = find_overlay_glyph_at(&buffer, fleet_col, fleet_row);
-        assert_eq!(fleet_glyph.map(|g| g.ch), Some(FLEET_MARKER_OWNED_WORLD));
-        assert_eq!(fleet_glyph.map(|g| g.style.fg), Some(theme::map_fleet_marker_style().fg));
-        assert_eq!(fleet_glyph.map(|g| g.style.bg), Some(theme::body_style().bg));
+        let fleet_col = projected.sector_center_col(coords[0]);
+        let fleet_row = projected.sector_center_row(coords[1]);
+        let fleet_cell = &buffer.row(fleet_row)[fleet_col];
+        assert_eq!(fleet_cell.ch, FLEET_MARKER_OWNED_WORLD);
+        assert_eq!(fleet_cell.style.fg, theme::map_fleet_marker_style().fg);
+        assert_eq!(fleet_cell.style.bg, theme::body_style().bg);
     }
 
     #[test]
@@ -1278,14 +1272,11 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let fleet_glyph = find_overlay_glyph_at(
-            &buffer,
-            projected.continuous_marker_col(coords[0]),
-            projected.continuous_marker_row(coords[1]),
-        );
-        assert_eq!(fleet_glyph.map(|g| g.ch), Some(FLEET_MARKER_EMPTY));
-        let xh_row = projected.continuous_marker_row(app.crosshair_y).round() as usize;
-        let xh_col = projected.continuous_marker_col(app.crosshair_x).round() as usize;
+        let fleet_row = projected.sector_center_row(coords[1]);
+        let fleet_col = projected.sector_center_col(coords[0]);
+        assert_eq!(buffer.row(fleet_row)[fleet_col].ch, FLEET_MARKER_EMPTY);
+        let xh_row = projected.sector_center_row(app.crosshair_y);
+        let xh_col = projected.sector_center_col(app.crosshair_x);
         assert_eq!(buffer.row(xh_row)[xh_col].ch, CROSSHAIR_CENTER);
     }
 
@@ -1322,19 +1313,17 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let marker_row_f = projected.continuous_marker_row(app.crosshair_y);
-        let marker_col_f = projected.continuous_marker_col(app.crosshair_x);
-        let marker_row = marker_row_f.round() as usize;
-        let marker_col = marker_col_f.round() as usize;
-        // Fleet marker is in the overlay.
-        let fleet_glyph = find_overlay_glyph_at(&buffer, marker_col_f, marker_row_f);
-        assert_eq!(fleet_glyph.map(|g| g.ch), Some(FLEET_MARKER_EMPTY));
+        let marker_row = projected.sector_center_row(app.crosshair_y);
+        let marker_col = projected.sector_center_col(app.crosshair_x);
+        // Fleet marker replaces the crosshair centre in the cell grid.
+        let fleet_cell = &buffer.row(marker_row)[marker_col];
+        assert_eq!(fleet_cell.ch, FLEET_MARKER_EMPTY);
         assert_eq!(
-            fleet_glyph.map(|g| g.style),
-            Some(theme::map_fleet_marker_style_on(
+            fleet_cell.style,
+            theme::map_fleet_marker_style_on(
                 theme::map_center_style().bg,
                 theme::map_center_style().bold,
-            ))
+            )
         );
         // Crosshair lines are still in the cell grid (Phase 2).
         if rect.width > 1 {
@@ -1382,24 +1371,12 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        assert_eq!(
-            find_overlay_glyph_at(
-                &buffer,
-                projected.continuous_marker_col(left_coords[0]),
-                projected.continuous_marker_row(left_coords[1]),
-            )
-            .map(|g| g.ch),
-            Some(FLEET_MARKER_EMPTY)
-        );
-        assert_eq!(
-            find_overlay_glyph_at(
-                &buffer,
-                projected.continuous_marker_col(right_coords[0]),
-                projected.continuous_marker_row(right_coords[1]),
-            )
-            .map(|g| g.ch),
-            Some(FLEET_MARKER_EMPTY)
-        );
+        let left_row = projected.sector_center_row(left_coords[1]);
+        let left_col = projected.sector_center_col(left_coords[0]);
+        assert_eq!(buffer.row(left_row)[left_col].ch, FLEET_MARKER_EMPTY);
+        let right_row = projected.sector_center_row(right_coords[1]);
+        let right_col = projected.sector_center_col(right_coords[0]);
+        assert_eq!(buffer.row(right_row)[right_col].ch, FLEET_MARKER_EMPTY);
     }
 
     #[test]
@@ -1517,7 +1494,7 @@ mod tests {
     }
 
     #[test]
-    fn continuous_marker_positions_match_sector_rect_midpoints() {
+    fn sector_center_positions_match_sector_rect_midpoints() {
         let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -1536,34 +1513,33 @@ mod tests {
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
 
-        // Each marker centre must equal the midpoint of that sector's rect,
-        // so markers visually align with the rect that also anchors the axis
-        // labels.
+        // Each sector centre must equal the integer midpoint of that sector's
+        // rect, so markers, crosshair, and dots all land on the same cell.
         for x in projected.x_min..=projected.x_max {
             for y in projected.y_min..=projected.y_max {
                 let rect = projected.sector_rect([x, y]).expect("sector rect");
-                let expected_col = rect.col as f32 + rect.width as f32 / 2.0;
-                let expected_row = rect.row as f32 + rect.height as f32 / 2.0;
-                let actual_col = projected.continuous_marker_col(x);
-                let actual_row = projected.continuous_marker_row(y);
-                assert!(
-                    (actual_col - expected_col).abs() < 1e-5,
+                let expected_col = rect.col + rect.width / 2;
+                let expected_row = rect.row + rect.height / 2;
+                let actual_col = projected.sector_center_col(x);
+                let actual_row = projected.sector_center_row(y);
+                assert_eq!(
+                    actual_col, expected_col,
                     "col marker at x={x}: expected {expected_col}, got {actual_col}"
                 );
-                assert!(
-                    (actual_row - expected_row).abs() < 1e-5,
+                assert_eq!(
+                    actual_row, expected_row,
                     "row marker at y={y}: expected {expected_row}, got {actual_row}"
                 );
             }
         }
     }
 
-    /// Locks in an upper bound on overlay glyph count for a fully visible
-    /// 45-size map. Each overlay goes through cosmic-text shaping (cached),
-    /// so this regression guards against accidental duplication — e.g. a
-    /// future change that re-introduces redundant crosshair-char overlays.
+    /// Locks in that the starmap `draw` path does not push overlay glyphs.
+    /// All markers, dots, and crosshair characters live in the cell grid so
+    /// they all share the same integer cell alignment. Overlays are reserved
+    /// for the panel-cache replay path (`app/render.rs`).
     #[test]
-    fn overlay_glyph_count_bounded_on_large_map() {
+    fn starmap_draw_pushes_no_overlay_glyphs() {
         let app = DashApp::new_for_tests(
             PathBuf::from("."),
             build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
@@ -1577,7 +1553,6 @@ mod tests {
             1,
         );
         let frame = dashboard_layout(&app).widgets.center_map;
-        let projected = projected_map_geometry(&app, frame, 45);
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1586,21 +1561,10 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let visible_cells = projected.visible_x as usize * projected.visible_y as usize;
-        // After Phase 3 cleanup, empty crosshair sectors do not push overlays.
-        // Upper bound = every non-crosshair sector + planets/fleets on the
-        // crosshair. That is strictly less than visible_cells.
-        let count = buffer.overlay_glyphs().len();
-        assert!(
-            count < visible_cells,
-            "overlay count {count} should be less than {visible_cells} (crosshair sectors skip overlays)"
-        );
-        // Sanity lower bound: at least one overlay per non-crosshair sector.
-        let crosshair_sectors = projected.visible_x as usize + projected.visible_y as usize - 1;
-        let non_crosshair = visible_cells - crosshair_sectors;
-        assert!(
-            count >= non_crosshair,
-            "overlay count {count} should be >= {non_crosshair} non-crosshair sectors"
+        assert_eq!(
+            buffer.overlay_glyphs().len(),
+            0,
+            "starmap draw should not emit overlay glyphs; all content is cell-aligned"
         );
     }
 
@@ -1704,32 +1668,10 @@ mod tests {
         })
     }
 
-    fn find_overlay_glyph_at(
-        buffer: &PlayfieldBuffer,
-        center_col: f32,
-        center_row: f32,
-    ) -> Option<&OverlayGlyph> {
-        buffer.overlay_glyphs().iter().find(|g| {
-            (g.center_col - center_col).abs() < 0.01 && (g.center_row - center_row).abs() < 0.01
-        })
-    }
-
-    fn count_overlay_glyphs_in_rect(
-        buffer: &PlayfieldBuffer,
-        rect: SectorRect,
-        ch: char,
-    ) -> usize {
-        buffer
-            .overlay_glyphs()
-            .iter()
-            .filter(|g| {
-                g.ch == ch
-                    && g.center_col >= rect.col as f32
-                    && g.center_col < (rect.col + rect.width) as f32
-                    && g.center_row >= rect.row as f32
-                    && g.center_row < (rect.row + rect.height) as f32
-            })
-            .count()
+    fn count_char_in_rect(buffer: &PlayfieldBuffer, rect: SectorRect, expected: char) -> usize {
+        (rect.row..rect.row + rect.height)
+            .map(|row| count_char_in_rect_row(buffer, rect, row, expected))
+            .sum()
     }
 
     fn visible_world_coords_matching_marker_kind(

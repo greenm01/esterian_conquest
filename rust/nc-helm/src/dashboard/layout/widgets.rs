@@ -319,10 +319,11 @@ mod tests {
         let layout = dashboard_layout(&app);
         let widgets = layout.widgets;
 
-        assert_eq!(
-            widgets.center_map.axis_row,
-            widgets.center_map.map_block.row + MAP_VERTICAL_PADDING
-        );
+        // Axis row sits at the top of the grid, offset from map_block.row by
+        // the top gutter (leftover vertical slack after grid snap split evenly
+        // between top and bottom).
+        assert!(widgets.center_map.axis_row >= widgets.center_map.map_block.row + MAP_VERTICAL_PADDING);
+        assert!(widgets.center_map.axis_row <= widgets.center_map.map_block.last_row());
         assert_eq!(
             widgets.center_map.grid.col,
             widgets.center_map.map_block.col + MAP_LEFT_PADDING
@@ -332,19 +333,15 @@ mod tests {
             widgets.center_map.grid.width,
             widgets.center_map.map_block.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
         );
-        assert_eq!(
-            widgets.center_map.grid.width,
-            widgets.center_map.map_block.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
-        );
         assert!(widgets.center_map.map_block.width >= ROW_LABEL_COLS + 18 * CELL_WIDTH);
-        assert_eq!(
-            widgets.center_map.bottom_pad_row,
-            widgets.center_map.map_block.last_row()
-        );
+        // bottom_pad_row marks the last row that starmap draws into — which is
+        // the last grid row, not necessarily map_block.last_row() once we leave
+        // symmetric top/bottom gutters inside map_block.
         assert_eq!(
             widgets.center_map.bottom_pad_row,
             widgets.center_map.grid.last_row()
         );
+        assert!(widgets.center_map.bottom_pad_row <= widgets.center_map.map_block.last_row());
         assert_eq!(
             widgets.right_divider_col,
             widgets.center_map.outer.last_col() + 1

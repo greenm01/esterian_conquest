@@ -5,7 +5,11 @@ use crate::dashboard::geometry::ScreenGeometry;
 /// Interior left map padding before the rendered map block.
 pub const MAP_LEFT_PADDING: usize = 0;
 /// Interior right map padding after the rendered map block.
-pub const MAP_RIGHT_PADDING: usize = 0;
+///
+/// Matches `ROW_LABEL_COLS` so the sector grid sits horizontally centred
+/// inside the map block: the left side has row labels (e.g. "01 ") taking
+/// 3 cells; the right side has an equivalent 3-cell blank gutter.
+pub const MAP_RIGHT_PADDING: usize = 3;
 /// Interior vertical map padding above and below the rendered map block.
 pub const MAP_VERTICAL_PADDING: usize = 0;
 

@@ -269,41 +269,42 @@ fn stack_height_4(body_rows: [usize; 4]) -> usize {
     body_rows.into_iter().map(panel_outer_height).sum::<usize>() + 3
 }
 
-/// Snap the map block's width and height so the derived grid divides evenly
+/// Snap the map block's width and derive a grid height that divides evenly
 /// into `map_size` sectors along both axes.
 ///
-/// Map padding constants are currently zero, so `grid.width == map_block.width`
-/// and `grid.height == map_block.height - 1` (minus one axis row).  That
-/// means we need `(map_block_width - ROW_LABEL_COLS) % map_size == 0` and
-/// `(map_block_height - 1) % map_size == 0`.  Snapping at the map-block
-/// level (instead of the grid) keeps the axis row and grid flush against
-/// the block edges instead of leaving a dead bottom row.
+/// Returns `(snapped_block_width, snapped_grid_height)`.  The block width
+/// accounts for the row-label gutter on the left (`ROW_LABEL_COLS`) and the
+/// matching blank gutter on the right (`MAP_RIGHT_PADDING`); the remaining
+/// cell area is trimmed down to `map_size * K` cells so each sector occupies
+/// exactly K columns.  The grid height is trimmed to `map_size * M` rows so
+/// each sector occupies M rows; the caller absorbs leftover rows as top and
+/// bottom gutters inside the map block.
 fn snap_map_block_to_map_size(
     raw_width: usize,
     raw_height: usize,
     map_size: usize,
 ) -> (usize, usize) {
     debug_assert_eq!(MAP_LEFT_PADDING, 0);
-    debug_assert_eq!(MAP_RIGHT_PADDING, 0);
     debug_assert_eq!(MAP_VERTICAL_PADDING, 0);
     if map_size == 0 {
-        return (raw_width, raw_height);
+        return (raw_width, raw_height.saturating_sub(1));
     }
-    let cell_area = raw_width.saturating_sub(ROW_LABEL_COLS);
+    let gutters = ROW_LABEL_COLS + MAP_RIGHT_PADDING;
+    let cell_area = raw_width.saturating_sub(gutters);
     let snapped_cell_area = (cell_area / map_size) * map_size;
     let snapped_width = if snapped_cell_area == 0 {
         raw_width
     } else {
-        ROW_LABEL_COLS + snapped_cell_area
+        gutters + snapped_cell_area
     };
-    let grid_height = raw_height.saturating_sub(1);
-    let snapped_grid_height = (grid_height / map_size) * map_size;
-    let snapped_height = if snapped_grid_height == 0 {
-        raw_height
+    let grid_height_budget = raw_height.saturating_sub(1); // minus axis row
+    let snapped_grid_height = (grid_height_budget / map_size) * map_size;
+    let snapped_grid_height = if snapped_grid_height == 0 {
+        grid_height_budget
     } else {
-        1 + snapped_grid_height
+        snapped_grid_height
     };
-    (snapped_width, snapped_height)
+    (snapped_width, snapped_grid_height)
 }
 
 fn styled_row_width(rows: &[(String, crate::dashboard::buffer::CellStyle)]) -> usize {
@@ -390,36 +391,40 @@ fn build_widget_frames(
         width: center_width,
         height: content_height,
     };
-    // Snap the map block's inner grid dimensions to exact multiples of
-    // `map_size` so every sector occupies an identical integer-cell rect.
-    // We snap `map_block` itself (not just `grid`) because all map paddings
-    // are currently zero, so dead space between them would leave a blank
-    // bottom row inside the panel.
-    let (snapped_block_width, snapped_block_height) =
+    // Snap the map block's width so its sector grid divides evenly into
+    // `map_size` columns, and compute the snapped grid height separately so
+    // any vertical slack can be split symmetrically above the axis row and
+    // below the last sector (rather than piling up at the bottom).
+    let (snapped_block_width, snapped_grid_height) =
         snap_map_block_to_map_size(map_block_width, map_block_height, map_size);
     let map_block = WidgetRect {
         col: center_col + center_width.saturating_sub(snapped_block_width) / 2,
-        row: content_top + content_height.saturating_sub(snapped_block_height) / 2,
+        row: content_top,
         width: snapped_block_width,
-        height: snapped_block_height,
+        height: map_block_height,
     };
-    let axis_row = map_block.row + MAP_VERTICAL_PADDING;
+    // Vertical layout inside map_block:
+    //   [top_gutter][axis_row][grid (snapped_grid_height rows)][bottom_gutter]
+    // where top_gutter and bottom_gutter together absorb any leftover rows
+    // split as evenly as possible.
+    let axis_and_grid = 1 + snapped_grid_height;
+    let vertical_slack = map_block.height.saturating_sub(axis_and_grid);
+    let top_gutter = vertical_slack / 2;
+    let axis_row = map_block.row + MAP_VERTICAL_PADDING + top_gutter;
     let grid = WidgetRect {
         col: map_block.col + MAP_LEFT_PADDING,
         row: axis_row + 1,
         width: map_block
             .width
             .saturating_sub(MAP_LEFT_PADDING + MAP_RIGHT_PADDING),
-        height: map_block
-            .height
-            .saturating_sub(1 + MAP_VERTICAL_PADDING.saturating_mul(2)),
+        height: snapped_grid_height,
     };
     let center_map = MapWidgetFrame {
         outer: center_outer,
         map_block,
         axis_row,
         grid,
-        bottom_pad_row: map_block.last_row(),
+        bottom_pad_row: grid.last_row(),
         row_label_cols: ROW_LABEL_COLS,
         cell_width: CELL_WIDTH,
     };
