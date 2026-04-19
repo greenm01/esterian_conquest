@@ -80,7 +80,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
         draw_column_axis_label(buf, projected.axis_row, rect, world_x);
     }
 
-    // Grid rows — row_y descends: y_max at top, y_min at bottom.
+    // Phase 1: Fill sector backgrounds and row axis labels.
     for row_y in (projected.y_min..=projected.y_max).rev() {
         let Some(row_rect) = projected.sector_rect([projected.x_min, row_y]) else {
             continue;
@@ -92,11 +92,29 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             row_rect,
             row_y,
         );
-
         for col_x in projected.x_min..=projected.x_max {
             let Some(rect) = projected.sector_rect([col_x, row_y]) else {
                 continue;
             };
+            fill_sector_rect(buf, rect, ' ', theme::body_style());
+            if app.client_settings.dense_empty_sector_dots {
+                draw_dense_map_grid_fill(buf, rect, theme::dim_style());
+            }
+        }
+    }
+
+    // Phase 2: Crosshair lines spanning the full map cell area.
+    draw_full_crosshair(buf, &projected, app.crosshair_x, app.crosshair_y);
+
+    // Phase 3: Sector markers placed at continuous midpoints.
+    for row_y in (projected.y_min..=projected.y_max).rev() {
+        for col_x in projected.x_min..=projected.x_max {
+            let Some(rect) = projected.sector_rect([col_x, row_y]) else {
+                continue;
+            };
+            if rect.width == 0 || rect.height == 0 {
+                continue;
+            }
             let is_h_crosshair = row_y == app.crosshair_y;
             let is_v_crosshair = col_x == app.crosshair_x;
             let has_viewer_fleet = viewer_fleet_sectors.contains(&[col_x, row_y]);
@@ -119,18 +137,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             } else {
                 theme::body_style()
             };
-
-            fill_sector_rect(buf, rect, ' ', base_fill_style);
-            if app.client_settings.dense_empty_sector_dots {
-                draw_dense_map_grid_fill(
-                    buf,
-                    rect,
-                    theme::dim_style_on(base_fill_style.bg, base_fill_style.bold),
-                );
-            }
-            if is_h_crosshair || is_v_crosshair {
-                draw_crosshair_lines(buf, rect, is_h_crosshair, is_v_crosshair, base_fill_style);
-            }
             if has_viewer_fleet {
                 sym = fleet_marker_for_sector(app, player_empire, planet);
             }
@@ -141,7 +147,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             } else {
                 base_style
             };
-            draw_sector_marker(buf, rect, sym, marker_style);
+            let marker_row = projected.continuous_marker_row(row_y);
+            let marker_col = projected.continuous_marker_col(col_x);
+            buf.set_cell(marker_row, marker_col, sym, marker_style);
         }
     }
 }
@@ -265,17 +273,51 @@ impl ProjectedMapGeometry {
             height: next_row.saturating_sub(row),
         })
     }
+
+    /// Continuous midpoint column for the sector at `world_x`.
+    ///
+    /// Uses a global formula `area_start + (2*i+1)*W / (2*N)` so that gaps
+    /// between adjacent marker columns differ by at most 1, regardless of how
+    /// integer partition edges distribute widths across sectors.
+    fn continuous_marker_col(&self, world_x: u8) -> usize {
+        let area_start = self.col_edges.first().copied().unwrap_or(0);
+        let area_end = self.col_edges.last().copied().unwrap_or(area_start);
+        let area_extent = area_end.saturating_sub(area_start);
+        let i = usize::from(world_x.saturating_sub(self.x_min));
+        let n = usize::from(self.visible_x).max(1);
+        let ideal = area_start + (2 * i + 1) * area_extent / (2 * n);
+        let lo = self.col_edges.get(i).copied().unwrap_or(area_start);
+        let hi = self
+            .col_edges
+            .get(i + 1)
+            .copied()
+            .unwrap_or(area_end)
+            .saturating_sub(1);
+        ideal.clamp(lo, hi.max(lo))
+    }
+
+    /// Continuous midpoint row for the sector at `world_y`.
+    ///
+    /// Row index 0 corresponds to `y_max` (top of the map).
+    fn continuous_marker_row(&self, world_y: u8) -> usize {
+        let area_start = self.row_edges.first().copied().unwrap_or(0);
+        let area_end = self.row_edges.last().copied().unwrap_or(area_start);
+        let area_extent = area_end.saturating_sub(area_start);
+        let i = usize::from(self.y_max.saturating_sub(world_y));
+        let n = usize::from(self.visible_y).max(1);
+        let ideal = area_start + (2 * i + 1) * area_extent / (2 * n);
+        let lo = self.row_edges.get(i).copied().unwrap_or(area_start);
+        let hi = self
+            .row_edges
+            .get(i + 1)
+            .copied()
+            .unwrap_or(area_end)
+            .saturating_sub(1);
+        ideal.clamp(lo, hi.max(lo))
+    }
 }
 
 impl SectorRect {
-    fn center_row(self) -> usize {
-        self.row + self.height / 2
-    }
-
-    fn center_col(self) -> usize {
-        self.col + self.width / 2
-    }
-
     fn contains_point(&self, col: usize, row: usize) -> bool {
         col >= self.col
             && col < self.col + self.width
@@ -350,39 +392,29 @@ fn fill_sector_rect(buf: &mut PlayfieldBuffer, rect: SectorRect, ch: char, style
     }
 }
 
-fn draw_sector_marker(buf: &mut PlayfieldBuffer, rect: SectorRect, marker: char, style: CellStyle) {
-    if rect.width == 0 || rect.height == 0 {
-        return;
-    }
-    buf.set_cell(rect.center_row(), rect.center_col(), marker, style);
-}
-
-fn draw_crosshair_lines(
+/// Draw crosshair lines spanning the full map cell area, then place the center
+/// glyph at the continuous midpoint intersection.
+fn draw_full_crosshair(
     buf: &mut PlayfieldBuffer,
-    rect: SectorRect,
-    horizontal: bool,
-    vertical: bool,
-    style: CellStyle,
+    projected: &ProjectedMapGeometry,
+    cx: u8,
+    cy: u8,
 ) {
-    if rect.width == 0 || rect.height == 0 {
-        return;
+    let ch_col = projected.continuous_marker_col(cx);
+    let ch_row = projected.continuous_marker_row(cy);
+    let crosshair_style = theme::map_crosshair_style();
+    let center_style = theme::map_center_style();
+    let col_start = projected.col_edges.first().copied().unwrap_or(0);
+    let col_end = projected.col_edges.last().copied().unwrap_or(col_start);
+    let row_start = projected.row_edges.first().copied().unwrap_or(0);
+    let row_end = projected.row_edges.last().copied().unwrap_or(row_start);
+    for col in col_start..col_end {
+        buf.set_cell(ch_row, col, CROSSHAIR_HORIZONTAL, crosshair_style);
     }
-    let mid_row = rect.center_row();
-    let mid_col = rect.center_col();
-
-    if horizontal {
-        for col in rect.col..rect.col + rect.width {
-            buf.set_cell(mid_row, col, CROSSHAIR_HORIZONTAL, style);
-        }
+    for row in row_start..row_end {
+        buf.set_cell(row, ch_col, CROSSHAIR_VERTICAL, crosshair_style);
     }
-    if vertical {
-        for row in rect.row..rect.row + rect.height {
-            buf.set_cell(row, mid_col, CROSSHAIR_VERTICAL, style);
-        }
-    }
-    if horizontal && vertical {
-        buf.set_cell(mid_row, mid_col, CROSSHAIR_CENTER, style);
-    }
+    buf.set_cell(ch_row, ch_col, CROSSHAIR_CENTER, center_style);
 }
 
 fn draw_dense_map_grid_fill(buf: &mut PlayfieldBuffer, rect: SectorRect, style: CellStyle) {
@@ -905,8 +937,8 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let mid_row = rect.row + rect.height / 2;
-        let mid_col = rect.col + rect.width / 2;
+        let mid_row = projected.continuous_marker_row(app.crosshair_y);
+        let mid_col = projected.continuous_marker_col(app.crosshair_x);
         assert_eq!(buffer.row(mid_row)[mid_col].ch, CROSSHAIR_CENTER);
         if rect.width > 1 {
             assert_eq!(buffer.row(mid_row)[rect.col].ch, CROSSHAIR_HORIZONTAL);
@@ -949,7 +981,7 @@ mod tests {
         draw(&mut buffer, &app, frame);
 
         assert_eq!(
-            count_char_in_rect_row(&buffer, rect, rect.center_row(), '·'),
+            count_char_in_rect_row(&buffer, rect, projected.continuous_marker_row(coords[1]), '·'),
             1,
             "single-dot mode should only show the center dot"
         );
@@ -1027,8 +1059,8 @@ mod tests {
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
         let rect = projected.sector_rect(coords).expect("planet sector rect");
-        let center_row = rect.center_row();
-        let center_col = rect.center_col();
+        let center_row = projected.continuous_marker_row(coords[1]);
+        let center_col = projected.continuous_marker_col(coords[0]);
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1070,8 +1102,8 @@ mod tests {
         let rect = projected
             .sector_rect([app.crosshair_x, app.crosshair_y])
             .expect("crosshair rect");
-        let mid_row = rect.center_row();
-        let mid_col = rect.center_col();
+        let mid_row = projected.continuous_marker_row(app.crosshair_y);
+        let mid_col = projected.continuous_marker_col(app.crosshair_x);
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1116,10 +1148,6 @@ mod tests {
         place_viewer_fleet(&mut app, coords);
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
-        let fleet_rect = projected.sector_rect(coords).expect("fleet sector rect");
-        let crosshair_rect = projected
-            .sector_rect([app.crosshair_x, app.crosshair_y])
-            .expect("crosshair rect");
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1128,11 +1156,11 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let cell = buffer.row(fleet_rect.center_row())[fleet_rect.center_col()];
+        let cell = buffer.row(projected.continuous_marker_row(coords[1]))[projected.continuous_marker_col(coords[0])];
         assert_eq!(cell.ch, FLEET_MARKER_EMPTY);
         assert_eq!(cell.style, theme::map_fleet_marker_style());
         assert_eq!(
-            buffer.row(crosshair_rect.center_row())[crosshair_rect.center_col()].ch,
+            buffer.row(projected.continuous_marker_row(app.crosshair_y))[projected.continuous_marker_col(app.crosshair_x)].ch,
             CROSSHAIR_CENTER
         );
     }
@@ -1160,7 +1188,6 @@ mod tests {
         place_viewer_fleet(&mut app, coords);
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
-        let rect = projected.sector_rect(coords).expect("planet sector rect");
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1169,7 +1196,7 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let marker = buffer.row(rect.center_row())[rect.center_col()];
+        let marker = buffer.row(projected.continuous_marker_row(coords[1]))[projected.continuous_marker_col(coords[0])];
         assert_eq!(marker.ch, FLEET_MARKER_OWNED_WORLD);
         assert_eq!(marker.style.fg, theme::map_fleet_marker_style().fg);
         assert_eq!(marker.style.bg, theme::body_style().bg);
@@ -1236,10 +1263,6 @@ mod tests {
         place_viewer_fleet(&mut app, coords);
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
-        let fleet_rect = projected.sector_rect(coords).expect("fleet sector rect");
-        let crosshair_rect = projected
-            .sector_rect([app.crosshair_x, app.crosshair_y])
-            .expect("crosshair rect");
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1249,11 +1272,11 @@ mod tests {
         draw(&mut buffer, &app, frame);
 
         assert_eq!(
-            buffer.row(fleet_rect.center_row())[fleet_rect.center_col()].ch,
+            buffer.row(projected.continuous_marker_row(coords[1]))[projected.continuous_marker_col(coords[0])].ch,
             FLEET_MARKER_EMPTY
         );
         assert_eq!(
-            buffer.row(crosshair_rect.center_row())[crosshair_rect.center_col()].ch,
+            buffer.row(projected.continuous_marker_row(app.crosshair_y))[projected.continuous_marker_col(app.crosshair_x)].ch,
             CROSSHAIR_CENTER
         );
     }
@@ -1291,7 +1314,9 @@ mod tests {
 
         draw(&mut buffer, &app, frame);
 
-        let marker = buffer.row(rect.center_row())[rect.center_col()];
+        let marker_row = projected.continuous_marker_row(app.crosshair_y);
+        let marker_col = projected.continuous_marker_col(app.crosshair_x);
+        let marker = buffer.row(marker_row)[marker_col];
         assert_eq!(marker.ch, FLEET_MARKER_EMPTY);
         assert_eq!(
             marker.style,
@@ -1302,13 +1327,13 @@ mod tests {
         );
         if rect.width > 1 {
             assert_eq!(
-                buffer.row(rect.center_row())[rect.col].ch,
+                buffer.row(marker_row)[rect.col].ch,
                 CROSSHAIR_HORIZONTAL
             );
         }
         if rect.height > 1 {
             assert_eq!(
-                buffer.row(rect.row)[rect.center_col()].ch,
+                buffer.row(rect.row)[marker_col].ch,
                 CROSSHAIR_VERTICAL
             );
         }
@@ -1337,8 +1362,6 @@ mod tests {
         place_viewer_fleet_at_record(&mut app, 1, right_coords);
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
-        let left_rect = projected.sector_rect(left_coords).expect("left rect");
-        let right_rect = projected.sector_rect(right_coords).expect("right rect");
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -1348,11 +1371,11 @@ mod tests {
         draw(&mut buffer, &app, frame);
 
         assert_eq!(
-            buffer.row(left_rect.center_row())[left_rect.center_col()].ch,
+            buffer.row(projected.continuous_marker_row(left_coords[1]))[projected.continuous_marker_col(left_coords[0])].ch,
             FLEET_MARKER_EMPTY
         );
         assert_eq!(
-            buffer.row(right_rect.center_row())[right_rect.center_col()].ch,
+            buffer.row(projected.continuous_marker_row(right_coords[1]))[projected.continuous_marker_col(right_coords[0])].ch,
             FLEET_MARKER_EMPTY
         );
     }
@@ -1468,6 +1491,50 @@ mod tests {
                 frame.grid.row.saturating_sub(1)
             ),
             None
+        );
+    }
+
+    #[test]
+    fn continuous_marker_positions_have_uniform_spacing() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+
+        let col_positions: Vec<usize> = (projected.x_min..=projected.x_max)
+            .map(|x| projected.continuous_marker_col(x))
+            .collect();
+        let col_gaps: Vec<usize> = col_positions.windows(2).map(|w| w[1] - w[0]).collect();
+        let col_min = col_gaps.iter().copied().min().unwrap_or(0);
+        let col_max = col_gaps.iter().copied().max().unwrap_or(0);
+        assert!(
+            col_max.saturating_sub(col_min) <= 1,
+            "column marker gaps should differ by at most 1: {col_gaps:?}"
+        );
+
+        let row_positions: Vec<usize> = (projected.y_min..=projected.y_max)
+            .rev()
+            .map(|y| projected.continuous_marker_row(y))
+            .collect();
+        let row_gaps: Vec<usize> = row_positions.windows(2).map(|w| w[1] - w[0]).collect();
+        let row_min = row_gaps.iter().copied().min().unwrap_or(0);
+        let row_max = row_gaps.iter().copied().max().unwrap_or(0);
+        assert!(
+            row_max.saturating_sub(row_min) <= 1,
+            "row marker gaps should differ by at most 1: {row_gaps:?}"
         );
     }
 
