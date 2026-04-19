@@ -6,8 +6,9 @@ use nc_client::cache::ClientCache;
 
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use crate::storage::{BootSnapshot, StoredSession};
+use crate::theme;
 use crate::transport::LobbySnapshot;
-use crate::{PlayfieldBuffer, Point, ScreenGeometry};
+use crate::{CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
 pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
 pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
@@ -147,6 +148,7 @@ pub struct FirstRunModel {
 pub struct LockedModel {
     pub password_input: String,
     pub status: Option<String>,
+    pub resume_session: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -281,6 +283,7 @@ fn bootstrap_route(snapshot: &BootSnapshot, relay_url: String) -> Route {
         Route::Locked(LockedModel {
             password_input: String::new(),
             status: None,
+            resume_session: false,
         })
     } else {
         Route::FirstRun(FirstRunModel {
@@ -470,13 +473,31 @@ impl MatrixRain {
         }
     }
 
-    pub fn glyph_at(&self, x: usize, y: usize, frame: u64) -> char {
-        let index = ((frame as usize) + (x * 13) + (y * 7)) % MATRIX_GLYPHS.len();
-        MATRIX_GLYPHS[index]
-    }
+    pub fn render(&self, buffer: &mut PlayfieldBuffer) {
+        let background = theme::body_style().bg;
+        let trail_style = CellStyle::new(GameColor::Green, background, false);
+        let head_style = CellStyle::new(GameColor::BrightGreen, background, true);
 
-    pub fn frame(&self) -> u64 {
-        self.tick
+        for (x, column) in self.columns.iter().enumerate() {
+            if x >= buffer.width() || column.head_row < 0 {
+                continue;
+            }
+            let visible_top = column.tail_row.max(0) as usize;
+            let visible_bottom = column
+                .head_row
+                .min((self.height.saturating_sub(1)) as isize);
+            for y in visible_top..=visible_bottom as usize {
+                if y >= buffer.height() {
+                    break;
+                }
+                let style = if y as isize == visible_bottom {
+                    head_style
+                } else {
+                    trail_style
+                };
+                buffer.set_cell(y, x, column.glyphs[y], style);
+            }
+        }
     }
 
     fn advance_column(&mut self, column_index: usize) {

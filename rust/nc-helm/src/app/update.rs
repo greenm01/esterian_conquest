@@ -320,14 +320,11 @@ fn handle_first_run_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<E
 
 fn handle_matrix_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
     match key.code {
-        KeyCode::Esc => {
-            model.should_quit = true;
-            vec![Effect::Quit]
-        }
         _ => {
             model.route = Route::Locked(super::LockedModel {
                 password_input: String::new(),
-                status: Some("Session locked.".to_string()),
+                status: None,
+                resume_session: true,
             });
             Vec::new()
         }
@@ -353,8 +350,13 @@ fn handle_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effe
             vec![Effect::Unlock { password }]
         }
         KeyCode::Esc => {
-            model.should_quit = true;
-            vec![Effect::Quit]
+            if locked.resume_session {
+                model.route = Route::MatrixLocked;
+                Vec::new()
+            } else {
+                model.should_quit = true;
+                vec![Effect::Quit]
+            }
         }
         _ => {
             if let Some(ch) = is_printable_key(key) {

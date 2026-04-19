@@ -153,46 +153,8 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
 }
 
 fn render_matrix_locked(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, model: &Model) {
-    let background = body().bg;
-    let trail_style = CellStyle::new(theme::idle_network_color(), background, false);
-    let head_style = CellStyle::new(theme::synced_network_color(), background, true);
-
-    let frame = model.matrix_rain.frame();
-    for x in 0..geometry.width() {
-        for y in 0..geometry.height() {
-            let glyph = model.matrix_rain.glyph_at(x, y, frame);
-            let style = if (x + y) % 11 == 0 {
-                head_style
-            } else {
-                trail_style
-            };
-            buffer.set_cell(y, x, glyph, style);
-        }
-    }
-
-    let width = 44usize.min(geometry.width().saturating_sub(2));
-    let height = 7usize.min(geometry.height().saturating_sub(2));
-    let (left, top, width, height) = centered_box_geometry(geometry, width, height);
-    draw_panel(
-        buffer,
-        left,
-        top,
-        width,
-        height,
-        theme::panel_border_style(),
-        panel_accent(),
-        Some(panel()),
-        Some("SESSION LOCKED"),
-        None,
-    );
-    buffer.write_text_clipped(top + 2, left + 3, "Matrix lock is active.", panel_accent());
-    buffer.write_text_clipped(
-        top + 3,
-        left + 3,
-        "Press any key to open the unlock gate.",
-        panel(),
-    );
-    buffer.write_text_clipped(top + 4, left + 3, "Alt+Q quits.", panel_dim());
+    let _ = geometry;
+    model.matrix_rain.render(buffer);
 }
 
 fn render_boot(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, status: &str) {

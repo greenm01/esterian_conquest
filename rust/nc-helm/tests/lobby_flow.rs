@@ -114,9 +114,29 @@ fn any_key_from_matrix_lock_opens_unlock_gate() {
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
     match &app.model().route {
-        Route::Locked(locked) => assert!(locked.password_input.is_empty()),
+        Route::Locked(locked) => {
+            assert!(locked.password_input.is_empty());
+            assert!(locked.resume_session);
+            assert!(locked.status.is_none());
+        }
         other => panic!("expected locked route, got {other:?}"),
     }
+}
+
+#[test]
+fn escape_from_resume_unlock_returns_to_matrix_lock() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    match &app.model().route {
+        Route::MatrixLocked => {}
+        other => panic!("expected matrix lock route, got {other:?}"),
+    }
+    assert!(!app.model().should_quit);
 }
 
 #[test]

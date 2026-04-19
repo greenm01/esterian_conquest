@@ -86,6 +86,32 @@ fn help_popup_uses_left_help_tag_and_right_close_tag() {
 }
 
 #[test]
+fn matrix_locked_route_renders_rain_without_lock_panel_copy() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+
+    let buffer = app.view();
+    let allowed = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*";
+    let glyph = (0..buffer.height())
+        .find_map(|row| {
+            buffer
+                .plain_line(row)
+                .chars()
+                .find(|ch| allowed.contains(*ch))
+        })
+        .expect("matrix rain glyph");
+
+    assert!(allowed.contains(glyph));
+    for row in 0..buffer.height() {
+        let line = buffer.plain_line(row);
+        assert!(!line.contains("SESSION LOCKED"));
+        assert!(!line.contains("Matrix lock is active."));
+    }
+}
+
+#[test]
 fn undersized_lobby_view_falls_back_instead_of_panicking() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
