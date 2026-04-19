@@ -300,7 +300,7 @@ fn bootstrap_route(snapshot: &BootSnapshot, relay_url: String) -> Route {
 fn lobby_route(status: Option<String>, relay_url: String) -> Route {
     Route::Lobby(LobbyModel {
         active_tab: LobbyTab::MyGames,
-        help_open: true,
+        help_open: false,
         selected_my_game: 0,
         selected_open_game: 0,
         editing_relay: false,

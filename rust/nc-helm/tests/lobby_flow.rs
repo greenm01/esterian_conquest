@@ -10,9 +10,10 @@ fn lobby_help_closes_on_q_or_escape_and_reopens_on_question_mark() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     match &app.model().route {
-        Route::Lobby(lobby) => assert!(lobby.help_open),
+        Route::Lobby(lobby) => assert!(!lobby.help_open),
         other => panic!("expected lobby route, got {other:?}"),
     }
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
     match &app.model().route {
         Route::Lobby(lobby) => assert!(lobby.help_open),
@@ -34,6 +35,7 @@ fn lobby_help_closes_on_q_or_escape_and_reopens_on_question_mark() {
 fn lobby_help_clicking_close_tag_closes_popup() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
 
     let row = 12usize;
     let line = app.view().plain_line(row);
@@ -51,6 +53,7 @@ fn lobby_help_clicking_close_tag_closes_popup() {
 fn lobby_help_clicking_body_does_not_close_popup() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
     let _ = app.dispatch(Msg::Mouse(left_click(24, 14)));
 
     match &app.model().route {

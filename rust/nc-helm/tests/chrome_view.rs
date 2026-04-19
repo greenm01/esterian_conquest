@@ -79,6 +79,7 @@ fn command_panel_highlights_hotkeys() {
 fn help_popup_uses_left_help_tag_and_right_close_tag() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
 
     let buffer = app.view();
     assert!(buffer.plain_line(12).contains("┐ HELP ┌"));
