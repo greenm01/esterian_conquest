@@ -735,11 +735,9 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame:
             default: &target_default,
             input: &app.fleet_overlay.order_input,
         },
-        FleetOverlayPromptMode::OrderTargetX => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Target XX ",
-            default: &target_x_default,
-            input: &target_x_input,
+        FleetOverlayPromptMode::OrderTargetX => TableFooter::Stacked {
+            rows: &coordinate_rows,
+            active_row: 0,
         },
         FleetOverlayPromptMode::OrderTargetY => TableFooter::Stacked {
             rows: &coordinate_rows,
@@ -841,11 +839,9 @@ fn draw_group_fleet_order_prompt(
             default: &target_default,
             input: &app.fleet_overlay.order_input,
         },
-        FleetOverlayPromptMode::OrderTargetX => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Target XX ",
-            default: &target_x_default,
-            input: &target_x_input,
+        FleetOverlayPromptMode::OrderTargetX => TableFooter::Stacked {
+            rows: &coordinate_rows,
+            active_row: 0,
         },
         FleetOverlayPromptMode::OrderTargetY => TableFooter::Stacked {
             rows: &coordinate_rows,
@@ -1219,11 +1215,9 @@ fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             default: &target_default,
             input: &app.fleet_overlay.order_input,
         },
-        FleetOverlayPromptMode::OrderTargetX => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Target XX ",
-            default: &target_x_default,
-            input: &target_x_input,
+        FleetOverlayPromptMode::OrderTargetX => TableFooter::Stacked {
+            rows: &coordinate_rows,
+            active_row: 0,
         },
         FleetOverlayPromptMode::OrderTargetY => TableFooter::Stacked {
             rows: &coordinate_rows,
@@ -1711,8 +1705,8 @@ fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Orderin
 #[cfg(test)]
 mod tests {
     use super::{
-        HOTKEYS, draw, fleet_table_order_label, overlay_title, selection_rows, sort_footer_label,
-        sync_cursor_to_jump_input, table_rows,
+        HOTKEYS, draw, fleet_table_order_label, order_prompt_popup_rect, overlay_title,
+        selection_rows, sort_footer_label, sync_cursor_to_jump_input, table_rows,
     };
     use crate::dashboard::app::state::{
         ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, FleetOverlayRowKey,
@@ -1777,12 +1771,17 @@ mod tests {
         app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
 
         let lines = render_lines_for_prompt(&app);
-        let expected = format!(
+        let expected_x = format!(
             "COMMAND <- Target XX [{}] <ESC> ->",
             app.fleet_order_target_x_default_value()
         );
+        let expected_y = format!(
+            "COMMAND <- Target YY [{}] <ESC> ->",
+            app.fleet_order_target_y_default_value()
+        );
 
-        assert!(lines.iter().any(|line| line.contains(&expected)));
+        assert!(lines.iter().any(|line| line.contains(&expected_x)));
+        assert!(lines.iter().any(|line| line.contains(&expected_y)));
     }
 
     #[test]
@@ -1840,7 +1839,7 @@ mod tests {
     }
 
     #[test]
-    fn fleet_target_x_step_renders_command_line_in_body_like_nc_game() {
+    fn fleet_target_x_step_keeps_two_row_coordinate_footer() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::FleetList;
         app.open_selected_fleet_order_flow();
@@ -1856,11 +1855,32 @@ mod tests {
                 .count(),
             1
         );
-        assert!(
-            !lines
+        assert_eq!(
+            lines
                 .iter()
-                .any(|line| line.contains("COMMAND <- Target YY "))
+                .filter(|line| line.contains("COMMAND <- Target YY "))
+                .count(),
+            1
         );
+    }
+
+    #[test]
+    fn fleet_target_coordinate_steps_keep_same_popup_height() {
+        let mut x_step = dash_app();
+        x_step.overlay = ActiveOverlay::FleetList;
+        x_step.open_selected_fleet_order_flow();
+        x_step.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        x_step.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+        let x_rect = order_prompt_popup_rect(&x_step, dashboard_layout(&x_step).widgets.center_map);
+
+        let mut y_step = dash_app();
+        y_step.overlay = ActiveOverlay::FleetList;
+        y_step.open_selected_fleet_order_flow();
+        y_step.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        y_step.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+        let y_rect = order_prompt_popup_rect(&y_step, dashboard_layout(&y_step).widgets.center_map);
+
+        assert_eq!(x_rect.height, y_rect.height);
     }
 
     #[test]
@@ -2072,7 +2092,7 @@ mod tests {
     }
 
     #[test]
-    fn group_target_x_step_renders_command_line_in_body_like_nc_game() {
+    fn group_target_x_step_keeps_two_row_coordinate_footer() {
         let mut app = dash_app();
         configure_group_confirm_prompt(&mut app, &[0, 1]);
         app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
@@ -2087,11 +2107,28 @@ mod tests {
                 .count(),
             1
         );
-        assert!(
-            !lines
+        assert_eq!(
+            lines
                 .iter()
-                .any(|line| line.contains("COMMAND <- Target YY "))
+                .filter(|line| line.contains("COMMAND <- Target YY "))
+                .count(),
+            1
         );
+    }
+
+    #[test]
+    fn group_target_coordinate_steps_keep_same_popup_height() {
+        let mut x_step = dash_app();
+        configure_group_confirm_prompt(&mut x_step, &[0, 1]);
+        x_step.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+        let x_rect = order_prompt_popup_rect(&x_step, dashboard_layout(&x_step).widgets.center_map);
+
+        let mut y_step = dash_app();
+        configure_group_confirm_prompt(&mut y_step, &[0, 1]);
+        y_step.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+        let y_rect = order_prompt_popup_rect(&y_step, dashboard_layout(&y_step).widgets.center_map);
+
+        assert_eq!(x_rect.height, y_rect.height);
     }
 
     #[test]
