@@ -762,8 +762,7 @@ impl DashApp {
         };
         let mouse_col = mouse.column as usize;
         let mouse_row = mouse.row as usize;
-        if self.popup_has_close_button() && modal_close_button_contains(popup, mouse_col, mouse_row)
-        {
+        if modal_close_button_contains(popup, mouse_col, mouse_row) {
             self.apply_action(Action::ClosePopup);
             return;
         }
@@ -982,10 +981,6 @@ impl DashApp {
                 planet_record_index_1_based,
             )),
         }
-    }
-
-    fn popup_has_close_button(&self) -> bool {
-        !matches!(self.popup, ActivePopup::QuitConfirm)
     }
 
     fn jump_crosshair_to_planet(&mut self, direction: starmap::PlanetJumpDirection) {
@@ -4706,7 +4701,7 @@ mod tests {
     }
 
     #[test]
-    fn clicking_quit_confirm_top_right_border_does_not_close_popup() {
+    fn clicking_quit_confirm_close_button_closes_popup() {
         let mut app = dash_app();
         app.popup = ActivePopup::QuitConfirm;
         let map_frame = dashboard_layout(&app).widgets.center_map;
@@ -4722,7 +4717,7 @@ mod tests {
             popup.y,
         ));
 
-        assert_eq!(app.popup, ActivePopup::QuitConfirm);
+        assert_eq!(app.popup, ActivePopup::None);
     }
 
     #[test]

@@ -7,7 +7,7 @@ use nc_client::cache::{CachedGame, ClientCache};
 use nc_client::hosted::session::{
     CatalogGame, HostedClientSession, HostedStateRequestError, PlayerEventBatch, SandboxJoinOutcome,
 };
-use nc_client::hosted::store::HostedStateStore;
+use nc_client::hosted::store::{CachedHostedSnapshot, HostedStateStore};
 use nc_client::keychain::now_iso8601;
 use nc_nostr::game_definition::{GameStatus, RecruitingMode};
 use nc_nostr::invite_request::{InviteDecision, InviteRequestReceiptStatus};
@@ -723,13 +723,15 @@ fn open_hosted_game(
     password: &str,
     handle: Option<String>,
 ) -> Result<HostedGameOpenResult, String> {
+    let cached_snapshot = load_cached_snapshot_for_open(&transport.session, password, &row.game_id);
+    let (last_turn, last_hash, baseline) = reopen_state_request_args(cached_snapshot.as_ref());
     match transport.session.request_state(
         &row.game_id,
         &row.daemon_pubkey,
-        row.last_turn,
-        row.last_hash.as_deref(),
+        last_turn,
+        last_hash,
         handle.as_deref(),
-        None,
+        baseline,
     ) {
         Ok(snapshot) => {
             persist_snapshot(&transport.session, password, &snapshot)?;
@@ -746,6 +748,38 @@ fn open_hosted_game(
             }))
         }
         Err(err) => handle_open_game_error(transport, row, err),
+    }
+}
+
+fn load_cached_snapshot_for_open(
+    session: &HostedClientSession,
+    password: &str,
+    game_id: &str,
+) -> Option<CachedHostedSnapshot> {
+    HostedStateStore::open_default()
+        .ok()
+        .and_then(|store| {
+            store
+                .load_snapshot(password, &session.public_key_hex(), game_id)
+                .ok()
+        })
+        .flatten()
+}
+
+fn reopen_state_request_args(
+    cached_snapshot: Option<&CachedHostedSnapshot>,
+) -> (
+    Option<u32>,
+    Option<&str>,
+    Option<&nc_nostr::state_sync::GameState>,
+) {
+    match cached_snapshot {
+        Some(cached_snapshot) => (
+            Some(cached_snapshot.turn),
+            Some(cached_snapshot.state_hash.as_str()),
+            Some(&cached_snapshot.snapshot),
+        ),
+        None => (None, None, None),
     }
 }
 
@@ -823,7 +857,60 @@ fn is_already_released_sandbox_error(message: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_already_released_sandbox_error;
+    use super::{is_already_released_sandbox_error, reopen_state_request_args};
+    use nc_client::hosted::store::CachedHostedSnapshot;
+    use nc_nostr::state_sync::{
+        GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedStarmapState,
+        HostedStatePayload,
+    };
+
+    fn sample_cached_snapshot() -> CachedHostedSnapshot {
+        CachedHostedSnapshot {
+            game_id: "phase-sapling-awful".to_string(),
+            player_pubkey: "player".to_string(),
+            seat: 1,
+            turn: 7,
+            state_hash: "cached-hash".to_string(),
+            snapshot: GameState {
+                game_id: "phase-sapling-awful".to_string(),
+                turn: 7,
+                year: 3007,
+                player_seat: 1,
+                player_name: "Terran Union".to_string(),
+                state_hash: "cached-hash".to_string(),
+                state: HostedStatePayload {
+                    player: HostedPlayerState {
+                        seat: 1,
+                        empire_name: "Terran Union".to_string(),
+                        handle: Some("captain".to_string()),
+                        mode: "active".to_string(),
+                        tax_rate: 33,
+                        planet_count: 1,
+                        starbase_count: 0,
+                        homeworld_planet_index: 1,
+                        last_run_year: 3007,
+                        diplomacy: Vec::new(),
+                    },
+                    roster: vec![HostedPlayerRosterEntry {
+                        empire_id: 1,
+                        empire_name: "Terran Union".to_string(),
+                        is_self: true,
+                    }],
+                    starmap: HostedStarmapState {
+                        map_width: 18,
+                        map_height: 18,
+                        viewer_empire_id: 1,
+                        year: 3007,
+                        worlds: Vec::new(),
+                    },
+                    owned_planets: Vec::new(),
+                    owned_fleets: Vec::new(),
+                },
+                queued_mail: Vec::new(),
+                report_blocks: Vec::new(),
+            },
+        }
+    }
 
     #[test]
     fn already_released_sandbox_error_is_treated_as_idempotent_cleanup() {
@@ -836,6 +923,29 @@ mod tests {
         assert!(!is_already_released_sandbox_error(
             "Only sandbox games can be deleted from My Games."
         ));
+    }
+
+    #[test]
+    fn reopen_state_request_uses_cached_snapshot_as_delta_baseline() {
+        let cached_snapshot = sample_cached_snapshot();
+
+        let (turn, hash, baseline) = reopen_state_request_args(Some(&cached_snapshot));
+
+        assert_eq!(turn, Some(7));
+        assert_eq!(hash, Some("cached-hash"));
+        assert_eq!(
+            baseline.map(|snapshot| snapshot.state_hash.as_str()),
+            Some("cached-hash")
+        );
+    }
+
+    #[test]
+    fn reopen_state_request_without_cached_snapshot_requests_full_state() {
+        let (turn, hash, baseline) = reopen_state_request_args(None);
+
+        assert_eq!(turn, None);
+        assert_eq!(hash, None);
+        assert!(baseline.is_none());
     }
 }
 

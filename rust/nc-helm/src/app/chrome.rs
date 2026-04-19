@@ -6,10 +6,6 @@ const TOP_LEFT: char = '╭';
 const TOP_RIGHT: char = '╮';
 const BOTTOM_LEFT: char = '╰';
 const BOTTOM_RIGHT: char = '╯';
-const TITLE_LEFT: char = '┐';
-const TITLE_RIGHT: char = '┌';
-const TITLE_LEFT_DOWN: char = '┘';
-const TITLE_RIGHT_DOWN: char = '└';
 
 pub fn fill_rect(
     buffer: &mut PlayfieldBuffer,
@@ -97,16 +93,35 @@ pub fn draw_top_tag(
     border_style: CellStyle,
     title_style: CellStyle,
 ) -> usize {
-    draw_tag(
-        buffer,
+    if row >= buffer.height() || col >= buffer.width() {
+        return 0;
+    }
+    let max_width = buffer.width().saturating_sub(col);
+    crate::chrome_tags::draw_tag(
         row,
         col,
-        available_width,
+        available_width.min(max_width),
         label,
         border_style,
         title_style,
-        TITLE_LEFT,
-        TITLE_RIGHT,
+        crate::chrome_tags::TOP_TAG_LEFT,
+        crate::chrome_tags::TOP_TAG_RIGHT,
+        |op| match op {
+            crate::chrome_tags::TagDrawOp::SetCell {
+                row,
+                col,
+                ch,
+                style,
+            } => buffer.set_cell(row, col, ch, style),
+            crate::chrome_tags::TagDrawOp::WriteText {
+                row,
+                col,
+                text,
+                style,
+            } => {
+                buffer.write_text(row, col, text, style);
+            }
+        },
     )
 }
 
@@ -134,14 +149,11 @@ pub fn draw_top_tag_right(
 }
 
 pub fn top_tag_width(label: &str) -> usize {
-    label.chars().count() + 4
+    crate::chrome_tags::tag_width(label)
 }
 
 pub fn top_tag_right_col(left: usize, panel_width: usize, label: &str) -> Option<usize> {
-    let width = top_tag_width(label);
-    panel_width
-        .checked_sub(width + 2)
-        .map(|offset| left + offset)
+    crate::chrome_tags::top_tag_right_col(left, panel_width, label)
 }
 
 fn draw_bottom_tag(
@@ -153,53 +165,34 @@ fn draw_bottom_tag(
     border_style: CellStyle,
     title_style: CellStyle,
 ) -> usize {
-    draw_tag(
-        buffer,
+    if row >= buffer.height() || col >= buffer.width() {
+        return 0;
+    }
+    let max_width = buffer.width().saturating_sub(col);
+    crate::chrome_tags::draw_tag(
         row,
         col,
-        available_width,
+        available_width.min(max_width),
         label,
         border_style,
         title_style,
-        TITLE_LEFT_DOWN,
-        TITLE_RIGHT_DOWN,
+        crate::chrome_tags::BOTTOM_TAG_LEFT,
+        crate::chrome_tags::BOTTOM_TAG_RIGHT,
+        |op| match op {
+            crate::chrome_tags::TagDrawOp::SetCell {
+                row,
+                col,
+                ch,
+                style,
+            } => buffer.set_cell(row, col, ch, style),
+            crate::chrome_tags::TagDrawOp::WriteText {
+                row,
+                col,
+                text,
+                style,
+            } => {
+                buffer.write_text(row, col, text, style);
+            }
+        },
     )
-}
-
-fn draw_tag(
-    buffer: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    available_width: usize,
-    label: &str,
-    border_style: CellStyle,
-    title_style: CellStyle,
-    left_notch: char,
-    right_notch: char,
-) -> usize {
-    if available_width < 7 || row >= buffer.height() || col >= buffer.width() {
-        return 0;
-    }
-
-    let max_label_width = available_width.saturating_sub(4);
-    if max_label_width == 0 {
-        return 0;
-    }
-    let label = truncate_chars(label, max_label_width);
-    let width = top_tag_width(&label);
-    let label_width = label.chars().count();
-    if col + width > buffer.width() {
-        return 0;
-    }
-
-    buffer.set_cell(row, col, left_notch, border_style);
-    buffer.set_cell(row, col + 1, ' ', title_style);
-    buffer.write_text(row, col + 2, &label, title_style);
-    buffer.set_cell(row, col + 2 + label_width, ' ', title_style);
-    buffer.set_cell(row, col + 3 + label_width, right_notch, border_style);
-    width
-}
-
-fn truncate_chars(value: &str, width: usize) -> String {
-    value.chars().take(width).collect()
 }

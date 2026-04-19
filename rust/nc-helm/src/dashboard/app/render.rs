@@ -13,7 +13,7 @@ use crate::dashboard::layout::{
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
 use crate::dashboard::modal::{
-    ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement_without_close_button,
+    ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement,
     modal_min_width_for_title,
 };
 use crate::dashboard::overlays;
@@ -244,7 +244,7 @@ fn render_quit_confirm(
         .unwrap_or(ModalPlacement::Centered);
     let message = "Quit Game? Y/[N]";
     let popup_width = (message.chars().count() + 4).max(modal_min_width_for_title("QUIT"));
-    let popup = draw_modal_frame_in_parent_with_placement_without_close_button(
+    let popup = draw_modal_frame_in_parent_with_placement(
         buf,
         "QUIT",
         popup_width,

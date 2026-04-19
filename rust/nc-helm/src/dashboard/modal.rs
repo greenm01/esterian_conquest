@@ -1,7 +1,6 @@
 use crate::dashboard::buffer::{CellStyle, PlayfieldBuffer};
 
-pub const MODAL_CLOSE_BUTTON: &str = "[x]";
-const MODAL_CLOSE_BUTTON_WITH_PAD: &str = " [x]";
+pub const MODAL_CLOSE_BUTTON: &str = crate::chrome_tags::CLOSE_TAG_LABEL;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rect {
@@ -32,33 +31,15 @@ impl Rect {
     }
 }
 
-pub fn modal_close_button_width() -> usize {
-    MODAL_CLOSE_BUTTON_WITH_PAD.chars().count()
-}
-
-pub fn modal_title_slot_width(rect: Rect) -> usize {
-    rect.width.saturating_sub(4) as usize
-}
-
 pub fn modal_min_width_for_title(title: &str) -> usize {
-    title
-        .chars()
-        .count()
-        .saturating_add(2)
-        .saturating_add(modal_close_button_width())
-        .saturating_add(4)
+    crate::chrome_tags::min_width_for_top_tags(title, Some(MODAL_CLOSE_BUTTON))
 }
 
 pub fn modal_close_button_col(rect: Rect) -> Option<u16> {
-    if rect.width < 2 || modal_title_slot_width(rect) < modal_close_button_width() {
+    if rect.width < 2 {
         return None;
     }
-    Some(
-        rect.x
-            .saturating_add(rect.width)
-            .saturating_sub(2)
-            .saturating_sub(MODAL_CLOSE_BUTTON.len() as u16),
-    )
+    crate::chrome_tags::close_label_col(rect.x as usize, rect.width as usize).map(|col| col as u16)
 }
 
 pub fn modal_close_button_contains(rect: Rect, col: usize, row: usize) -> bool {
@@ -167,24 +148,77 @@ fn draw_box_with_close_button(
     buffer.set_cell(top, right, '┐', chrome_style);
     buffer.set_cell(bottom, left, '└', chrome_style);
     buffer.set_cell(bottom, right, '┘', chrome_style);
-    if !title.is_empty() && rect.width > 4 {
-        let bordered = format!(" {title} ");
+    if !title.is_empty() && rect.width > 4 && top < buffer.height() && left + 2 < buffer.width() {
         let available_width = if show_close_button {
-            modal_title_slot_width(rect).saturating_sub(modal_close_button_width())
+            let close_tag_width = crate::chrome_tags::tag_width(MODAL_CLOSE_BUTTON);
+            rect.width
+                .saturating_sub(close_tag_width as u16)
+                .saturating_sub(4) as usize
         } else {
-            modal_title_slot_width(rect)
+            rect.width.saturating_sub(4) as usize
         };
-        assert!(
-            bordered.chars().count() <= available_width,
-            "modal title overruns its border slot: text width {} exceeds allowed width {}",
-            bordered.chars().count(),
-            available_width
+        crate::chrome_tags::draw_tag(
+            top,
+            left + 2,
+            available_width,
+            title,
+            chrome_style,
+            title_style,
+            crate::chrome_tags::TOP_TAG_LEFT,
+            crate::chrome_tags::TOP_TAG_RIGHT,
+            |op| match op {
+                crate::chrome_tags::TagDrawOp::SetCell {
+                    row,
+                    col,
+                    ch,
+                    style,
+                } => buffer.set_cell(row, col, ch, style),
+                crate::chrome_tags::TagDrawOp::WriteText {
+                    row,
+                    col,
+                    text,
+                    style,
+                } => {
+                    buffer.write_text(row, col, text, style);
+                }
+            },
         );
-        buffer.write_text(top, left + 2, &bordered, title_style);
     }
     if show_close_button {
-        if let Some(close_col) = modal_close_button_col(rect) {
-            buffer.write_text(top, close_col as usize, MODAL_CLOSE_BUTTON, title_style);
+        if let Some(close_col) = crate::chrome_tags::close_tag_col(left, rect.width as usize)
+            .filter(|col| {
+                top < buffer.height()
+                    && *col < buffer.width()
+                    && *col + crate::chrome_tags::tag_width(MODAL_CLOSE_BUTTON) <= buffer.width()
+            })
+        {
+            crate::chrome_tags::draw_tag(
+                top,
+                close_col,
+                left.saturating_add(rect.width as usize)
+                    .saturating_sub(close_col),
+                MODAL_CLOSE_BUTTON,
+                chrome_style,
+                title_style,
+                crate::chrome_tags::TOP_TAG_LEFT,
+                crate::chrome_tags::TOP_TAG_RIGHT,
+                |op| match op {
+                    crate::chrome_tags::TagDrawOp::SetCell {
+                        row,
+                        col,
+                        ch,
+                        style,
+                    } => buffer.set_cell(row, col, ch, style),
+                    crate::chrome_tags::TagDrawOp::WriteText {
+                        row,
+                        col,
+                        text,
+                        style,
+                    } => {
+                        buffer.write_text(row, col, text, style);
+                    }
+                },
+            );
         }
     }
 }
@@ -251,27 +285,6 @@ pub fn draw_modal_frame_in_parent_with_placement(
         placement,
         theme,
         true,
-    )
-}
-
-pub fn draw_modal_frame_in_parent_with_placement_without_close_button(
-    buffer: &mut PlayfieldBuffer,
-    title: &str,
-    preferred_width: usize,
-    height: u16,
-    parent: Rect,
-    placement: ModalPlacement,
-    theme: ModalTheme,
-) -> Rect {
-    draw_modal_frame_in_parent_with_placement_and_close_button(
-        buffer,
-        title,
-        preferred_width,
-        height,
-        parent,
-        placement,
-        theme,
-        false,
     )
 }
 
@@ -735,12 +748,15 @@ mod tests {
         );
 
         let close_col = modal_close_button_col(rect).expect("close button col") as usize;
-        assert_eq!(
-            close_col + MODAL_CLOSE_BUTTON.len(),
-            rect.x as usize + rect.width as usize - 2
-        );
+        let top_row: String = buffer
+            .row(rect.y as usize)
+            .iter()
+            .map(|cell| cell.ch)
+            .collect();
+        assert!(top_row.contains("┐ TEST ┌"));
+        assert!(top_row.contains("┐ [X] ┌"));
         assert_eq!(buffer.row(rect.y as usize)[close_col].ch, '[');
-        assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, 'x');
+        assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, 'X');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 2].ch, ']');
         assert_eq!(
             buffer.row(rect.y as usize)[rect.x as usize + rect.width as usize - 1].ch,
@@ -770,11 +786,10 @@ mod tests {
     #[test]
     fn modal_min_width_for_title_reserves_close_button_space() {
         let width = modal_min_width_for_title("HELLO");
-        let rect = Rect::new(0, 0, width as u16, 5);
-        let title_width = " HELLO ".chars().count();
-        let available = modal_title_slot_width(rect).saturating_sub(modal_close_button_width());
-
-        assert!(available >= title_width);
+        assert_eq!(
+            width,
+            crate::chrome_tags::min_width_for_top_tags("HELLO", Some(MODAL_CLOSE_BUTTON))
+        );
     }
 
     #[test]
