@@ -753,8 +753,8 @@ mod tests {
             .iter()
             .map(|cell| cell.ch)
             .collect();
-        assert!(top_row.contains("┐ TEST ┌"));
-        assert!(top_row.contains("┐ [X] ┌"));
+        assert!(top_row.contains("┐TEST┌"));
+        assert!(top_row.contains("┐[X]┌"));
         assert_eq!(buffer.row(rect.y as usize)[close_col].ch, '[');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, 'X');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 2].ch, ']');

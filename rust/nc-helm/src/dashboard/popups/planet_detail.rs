@@ -34,11 +34,11 @@ pub fn draw(
     let popup = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
-        "INFO ABOUT A PLANET:",
+        "PLANET INFO",
         body_width,
         lines.len(),
         OverlaySizePolicy::default(),
-        TableFooter::Dismiss,
+        TableFooter::None,
         app.popup_position_for(crate::dashboard::app::state::ActivePopup::PlanetDetail {
             planet_record_index_1_based: _planet_record_index_1_based,
         }),
@@ -63,11 +63,11 @@ pub fn popup_rect(
     let Some(detail) = selected_planet_detail(app) else {
         return overlay_popup_rect_for_body_in_parent(
             dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
-            "INFO ABOUT A PLANET:",
+            "PLANET INFO",
             1,
             1,
             OverlaySizePolicy::default(),
-            TableFooter::Dismiss,
+            TableFooter::None,
             app.popup_position_for(crate::dashboard::app::state::ActivePopup::PlanetDetail {
                 planet_record_index_1_based,
             }),
@@ -82,11 +82,11 @@ pub fn popup_rect(
         .unwrap_or(0);
     overlay_popup_rect_for_body_in_parent(
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
-        "INFO ABOUT A PLANET:",
+        "PLANET INFO",
         body_width,
         lines.len(),
         OverlaySizePolicy::default(),
-        TableFooter::Dismiss,
+        TableFooter::None,
         app.popup_position_for(crate::dashboard::app::state::ActivePopup::PlanetDetail {
             planet_record_index_1_based,
         }),
@@ -250,13 +250,17 @@ mod tests {
         let popup = draw_overlay_frame_for_body_in_map(
             &mut buffer,
             map_frame,
-            "INFO ABOUT A PLANET:",
+            "PLANET INFO",
             30,
             8,
-            TableFooter::Dismiss,
+            TableFooter::None,
         );
 
         assert!(popup.body_col > map_frame.outer.col + 2);
         assert!(popup.body_row > map_frame.outer.row + 1);
+        assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("┐PLANET INFO┌")));
+        for row in 0..buffer.height() {
+            assert!(!buffer.plain_line(row).contains("(slap a key)"));
+        }
     }
 }

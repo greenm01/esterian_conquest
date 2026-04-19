@@ -95,6 +95,7 @@ pub struct TableRenderMetrics {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableFooter<'a> {
+    None,
     Dismiss,
     CommandBar {
         hotkeys_markup: &'a str,
@@ -721,6 +722,7 @@ pub fn layout_stacked_table_block(
 
 pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
     match footer {
+        TableFooter::None => 0,
         TableFooter::Dismiss => shared_prompt::dismiss_prompt_width(),
         TableFooter::CommandBar {
             hotkeys_markup,
@@ -763,6 +765,7 @@ pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
 
 pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
     match footer {
+        TableFooter::None => 0,
         TableFooter::Dismiss => shared_prompt::dismiss_prompt_width(),
         TableFooter::CommandBar {
             hotkeys_markup,
@@ -805,6 +808,7 @@ pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
 
 pub fn table_footer_row_count(footer: TableFooter<'_>) -> usize {
     match footer {
+        TableFooter::None => 0,
         TableFooter::Stacked { rows, .. } => rows.len().max(1),
         _ => 1,
     }
@@ -874,6 +878,7 @@ fn draw_single_table_footer_in_span(
     footer: TableFooter<'_>,
 ) -> usize {
     match footer {
+        TableFooter::None => col,
         TableFooter::Dismiss => {
             shared_prompt::draw_plain_prompt_in_span(buffer, row, col, width, "(slap a key)")
         }

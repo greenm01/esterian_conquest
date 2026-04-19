@@ -20,7 +20,7 @@ pub enum TagDrawOp<'a, S> {
 }
 
 pub fn tag_width(label: &str) -> usize {
-    label.chars().count() + 4
+    label.chars().count() + 2
 }
 
 pub fn min_width_for_top_tags(left_label: &str, right_label: Option<&str>) -> usize {
@@ -43,7 +43,7 @@ pub fn close_tag_col(left: usize, panel_width: usize) -> Option<usize> {
 }
 
 pub fn close_label_col(left: usize, panel_width: usize) -> Option<usize> {
-    close_tag_col(left, panel_width).map(|col| col + 2)
+    close_tag_col(left, panel_width).map(|col| col + 1)
 }
 
 pub fn draw_tag<S: Copy>(
@@ -57,11 +57,11 @@ pub fn draw_tag<S: Copy>(
     right_notch: char,
     mut draw: impl FnMut(TagDrawOp<'_, S>),
 ) -> usize {
-    if available_width < 7 {
+    if available_width < 5 {
         return 0;
     }
 
-    let max_label_width = available_width.saturating_sub(4);
+    let max_label_width = available_width.saturating_sub(2);
     if max_label_width == 0 {
         return 0;
     }
@@ -76,27 +76,15 @@ pub fn draw_tag<S: Copy>(
         ch: left_notch,
         style: border_style,
     });
-    draw(TagDrawOp::SetCell {
-        row,
-        col: col + 1,
-        ch: ' ',
-        style: title_style,
-    });
     draw(TagDrawOp::WriteText {
         row,
-        col: col + 2,
+        col: col + 1,
         text: &label,
         style: title_style,
     });
     draw(TagDrawOp::SetCell {
         row,
-        col: col + 2 + label_width,
-        ch: ' ',
-        style: title_style,
-    });
-    draw(TagDrawOp::SetCell {
-        row,
-        col: col + 3 + label_width,
+        col: col + 1 + label_width,
         ch: right_notch,
         style: border_style,
     });

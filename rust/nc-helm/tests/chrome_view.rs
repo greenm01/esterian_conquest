@@ -17,7 +17,7 @@ fn first_run_view_uses_unicode_centered_box_chrome() {
     let buffer = app.view();
     assert_eq!(buffer.row(7)[16].ch, '╭');
     assert_eq!(buffer.row(7)[83].ch, '╮');
-    assert!(buffer.plain_line(7).contains("┐ CREATE IDENTITY ┌"));
+    assert!(buffer.plain_line(7).contains("┐CREATE IDENTITY┌"));
 }
 
 #[test]
@@ -45,8 +45,8 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
         Some((buffer.width() - tab_strip.chars().count()) / 2)
     );
     assert_eq!(buffer.row(4)[1].ch, '╭');
-    assert!(buffer.plain_line(4).contains("┐ MY GAMES ┌"));
-    assert!(buffer.plain_line(33).contains("┐ COMMANDS ┌"));
+    assert!(buffer.plain_line(4).contains("┐MY GAMES┌"));
+    assert!(buffer.plain_line(33).contains("┐COMMANDS┌"));
     assert!(buffer.plain_line(34).contains("Alt+ Q>uit"));
     assert!(buffer.plain_line(34).contains("R>efresh"));
     assert!(buffer.plain_line(34).contains("D>elete"));
@@ -85,8 +85,8 @@ fn help_popup_uses_left_help_tag_and_right_close_tag() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
 
     let buffer = app.view();
-    assert!(buffer.plain_line(11).contains("┐ HELP ┌"));
-    assert!(buffer.plain_line(11).contains("┐ [X] ┌"));
+    assert!(buffer.plain_line(11).contains("┐HELP┌"));
+    assert!(buffer.plain_line(11).contains("┐[X]┌"));
 }
 
 #[test]

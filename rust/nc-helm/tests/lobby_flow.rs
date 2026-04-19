@@ -41,7 +41,7 @@ fn lobby_help_clicking_close_tag_closes_popup() {
 
     let row = 11usize;
     let line = app.view().plain_line(row);
-    let tag_offset = line.find("┐ [X] ┌").expect("close tag should render");
+    let tag_offset = line.find("┐[X]┌").expect("close tag should render");
     let tag_col = line[..tag_offset].chars().count();
     let _ = app.dispatch(Msg::Mouse(left_click(tag_col + 3, row)));
 

@@ -123,6 +123,12 @@ struct WindowRestoreState {
     maximized: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct HostedLaunchPending {
+    geometry: crate::ScreenGeometry,
+    observation: ResizeObservation,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HostedWindowTransition {
     None,
@@ -152,6 +158,7 @@ struct Runtime {
     shrink_tracker: Option<ResizeShrinkTracker>,
     next_matrix_frame_at: Option<Instant>,
     hosted_window_restore_state: Option<WindowRestoreState>,
+    hosted_launch_pending: Option<HostedLaunchPending>,
 }
 
 impl Runtime {
@@ -186,6 +193,7 @@ impl Runtime {
             shrink_tracker: None,
             next_matrix_frame_at: None,
             hosted_window_restore_state: None,
+            hosted_launch_pending: None,
         }
     }
 
@@ -562,6 +570,19 @@ impl Runtime {
         self.window_pixel_width = pixel_width;
         self.window_pixel_height = pixel_height;
         let geometry = renderer.grid_geometry_for_pixels(pixel_width, pixel_height, scale_factor);
+        let observation = ResizeObservation {
+            pixel_width,
+            pixel_height,
+            scale_factor,
+        };
+        if self
+            .hosted_launch_pending
+            .map(|pending| hosted_launch_ready(pending, observation, geometry))
+            .unwrap_or(false)
+        {
+            self.hosted_launch_pending = None;
+            self.needs_redraw = true;
+        }
         self.grid_metrics = Some(renderer.grid_metrics());
         if self.app.model().geometry == geometry {
             return;
@@ -629,11 +650,26 @@ impl Runtime {
                 if self.hosted_window_restore_state.is_none() {
                     self.hosted_window_restore_state = Some(capture_window_restore_state(window));
                 }
+                if self.options.native.window_mode == NativeWindowMode::Windowed
+                    && !window.is_maximized()
+                {
+                    self.hosted_launch_pending = Some(HostedLaunchPending {
+                        geometry: self.app.model().geometry,
+                        observation: ResizeObservation {
+                            pixel_width: self.window_pixel_width,
+                            pixel_height: self.window_pixel_height,
+                            scale_factor: window.scale_factor(),
+                        },
+                    });
+                } else {
+                    self.hosted_launch_pending = None;
+                }
                 window.set_maximized(true);
             }
             HostedWindowTransition::LeaveHosted(state) => {
                 apply_window_restore_state(window, state);
                 self.hosted_window_restore_state = None;
+                self.hosted_launch_pending = None;
             }
         }
     }
@@ -908,6 +944,12 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     "event: RedrawRequested route={}",
                     route_label(&self.app.model().route)
                 ));
+                if matches!(self.app.model().route, Route::HostedGame(_))
+                    && self.hosted_launch_pending.is_some()
+                {
+                    self.needs_redraw = false;
+                    return;
+                }
                 if let Some(renderer) = &mut self.renderer {
                     let buffer = self.app.view();
                     if let Err(err) = renderer.render(&buffer) {
@@ -1002,6 +1044,17 @@ fn hosted_window_transition(
         (true, false, Some(state)) => HostedWindowTransition::LeaveHosted(state),
         _ => HostedWindowTransition::None,
     }
+}
+
+fn hosted_launch_ready(
+    pending: HostedLaunchPending,
+    observation: ResizeObservation,
+    geometry: crate::ScreenGeometry,
+) -> bool {
+    geometry != pending.geometry
+        || observation.pixel_width != pending.observation.pixel_width
+        || observation.pixel_height != pending.observation.pixel_height
+        || (observation.scale_factor - pending.observation.scale_factor).abs() >= 0.001
 }
 
 fn map_pointer_cell(
@@ -1250,10 +1303,11 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        HostedWindowTransition, ResizeObservation, ResizeShrinkTracker, ResizeVerdict,
-        SessionBackend, WindowRestoreState, backend_supports_programmatic_focus, classify_resize,
-        combine_deadlines, hosted_window_transition, map_pointer_cell, minimum_window_size,
-        route_uses_mouse, session_backend_label, window_decorations_for_session,
+        HostedLaunchPending, HostedWindowTransition, ResizeObservation, ResizeShrinkTracker,
+        ResizeVerdict, SessionBackend, WindowRestoreState, backend_supports_programmatic_focus,
+        classify_resize, combine_deadlines, hosted_launch_ready, hosted_window_transition,
+        map_pointer_cell, minimum_window_size, route_uses_mouse, session_backend_label,
+        window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{BootModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, Route};
@@ -1390,6 +1444,51 @@ mod tests {
             hosted_window_transition(true, false, None),
             HostedWindowTransition::None
         );
+    }
+
+    #[test]
+    fn hosted_launch_pending_clears_after_maximize_resize_changes_pixels() {
+        let pending = HostedLaunchPending {
+            geometry: crate::ScreenGeometry::new(100, 36),
+            observation: ResizeObservation {
+                pixel_width: 1200,
+                pixel_height: 900,
+                scale_factor: 1.0,
+            },
+        };
+
+        assert!(hosted_launch_ready(
+            pending,
+            ResizeObservation {
+                pixel_width: 1600,
+                pixel_height: 1200,
+                scale_factor: 1.0,
+            },
+            crate::ScreenGeometry::new(100, 36),
+        ));
+    }
+
+    #[test]
+    fn hosted_launch_pending_clears_after_geometry_changes() {
+        let pending = HostedLaunchPending {
+            geometry: crate::ScreenGeometry::new(100, 36),
+            observation: ResizeObservation {
+                pixel_width: 1200,
+                pixel_height: 900,
+                scale_factor: 1.0,
+            },
+        };
+
+        assert!(hosted_launch_ready(
+            pending,
+            pending.observation,
+            crate::ScreenGeometry::new(132, 44),
+        ));
+        assert!(!hosted_launch_ready(
+            pending,
+            pending.observation,
+            pending.geometry,
+        ));
     }
 
     #[test]
