@@ -36,7 +36,6 @@ use wgpu::{
     SamplerDescriptor, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension,
     TextureFormat, TextureUsages, TextureViewDescriptor,
 };
-use winit::dpi::PhysicalPosition;
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
@@ -281,23 +280,8 @@ impl Renderer {
         fit_grid_to_pixels(width, height, self.grid_metrics.cell)
     }
 
-    /// Map a window-local pixel position to a grid cell, or `None` if the
-    /// pixel falls outside the centred grid area.
-    pub fn cell_position_at_pixel(
-        &mut self,
-        window: &winit::window::Window,
-        geometry: ScreenGeometry,
-        position: PhysicalPosition<f64>,
-    ) -> Option<Point> {
-        self.sync_scale_metrics();
-        let size = window.inner_size();
-        GridMapper::centered(
-            size.width as usize,
-            size.height as usize,
-            geometry,
-            self.grid_metrics.cell,
-        )
-        .pixel_to_cell(position)
+    pub fn grid_metrics(&self) -> GridMetrics {
+        self.grid_metrics
     }
 
     /// Render one frame of `playfield`.

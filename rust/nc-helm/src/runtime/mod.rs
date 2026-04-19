@@ -120,6 +120,9 @@ struct Runtime {
     renderer: Option<renderer::Renderer>,
     modifiers: ModifiersState,
     pointer_cell: Option<Point>,
+    grid_metrics: Option<geometry::GridMetrics>,
+    window_pixel_width: u32,
+    window_pixel_height: u32,
     last_resize_observation: Option<ResizeObservation>,
     needs_redraw: bool,
     last_user_input: Option<Instant>,
@@ -150,6 +153,9 @@ impl Runtime {
             renderer: None,
             modifiers: ModifiersState::empty(),
             pointer_cell: None,
+            grid_metrics: None,
+            window_pixel_width: 0,
+            window_pixel_height: 0,
             last_resize_observation: None,
             needs_redraw: true,
             last_user_input: None,
@@ -223,6 +229,9 @@ impl Runtime {
         self.process_effects(event_loop);
         if self.app.model().session.is_some() && self.last_user_input.is_none() {
             self.last_user_input = Some(Instant::now());
+        }
+        if !route_uses_mouse(&self.app.model().route) {
+            self.pointer_cell = None;
         }
         if !matches!(self.app.model().route, Route::MatrixLocked) {
             self.next_matrix_frame_at = None;
@@ -435,11 +444,32 @@ impl Runtime {
         let Some(renderer) = &mut self.renderer else {
             return;
         };
+        self.window_pixel_width = pixel_width;
+        self.window_pixel_height = pixel_height;
         let geometry = renderer.grid_geometry_for_pixels(pixel_width, pixel_height, scale_factor);
+        self.grid_metrics = Some(renderer.grid_metrics());
         if self.app.model().geometry == geometry {
             return;
         }
         self.dispatch(Msg::Resize(geometry), event_loop);
+    }
+
+    fn update_pointer_cell(&mut self, position: winit::dpi::PhysicalPosition<f64>) {
+        if !route_uses_mouse(&self.app.model().route) {
+            self.pointer_cell = None;
+            return;
+        }
+        let Some(grid_metrics) = self.grid_metrics else {
+            self.pointer_cell = None;
+            return;
+        };
+        self.pointer_cell = map_pointer_cell(
+            self.window_pixel_width,
+            self.window_pixel_height,
+            self.app.model().geometry,
+            grid_metrics.cell,
+            position,
+        );
     }
 
     fn scheduled_wakeup(&mut self, now: Instant) -> Option<Instant> {
@@ -494,6 +524,8 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     if let Some(window) = self.window.as_ref() {
                         let size = window.inner_size();
                         let scale_factor = window.scale_factor();
+                        self.window_pixel_width = size.width;
+                        self.window_pixel_height = size.height;
                         let _ = self.observe_resize(ResizeObservation {
                             pixel_width: size.width,
                             pixel_height: size.height,
@@ -581,19 +613,32 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                if self.mouse_buttons_held > 0 {
+                let mouse_enabled = route_uses_mouse(&self.app.model().route);
+                if self.mouse_buttons_held > 0 && mouse_enabled {
                     self.last_user_input = Some(Instant::now());
                 }
-                if let (Some(window), Some(renderer)) = (&self.window, &mut self.renderer) {
-                    self.pointer_cell = renderer.cell_position_at_pixel(
-                        window,
-                        self.app.model().geometry,
-                        position,
-                    );
+                if self.options.native.diagnostic_mode {
+                    self.diagnostic_log(&format!(
+                        "event: CursorMoved route={} x={:.1} y={:.1} mouse_enabled={mouse_enabled}",
+                        route_label(&self.app.model().route),
+                        position.x,
+                        position.y
+                    ));
                 }
+                self.update_pointer_cell(position);
+            }
+            WindowEvent::CursorLeft { .. } => {
+                if self.options.native.diagnostic_mode {
+                    self.diagnostic_log(&format!(
+                        "event: CursorLeft route={}",
+                        route_label(&self.app.model().route)
+                    ));
+                }
+                self.pointer_cell = None;
             }
             WindowEvent::MouseInput { button, state, .. } => {
-                if state.is_pressed() {
+                let mouse_enabled = route_uses_mouse(&self.app.model().route);
+                if state.is_pressed() && mouse_enabled {
                     self.mouse_buttons_held += 1;
                     self.last_user_input = Some(Instant::now());
                 } else {
@@ -605,19 +650,30 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     WinitMouseButton::Middle => Some(MouseButton::Middle),
                     _ => None,
                 };
-                if let (Some(button), Some(position)) = (button, self.pointer_cell) {
-                    self.dispatch(
-                        Msg::Mouse(MouseEvent {
-                            kind: if state.is_pressed() {
-                                MouseEventKind::Down(button)
-                            } else {
-                                MouseEventKind::Up(button)
-                            },
-                            position,
-                            modifiers: key_modifiers_from_winit(self.modifiers),
-                        }),
-                        event_loop,
-                    );
+                if self.options.native.diagnostic_mode {
+                    self.diagnostic_log(&format!(
+                        "event: MouseInput route={} pressed={} mouse_enabled={mouse_enabled}",
+                        route_label(&self.app.model().route),
+                        state.is_pressed()
+                    ));
+                }
+                if mouse_enabled {
+                    if let (Some(button), Some(position)) = (button, self.pointer_cell) {
+                        self.dispatch(
+                            Msg::Mouse(MouseEvent {
+                                kind: if state.is_pressed() {
+                                    MouseEventKind::Down(button)
+                                } else {
+                                    MouseEventKind::Up(button)
+                                },
+                                position,
+                                modifiers: key_modifiers_from_winit(self.modifiers),
+                            }),
+                            event_loop,
+                        );
+                    }
+                } else {
+                    self.pointer_cell = None;
                 }
             }
             WindowEvent::Resized(size) => {
@@ -751,6 +807,26 @@ fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<In
         (None, Some(right)) => Some(right),
         (None, None) => None,
     }
+}
+
+fn route_uses_mouse(route: &Route) -> bool {
+    matches!(route, Route::Lobby(_))
+}
+
+fn map_pointer_cell(
+    window_pixel_width: u32,
+    window_pixel_height: u32,
+    geometry: crate::ScreenGeometry,
+    cell: geometry::CellMetrics,
+    position: winit::dpi::PhysicalPosition<f64>,
+) -> Option<Point> {
+    geometry::GridMapper::centered(
+        window_pixel_width as usize,
+        window_pixel_height as usize,
+        geometry,
+        cell,
+    )
+    .pixel_to_cell(position)
 }
 
 fn backend_supports_programmatic_focus(session_backend: SessionBackend) -> bool {
@@ -974,10 +1050,12 @@ mod tests {
 
     use super::{
         ResizeObservation, ResizeShrinkTracker, ResizeVerdict, SessionBackend,
-        backend_supports_programmatic_focus, classify_resize, combine_deadlines,
-        minimum_window_size, session_backend_label, window_decorations_for_session,
+        backend_supports_programmatic_focus, classify_resize, combine_deadlines, map_pointer_cell,
+        minimum_window_size, route_uses_mouse, session_backend_label,
+        window_decorations_for_session,
     };
-    use crate::app::MIN_SUPPORTED_GEOMETRY;
+    use crate::Point;
+    use crate::app::{BootModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, Route};
     use crate::geometry;
 
     #[test]
@@ -1064,6 +1142,77 @@ mod tests {
                 Some(now + Duration::from_secs(1))
             ),
             Some(now + Duration::from_secs(1))
+        );
+    }
+
+    #[test]
+    fn route_mouse_policy_only_enables_lobby() {
+        assert!(route_uses_mouse(&Route::Lobby(LobbyModel {
+            active_tab: LobbyTab::MyGames,
+            help_open: false,
+            selected_my_game: 0,
+            selected_open_game: 0,
+            editing_relay: false,
+            relay_draft: String::new(),
+            status: None,
+        })));
+        assert!(!route_uses_mouse(&Route::MatrixLocked));
+        assert!(!route_uses_mouse(&Route::Boot(BootModel {
+            status: String::new(),
+        })));
+    }
+
+    #[test]
+    fn pointer_mapping_uses_cached_window_metrics() {
+        let point = map_pointer_cell(
+            1200,
+            900,
+            crate::ScreenGeometry::new(100, 36),
+            geometry::CellMetrics {
+                width_px: 12,
+                height_px: 24,
+            },
+            winit::dpi::PhysicalPosition::new(121.0, 97.0),
+        );
+        assert_eq!(point, Some(Point::from_usize(10, 3)));
+    }
+
+    #[test]
+    fn pointer_mapping_rejects_invalid_and_outside_positions() {
+        let screen = crate::ScreenGeometry::new(100, 36);
+        let cell = geometry::CellMetrics {
+            width_px: 12,
+            height_px: 24,
+        };
+        assert_eq!(
+            map_pointer_cell(
+                1200,
+                900,
+                screen,
+                cell,
+                winit::dpi::PhysicalPosition::new(-1.0, 0.0)
+            ),
+            None
+        );
+        assert_eq!(
+            map_pointer_cell(
+                1200,
+                900,
+                screen,
+                cell,
+                winit::dpi::PhysicalPosition::new(f64::NAN, 0.0)
+            ),
+            None
+        );
+        assert_eq!(
+            map_pointer_cell(
+                1200,
+                900,
+                screen,
+                cell,
+                winit::dpi::PhysicalPosition::new(1199.0, 899.0)
+            ),
+            None
         );
     }
 
