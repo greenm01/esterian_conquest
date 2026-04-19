@@ -19,10 +19,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let body_height = wrapped.lines.len().min(max_overlay_body_height_in_parent(
-        parent,
-        TableFooter::Dismiss,
-    ));
+    let body_height = wrapped
+        .lines
+        .len()
+        .min(max_overlay_body_height_in_parent(parent, TableFooter::None));
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         parent,
@@ -30,7 +30,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         wrapped.content_width,
         body_height,
         OverlaySizePolicy::default(),
-        TableFooter::Dismiss,
+        TableFooter::None,
         app.overlay_position_for(ActiveOverlay::Help),
     );
     assert_overlay_body_write_fits(frame, "HELP", wrapped.content_width, body_height);
@@ -51,17 +51,17 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let body_height = wrapped.lines.len().min(max_overlay_body_height_in_parent(
-        parent,
-        TableFooter::Dismiss,
-    ));
+    let body_height = wrapped
+        .lines
+        .len()
+        .min(max_overlay_body_height_in_parent(parent, TableFooter::None));
     overlay_popup_rect_for_body_in_parent(
         parent,
         "HELP",
         wrapped.content_width,
         body_height,
         OverlaySizePolicy::default(),
-        TableFooter::Dismiss,
+        TableFooter::None,
         app.overlay_position_for(ActiveOverlay::Help),
     )
 }
@@ -327,6 +327,7 @@ mod tests {
     use crate::dashboard::app::state::{ActiveOverlay, DashApp, HelpContext};
     use crate::dashboard::geometry::ScreenGeometry;
     use crate::dashboard::layout::dashboard::dashboard_layout;
+
     #[test]
     fn fleet_help_mentions_typed_jump_and_real_actions() {
         let lines = help_lines(HelpContext::FleetList);
@@ -434,5 +435,36 @@ mod tests {
 
         let rect = popup_rect(&app, map_frame);
         assert!(rect.height > 0);
+    }
+
+    #[test]
+    fn help_overlay_has_no_dismiss_footer() {
+        let mut app =
+            DashApp::new_for_repro(ScreenGeometry::new(120, 40), ScreenGeometry::new(108, 26));
+        app.overlay = ActiveOverlay::Help;
+        app.help_context = HelpContext::Global;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let mut buffer = app.render_playfield().expect("playfield");
+
+        draw(&mut buffer, &app, map_frame);
+
+        let rect = popup_rect(&app, map_frame);
+        let left = rect.x as usize;
+        let width = rect.width as usize;
+        let bottom_inner_row = rect.y as usize + rect.height as usize - 2;
+        let popup_text = |row: usize| {
+            buffer.row(row)[left..left + width]
+                .iter()
+                .map(|cell| cell.ch)
+                .collect::<String>()
+        };
+
+        for row in rect.y as usize..rect.y as usize + rect.height as usize {
+            assert!(!popup_text(row).contains("(slap a key)"));
+        }
+
+        let bottom_inner_line = popup_text(bottom_inner_row);
+        assert!(!bottom_inner_line.contains("├"));
+        assert!(!bottom_inner_line.contains("┤"));
     }
 }
