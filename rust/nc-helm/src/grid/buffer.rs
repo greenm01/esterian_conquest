@@ -78,20 +78,44 @@ impl<'a> StyledSpan<'a> {
     }
 }
 
+/// Positioning anchor for an [`OverlayText`].
+///
+/// Anticipated extension points: `Pixel { x_px: f32, y_px: f32 }` for raw-pixel
+/// anchoring, and `WorldSpace { world_x: f32, world_y: f32 }` for a future 2-D
+/// camera transform. New variants are additive; existing arms are unaffected.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum OverlayAnchor {
+    /// Fit text to a cell-aligned bounding box (e.g. the Stormfaze wordmark).
+    CellRect {
+        left_col: usize,
+        top_row: usize,
+        width_cols: usize,
+        height_rows: usize,
+    },
+    /// Single glyph floating at a fractional cell centre.
+    ///
+    /// `center_col` and `center_row` are in cell units (may be fractional).
+    /// `font_size_cells` scales the glyph relative to one cell height (1.0 =
+    /// the same size as normal cell text).
+    FractionalCell {
+        center_col: f32,
+        center_row: f32,
+        font_size_cells: f32,
+    },
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum OverlayTextFamily {
     Stormfaze,
+    Monospace,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct OverlayText {
     pub text: String,
     pub family: OverlayTextFamily,
     pub style: CellStyle,
-    pub left_col: usize,
-    pub top_row: usize,
-    pub width_cols: usize,
-    pub height_rows: usize,
+    pub anchor: OverlayAnchor,
 }
 
 pub struct PlayfieldBuffer {
@@ -289,10 +313,35 @@ impl PlayfieldBuffer {
             text: text.into(),
             family,
             style,
-            left_col,
-            top_row,
-            width_cols,
-            height_rows,
+            anchor: OverlayAnchor::CellRect {
+                left_col,
+                top_row,
+                width_cols,
+                height_rows,
+            },
+        });
+    }
+
+    /// Push a single glyph as a fractional-cell overlay.
+    ///
+    /// The glyph is rendered at the same font size as normal cell text and
+    /// centred on `(center_col, center_row)` in cell units (may be fractional).
+    pub(crate) fn push_overlay_glyph_at(
+        &mut self,
+        ch: char,
+        style: CellStyle,
+        center_col: f32,
+        center_row: f32,
+    ) {
+        self.overlay_texts.push(OverlayText {
+            text: ch.to_string(),
+            family: OverlayTextFamily::Monospace,
+            style,
+            anchor: OverlayAnchor::FractionalCell {
+                center_col,
+                center_row,
+                font_size_cells: 1.0,
+            },
         });
     }
 

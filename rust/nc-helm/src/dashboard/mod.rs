@@ -95,6 +95,14 @@ pub fn render_hosted_buffer(
     if let Some((column, row)) = playfield.cursor() {
         buffer.set_cursor(crate::Point::from_usize(column as usize, row as usize));
     }
+    for glyph in playfield.overlay_glyphs() {
+        buffer.push_overlay_glyph_at(
+            glyph.ch,
+            convert_style(glyph.style),
+            glyph.center_col,
+            glyph.center_row,
+        );
+    }
     Ok(buffer)
 }
 

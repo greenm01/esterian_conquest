@@ -41,8 +41,8 @@ use winit::event_loop::ActiveEventLoop;
 use super::primitives;
 use crate::geometry::{GridMapper, GridMetrics, caret_rect};
 use crate::grid::{
-    BackgroundMode, CellStyle, GameColor, OverlayText, OverlayTextFamily, PlayfieldBuffer, Point,
-    ScreenGeometry,
+    BackgroundMode, CellStyle, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily,
+    PlayfieldBuffer, Point, ScreenGeometry,
 };
 use crate::theme;
 
@@ -847,67 +847,182 @@ fn prepare_overlay_texts(
         if overlay.text.is_empty() {
             continue;
         }
-        let bounds = overlay_pixel_bounds(mapper, overlay);
-        if bounds.width <= 1 || bounds.height <= 1 {
-            continue;
+        match &overlay.anchor {
+            OverlayAnchor::CellRect {
+                left_col,
+                top_row,
+                width_cols,
+                height_rows,
+            } => {
+                prepare_cell_rect_overlay(
+                    renderer,
+                    mapper,
+                    overlay,
+                    *left_col,
+                    *top_row,
+                    *width_cols,
+                    *height_rows,
+                    placements,
+                );
+            }
+            OverlayAnchor::FractionalCell {
+                center_col,
+                center_row,
+                font_size_cells,
+            } => {
+                prepare_fractional_cell_overlay(
+                    renderer,
+                    mapper,
+                    overlay,
+                    *center_col,
+                    *center_row,
+                    *font_size_cells,
+                    placements,
+                );
+            }
         }
-        let family = match overlay.family {
-            OverlayTextFamily::Stormfaze => TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
-        };
-        let font_size = fit_overlay_font_size(
-            &mut renderer.font_system,
-            &overlay.text,
-            family,
-            bounds.width as f32,
-            bounds.height as f32,
-        );
-        if font_size <= 0.0 {
-            continue;
-        }
-        let key = make_text_key(
-            Arc::<str>::from(overlay.text.as_str()),
-            family,
-            font_size,
-            font_size,
-            overlay.style.bold,
-        );
-        renderer.ensure_text_buffer(key.clone());
-        let cached = renderer
-            .text_buffers
-            .get(&key)
-            .expect("overlay text buffer exists after shaping");
-        let measured_width = cached
-            .buffer
-            .layout_runs()
-            .next()
-            .map(|run| run.line_w)
-            .unwrap_or(0.0);
-        let line_height = f32::from_bits(key.line_height_bits);
-        placements.push(TextPlacement {
-            key,
-            left: bounds.x as f32 + ((bounds.width as f32 - measured_width).max(0.0) / 2.0),
-            top: bounds.y as f32 + ((bounds.height as f32 - line_height).max(0.0) / 2.0),
-            bounds: TextBounds {
-                left: bounds.x as i32,
-                top: bounds.y as i32,
-                right: bounds.x.saturating_add(bounds.width) as i32,
-                bottom: bounds.y.saturating_add(bounds.height) as i32,
-            },
-            color: overlay.style.fg,
-        });
     }
 }
 
-fn overlay_pixel_bounds(
+/// Render a fit-to-bounds overlay (e.g. the Stormfaze wordmark).
+fn prepare_cell_rect_overlay(
+    renderer: &mut Renderer,
     mapper: GridMapper,
     overlay: &OverlayText,
+    left_col: usize,
+    top_row: usize,
+    width_cols: usize,
+    height_rows: usize,
+    placements: &mut Vec<TextPlacement>,
+) {
+    if width_cols == 0 || height_rows == 0 {
+        return;
+    }
+    let bounds = overlay_cell_rect_pixel_bounds(mapper, left_col, top_row, width_cols, height_rows);
+    if bounds.width <= 1 || bounds.height <= 1 {
+        return;
+    }
+    let family = match overlay.family {
+        OverlayTextFamily::Stormfaze => TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
+        OverlayTextFamily::Monospace => TextFamilyKey::Monospace,
+    };
+    let font_size = fit_overlay_font_size(
+        &mut renderer.font_system,
+        &overlay.text,
+        family,
+        bounds.width as f32,
+        bounds.height as f32,
+    );
+    if font_size <= 0.0 {
+        return;
+    }
+    let key = make_text_key(
+        Arc::<str>::from(overlay.text.as_str()),
+        family,
+        font_size,
+        font_size,
+        overlay.style.bold,
+    );
+    renderer.ensure_text_buffer(key.clone());
+    let cached = renderer
+        .text_buffers
+        .get(&key)
+        .expect("overlay text buffer exists after shaping");
+    let measured_width = cached
+        .buffer
+        .layout_runs()
+        .next()
+        .map(|run| run.line_w)
+        .unwrap_or(0.0);
+    let line_height = f32::from_bits(key.line_height_bits);
+    placements.push(TextPlacement {
+        key,
+        left: bounds.x as f32 + ((bounds.width as f32 - measured_width).max(0.0) / 2.0),
+        top: bounds.y as f32 + ((bounds.height as f32 - line_height).max(0.0) / 2.0),
+        bounds: TextBounds {
+            left: bounds.x as i32,
+            top: bounds.y as i32,
+            right: bounds.x.saturating_add(bounds.width) as i32,
+            bottom: bounds.y.saturating_add(bounds.height) as i32,
+        },
+        color: overlay.style.fg,
+    });
+}
+
+/// Render a single glyph floating at a fractional cell centre.
+fn prepare_fractional_cell_overlay(
+    renderer: &mut Renderer,
+    mapper: GridMapper,
+    overlay: &OverlayText,
+    center_col: f32,
+    center_row: f32,
+    font_size_cells: f32,
+    placements: &mut Vec<TextPlacement>,
+) {
+    let font_size_px = font_size_cells * renderer.grid_metrics.text.font_size_px;
+    if font_size_px <= 0.0 {
+        return;
+    }
+    // Pixel centre of the glyph.
+    let px_x = mapper.origin_x as f32 + center_col * mapper.cell.width_px as f32;
+    let px_y = mapper.origin_y as f32 + center_row * mapper.cell.height_px as f32;
+
+    let key = make_text_key(
+        Arc::<str>::from(overlay.text.as_str()),
+        TextFamilyKey::Monospace,
+        font_size_px,
+        font_size_px,
+        overlay.style.bold,
+    );
+    renderer.ensure_text_buffer(key.clone());
+    let cached = renderer
+        .text_buffers
+        .get(&key)
+        .expect("fractional glyph buffer exists after shaping");
+    let measured_width = cached
+        .buffer
+        .layout_runs()
+        .next()
+        .map(|run| run.line_w)
+        .unwrap_or(0.0);
+    let line_height = f32::from_bits(key.line_height_bits);
+
+    // Centre the glyph on (px_x, px_y).
+    let left = px_x - measured_width / 2.0;
+    let top = px_y - line_height / 2.0;
+
+    // Clip to a one-cell box centred at the pixel position.
+    let half_w = mapper.cell.width_px as f32 / 2.0;
+    let half_h = mapper.cell.height_px as f32 / 2.0;
+    let surface_w = renderer.surface_config.width as i32;
+    let surface_h = renderer.surface_config.height as i32;
+    placements.push(TextPlacement {
+        key,
+        left,
+        top,
+        bounds: TextBounds {
+            left: ((px_x - half_w).max(0.0) as i32).min(surface_w),
+            top: ((px_y - half_h).max(0.0) as i32).min(surface_h),
+            right: ((px_x + half_w) as i32).min(surface_w),
+            bottom: ((px_y + half_h) as i32).min(surface_h),
+        },
+        color: overlay.style.fg,
+    });
+}
+
+fn overlay_cell_rect_pixel_bounds(
+    mapper: GridMapper,
+    left_col: usize,
+    top_row: usize,
+    width_cols: usize,
+    height_rows: usize,
 ) -> crate::geometry::PhysicalRect {
-    let top_left = mapper.cell_rect(Point::from_usize(overlay.left_col, overlay.top_row));
+    let top_left = mapper.cell_rect(Point::from_usize(left_col, top_row));
     crate::geometry::PhysicalRect {
         x: top_left.x,
         y: top_left.y,
-        width: overlay.width_cols.saturating_mul(mapper.cell.width_px),
-        height: overlay.height_rows.saturating_mul(mapper.cell.height_px),
+        width: width_cols.saturating_mul(mapper.cell.width_px),
+        height: height_rows.saturating_mul(mapper.cell.height_px),
     }
 }
 
