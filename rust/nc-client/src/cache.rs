@@ -82,6 +82,7 @@ pub struct GameRosterEntry {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClientCache {
     pub games: Vec<CachedGame>,
+    pub released_game_ids: Vec<String>,
     pub notices: Vec<NoticeEntry>,
     pub direct_contacts: Vec<ContactEntry>,
     pub direct_messages: Vec<ContactMessageEntry>,
@@ -95,6 +96,7 @@ impl ClientCache {
     }
 
     pub fn upsert_game(&mut self, game: CachedGame) {
+        self.clear_game_release(&game.id);
         if let Some(existing) = self
             .games
             .iter_mut()
@@ -104,6 +106,25 @@ impl ClientCache {
         } else {
             self.games.push(game);
         }
+    }
+
+    pub fn remove_game(&mut self, game_id: &str) {
+        self.games.retain(|game| game.id != game_id);
+    }
+
+    pub fn mark_game_released(&mut self, game_id: &str) {
+        if !self.released_game_ids.iter().any(|id| id == game_id) {
+            self.released_game_ids.push(game_id.to_string());
+            self.released_game_ids.sort();
+        }
+    }
+
+    pub fn clear_game_release(&mut self, game_id: &str) {
+        self.released_game_ids.retain(|id| id != game_id);
+    }
+
+    pub fn is_game_released(&self, game_id: &str) -> bool {
+        self.released_game_ids.iter().any(|id| id == game_id)
     }
 
     pub fn upsert_notice(&mut self, entry: NoticeEntry) {
@@ -184,6 +205,15 @@ impl ClientCache {
                 .cmp(&right.game_id)
                 .then_with(|| left.empire_id.cmp(&right.empire_id))
         });
+    }
+
+    pub fn remove_roster(&mut self, game_id: &str) {
+        self.rosters.retain(|entry| entry.game_id != game_id);
+    }
+
+    pub fn remove_game_inbox_messages(&mut self, game_id: &str) {
+        self.game_inbox_messages
+            .retain(|entry| entry.game_id != game_id);
     }
 
     pub fn note_contact_activity(
@@ -370,10 +400,17 @@ pub fn parse_cache_str(kdl: &str) -> Result<ClientCache, Box<dyn std::error::Err
                     is_self: opt_integer(node, "is-self").unwrap_or(0) != 0,
                 });
             }
+            "released-game" => {
+                cache
+                    .released_game_ids
+                    .push(req_string(node, "game-id", "released-game")?);
+            }
             _ => {}
         }
     }
 
+    cache.released_game_ids.sort();
+    cache.released_game_ids.dedup();
     Ok(cache)
 }
 
@@ -426,6 +463,9 @@ pub fn render_cache(cache: &ClientCache) -> String {
             out.push_str(&format!(" last-hash=\"{}\"", escape(last_hash)));
         }
         out.push('\n');
+    }
+    for game_id in &cache.released_game_ids {
+        out.push_str(&format!("released-game game-id=\"{}\"\n", escape(game_id)));
     }
     for notice in &cache.notices {
         out.push_str(&format!(

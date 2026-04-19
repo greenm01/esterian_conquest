@@ -49,7 +49,10 @@ use crate::input::{
 };
 use crate::startup::{LaunchTargetOptions, NativeBackendPreference, NativeWindowMode};
 use crate::storage::{BootSnapshot, StorageActor, StoredSession};
-use crate::transport::{LobbySnapshot, TransportActor};
+use crate::transport::{
+    HostedGameOpenResult, HostedGameOpenSuccess, LobbySnapshot, SandboxJoinResult,
+    SandboxReleaseSuccess, TransportActor,
+};
 
 pub fn run(options: LaunchTargetOptions) -> Result<(), Box<dyn std::error::Error>> {
     let (app, effects) = App::new(options.relay_override.clone());
@@ -79,6 +82,11 @@ enum RuntimeEvent {
     IdentityCreated(Result<StoredSession, String>),
     Unlocked(Result<StoredSession, String>),
     LobbyUpdated(Result<LobbySnapshot, String>),
+    LobbyRefreshed(Result<LobbySnapshot, String>),
+    SandboxJoined(Result<SandboxJoinResult, String>),
+    SandboxReleased(Result<SandboxReleaseSuccess, String>),
+    HostedGameOpened(Result<HostedGameOpenResult, String>),
+    FirstJoinSetupCompleted(Result<HostedGameOpenSuccess, String>),
     RelaySaved(Result<String, String>),
 }
 
@@ -363,6 +371,95 @@ impl Runtime {
                         }
                     });
                 }
+                Effect::RefreshLobby => {
+                    self.diagnostic_log("dispatch effect: RefreshLobby");
+                    let proxy = self.proxy.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.transport.refresh(tx) {
+                        self.dispatch(Msg::LobbyRefreshed(Err(err)), event_loop);
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(result) = rx.recv() {
+                            let _ = proxy.send_event(RuntimeEvent::LobbyRefreshed(result));
+                        }
+                    });
+                }
+                Effect::JoinSandboxGame {
+                    row,
+                    password,
+                    handle,
+                } => {
+                    self.diagnostic_log("dispatch effect: JoinSandboxGame");
+                    let proxy = self.proxy.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.transport.join_sandbox(row, password, handle, tx) {
+                        self.dispatch(Msg::SandboxJoined(Err(err)), event_loop);
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(result) = rx.recv() {
+                            let _ = proxy.send_event(RuntimeEvent::SandboxJoined(result));
+                        }
+                    });
+                }
+                Effect::ReleaseSandboxGame { row } => {
+                    self.diagnostic_log("dispatch effect: ReleaseSandboxGame");
+                    let proxy = self.proxy.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.transport.release_sandbox(row, tx) {
+                        self.dispatch(Msg::SandboxReleased(Err(err)), event_loop);
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(result) = rx.recv() {
+                            let _ = proxy.send_event(RuntimeEvent::SandboxReleased(result));
+                        }
+                    });
+                }
+                Effect::OpenHostedGame {
+                    row,
+                    password,
+                    handle,
+                } => {
+                    self.diagnostic_log("dispatch effect: OpenHostedGame");
+                    let proxy = self.proxy.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.transport.open_hosted_game(row, password, handle, tx) {
+                        self.dispatch(Msg::HostedGameOpened(Err(err)), event_loop);
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(result) = rx.recv() {
+                            let _ = proxy.send_event(RuntimeEvent::HostedGameOpened(result));
+                        }
+                    });
+                }
+                Effect::CompleteFirstJoinSetup {
+                    row,
+                    empire_name,
+                    homeworld_name,
+                    password,
+                } => {
+                    self.diagnostic_log("dispatch effect: CompleteFirstJoinSetup");
+                    let proxy = self.proxy.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    if let Err(err) = self.transport.complete_first_join_setup(
+                        row,
+                        empire_name,
+                        homeworld_name,
+                        password,
+                        tx,
+                    ) {
+                        self.dispatch(Msg::FirstJoinSetupCompleted(Err(err)), event_loop);
+                        continue;
+                    }
+                    thread::spawn(move || {
+                        if let Ok(result) = rx.recv() {
+                            let _ = proxy.send_event(RuntimeEvent::FirstJoinSetupCompleted(result));
+                        }
+                    });
+                }
                 Effect::Quit => event_loop.exit(),
             }
         }
@@ -569,6 +666,26 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             RuntimeEvent::LobbyUpdated(result) => {
                 self.diagnostic_log("event: LobbyUpdated");
                 self.dispatch(Msg::LobbyUpdated(result), event_loop)
+            }
+            RuntimeEvent::LobbyRefreshed(result) => {
+                self.diagnostic_log("event: LobbyRefreshed");
+                self.dispatch(Msg::LobbyRefreshed(result), event_loop)
+            }
+            RuntimeEvent::SandboxJoined(result) => {
+                self.diagnostic_log("event: SandboxJoined");
+                self.dispatch(Msg::SandboxJoined(result), event_loop)
+            }
+            RuntimeEvent::SandboxReleased(result) => {
+                self.diagnostic_log("event: SandboxReleased");
+                self.dispatch(Msg::SandboxReleased(result), event_loop)
+            }
+            RuntimeEvent::HostedGameOpened(result) => {
+                self.diagnostic_log("event: HostedGameOpened");
+                self.dispatch(Msg::HostedGameOpened(result), event_loop)
+            }
+            RuntimeEvent::FirstJoinSetupCompleted(result) => {
+                self.diagnostic_log("event: FirstJoinSetupCompleted");
+                self.dispatch(Msg::FirstJoinSetupCompleted(result), event_loop)
             }
             RuntimeEvent::RelaySaved(result) => {
                 self.diagnostic_log("event: RelaySaved");
@@ -810,7 +927,7 @@ fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<In
 }
 
 fn route_uses_mouse(route: &Route) -> bool {
-    matches!(route, Route::Lobby(_))
+    matches!(route, Route::Lobby(_) | Route::HostedGame(_))
 }
 
 fn map_pointer_cell(
@@ -994,6 +1111,11 @@ fn route_label(route: &Route) -> &'static str {
         Route::MatrixLocked => "MatrixLocked",
         Route::Locked(_) => "Locked",
         Route::Lobby(_) => "Lobby",
+        Route::SandboxJoinConfirm(_) => "SandboxJoinConfirm",
+        Route::SandboxJoinUnavailable { .. } => "SandboxJoinUnavailable",
+        Route::SandboxDeleteConfirm(_) => "SandboxDeleteConfirm",
+        Route::FirstJoinSetup(_) => "FirstJoinSetup",
+        Route::HostedGame(_) => "HostedGame",
         Route::FatalError(_) => "FatalError",
     }
 }
@@ -1011,6 +1133,11 @@ fn msg_label(msg: &Msg) -> &'static str {
         Msg::IdentityCreated(_) => "IdentityCreated",
         Msg::Unlocked(_) => "Unlocked",
         Msg::LobbyUpdated(_) => "LobbyUpdated",
+        Msg::LobbyRefreshed(_) => "LobbyRefreshed",
+        Msg::SandboxJoined(_) => "SandboxJoined",
+        Msg::SandboxReleased(_) => "SandboxReleased",
+        Msg::HostedGameOpened(_) => "HostedGameOpened",
+        Msg::FirstJoinSetupCompleted(_) => "FirstJoinSetupCompleted",
         Msg::RelaySaved(_) => "RelaySaved",
     }
 }

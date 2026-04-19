@@ -1,4 +1,5 @@
 mod app;
+mod dashboard;
 mod geometry;
 mod grid;
 mod input;
@@ -19,7 +20,7 @@ pub use startup::{
     parse_launch_command,
 };
 pub use storage::{BootSnapshot, StoredSession};
-pub use transport::LobbySnapshot;
+pub use transport::{LobbySnapshot, SandboxReleaseSuccess};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     match parse_launch_command(args)? {

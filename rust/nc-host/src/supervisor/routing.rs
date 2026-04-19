@@ -117,6 +117,21 @@ pub fn process_event(routed: &RoutedEvent, host_secret_key: &SecretKey) -> Vec<G
                 reason: format!("failed to parse SeatClaimRequest: {}", err),
             }],
         },
+        30529 => {
+            if let Some(req) = nc_nostr::sandbox_release::parse_sandbox_release_request(
+                host_secret_key,
+                &routed.event,
+            ) {
+                vec![GameEffects::HandleSandboxRelease {
+                    request: req,
+                    game_id: routed.game_id.clone(),
+                }]
+            } else {
+                vec![GameEffects::InvalidEvent {
+                    reason: "failed to parse SandboxReleaseRequest".to_string(),
+                }]
+            }
+        }
         30522 => {
             if let Some(cmds) =
                 nc_nostr::turn_commands::parse_turn_commands(host_secret_key, &routed.event)

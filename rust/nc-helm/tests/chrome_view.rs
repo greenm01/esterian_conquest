@@ -1,8 +1,9 @@
 mod support;
 
-use nc_helm::{App, BootSnapshot, Msg, ScreenGeometry};
+use nc_client::cache::ClientCache;
+use nc_helm::{App, BootSnapshot, LobbySnapshot, Msg, ScreenGeometry};
 
-use crate::support::{dummy_session, key};
+use crate::support::{alt_key, dummy_session, key, my_game_row, sandbox_open_game_row};
 
 #[test]
 fn first_run_view_uses_unicode_centered_box_chrome() {
@@ -47,6 +48,8 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
     assert!(buffer.plain_line(4).contains("┐ MY GAMES ┌"));
     assert!(buffer.plain_line(33).contains("┐ COMMANDS ┌"));
     assert!(buffer.plain_line(34).contains("Alt+ Q>uit"));
+    assert!(buffer.plain_line(34).contains("R>efresh"));
+    assert!(buffer.plain_line(34).contains("D>elete"));
     assert!(buffer.plain_line(34).contains("<?>Keys H>ints"));
     assert!(!buffer.plain_line(26).contains("STATUS"));
 }
@@ -82,8 +85,32 @@ fn help_popup_uses_left_help_tag_and_right_close_tag() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
 
     let buffer = app.view();
-    assert!(buffer.plain_line(12).contains("┐ HELP ┌"));
-    assert!(buffer.plain_line(12).contains("┐ [X] ┌"));
+    assert!(buffer.plain_line(11).contains("┐ HELP ┌"));
+    assert!(buffer.plain_line(11).contains("┐ [X] ┌"));
+}
+
+#[test]
+fn sandbox_delete_confirm_popup_renders_copy() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::LobbyUpdated(Ok(LobbySnapshot {
+        cache: ClientCache::empty(),
+        my_games: vec![my_game_row("joined")],
+        open_games: vec![sandbox_open_game_row()],
+        notices: Vec::new(),
+    })));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('d'))));
+
+    let buffer = app.view();
+    let lines = (0..buffer.height())
+        .map(|row| buffer.plain_line(row))
+        .collect::<Vec<_>>();
+    assert!(lines.iter().any(|line| line.contains("DELETE SANDBOX")));
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("Release this sandbox seat"))
+    );
 }
 
 #[test]

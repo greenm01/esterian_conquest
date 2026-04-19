@@ -1,6 +1,6 @@
 use super::{
-    DEFAULT_GEOMETRY, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT, HELP_POPUP_WIDTH,
-    LOBBY_TAB_ROW, LobbyTab, MIN_SUPPORTED_GEOMETRY, Model, NetworkState, Route,
+    DEFAULT_GEOMETRY, FirstJoinSetupField, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT,
+    HELP_POPUP_WIDTH, LOBBY_TAB_ROW, LobbyTab, MIN_SUPPORTED_GEOMETRY, Model, NetworkState, Route,
     centered_box_geometry,
     chrome::{draw_panel, draw_top_tag_right},
     lobby_tab_bounds, mask,
@@ -17,6 +17,14 @@ const FIRST_RUN_GATE_HEIGHT: usize = 22;
 const LOCKED_GATE_WIDTH: usize = 60;
 const LOCKED_GATE_HEIGHT: usize = 13;
 const LOCKED_GATE_HEIGHT_WITH_STATUS: usize = 15;
+const SANDBOX_JOIN_CONFIRM_WIDTH: usize = 64;
+const SANDBOX_JOIN_CONFIRM_HEIGHT: usize = 11;
+const SANDBOX_JOIN_UNAVAILABLE_WIDTH: usize = 68;
+const SANDBOX_JOIN_UNAVAILABLE_HEIGHT: usize = 11;
+const SANDBOX_DELETE_CONFIRM_WIDTH: usize = 68;
+const SANDBOX_DELETE_CONFIRM_HEIGHT: usize = 11;
+const FIRST_JOIN_GATE_WIDTH: usize = 72;
+const FIRST_JOIN_GATE_HEIGHT: usize = 18;
 const GATE_SIDE_PADDING: usize = 3;
 const GATE_LOGO_WIDTH_INSET: usize = 3;
 const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
@@ -146,6 +154,15 @@ pub fn render(model: &Model) -> PlayfieldBuffer {
             render_locked(&mut buffer, geometry, model.relay_url.as_str(), locked)
         }
         Route::Lobby(lobby) => render_lobby(&mut buffer, geometry, model, lobby),
+        Route::SandboxJoinConfirm(row) => render_sandbox_join_confirm(&mut buffer, geometry, row),
+        Route::SandboxJoinUnavailable { row, notice } => {
+            render_sandbox_join_unavailable(&mut buffer, geometry, row, notice)
+        }
+        Route::SandboxDeleteConfirm(row) => {
+            render_sandbox_delete_confirm(&mut buffer, geometry, row)
+        }
+        Route::FirstJoinSetup(setup) => render_first_join_setup(&mut buffer, geometry, setup),
+        Route::HostedGame(hosted) => return render_hosted_game(geometry, hosted),
         Route::FatalError(message) => render_fatal(&mut buffer, geometry, message),
     }
 
@@ -167,6 +184,197 @@ fn render_boot(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, status: &
         );
         buffer.write_text(top + 4, left + 3, status, panel());
     });
+}
+
+fn render_sandbox_join_confirm(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    row: &super::OpenGameRow,
+) {
+    centered_box(
+        buffer,
+        geometry,
+        SANDBOX_JOIN_CONFIRM_WIDTH,
+        SANDBOX_JOIN_CONFIRM_HEIGHT,
+        "JOIN SANDBOX",
+        |buffer, left, top| {
+            let content_left = left + 3;
+            buffer.write_text_clipped(
+                top + 2,
+                content_left,
+                &format!("Game: {}", row.game),
+                panel(),
+            );
+            buffer.write_text_clipped(
+                top + 4,
+                content_left,
+                "Join this sandbox now?",
+                panel_accent(),
+            );
+            buffer.write_text_clipped(
+                top + 6,
+                content_left,
+                "Y joins an open seat immediately. Any other key cancels.",
+                panel_dim(),
+            );
+        },
+    );
+}
+
+fn render_sandbox_join_unavailable(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    row: &super::OpenGameRow,
+    notice: &str,
+) {
+    centered_box(
+        buffer,
+        geometry,
+        SANDBOX_JOIN_UNAVAILABLE_WIDTH,
+        SANDBOX_JOIN_UNAVAILABLE_HEIGHT,
+        "SANDBOX UNAVAILABLE",
+        |buffer, left, top| {
+            let content_left = left + 3;
+            buffer.write_text_clipped(
+                top + 2,
+                content_left,
+                &format!("Game: {}", row.game),
+                panel(),
+            );
+            buffer.write_text_clipped(top + 4, content_left, notice, panel_warning());
+            buffer.write_text_clipped(
+                top + 6,
+                content_left,
+                "Press any key to return to the lobby.",
+                panel_dim(),
+            );
+        },
+    );
+}
+
+fn render_sandbox_delete_confirm(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    row: &super::MyGameRow,
+) {
+    centered_box(
+        buffer,
+        geometry,
+        SANDBOX_DELETE_CONFIRM_WIDTH,
+        SANDBOX_DELETE_CONFIRM_HEIGHT,
+        "DELETE SANDBOX",
+        |buffer, left, top| {
+            let content_left = left + 3;
+            buffer.write_text_clipped(
+                top + 2,
+                content_left,
+                &format!("Game: {}", row.game),
+                panel(),
+            );
+            buffer.write_text_clipped(
+                top + 4,
+                content_left,
+                "Release this sandbox seat and remove it from My Games?",
+                panel_accent(),
+            );
+            buffer.write_text_clipped(
+                top + 6,
+                content_left,
+                "Y releases the seat. Any other key cancels.",
+                panel_dim(),
+            );
+        },
+    );
+}
+
+fn render_first_join_setup(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    setup: &super::FirstJoinSetupModel,
+) {
+    let layout = render_gate_shell(
+        buffer,
+        geometry,
+        FIRST_JOIN_GATE_WIDTH,
+        FIRST_JOIN_GATE_HEIGHT,
+        "FIRST JOIN SETUP",
+        setup.status.as_deref(),
+        &[
+            "Name your empire and homeworld before entering the hosted game.",
+            "Tab switches fields. Enter advances or submits. Esc returns to lobby.",
+        ],
+    );
+    let track_width = gate_track_width(layout.content_width);
+    draw_boxed_input_row(
+        buffer,
+        layout.content_left,
+        layout.next_row,
+        FORM_FIELD_LABEL_WIDTH,
+        track_width,
+        "Empire",
+        &setup.empire_input,
+        setup.active_field == FirstJoinSetupField::Empire,
+        false,
+    );
+    draw_boxed_input_row(
+        buffer,
+        layout.content_left,
+        layout.next_row + 1,
+        FORM_FIELD_LABEL_WIDTH,
+        track_width,
+        "Homeworld",
+        &setup.homeworld_input,
+        setup.active_field == FirstJoinSetupField::Homeworld,
+        false,
+    );
+    buffer.write_text_clipped(
+        layout.next_row + 3,
+        layout.content_left,
+        &format!(
+            "Coordinates: {},{}   Production: {}/{}",
+            setup.homeworld_coords[0],
+            setup.homeworld_coords[1],
+            setup.present_production,
+            setup.potential_production
+        ),
+        panel_dim(),
+    );
+}
+
+fn render_hosted_game(
+    geometry: ScreenGeometry,
+    hosted: &super::HostedGameModel,
+) -> PlayfieldBuffer {
+    match crate::dashboard::render_hosted_buffer(&hosted.dashboard) {
+        Ok(buffer) => buffer,
+        Err(err) => {
+            let mut buffer = PlayfieldBuffer::new(geometry.width(), geometry.height(), body());
+            fill(&mut buffer, body());
+            centered_box(
+                &mut buffer,
+                geometry,
+                72,
+                9,
+                "HOSTED DASHBOARD ERROR",
+                |buffer, left, top| {
+                    buffer.write_text_clipped(
+                        top + 2,
+                        left + 3,
+                        "Unable to render the hosted dashboard.",
+                        panel_error(),
+                    );
+                    buffer.write_text_clipped(top + 4, left + 3, &err.to_string(), panel());
+                    buffer.write_text_clipped(
+                        top + 6,
+                        left + 3,
+                        "Press Alt+Q to quit.",
+                        panel_dim(),
+                    );
+                },
+            );
+            buffer
+        }
+    }
 }
 
 fn render_first_run(
@@ -759,6 +967,12 @@ fn draw_command_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
         StyledSpan::new("Q", theme::prompt_hotkey_style_on(bg)),
         StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
         StyledSpan::new("uit ", theme::prompt_style_on(bg)),
+        StyledSpan::new("R", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("efresh ", theme::prompt_style_on(bg)),
+        StyledSpan::new("D", theme::prompt_hotkey_style_on(bg)),
+        StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
+        StyledSpan::new("elete ", theme::prompt_style_on(bg)),
         StyledSpan::new("<", theme::prompt_delimiter_style_on(bg)),
         StyledSpan::new("?", theme::prompt_hotkey_style_on(bg)),
         StyledSpan::new(">", theme::prompt_delimiter_style_on(bg)),
@@ -827,11 +1041,13 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
         "",
         "M/O/C/S : switch lobby tabs",
         "Up/Down : move the active table cursor",
+        "Alt+R   : refresh My Games, Open Games, and notices",
+        "Alt+D   : delete the selected sandbox from My Games",
         "? or H  : reopen this help popup",
         "Q or Esc: close this popup",
         "Alt+Q   : quit the client",
         "",
-        "The lobby sync runs in the background.",
+        "Background sync still runs every few seconds.",
     ];
     for (idx, line) in lines.iter().enumerate() {
         buffer.write_text_clipped(

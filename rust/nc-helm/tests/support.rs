@@ -3,8 +3,8 @@
 use nc_client::cache::ClientCache;
 use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
 use nc_helm::{
-    App, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, Point,
-    StoredSession,
+    App, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, MyGameRow,
+    OpenGameRow, Point, StoredSession,
 };
 
 pub fn key(code: KeyCode) -> KeyEvent {
@@ -40,4 +40,47 @@ pub fn dummy_session(handle: &str) -> StoredSession {
         active_nsec: active.nsec.clone(),
         active_handle: active.handle.clone(),
     }
+}
+
+pub fn sandbox_open_game_row() -> OpenGameRow {
+    OpenGameRow {
+        game_id: "phase-sapling-awful".to_string(),
+        status: "Open".to_string(),
+        game_tier: "Sandbox".to_string(),
+        game: "Phase Sapling".to_string(),
+        host: "daemon".to_string(),
+        host_contact_npub: None,
+        relay_url: "ws://127.0.0.1:8080".to_string(),
+        daemon_pubkey: "daemon-pubkey".to_string(),
+        open_seats: 1,
+        total_seats: 4,
+        created_date: "3001-01-01".to_string(),
+        turn_summary: "Y3001 T1".to_string(),
+        summary: String::new(),
+    }
+}
+
+pub fn my_game_row(status: &str) -> MyGameRow {
+    MyGameRow {
+        game_id: "phase-sapling-awful".to_string(),
+        status: status.to_string(),
+        game_tier: "Sandbox".to_string(),
+        game: "Phase Sapling".to_string(),
+        host: "daemon".to_string(),
+        host_contact_npub: None,
+        relay_url: "ws://127.0.0.1:8080".to_string(),
+        daemon_pubkey: "daemon-pubkey".to_string(),
+        seat: Some(1),
+        turn_summary: "Y3001 T1".to_string(),
+        last_turn: Some(1),
+        last_hash: Some("state-hash".to_string()),
+    }
+}
+
+pub fn league_my_game_row(status: &str) -> MyGameRow {
+    let mut row = my_game_row(status);
+    row.game_id = "league-night".to_string();
+    row.game_tier = "League".to_string();
+    row.game = "League Night".to_string();
+    row
 }

@@ -2,11 +2,13 @@ use nc_client::password::validate_new_password;
 use nc_nostr::hosted::relay_url_to_invite_host;
 
 use super::{
-    Effect, LOBBY_TAB_ROW, LOCK_TIMEOUT_OPTIONS, LobbyTab, Model, Msg, NetworkState, Route,
-    active_session_from_stored, append_text, bootstrap_route, field_string_mut, handle_help_click,
-    is_printable_key, lobby_route,
+    Effect, FirstJoinSetupField, HostedGameModel, LOBBY_TAB_ROW, LOCK_TIMEOUT_OPTIONS, LobbyTab,
+    Model, Msg, NetworkState, Route, active_session_from_stored, append_text, bootstrap_route,
+    field_string_mut, first_join_setup_from_snapshot, handle_help_click, is_printable_key,
+    lobby_route, trim_first_join_setup_input,
 };
 use crate::ScreenGeometry;
+use crate::dashboard;
 use crate::input::{KeyCode, KeyModifiers, MouseButton, MouseEventKind};
 
 const TABLE_DATA_ROW_START: usize = 7;
@@ -18,6 +20,13 @@ pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
             model
                 .matrix_rain
                 .reset_for_size(geometry.width(), geometry.height());
+            if let Route::HostedGame(hosted) = &mut model.route {
+                dashboard::resize_hosted_app(
+                    &mut hosted.dashboard,
+                    geometry.width(),
+                    geometry.height(),
+                );
+            }
             Vec::new()
         }
         Msg::FocusChanged(focused) => {
@@ -35,6 +44,11 @@ pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
         Msg::IdentityCreated(result) => handle_identity_created(model, result),
         Msg::Unlocked(result) => handle_unlocked(model, result),
         Msg::LobbyUpdated(result) => handle_lobby_updated(model, result),
+        Msg::LobbyRefreshed(result) => handle_lobby_refreshed(model, result),
+        Msg::SandboxJoined(result) => handle_sandbox_joined(model, result),
+        Msg::SandboxReleased(result) => handle_sandbox_released(model, result),
+        Msg::HostedGameOpened(result) => handle_hosted_game_opened(model, result),
+        Msg::FirstJoinSetupCompleted(result) => handle_first_join_setup_completed(model, result),
         Msg::RelaySaved(result) => handle_relay_saved(model, result),
         Msg::Key(key) => handle_key(model, key),
         Msg::TextInput(text) => handle_text_input(model, &text),
@@ -128,23 +142,10 @@ fn handle_lobby_updated(
     model: &mut Model,
     result: Result<crate::transport::LobbySnapshot, String>,
 ) -> Vec<Effect> {
-    if !matches!(model.route, Route::Lobby(_)) {
-        return Vec::new();
-    }
     match result {
         Ok(snapshot) => {
-            model.network = NetworkState::Synced;
-            model.cache = snapshot.cache;
-            model.my_games = snapshot.my_games;
-            model.open_games = snapshot.open_games;
-            model.notices = snapshot.notices;
+            apply_lobby_snapshot(model, snapshot);
             if let Route::Lobby(lobby) = &mut model.route {
-                lobby.selected_my_game = lobby
-                    .selected_my_game
-                    .min(model.my_games.len().saturating_sub(1));
-                lobby.selected_open_game = lobby
-                    .selected_open_game
-                    .min(model.open_games.len().saturating_sub(1));
                 lobby.status = None;
             }
             if let Some(session) = &model.session {
@@ -162,6 +163,127 @@ fn handle_lobby_updated(
         }
     }
     Vec::new()
+}
+
+fn handle_lobby_refreshed(
+    model: &mut Model,
+    result: Result<crate::transport::LobbySnapshot, String>,
+) -> Vec<Effect> {
+    match result {
+        Ok(snapshot) => {
+            apply_lobby_snapshot(model, snapshot);
+            if let Route::Lobby(lobby) = &mut model.route {
+                lobby.status = Some("Hosted lobby refreshed.".to_string());
+            }
+            if let Some(session) = &model.session {
+                return vec![Effect::SaveClientCache {
+                    cache: model.cache.clone(),
+                    password: session.password.clone(),
+                }];
+            }
+        }
+        Err(err) => {
+            model.network = NetworkState::Error;
+            if let Route::Lobby(lobby) = &mut model.route {
+                lobby.status = Some(err);
+            }
+        }
+    }
+    Vec::new()
+}
+
+fn handle_sandbox_joined(
+    model: &mut Model,
+    result: Result<crate::transport::SandboxJoinResult, String>,
+) -> Vec<Effect> {
+    match result {
+        Ok(crate::transport::SandboxJoinResult::Joined(success)) => {
+            model.cache = success.cache.clone();
+            upsert_joined_game(model, success.row.clone());
+            open_snapshot_route(
+                model,
+                success.row,
+                success.snapshot,
+                Some("Sandbox joined.".to_string()),
+            )
+        }
+        Ok(crate::transport::SandboxJoinResult::Full(message)) => {
+            let row = match &model.route {
+                Route::SandboxJoinConfirm(row) => row.clone(),
+                _ => return Vec::new(),
+            };
+            model.route = Route::SandboxJoinUnavailable {
+                row,
+                notice: message,
+            };
+            Vec::new()
+        }
+        Err(err) => return_to_lobby_with_status(model, err),
+    }
+}
+
+fn handle_sandbox_released(
+    model: &mut Model,
+    result: Result<crate::transport::SandboxReleaseSuccess, String>,
+) -> Vec<Effect> {
+    match result {
+        Ok(success) => {
+            model.cache = success.cache;
+            model.my_games.retain(|row| row.game_id != success.game_id);
+            let mut effects =
+                return_to_lobby_with_status(model, "Sandbox removed from My Games.".to_string());
+            if let Some(session) = &model.session {
+                effects.push(Effect::SaveClientCache {
+                    cache: model.cache.clone(),
+                    password: session.password.clone(),
+                });
+            }
+            effects
+        }
+        Err(err) => return_to_lobby_with_status(model, err),
+    }
+}
+
+fn handle_hosted_game_opened(
+    model: &mut Model,
+    result: Result<crate::transport::HostedGameOpenResult, String>,
+) -> Vec<Effect> {
+    match result {
+        Ok(crate::transport::HostedGameOpenResult::Opened(success)) => {
+            model.cache = success.cache.clone();
+            upsert_joined_game(model, success.row.clone());
+            open_snapshot_route(model, success.row, success.snapshot, None)
+        }
+        Ok(crate::transport::HostedGameOpenResult::Expired {
+            row,
+            cache,
+            message,
+        }) => {
+            model.cache = cache;
+            upsert_joined_game(model, row);
+            return_to_lobby_with_status(model, message)
+        }
+        Err(err) => return_to_lobby_with_status(model, err),
+    }
+}
+
+fn handle_first_join_setup_completed(
+    model: &mut Model,
+    result: Result<crate::transport::HostedGameOpenSuccess, String>,
+) -> Vec<Effect> {
+    match result {
+        Ok(success) => {
+            model.cache = success.cache.clone();
+            upsert_joined_game(model, success.row.clone());
+            open_snapshot_route(model, success.row, success.snapshot, None)
+        }
+        Err(err) => {
+            if let Route::FirstJoinSetup(setup) = &mut model.route {
+                setup.status = Some(err);
+            }
+            Vec::new()
+        }
+    }
 }
 
 fn handle_relay_saved(model: &mut Model, result: Result<String, String>) -> Vec<Effect> {
@@ -200,6 +322,11 @@ fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
         Route::MatrixLocked => handle_matrix_locked_key(model, key),
         Route::Locked(_) => handle_locked_key(model, key),
         Route::Lobby(_) => handle_lobby_key(model, key),
+        Route::SandboxJoinConfirm(_) => handle_sandbox_join_confirm_key(model, key),
+        Route::SandboxJoinUnavailable { .. } => handle_sandbox_join_unavailable_key(model),
+        Route::SandboxDeleteConfirm(_) => handle_sandbox_delete_confirm_key(model, key),
+        Route::FirstJoinSetup(_) => handle_first_join_setup_key(model, key),
+        Route::HostedGame(_) => handle_hosted_game_key(model, key),
     }
 }
 
@@ -210,39 +337,48 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
         return Vec::new();
     }
 
-    let Route::Lobby(lobby) = &mut model.route else {
-        return Vec::new();
-    };
-    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
-        return Vec::new();
-    }
-
-    let row = mouse.position.row.as_usize();
-    let column = mouse.position.column.as_usize();
-    if row == LOBBY_TAB_ROW {
-        for (tab, start, end) in super::lobby_tab_bounds(model.geometry) {
-            if column >= start && column < end {
-                lobby.active_tab = tab;
+    match &mut model.route {
+        Route::Lobby(lobby) => {
+            if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
                 return Vec::new();
             }
-        }
-    }
 
-    if row < TABLE_DATA_ROW_START || row >= model.geometry.height().saturating_sub(4) {
-        return Vec::new();
-    }
+            let row = mouse.position.row.as_usize();
+            let column = mouse.position.column.as_usize();
+            if row == LOBBY_TAB_ROW {
+                for (tab, start, end) in super::lobby_tab_bounds(model.geometry) {
+                    if column >= start && column < end {
+                        lobby.active_tab = tab;
+                        return Vec::new();
+                    }
+                }
+            }
 
-    let index = row.saturating_sub(TABLE_DATA_ROW_START);
-    match lobby.active_tab {
-        LobbyTab::MyGames if !model.my_games.is_empty() => {
-            lobby.selected_my_game = index.min(model.my_games.len().saturating_sub(1));
+            if row < TABLE_DATA_ROW_START || row >= model.geometry.height().saturating_sub(4) {
+                return Vec::new();
+            }
+
+            let index = row.saturating_sub(TABLE_DATA_ROW_START);
+            match lobby.active_tab {
+                LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    lobby.selected_my_game = index.min(model.my_games.len().saturating_sub(1));
+                }
+                LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    lobby.selected_open_game = index.min(model.open_games.len().saturating_sub(1));
+                }
+                _ => {}
+            }
+            Vec::new()
         }
-        LobbyTab::OpenGames if !model.open_games.is_empty() => {
-            lobby.selected_open_game = index.min(model.open_games.len().saturating_sub(1));
+        Route::HostedGame(hosted) => {
+            let Some(mapped) = dashboard_mouse_event(mouse) else {
+                return Vec::new();
+            };
+            let _ = dashboard::dispatch_hosted_mouse(&mut hosted.dashboard, mapped);
+            Vec::new()
         }
-        _ => {}
+        _ => Vec::new(),
     }
-    Vec::new()
 }
 
 fn handle_text_input(model: &mut Model, text: &str) -> Vec<Effect> {
@@ -257,6 +393,15 @@ fn handle_text_input(model: &mut Model, text: &str) -> Vec<Effect> {
         }
         Route::Lobby(lobby) if lobby.active_tab == LobbyTab::Settings && lobby.editing_relay => {
             append_text(&mut lobby.relay_draft, text);
+            Vec::new()
+        }
+        Route::FirstJoinSetup(setup) => {
+            let input = match setup.active_field {
+                FirstJoinSetupField::Empire => &mut setup.empire_input,
+                FirstJoinSetupField::Homeworld => &mut setup.homeworld_input,
+            };
+            append_text(input, text);
+            trim_first_join_setup_input(input);
             Vec::new()
         }
         _ => Vec::new(),
@@ -444,9 +589,18 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             lobby.set_selected_index((lobby.selected_index() + 1).min(max_index));
             Vec::new()
         }
+        KeyCode::Enter => activate_selected_row(model),
         KeyCode::Char('?') | KeyCode::Char('h') | KeyCode::Char('H') => {
             lobby.help_open = true;
             Vec::new()
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') if key.modifiers.contains(KeyModifiers::ALT) => {
+            lobby.status = Some("Refreshing hosted lobby...".to_string());
+            model.network = NetworkState::Connecting;
+            vec![Effect::RefreshLobby]
+        }
+        KeyCode::Char('d') | KeyCode::Char('D') if key.modifiers.contains(KeyModifiers::ALT) => {
+            open_sandbox_delete_confirm(model)
         }
         KeyCode::Char('m') | KeyCode::Char('M') => {
             lobby.active_tab = LobbyTab::MyGames;
@@ -482,8 +636,373 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             }]
         }
         KeyCode::Char('l') | KeyCode::Char('L') => lock_session(model),
+        KeyCode::Char('j') | KeyCode::Char('J') if lobby.active_tab == LobbyTab::OpenGames => {
+            activate_selected_row(model)
+        }
         _ => Vec::new(),
     }
+}
+
+fn handle_sandbox_join_confirm_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    let Route::SandboxJoinConfirm(row) = &model.route else {
+        return Vec::new();
+    };
+    if !matches!(key.code, KeyCode::Char('y') | KeyCode::Char('Y')) {
+        return_to_lobby_with_status(model, String::new())
+    } else {
+        vec![Effect::JoinSandboxGame {
+            row: row.clone(),
+            password: current_password(model),
+            handle: model
+                .session
+                .as_ref()
+                .and_then(|session| session.active_handle.clone()),
+        }]
+    }
+}
+
+fn handle_sandbox_join_unavailable_key(model: &mut Model) -> Vec<Effect> {
+    return_to_lobby_with_status(model, String::new())
+}
+
+fn handle_sandbox_delete_confirm_key(
+    model: &mut Model,
+    key: crate::input::KeyEvent,
+) -> Vec<Effect> {
+    let Route::SandboxDeleteConfirm(row) = &model.route else {
+        return Vec::new();
+    };
+    if matches!(key.code, KeyCode::Char('y') | KeyCode::Char('Y')) {
+        let row = row.clone();
+        model.route = lobby_route(
+            Some("Releasing sandbox seat...".to_string()),
+            model.relay_url.clone(),
+        );
+        vec![Effect::ReleaseSandboxGame { row }]
+    } else {
+        return_to_lobby_with_status(model, String::new())
+    }
+}
+
+fn handle_first_join_setup_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    let Route::FirstJoinSetup(setup) = &mut model.route else {
+        return Vec::new();
+    };
+    match key.code {
+        KeyCode::Tab | KeyCode::BackTab => {
+            setup.active_field = setup.active_field.next();
+            Vec::new()
+        }
+        KeyCode::Backspace => {
+            match setup.active_field {
+                FirstJoinSetupField::Empire => {
+                    setup.empire_input.pop();
+                }
+                FirstJoinSetupField::Homeworld => {
+                    setup.homeworld_input.pop();
+                }
+            }
+            Vec::new()
+        }
+        KeyCode::Esc => {
+            return_to_lobby_with_status(model, "First-join setup cancelled.".to_string())
+        }
+        KeyCode::Enter => {
+            let empire_name = setup.empire_input.trim().to_string();
+            let homeworld_name = setup.homeworld_input.trim().to_string();
+            if empire_name.is_empty() {
+                setup.status =
+                    Some("Empire names need at least one visible character.".to_string());
+                setup.active_field = FirstJoinSetupField::Empire;
+                return Vec::new();
+            }
+            if setup.active_field == FirstJoinSetupField::Empire && homeworld_name.is_empty() {
+                setup.active_field = FirstJoinSetupField::Homeworld;
+                return Vec::new();
+            }
+            if homeworld_name.is_empty() {
+                setup.status =
+                    Some("Homeworld names need at least one visible character.".to_string());
+                setup.active_field = FirstJoinSetupField::Homeworld;
+                return Vec::new();
+            }
+            vec![Effect::CompleteFirstJoinSetup {
+                row: setup.row.clone(),
+                empire_name,
+                homeworld_name,
+                password: current_password(model),
+            }]
+        }
+        _ => {
+            if let Some(ch) = is_printable_key(key) {
+                let input = match setup.active_field {
+                    FirstJoinSetupField::Empire => &mut setup.empire_input,
+                    FirstJoinSetupField::Homeworld => &mut setup.homeworld_input,
+                };
+                input.push(ch);
+                trim_first_join_setup_input(input);
+                setup.status = None;
+            }
+            Vec::new()
+        }
+    }
+}
+
+fn handle_hosted_game_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    let Route::HostedGame(hosted) = &mut model.route else {
+        return Vec::new();
+    };
+    if let Some(mapped) = dashboard_key_event(key) {
+        dashboard::dispatch_hosted_key(&mut hosted.dashboard, mapped);
+        if dashboard::hosted_should_quit(&hosted.dashboard) {
+            model.should_quit = true;
+            return vec![Effect::Quit];
+        }
+    }
+    Vec::new()
+}
+
+fn activate_selected_row(model: &mut Model) -> Vec<Effect> {
+    let Some(lobby) = (match &model.route {
+        Route::Lobby(lobby) => Some(lobby.clone()),
+        _ => None,
+    }) else {
+        return Vec::new();
+    };
+    match lobby.active_tab {
+        LobbyTab::OpenGames => activate_selected_open_game(model, &lobby),
+        LobbyTab::MyGames => open_or_claim_selected_game(model, &lobby),
+        _ => Vec::new(),
+    }
+}
+
+fn activate_selected_open_game(model: &mut Model, lobby: &super::LobbyModel) -> Vec<Effect> {
+    let Some(row) = model.open_games.get(lobby.selected_open_game).cloned() else {
+        return return_to_lobby_with_status(model, "no hosted game selected".to_string());
+    };
+    if row.game_tier.eq_ignore_ascii_case("sandbox") {
+        if let Some(joined_row) = model
+            .my_games
+            .iter()
+            .find(|joined| joined.game_id == row.game_id && joined.status == "joined")
+            .cloned()
+        {
+            return open_joined_game(model, joined_row);
+        }
+        model.route = Route::SandboxJoinConfirm(row);
+        return Vec::new();
+    }
+    return_to_lobby_with_status(
+        model,
+        "League join requests are not wired in nc-helm yet.".to_string(),
+    )
+}
+
+fn open_or_claim_selected_game(model: &mut Model, lobby: &super::LobbyModel) -> Vec<Effect> {
+    let Some(row) = model.my_games.get(lobby.selected_my_game).cloned() else {
+        return return_to_lobby_with_status(model, "no hosted game selected".to_string());
+    };
+    if row.status != "joined" {
+        let message = match row.status.as_str() {
+            "requested" => "Join request is still waiting for nc-host approval.",
+            "rejected" => {
+                "Join request was rejected. Select the game in Open Games to request again."
+            }
+            "expired" => "Your sandbox seat is no longer active. Rejoin from Open Games.",
+            _ => "This game is not ready to open from the lobby.",
+        };
+        return return_to_lobby_with_status(model, message.to_string());
+    }
+    open_joined_game(model, row)
+}
+
+fn open_joined_game(model: &mut Model, row: super::MyGameRow) -> Vec<Effect> {
+    vec![Effect::OpenHostedGame {
+        row,
+        password: current_password(model),
+        handle: model
+            .session
+            .as_ref()
+            .and_then(|session| session.active_handle.clone()),
+    }]
+}
+
+fn open_sandbox_delete_confirm(model: &mut Model) -> Vec<Effect> {
+    let Some(lobby) = (match &model.route {
+        Route::Lobby(lobby) => Some(lobby.clone()),
+        _ => None,
+    }) else {
+        return Vec::new();
+    };
+    if lobby.active_tab != LobbyTab::MyGames {
+        return Vec::new();
+    }
+    let Some(row) = model.my_games.get(lobby.selected_my_game).cloned() else {
+        return Vec::new();
+    };
+    if !row.game_tier.eq_ignore_ascii_case("sandbox") {
+        return Vec::new();
+    }
+    model.route = Route::SandboxDeleteConfirm(row);
+    Vec::new()
+}
+
+fn open_snapshot_route(
+    model: &mut Model,
+    row: super::MyGameRow,
+    snapshot: nc_nostr::state_sync::GameState,
+    lobby_status: Option<String>,
+) -> Vec<Effect> {
+    if let Some(setup) = first_join_setup_from_snapshot(row.clone(), &snapshot) {
+        model.route = Route::FirstJoinSetup(setup);
+        return Vec::new();
+    }
+    match dashboard::build_hosted_dash_app(
+        &snapshot,
+        dashboard::ScreenGeometry::new(model.geometry.width(), model.geometry.height()),
+    ) {
+        Ok(dashboard) => {
+            model.route = Route::HostedGame(HostedGameModel {
+                row,
+                snapshot,
+                dashboard,
+                status: None,
+            });
+            Vec::new()
+        }
+        Err(err) => return_to_lobby_with_status(
+            model,
+            lobby_status
+                .map(|status| format!("{status} Unable to build hosted dashboard: {err}"))
+                .unwrap_or_else(|| format!("Unable to build hosted dashboard: {err}")),
+        ),
+    }
+}
+
+fn return_to_lobby_with_status(model: &mut Model, status: String) -> Vec<Effect> {
+    let mut route = super::lobby_route(
+        if status.is_empty() {
+            None
+        } else {
+            Some(status)
+        },
+        model.relay_url.clone(),
+    );
+    if let Route::Lobby(lobby) = &mut route {
+        lobby.selected_my_game = 0;
+        lobby.selected_open_game = 0;
+    }
+    model.route = route;
+    Vec::new()
+}
+
+fn upsert_joined_game(model: &mut Model, row: super::MyGameRow) {
+    if let Some(index) = model
+        .my_games
+        .iter()
+        .position(|existing| existing.game_id == row.game_id)
+    {
+        model.my_games[index] = row;
+    } else {
+        model.my_games.push(row);
+    }
+    model
+        .my_games
+        .sort_by(|left, right| left.game_id.cmp(&right.game_id));
+}
+
+fn apply_lobby_snapshot(model: &mut Model, snapshot: crate::transport::LobbySnapshot) {
+    model.network = NetworkState::Synced;
+    model.cache = snapshot.cache;
+    model.my_games = snapshot.my_games;
+    model.open_games = snapshot.open_games;
+    model.notices = snapshot.notices;
+    if let Route::Lobby(lobby) = &mut model.route {
+        lobby.selected_my_game = lobby
+            .selected_my_game
+            .min(model.my_games.len().saturating_sub(1));
+        lobby.selected_open_game = lobby
+            .selected_open_game
+            .min(model.open_games.len().saturating_sub(1));
+    }
+}
+
+fn dashboard_key_event(key: crate::input::KeyEvent) -> Option<crate::dashboard::input::KeyEvent> {
+    Some(crate::dashboard::input::KeyEvent::new(
+        dashboard_key_code(key.code)?,
+        dashboard_modifiers(key.modifiers),
+    ))
+}
+
+fn dashboard_mouse_event(
+    mouse: crate::input::MouseEvent,
+) -> Option<crate::dashboard::input::MouseEvent> {
+    Some(crate::dashboard::input::MouseEvent {
+        kind: match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                crate::dashboard::input::MouseEventKind::Down(
+                    crate::dashboard::input::MouseButton::Left,
+                )
+            }
+            MouseEventKind::Down(MouseButton::Right) => {
+                crate::dashboard::input::MouseEventKind::Down(
+                    crate::dashboard::input::MouseButton::Right,
+                )
+            }
+            MouseEventKind::Down(MouseButton::Middle) => {
+                crate::dashboard::input::MouseEventKind::Down(
+                    crate::dashboard::input::MouseButton::Middle,
+                )
+            }
+            MouseEventKind::Up(MouseButton::Left) => crate::dashboard::input::MouseEventKind::Up(
+                crate::dashboard::input::MouseButton::Left,
+            ),
+            MouseEventKind::Up(MouseButton::Right) => crate::dashboard::input::MouseEventKind::Up(
+                crate::dashboard::input::MouseButton::Right,
+            ),
+            MouseEventKind::Up(MouseButton::Middle) => crate::dashboard::input::MouseEventKind::Up(
+                crate::dashboard::input::MouseButton::Middle,
+            ),
+        },
+        column: mouse.position.column.as_usize().min(u16::MAX as usize) as u16,
+        row: mouse.position.row.as_usize().min(u16::MAX as usize) as u16,
+        modifiers: dashboard_modifiers(mouse.modifiers),
+    })
+}
+
+fn dashboard_key_code(code: KeyCode) -> Option<crate::dashboard::input::KeyCode> {
+    Some(match code {
+        KeyCode::Backspace => crate::dashboard::input::KeyCode::Backspace,
+        KeyCode::Enter => crate::dashboard::input::KeyCode::Enter,
+        KeyCode::Left => crate::dashboard::input::KeyCode::Left,
+        KeyCode::Right => crate::dashboard::input::KeyCode::Right,
+        KeyCode::Up => crate::dashboard::input::KeyCode::Up,
+        KeyCode::Down => crate::dashboard::input::KeyCode::Down,
+        KeyCode::Home => crate::dashboard::input::KeyCode::Home,
+        KeyCode::End => crate::dashboard::input::KeyCode::End,
+        KeyCode::PageUp => crate::dashboard::input::KeyCode::PageUp,
+        KeyCode::PageDown => crate::dashboard::input::KeyCode::PageDown,
+        KeyCode::Tab => crate::dashboard::input::KeyCode::Tab,
+        KeyCode::BackTab => crate::dashboard::input::KeyCode::BackTab,
+        KeyCode::Delete => crate::dashboard::input::KeyCode::Delete,
+        KeyCode::Esc => crate::dashboard::input::KeyCode::Esc,
+        KeyCode::F(n) => crate::dashboard::input::KeyCode::F(n),
+        KeyCode::Char(ch) => crate::dashboard::input::KeyCode::Char(ch),
+    })
+}
+
+fn dashboard_modifiers(modifiers: KeyModifiers) -> crate::dashboard::input::KeyModifiers {
+    let mut mapped = crate::dashboard::input::KeyModifiers::empty();
+    if modifiers.contains(KeyModifiers::SHIFT) {
+        mapped.insert(crate::dashboard::input::KeyModifiers::SHIFT);
+    }
+    if modifiers.contains(KeyModifiers::CONTROL) {
+        mapped.insert(crate::dashboard::input::KeyModifiers::CONTROL);
+    }
+    if modifiers.contains(KeyModifiers::ALT) {
+        mapped.insert(crate::dashboard::input::KeyModifiers::ALT);
+    }
+    mapped
 }
 
 fn handle_idle_lock(model: &mut Model) -> Vec<Effect> {

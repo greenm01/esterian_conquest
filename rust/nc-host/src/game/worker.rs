@@ -4,6 +4,7 @@ use crate::game::outbox::enqueue_encrypted_event;
 use crate::support::pubkeys::short_pubkey;
 use crate::support::runtime::{
     apply_hosted_first_join_names, current_runtime_year, ensure_hosted_player_initialized,
+    reset_hosted_player_to_baseline,
 };
 use nc_data::hosted::{self, GameTier, HandleOwnership, HostedStore};
 use nc_nostr::claim::{SeatClaimRequest, SeatClaimResultPayload, SeatClaimStatus};
@@ -12,6 +13,9 @@ use nc_nostr::first_join::{
 };
 use nc_nostr::invite_request::{
     InviteDecision, InviteRequest, InviteRequestReceipt, InviteRequestReceiptStatus,
+};
+use nc_nostr::sandbox_release::{
+    SandboxReleaseRequest, SandboxReleaseResult, SandboxReleaseStatus,
 };
 use nc_nostr::state_sync::{
     StateErrorCode, StateErrorPayload, StateRequest, build_delta_response_tags, build_state_delta,
@@ -45,6 +49,9 @@ impl GameWorker {
             }
             GameEffects::HandleSeatClaim { request, .. } => {
                 self.handle_seat_claim(request).await;
+            }
+            GameEffects::HandleSandboxRelease { request, .. } => {
+                self.handle_sandbox_release(request).await;
             }
             GameEffects::HandleTurnCommands { commands, .. } => {
                 self.handle_turn_commands(commands).await;
@@ -818,6 +825,173 @@ impl GameWorker {
         }
     }
 
+    async fn handle_sandbox_release(&self, request: SandboxReleaseRequest) {
+        let request_id = request.request_id.clone();
+        let player_pubkey = request.player_pubkey.clone();
+        let store = match HostedStore::open(&self.db_path) {
+            Ok(s) => s,
+            Err(err) => {
+                tracing::error!("Failed to open store: {}", err);
+                return;
+            }
+        };
+
+        let settings = match hosted::get_settings(store.connection(), &self.game_id) {
+            Ok(settings) => settings,
+            Err(err) => {
+                tracing::error!("Failed to load settings for {}: {}", self.game_id, err);
+                let _ = self.enqueue_sandbox_release_result(
+                    store.connection(),
+                    &player_pubkey,
+                    SandboxReleaseResult {
+                        request_id: request_id.clone(),
+                        game_id: self.game_id.clone(),
+                        status: SandboxReleaseStatus::Rejected,
+                        message: "Unable to load hosted sandbox settings.".to_string(),
+                    },
+                );
+                return;
+            }
+        };
+
+        if settings.game_tier != GameTier::Sandbox {
+            let _ = self.enqueue_sandbox_release_result(
+                store.connection(),
+                &player_pubkey,
+                SandboxReleaseResult {
+                    request_id: request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: SandboxReleaseStatus::Rejected,
+                    message: "Only sandbox games can be deleted from My Games.".to_string(),
+                },
+            );
+            return;
+        }
+
+        let seat =
+            match hosted::get_seat_by_pubkey(store.connection(), &self.game_id, &player_pubkey) {
+                Ok(Some(seat)) => seat,
+                Ok(None) => {
+                    let _ = self.enqueue_sandbox_release_result(
+                        store.connection(),
+                        &player_pubkey,
+                        SandboxReleaseResult {
+                            request_id: request_id.clone(),
+                            game_id: self.game_id.clone(),
+                            status: SandboxReleaseStatus::Rejected,
+                            message: "You no longer have a claimed sandbox seat in this game."
+                                .to_string(),
+                        },
+                    );
+                    return;
+                }
+                Err(err) => {
+                    tracing::error!("Failed to lookup sandbox seat: {}", err);
+                    let _ = self.enqueue_sandbox_release_result(
+                        store.connection(),
+                        &player_pubkey,
+                        SandboxReleaseResult {
+                            request_id: request_id.clone(),
+                            game_id: self.game_id.clone(),
+                            status: SandboxReleaseStatus::Rejected,
+                            message: "Unable to look up your sandbox seat.".to_string(),
+                        },
+                    );
+                    return;
+                }
+            };
+
+        let Some(game_dir) = self.db_path.parent() else {
+            tracing::error!(
+                "Hosted db path has no parent for {}",
+                self.db_path.display()
+            );
+            let _ = self.enqueue_sandbox_release_result(
+                store.connection(),
+                &player_pubkey,
+                SandboxReleaseResult {
+                    request_id: request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: SandboxReleaseStatus::Rejected,
+                    message: "Hosted sandbox state is unavailable right now.".to_string(),
+                },
+            );
+            return;
+        };
+
+        if let Err(err) = reset_hosted_player_to_baseline(game_dir, seat.seat_number) {
+            tracing::error!(
+                "Failed to reset sandbox runtime seat {} in {}: {}",
+                seat.seat_number,
+                self.game_id,
+                err
+            );
+            let _ = self.enqueue_sandbox_release_result(
+                store.connection(),
+                &player_pubkey,
+                SandboxReleaseResult {
+                    request_id: request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: SandboxReleaseStatus::Rejected,
+                    message: "Unable to reset the hosted sandbox seat.".to_string(),
+                },
+            );
+            return;
+        }
+
+        if let Err(err) = hosted::reset_seat(store.connection(), &self.game_id, seat.seat_number) {
+            tracing::error!(
+                "Failed to reset sandbox seat {} in {}: {}",
+                seat.seat_number,
+                self.game_id,
+                err
+            );
+            let _ = self.enqueue_sandbox_release_result(
+                store.connection(),
+                &player_pubkey,
+                SandboxReleaseResult {
+                    request_id: request_id.clone(),
+                    game_id: self.game_id.clone(),
+                    status: SandboxReleaseStatus::Rejected,
+                    message: "Unable to release your sandbox seat.".to_string(),
+                },
+            );
+            return;
+        }
+
+        if settings.recruiting == hosted::RecruitingMode::None {
+            let mut reopened = settings.clone();
+            reopened.recruiting = hosted::RecruitingMode::NewPlayers;
+            if let Err(err) = hosted::update_settings(store.connection(), &self.game_id, &reopened)
+            {
+                tracing::warn!(
+                    "Failed to reopen recruiting for released sandbox {}: {}",
+                    self.game_id,
+                    err
+                );
+            }
+        }
+
+        if let Err(err) = hosted::mark_catalog_dirty(store.connection(), &self.game_id) {
+            tracing::warn!(
+                "Failed to mark sandbox catalog dirty for {}: {}",
+                self.game_id,
+                err
+            );
+        }
+
+        let _ = self.enqueue_sandbox_release_result(
+            store.connection(),
+            &player_pubkey,
+            SandboxReleaseResult {
+                request_id,
+                game_id: self.game_id.clone(),
+                status: SandboxReleaseStatus::Accepted,
+                message: "Sandbox seat released.".to_string(),
+            },
+        );
+    }
+
     async fn handle_turn_commands(&self, commands: TurnCommands) {
         let store = match HostedStore::open(&self.db_path) {
             Ok(s) => s,
@@ -1173,6 +1347,21 @@ impl GameWorker {
                 short_pubkey(player_pubkey)
             );
         }
+    }
+
+    fn enqueue_sandbox_release_result(
+        &self,
+        conn: &rusqlite::Connection,
+        recipient_pubkey: &str,
+        result: SandboxReleaseResult,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let content = serde_json::to_string(&result)?;
+        let tags = nc_nostr::sandbox_release::build_sandbox_release_result_tags(&result)
+            .into_iter()
+            .map(|(key, value)| vec![key.to_string(), value])
+            .collect();
+        enqueue_encrypted_event(conn, &self.game_id, recipient_pubkey, 30530, &content, tags)?;
+        Ok(())
     }
 
     fn validate_player_handle(

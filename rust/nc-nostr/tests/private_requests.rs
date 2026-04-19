@@ -9,6 +9,10 @@ use nc_nostr::invite_request::{
     InviteRequestPayload, InviteRequestReceipt, InviteRequestReceiptStatus, parse_invite_request,
 };
 use nc_nostr::private_payload::encrypt_private_json;
+use nc_nostr::sandbox_release::{
+    SandboxReleaseRequestPayload, SandboxReleaseResult, SandboxReleaseStatus,
+    parse_sandbox_release_request,
+};
 use nc_nostr::state_sync::{
     StateErrorCode, StateErrorPayload, StateRequestPayload, parse_state_error, parse_state_request,
 };
@@ -124,6 +128,32 @@ fn first_join_setup_request_uses_hex_player_pubkey() {
     assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
     assert_eq!(parsed.empire_name, "Terran Union");
     assert_eq!(parsed.homeworld_name, "Sol");
+}
+
+#[test]
+fn sandbox_release_request_uses_hex_player_pubkey() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &player,
+        &host.public_key(),
+        &SandboxReleaseRequestPayload {},
+    )
+    .expect("encrypt sandbox release");
+
+    let event = EventBuilder::new(Kind::Custom(30529), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "sandbox-release-001"]).unwrap(),
+            Tag::parse(["game-id", "friday-night"]).unwrap(),
+            Tag::parse(["p", &host.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&player)
+        .unwrap();
+
+    let parsed =
+        parse_sandbox_release_request(host.secret_key(), &event).expect("parse sandbox release");
+    assert_eq!(parsed.player_pubkey, player.public_key().to_hex());
+    assert_eq!(parsed.game_id, "friday-night");
 }
 
 #[test]
@@ -284,5 +314,38 @@ fn first_join_setup_result_round_trips_as_private_30528() {
         nc_nostr::private_payload::decrypt_private_json_from_event(player.secret_key(), &event)
             .expect("parse first join result");
     assert_eq!(parsed.status, FirstJoinSetupStatus::Rejected);
+    assert_eq!(parsed.game_id, "sandbox-smoke");
+}
+
+#[test]
+fn sandbox_release_result_round_trips_as_private_30530() {
+    let player = Keys::generate();
+    let host = Keys::generate();
+    let encrypted = encrypt_private_json(
+        &host,
+        &player.public_key(),
+        &SandboxReleaseResult {
+            request_id: "sandbox-release-001".to_string(),
+            game_id: "sandbox-smoke".to_string(),
+            status: SandboxReleaseStatus::Accepted,
+            message: "Sandbox seat released.".to_string(),
+        },
+    )
+    .expect("encrypt sandbox release result");
+
+    let event = EventBuilder::new(Kind::Custom(30530), encrypted)
+        .tags(vec![
+            Tag::parse(["d", "sandbox-release-001"]).unwrap(),
+            Tag::parse(["game-id", "sandbox-smoke"]).unwrap(),
+            Tag::parse(["status", "accepted"]).unwrap(),
+            Tag::parse(["p", &player.public_key().to_hex()]).unwrap(),
+        ])
+        .sign_with_keys(&host)
+        .unwrap();
+
+    let parsed: SandboxReleaseResult =
+        nc_nostr::private_payload::decrypt_private_json_from_event(player.secret_key(), &event)
+            .expect("parse sandbox release result");
+    assert_eq!(parsed.status, SandboxReleaseStatus::Accepted);
     assert_eq!(parsed.game_id, "sandbox-smoke");
 }

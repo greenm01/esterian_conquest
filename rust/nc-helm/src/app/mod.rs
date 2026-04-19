@@ -3,11 +3,17 @@ mod update;
 mod view;
 
 use nc_client::cache::ClientCache;
+use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
+use nc_nostr::state_sync::GameState;
 
+use crate::dashboard;
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
 use crate::storage::{BootSnapshot, StoredSession};
 use crate::theme;
-use crate::transport::LobbySnapshot;
+use crate::transport::{
+    HostedGameOpenResult, HostedGameOpenSuccess, LobbySnapshot, SandboxJoinResult,
+    SandboxReleaseSuccess,
+};
 use crate::{CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
 pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
@@ -16,7 +22,7 @@ pub(crate) const MIN_SUPPORTED_GEOMETRY: ScreenGeometry = ScreenGeometry::new(68
 pub const DEFAULT_LOCK_TIMEOUT_MINUTES: u16 = 10;
 pub const LOCK_TIMEOUT_OPTIONS: [u16; 5] = [0, 5, 10, 15, 30];
 pub const HELP_POPUP_WIDTH: usize = 60;
-pub const HELP_POPUP_HEIGHT: usize = 11;
+pub const HELP_POPUP_HEIGHT: usize = 14;
 pub const HELP_CLOSE_LABEL: &str = "[X]";
 pub(crate) const LOBBY_TAB_ROW: usize = 2;
 const LOBBY_TAB_GAP: usize = 1;
@@ -83,11 +89,18 @@ pub struct Model {
 
 impl Model {
     pub fn wants_text_input(&self) -> bool {
-        matches!(self.route, Route::FirstRun(_) | Route::Locked(_))
+        match &self.route {
+            Route::FirstRun(_) | Route::Locked(_) | Route::FirstJoinSetup(_) => true,
+            Route::HostedGame(hosted) => dashboard::hosted_wants_text_input(&hosted.dashboard),
+            _ => false,
+        }
     }
 
     pub fn wants_window_focus(&self) -> bool {
-        true
+        match &self.route {
+            Route::HostedGame(hosted) => dashboard::hosted_wants_window_focus(&hosted.dashboard),
+            _ => true,
+        }
     }
 }
 
@@ -98,6 +111,11 @@ pub enum Route {
     MatrixLocked,
     Locked(LockedModel),
     Lobby(LobbyModel),
+    SandboxJoinConfirm(OpenGameRow),
+    SandboxJoinUnavailable { row: OpenGameRow, notice: String },
+    SandboxDeleteConfirm(MyGameRow),
+    FirstJoinSetup(FirstJoinSetupModel),
+    HostedGame(HostedGameModel),
     FatalError(String),
 }
 
@@ -152,6 +170,21 @@ pub struct LockedModel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FirstJoinSetupField {
+    Empire,
+    Homeworld,
+}
+
+impl FirstJoinSetupField {
+    fn next(self) -> Self {
+        match self {
+            Self::Empire => Self::Homeworld,
+            Self::Homeworld => Self::Empire,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LobbyTab {
     MyGames,
     OpenGames,
@@ -191,6 +224,48 @@ pub struct LobbyModel {
 }
 
 #[derive(Debug, Clone)]
+pub struct FirstJoinSetupModel {
+    pub row: MyGameRow,
+    pub empire_input: String,
+    pub homeworld_input: String,
+    pub active_field: FirstJoinSetupField,
+    pub status: Option<String>,
+    pub homeworld_coords: [u8; 2],
+    pub present_production: u16,
+    pub potential_production: u16,
+}
+
+pub struct HostedGameModel {
+    pub row: MyGameRow,
+    pub snapshot: GameState,
+    pub dashboard: dashboard::DashApp,
+    pub status: Option<String>,
+}
+
+impl Clone for HostedGameModel {
+    fn clone(&self) -> Self {
+        let geometry = self.dashboard.geometry;
+        let dashboard = dashboard::build_hosted_dash_app(&self.snapshot, geometry)
+            .expect("hosted dashboard rebuild");
+        Self {
+            row: self.row.clone(),
+            snapshot: self.snapshot.clone(),
+            dashboard,
+            status: self.status.clone(),
+        }
+    }
+}
+
+impl std::fmt::Debug for HostedGameModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HostedGameModel")
+            .field("row", &self.row)
+            .field("status", &self.status)
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct SessionState {
     pub password: String,
     pub active_npub: String,
@@ -213,9 +288,13 @@ pub struct MyGameRow {
     pub game_tier: String,
     pub game: String,
     pub host: String,
+    pub host_contact_npub: Option<String>,
+    pub relay_url: String,
+    pub daemon_pubkey: String,
     pub seat: Option<u8>,
     pub turn_summary: String,
     pub last_turn: Option<u32>,
+    pub last_hash: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -225,6 +304,9 @@ pub struct OpenGameRow {
     pub game_tier: String,
     pub game: String,
     pub host: String,
+    pub host_contact_npub: Option<String>,
+    pub relay_url: String,
+    pub daemon_pubkey: String,
     pub open_seats: u8,
     pub total_seats: u8,
     pub created_date: String,
@@ -245,6 +327,11 @@ pub enum Msg {
     IdentityCreated(Result<StoredSession, String>),
     Unlocked(Result<StoredSession, String>),
     LobbyUpdated(Result<LobbySnapshot, String>),
+    LobbyRefreshed(Result<LobbySnapshot, String>),
+    SandboxJoined(Result<SandboxJoinResult, String>),
+    SandboxReleased(Result<SandboxReleaseSuccess, String>),
+    HostedGameOpened(Result<HostedGameOpenResult, String>),
+    FirstJoinSetupCompleted(Result<HostedGameOpenSuccess, String>),
     RelaySaved(Result<String, String>),
 }
 
@@ -273,6 +360,26 @@ pub enum Effect {
     },
     SaveLockTimeout {
         lock_timeout_minutes: u16,
+    },
+    RefreshLobby,
+    JoinSandboxGame {
+        row: OpenGameRow,
+        password: String,
+        handle: Option<String>,
+    },
+    ReleaseSandboxGame {
+        row: MyGameRow,
+    },
+    OpenHostedGame {
+        row: MyGameRow,
+        password: String,
+        handle: Option<String>,
+    },
+    CompleteFirstJoinSetup {
+        row: MyGameRow,
+        empire_name: String,
+        homeworld_name: String,
+        password: String,
     },
     DisconnectTransport,
     Quit,
@@ -397,6 +504,53 @@ pub fn normalize_lock_timeout_minutes(value: u16) -> u16 {
         value
     } else {
         DEFAULT_LOCK_TIMEOUT_MINUTES
+    }
+}
+
+pub(crate) fn first_join_setup_from_snapshot(
+    row: MyGameRow,
+    snapshot: &GameState,
+) -> Option<FirstJoinSetupModel> {
+    let empire_pending = snapshot.state.player.empire_name == "In Civil Disorder";
+    let homeworld = snapshot
+        .state
+        .owned_planets
+        .iter()
+        .find(|planet| {
+            planet.planet_index == usize::from(snapshot.state.player.homeworld_planet_index)
+        })
+        .or_else(|| snapshot.state.owned_planets.first())?;
+    let homeworld_pending = homeworld.name == "Not Named Yet";
+    if !empire_pending && !homeworld_pending {
+        return None;
+    }
+    Some(FirstJoinSetupModel {
+        row,
+        empire_input: if empire_pending {
+            String::new()
+        } else {
+            snapshot.state.player.empire_name.clone()
+        },
+        homeworld_input: if homeworld_pending {
+            String::new()
+        } else {
+            homeworld.name.clone()
+        },
+        active_field: if empire_pending {
+            FirstJoinSetupField::Empire
+        } else {
+            FirstJoinSetupField::Homeworld
+        },
+        status: None,
+        homeworld_coords: homeworld.coords,
+        present_production: u16::from(homeworld.current_production),
+        potential_production: homeworld.potential_production,
+    })
+}
+
+pub(crate) fn trim_first_join_setup_input(value: &mut String) {
+    if value.chars().count() > FIRST_JOIN_NAME_MAX_CHARS {
+        *value = value.chars().take(FIRST_JOIN_NAME_MAX_CHARS).collect();
     }
 }
 

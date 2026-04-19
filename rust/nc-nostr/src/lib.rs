@@ -13,6 +13,7 @@ pub mod nonce;
 pub mod player_message;
 pub mod private_payload;
 pub mod pubkeys;
+pub mod sandbox_release;
 pub mod session;
 pub mod state_sync;
 pub mod tags;

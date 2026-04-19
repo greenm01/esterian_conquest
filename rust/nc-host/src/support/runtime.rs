@@ -4,7 +4,7 @@ use std::path::Path;
 use nc_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME,
     PlanetIntelSnapshot, QueuedPlayerMail, derive_campaign_seed_from_runtime, load_mail_queue,
-    merge_player_intel_from_runtime,
+    merge_player_intel_from_runtime, reset_player_slot_to_baseline,
 };
 
 pub fn current_runtime_year(game_dir: &Path) -> Result<u16, Box<dyn std::error::Error>> {
@@ -106,6 +106,20 @@ pub fn apply_hosted_first_join_names(
 
     save_runtime_state_with_recomputed_intel(&store, runtime, game_data)?;
 
+    Ok(())
+}
+
+pub fn reset_hosted_player_to_baseline(
+    game_dir: &Path,
+    player_seat: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let player_record_index_1_based =
+        usize::try_from(player_seat).map_err(|_| format!("invalid player seat {}", player_seat))?;
+    let store = CampaignStore::open_default_in_dir(game_dir)?;
+    let runtime = load_or_seed_runtime_state(game_dir, &store)?;
+    let mut game_data = runtime.game_data.clone();
+    reset_player_slot_to_baseline(&mut game_data, player_record_index_1_based)?;
+    save_runtime_state_with_recomputed_intel(&store, runtime, game_data)?;
     Ok(())
 }
 

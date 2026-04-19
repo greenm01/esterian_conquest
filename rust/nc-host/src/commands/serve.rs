@@ -146,11 +146,14 @@ async fn run_async_server(
         .kind(Kind::Custom(30517))
         .kind(Kind::Custom(30523))
         .kind(Kind::Custom(30522))
+        .kind(Kind::Custom(30529))
         .custom_tag(SingleLetterTag::lowercase(Alphabet::P), host_hex.as_str());
 
     let _ = client.subscribe(filter, None).await;
 
-    tracing::info!("Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523, 30525, 30527");
+    tracing::info!(
+        "Subscribed to kinds 30507, 30510, 30513, 30517, 30522, 30523, 30525, 30527, 30529"
+    );
     tracing::info!("Event loop started. Press Ctrl+C to stop.");
 
     let mut notifications = client.notifications();
@@ -272,6 +275,20 @@ async fn run_async_server(
                                                     request_id: request.request_id,
                                                     game_id: game_id.clone(),
                                                     status: nc_nostr::invite_request::InviteRequestReceiptStatus::UnknownGame,
+                                                    message: format!("Unknown game: {}", game_id),
+                                                },
+                                            ).await;
+                                        }
+                                    }
+                                    30529 => {
+                                        if let Some(request) = nc_nostr::sandbox_release::parse_sandbox_release_request(keys.secret_key(), &event) {
+                                            publish_sandbox_release_result_direct(
+                                                &publisher,
+                                                &request.player_pubkey,
+                                                &nc_nostr::sandbox_release::SandboxReleaseResult {
+                                                    request_id: request.request_id,
+                                                    game_id: game_id.clone(),
+                                                    status: nc_nostr::sandbox_release::SandboxReleaseStatus::Rejected,
                                                     message: format!("Unknown game: {}", game_id),
                                                 },
                                             ).await;
@@ -435,6 +452,36 @@ async fn publish_invite_request_receipt_direct(
             "Failed to publish invite receipt to {}: {}",
             short_pubkey(player_pubkey),
             e
+        );
+    }
+}
+
+async fn publish_sandbox_release_result_direct(
+    publisher: &EventPublisher,
+    player_pubkey: &str,
+    result: &nc_nostr::sandbox_release::SandboxReleaseResult,
+) {
+    let content = match serde_json::to_string(result) {
+        Ok(content) => content,
+        Err(err) => {
+            tracing::error!("Failed to serialize sandbox release result: {}", err);
+            return;
+        }
+    };
+
+    let tags = nc_nostr::sandbox_release::build_sandbox_release_result_tags(result)
+        .into_iter()
+        .map(|(key, value)| vec![key.to_string(), value])
+        .collect();
+
+    if let Err(err) = publisher
+        .publish_encrypted_multi(player_pubkey, 30530, &content, tags)
+        .await
+    {
+        tracing::error!(
+            "Failed to publish sandbox release result to {}: {}",
+            short_pubkey(player_pubkey),
+            err
         );
     }
 }

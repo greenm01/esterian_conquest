@@ -5,6 +5,7 @@ use nc_nostr::first_join::{FirstJoinSetupRequestPayload, parse_first_join_setup_
 use nc_nostr::handle_check::{HandleCheckRequestPayload, parse_handle_check_request};
 use nc_nostr::invite_request::{InviteRequestPayload, parse_invite_request};
 use nc_nostr::private_payload::encrypt_private_json;
+use nc_nostr::sandbox_release::{SandboxReleaseRequestPayload, parse_sandbox_release_request};
 use nc_nostr::state_sync::{StateRequestPayload, parse_state_request};
 use nc_nostr::turn_commands::{TurnCommandsPayload, parse_turn_commands};
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
@@ -223,6 +224,33 @@ fn test_parse_first_join_setup_30527() {
     assert_eq!(parsed.game_id, "test-game");
     assert_eq!(parsed.empire_name, "Terran Union");
     assert_eq!(parsed.homeworld_name, "Sol");
+}
+
+#[test]
+fn test_parse_sandbox_release_30529() {
+    let player_keys = make_test_keys();
+    let host_keys = make_test_keys();
+
+    let tags = vec![
+        Tag::parse(["d", "sandbox-release-001"]).unwrap(),
+        Tag::parse(["p", &host_keys.public_key().to_hex()]).unwrap(),
+        Tag::parse(["game-id", "test-game"]).unwrap(),
+    ];
+
+    let event = build_private_event(
+        &player_keys,
+        &host_keys,
+        30529,
+        &SandboxReleaseRequestPayload {},
+        tags,
+    );
+
+    let parsed =
+        parse_sandbox_release_request(host_keys.secret_key(), &event).expect("should parse");
+
+    assert_eq!(parsed.request_id, "sandbox-release-001");
+    assert_eq!(parsed.game_id, "test-game");
+    assert_eq!(parsed.player_pubkey, player_keys.public_key().to_hex());
 }
 
 #[test]

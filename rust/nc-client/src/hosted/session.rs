@@ -12,6 +12,9 @@ use nc_nostr::invite_request::{InviteDecisionPayload, InviteRequestPayload, Invi
 use nc_nostr::lobby_notice::LobbyNotice;
 use nc_nostr::player_message::{PlayerMessage, PlayerMessageRequest, decrypt_player_message};
 use nc_nostr::private_payload::{decrypt_private_json_from_event, encrypt_private_json};
+use nc_nostr::sandbox_release::{
+    SandboxReleaseRequestPayload, SandboxReleaseResult, SandboxReleaseStatus,
+};
 use nc_nostr::state_sync::{
     GameState, StateDelta, StateErrorCode, StateErrorPayload, StateRequestPayload,
     apply_state_delta, parse_state_error,
@@ -560,6 +563,69 @@ impl HostedClientSession {
                             }
                             Ok(_) => {}
                             Err(_) => return Err("first-join setup stream closed".into()),
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    pub fn release_sandbox_game(
+        &self,
+        game_id: &str,
+        daemon_pubkey: &str,
+    ) -> Result<SandboxReleaseResult, Box<dyn std::error::Error>> {
+        let request_id = random_nonce_hex();
+        let daemon_pubkey = PublicKey::parse(daemon_pubkey)?;
+        let player_pubkey_hex = self.keys.public_key().to_hex();
+        self.with_client(async move |client| {
+            let mut notifications = client.notifications();
+            let subscription = client
+                .subscribe(
+                    Filter::new()
+                        .kinds([Kind::Custom(30530)])
+                        .author(daemon_pubkey.clone())
+                        .custom_tag(
+                            SingleLetterTag::lowercase(Alphabet::P),
+                            player_pubkey_hex.as_str(),
+                        )
+                        .since(Timestamp::now() - Duration::from_secs(15)),
+                    None,
+                )
+                .await?
+                .val;
+
+            let event = build_private_json_event(
+                &self.keys,
+                &daemon_pubkey,
+                30529,
+                &SandboxReleaseRequestPayload {},
+                &request_id,
+                Some(game_id),
+            )?;
+            client.send_event(&event).await?;
+
+            let timeout = tokio::time::Instant::now() + Duration::from_secs(15);
+            loop {
+                tokio::select! {
+                    _ = tokio::time::sleep_until(timeout) => return Err("sandbox release timed out".into()),
+                    notification = notifications.recv() => {
+                        match notification {
+                            Ok(nostr_sdk::RelayPoolNotification::Event { subscription_id, event, .. }) if subscription_id == subscription => {
+                                let event = *event;
+                                if tag_content(&event.tags, "d") != Some(request_id.as_str()) {
+                                    continue;
+                                }
+                                if let Some(result) = decrypt_json::<SandboxReleaseResult>(self.keys.secret_key(), &event) {
+                                    client.unsubscribe(&subscription).await;
+                                    return match result.status {
+                                        SandboxReleaseStatus::Accepted => Ok(result),
+                                        SandboxReleaseStatus::Rejected => Err(result.message.into()),
+                                    };
+                                }
+                            }
+                            Ok(_) => {}
+                            Err(_) => return Err("sandbox release stream closed".into()),
                         }
                     }
                 }
