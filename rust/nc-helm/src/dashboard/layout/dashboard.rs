@@ -54,6 +54,8 @@ pub fn dashboard_layout(app: &DashApp) -> DashboardLayout {
         [3, 2, 0, 1],
     );
 
+    let map_size =
+        nc_data::map_size_for_player_count(app.game_data.conquest.player_count()) as usize;
     let widgets = build_widget_frames(
         app.geometry,
         frame,
@@ -64,6 +66,7 @@ pub fn dashboard_layout(app: &DashApp) -> DashboardLayout {
         right_rows,
         map_block_width,
         map_block_height,
+        map_size,
     );
 
     DashboardLayout {
@@ -266,6 +269,43 @@ fn stack_height_4(body_rows: [usize; 4]) -> usize {
     body_rows.into_iter().map(panel_outer_height).sum::<usize>() + 3
 }
 
+/// Snap the map block's width and height so the derived grid divides evenly
+/// into `map_size` sectors along both axes.
+///
+/// Map padding constants are currently zero, so `grid.width == map_block.width`
+/// and `grid.height == map_block.height - 1` (minus one axis row).  That
+/// means we need `(map_block_width - ROW_LABEL_COLS) % map_size == 0` and
+/// `(map_block_height - 1) % map_size == 0`.  Snapping at the map-block
+/// level (instead of the grid) keeps the axis row and grid flush against
+/// the block edges instead of leaving a dead bottom row.
+fn snap_map_block_to_map_size(
+    raw_width: usize,
+    raw_height: usize,
+    map_size: usize,
+) -> (usize, usize) {
+    debug_assert_eq!(MAP_LEFT_PADDING, 0);
+    debug_assert_eq!(MAP_RIGHT_PADDING, 0);
+    debug_assert_eq!(MAP_VERTICAL_PADDING, 0);
+    if map_size == 0 {
+        return (raw_width, raw_height);
+    }
+    let cell_area = raw_width.saturating_sub(ROW_LABEL_COLS);
+    let snapped_cell_area = (cell_area / map_size) * map_size;
+    let snapped_width = if snapped_cell_area == 0 {
+        raw_width
+    } else {
+        ROW_LABEL_COLS + snapped_cell_area
+    };
+    let grid_height = raw_height.saturating_sub(1);
+    let snapped_grid_height = (grid_height / map_size) * map_size;
+    let snapped_height = if snapped_grid_height == 0 {
+        raw_height
+    } else {
+        1 + snapped_grid_height
+    };
+    (snapped_width, snapped_height)
+}
+
 fn styled_row_width(rows: &[(String, crate::dashboard::buffer::CellStyle)]) -> usize {
     rows.iter()
         .map(|(row, _)| row.chars().count())
@@ -314,6 +354,7 @@ fn build_widget_frames(
     right_rows: [usize; 4],
     map_block_width: usize,
     map_block_height: usize,
+    map_size: usize,
 ) -> DashboardWidgetFrames {
     let (ox, oy) = frame_offset_for(canvas, frame);
 
@@ -349,11 +390,18 @@ fn build_widget_frames(
         width: center_width,
         height: content_height,
     };
+    // Snap the map block's inner grid dimensions to exact multiples of
+    // `map_size` so every sector occupies an identical integer-cell rect.
+    // We snap `map_block` itself (not just `grid`) because all map paddings
+    // are currently zero, so dead space between them would leave a blank
+    // bottom row inside the panel.
+    let (snapped_block_width, snapped_block_height) =
+        snap_map_block_to_map_size(map_block_width, map_block_height, map_size);
     let map_block = WidgetRect {
-        col: center_col + center_width.saturating_sub(map_block_width) / 2,
-        row: content_top + content_height.saturating_sub(map_block_height) / 2,
-        width: map_block_width,
-        height: map_block_height,
+        col: center_col + center_width.saturating_sub(snapped_block_width) / 2,
+        row: content_top + content_height.saturating_sub(snapped_block_height) / 2,
+        width: snapped_block_width,
+        height: snapped_block_height,
     };
     let axis_row = map_block.row + MAP_VERTICAL_PADDING;
     let grid = WidgetRect {
@@ -476,10 +524,14 @@ mod tests {
             layout.widgets.center_map.outer.height,
             layout.frame.height().saturating_sub(6)
         );
-        assert_eq!(
-            layout.widgets.center_map.map_block,
-            layout.widgets.center_map.outer
-        );
+        // Snapping the map block to a multiple of `map_size` may shrink it
+        // inside `outer`.  It must still fit within the widget.
+        let map_block = layout.widgets.center_map.map_block;
+        let outer = layout.widgets.center_map.outer;
+        assert!(map_block.col >= outer.col);
+        assert!(map_block.last_col() <= outer.last_col());
+        assert!(map_block.row >= outer.row);
+        assert!(map_block.last_row() <= outer.last_row());
         assert!(layout.frame.width() < app.geometry.width());
         assert!(
             layout.widgets.left_fleets.outer.last_row() < layout.widgets.left_war_record.outer.row
@@ -507,10 +559,10 @@ mod tests {
         let layout = dashboard_layout(&app);
 
         assert_eq!(layout.frame, app.geometry);
-        assert_eq!(
-            layout.widgets.center_map.map_block,
-            layout.widgets.center_map.outer
-        );
+        let map_block = layout.widgets.center_map.map_block;
+        let outer = layout.widgets.center_map.outer;
+        assert!(map_block.last_col() <= outer.last_col());
+        assert!(map_block.last_row() <= outer.last_row());
     }
 
     #[test]

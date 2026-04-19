@@ -282,30 +282,30 @@ impl ProjectedMapGeometry {
 
     /// Continuous midpoint column for the sector at `world_x`, in cell units.
     ///
-    /// Uses the formula `area_start + (2*i + 1) * area_extent / (2 * N)` so
-    /// that every sector has the same gap between marker centres, regardless of
-    /// how integer partition edges distribute widths across sectors.  Returns an
-    /// `f32` so callers can pass the exact fractional position to the overlay
-    /// pipeline rather than rounding to the nearest cell column.
+    /// Returns the exact midpoint of that sector's rect derived from
+    /// `col_edges`.  Using per-sector rect midpoints (rather than a uniform
+    /// `extent / N` spacing) keeps the marker centred within the same rect that
+    /// owns the sector's axis label, so labels and markers stay visually aligned
+    /// even when `partition_edges` distributes widths unevenly across sectors.
+    /// Returns an `f32` so callers can pass a sub-cell fractional position to
+    /// the overlay pipeline instead of rounding to the nearest cell column.
     fn continuous_marker_col(&self, world_x: u8) -> f32 {
-        let area_start = self.col_edges.first().copied().unwrap_or(0) as f32;
-        let area_end = self.col_edges.last().copied().unwrap_or(0) as f32;
-        let area_extent = area_end - area_start;
-        let i = f32::from(world_x.saturating_sub(self.x_min));
-        let n = f32::from(self.visible_x).max(1.0);
-        area_start + (2.0 * i + 1.0) * area_extent / (2.0 * n)
+        let i = usize::from(world_x.saturating_sub(self.x_min));
+        let left = self.col_edges.get(i).copied().unwrap_or(0) as f32;
+        let right = self.col_edges.get(i + 1).copied().unwrap_or(left as usize) as f32;
+        (left + right) / 2.0
     }
 
     /// Continuous midpoint row for the sector at `world_y`, in cell units.
     ///
-    /// Row index 0 corresponds to `y_max` (top of the map).
+    /// Row index 0 corresponds to `y_max` (top of the map).  Like
+    /// [`Self::continuous_marker_col`], uses the per-sector rect midpoint from
+    /// `row_edges` so markers align with their sector's row label.
     fn continuous_marker_row(&self, world_y: u8) -> f32 {
-        let area_start = self.row_edges.first().copied().unwrap_or(0) as f32;
-        let area_end = self.row_edges.last().copied().unwrap_or(0) as f32;
-        let area_extent = area_end - area_start;
-        let i = f32::from(self.y_max.saturating_sub(world_y));
-        let n = f32::from(self.visible_y).max(1.0);
-        area_start + (2.0 * i + 1.0) * area_extent / (2.0 * n)
+        let i = usize::from(self.y_max.saturating_sub(world_y));
+        let top = self.row_edges.get(i).copied().unwrap_or(0) as f32;
+        let bottom = self.row_edges.get(i + 1).copied().unwrap_or(top as usize) as f32;
+        (top + bottom) / 2.0
     }
 }
 
@@ -763,7 +763,10 @@ mod tests {
         let axis_line = buffer.plain_line(widgets.center_map.axis_row);
 
         assert!(layout.frame.width() < app.geometry.width());
-        assert_eq!(widgets.center_map.map_block, widgets.center_map.outer);
+        // After the map-size snap, `map_block` may be smaller than `outer`
+        // (centred inside) but must still fit within it.
+        assert!(widgets.center_map.map_block.last_col() <= widgets.center_map.outer.last_col());
+        assert!(widgets.center_map.map_block.last_row() <= widgets.center_map.outer.last_row());
         assert_eq!(
             widgets.center_map.axis_row,
             widgets.center_map.map_block.row
@@ -891,10 +894,13 @@ mod tests {
         app.map_view_mode = crate::dashboard::app::state::MapViewMode::Fill;
         let frame = dashboard_layout(&app).widgets.center_map;
 
-        assert_eq!(frame.map_block, frame.outer);
-        assert_eq!(frame.axis_row, frame.outer.row);
-        assert_eq!(frame.grid.col, frame.outer.col);
-        assert_eq!(frame.bottom_pad_row, frame.outer.last_row());
+        // Fill mode uses the full canvas, but the map block is still snapped
+        // to a multiple of `map_size` and centred inside `outer`.
+        assert!(frame.map_block.last_col() <= frame.outer.last_col());
+        assert!(frame.map_block.last_row() <= frame.outer.last_row());
+        assert_eq!(frame.axis_row, frame.map_block.row);
+        assert_eq!(frame.grid.col, frame.map_block.col);
+        assert_eq!(frame.bottom_pad_row, frame.map_block.last_row());
     }
 
     #[test]
@@ -1511,7 +1517,7 @@ mod tests {
     }
 
     #[test]
-    fn continuous_marker_positions_have_uniform_spacing() {
+    fn continuous_marker_positions_match_sector_rect_midpoints() {
         let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -1530,78 +1536,25 @@ mod tests {
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
 
-        let col_positions: Vec<f32> = (projected.x_min..=projected.x_max)
-            .map(|x| projected.continuous_marker_col(x))
-            .collect();
-        let col_gaps: Vec<f32> = col_positions.windows(2).map(|w| w[1] - w[0]).collect();
-        let col_min = col_gaps.iter().copied().fold(f32::INFINITY, f32::min);
-        let col_max = col_gaps.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-        assert!(
-            (col_max - col_min).abs() < 1e-3,
-            "column marker gaps should be uniform: {col_gaps:?}"
-        );
-
-        let row_positions: Vec<f32> = (projected.y_min..=projected.y_max)
-            .rev()
-            .map(|y| projected.continuous_marker_row(y))
-            .collect();
-        let row_gaps: Vec<f32> = row_positions.windows(2).map(|w| w[1] - w[0]).collect();
-        let row_min = row_gaps.iter().copied().fold(f32::INFINITY, f32::min);
-        let row_max = row_gaps.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-        assert!(
-            (row_max - row_min).abs() < 1e-3,
-            "row marker gaps should be uniform: {row_gaps:?}"
-        );
-    }
-
-    #[test]
-    fn markers_land_at_mathematical_centers() {
-        let app = DashApp::new_for_tests(
-            PathBuf::from("."),
-            GameStateBuilder::new()
-                .with_player_count(4)
-                .build_initialized_baseline()
-                .expect("baseline"),
-            BTreeMap::new(),
-            BTreeSet::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            ScreenGeometry::new(160, 45),
-            ScreenGeometry::new(0, 0),
-            1,
-        );
-        let frame = dashboard_layout(&app).widgets.center_map;
-        let projected = projected_map_geometry(&app, frame, 18);
-
-        let area_col_start = projected.col_edges.first().copied().unwrap_or(0) as f32;
-        let area_col_end = projected.col_edges.last().copied().unwrap_or(0) as f32;
-        let col_extent = area_col_end - area_col_start;
-        let n_col = f32::from(projected.visible_x).max(1.0);
-
-        for (i, x) in (projected.x_min..=projected.x_max).enumerate() {
-            let expected =
-                area_col_start + (2.0 * i as f32 + 1.0) * col_extent / (2.0 * n_col);
-            let actual = projected.continuous_marker_col(x);
-            assert!(
-                (actual - expected).abs() < 1e-5,
-                "col marker {i} (x={x}): expected {expected}, got {actual}"
-            );
-        }
-
-        let area_row_start = projected.row_edges.first().copied().unwrap_or(0) as f32;
-        let area_row_end = projected.row_edges.last().copied().unwrap_or(0) as f32;
-        let row_extent = area_row_end - area_row_start;
-        let n_row = f32::from(projected.visible_y).max(1.0);
-
-        for (i, y) in (projected.y_min..=projected.y_max).rev().enumerate() {
-            let expected =
-                area_row_start + (2.0 * i as f32 + 1.0) * row_extent / (2.0 * n_row);
-            let actual = projected.continuous_marker_row(y);
-            assert!(
-                (actual - expected).abs() < 1e-5,
-                "row marker {i} (y={y}): expected {expected}, got {actual}"
-            );
+        // Each marker centre must equal the midpoint of that sector's rect,
+        // so markers visually align with the rect that also anchors the axis
+        // labels.
+        for x in projected.x_min..=projected.x_max {
+            for y in projected.y_min..=projected.y_max {
+                let rect = projected.sector_rect([x, y]).expect("sector rect");
+                let expected_col = rect.col as f32 + rect.width as f32 / 2.0;
+                let expected_row = rect.row as f32 + rect.height as f32 / 2.0;
+                let actual_col = projected.continuous_marker_col(x);
+                let actual_row = projected.continuous_marker_row(y);
+                assert!(
+                    (actual_col - expected_col).abs() < 1e-5,
+                    "col marker at x={x}: expected {expected_col}, got {actual_col}"
+                );
+                assert!(
+                    (actual_row - expected_row).abs() < 1e-5,
+                    "row marker at y={y}: expected {expected_row}, got {actual_row}"
+                );
+            }
         }
     }
 
