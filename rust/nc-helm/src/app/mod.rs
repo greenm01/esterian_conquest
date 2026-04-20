@@ -67,6 +67,13 @@ impl App {
     pub fn view(&self) -> PlayfieldBuffer {
         view::render(&self.model)
     }
+
+    pub fn hosted_on_idle(&mut self) -> bool {
+        match &mut self.model.route {
+            Route::HostedGame(hosted) => dashboard::hosted_on_idle(&mut hosted.dashboard),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -163,7 +163,9 @@ impl DashApp {
 
     pub(crate) fn dispatch_key_event(&mut self, key: crate::dashboard::input::KeyEvent) {
         if !self.is_terminal_too_small {
+            self.dismiss_active_command_line_toast();
             self.handle_key(key);
+            let _ = self.update_command_line_toast_state(Instant::now());
         } else if key.modifiers.contains(KeyModifiers::ALT)
             && matches!(key.code, KeyCode::Char('q' | 'Q'))
         {
@@ -188,7 +190,9 @@ impl DashApp {
         if !self.is_terminal_too_small {
             let before = self.mouse_render_state();
             self.handle_mouse(mouse);
-            before != self.mouse_render_state()
+            let changed = before != self.mouse_render_state();
+            let toast_changed = self.update_command_line_toast_state(Instant::now());
+            changed || toast_changed
         } else {
             false
         }
@@ -343,6 +347,12 @@ impl DashApp {
         }
         self.settings_overlay.status_message = None;
         self.owned_planet_popup.status = None;
+    }
+
+    fn dismiss_active_command_line_toast(&mut self) {
+        if self.active_command_line_toast().is_some() {
+            self.clear_all_command_line_toasts();
+        }
     }
 
     fn update_command_line_toast_state(&mut self, now: Instant) -> bool {
@@ -2614,7 +2624,7 @@ mod tests {
     };
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn wrap_prev_goes_from_first_to_last() {
@@ -5918,6 +5928,19 @@ mod tests {
             .expect("settings line")
     }
 
+    fn render_settings_contains(app: &DashApp, needle: &str) -> bool {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::dashboard::theme::body_style(),
+        );
+        crate::dashboard::overlays::settings::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .any(|line| line.contains(needle))
+    }
+
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
     }
@@ -5941,5 +5964,53 @@ mod tests {
             render_settings_line(&app, "Saved local settings")
                 .contains("COMMAND <- Saved local settings")
         );
+    }
+
+    #[test]
+    fn command_line_toast_clears_after_one_second() {
+        let mut app = dash_app();
+        let now = Instant::now();
+        app.overlay = ActiveOverlay::Settings;
+        app.settings_overlay.status_message = Some("Saved local settings".to_string());
+
+        assert!(app.update_command_line_toast_state(now));
+        assert_eq!(
+            app.command_line_toast_deadline,
+            Some(now + Duration::from_secs(1))
+        );
+        assert_eq!(
+            app.settings_overlay.status_message.as_deref(),
+            Some("Saved local settings")
+        );
+
+        assert!(app.update_command_line_toast_state(now + Duration::from_secs(1)));
+        assert_eq!(app.settings_overlay.status_message, None);
+        assert!(!render_settings_contains(&app, "Saved local settings"));
+    }
+
+    #[test]
+    fn command_line_toast_key_dismissal_still_runs_normal_action() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Settings;
+        app.settings_overlay.status_message = Some("Saved local settings".to_string());
+
+        app.dispatch_key_event(key(KeyCode::Esc));
+
+        assert_eq!(app.overlay, ActiveOverlay::None);
+        assert_eq!(app.settings_overlay.status_message, None);
+    }
+
+    #[test]
+    fn prompt_validation_toast_clears_when_opening_help() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.planet_overlay
+            .open_prompt(PlanetOverlayPromptMode::FilterMenu);
+        app.planet_overlay.prompt_status = Some(" Ambiguous: sbs/sta".to_string());
+
+        app.dispatch_key_event(key(KeyCode::Char('?')));
+
+        assert_eq!(app.overlay, ActiveOverlay::Help);
+        assert_eq!(app.planet_overlay.prompt_status, None);
     }
 }

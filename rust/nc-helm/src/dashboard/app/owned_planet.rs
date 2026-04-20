@@ -86,7 +86,7 @@ impl DashApp {
 
     pub(crate) fn open_owned_planet_commission_select(&mut self) {
         if self.owned_planet_commission_entries().is_empty() {
-            self.show_owned_planet_status("No ships or starbases are waiting in stardock.");
+            self.show_owned_planet_status("Stardock empty");
             return;
         }
         self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::CommissionSelect);
@@ -130,7 +130,7 @@ impl DashApp {
 
     pub(crate) fn open_owned_planet_mass_commission_confirm(&mut self) {
         if self.owned_planet_commission_entries().is_empty() {
-            self.show_owned_planet_status("No ships or starbases are waiting in stardock.");
+            self.show_owned_planet_status("Stardock empty");
             return;
         }
         self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::MassCommissionConfirm);

@@ -46,6 +46,7 @@ use crate::app::{
     App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route,
     route_supports_session_lock,
 };
+use crate::dashboard;
 use crate::geometry;
 use crate::input::{
     MouseButton, MouseEvent, MouseEventKind, key_event_from_winit, key_modifiers_from_winit,
@@ -635,7 +636,10 @@ impl Runtime {
             None
         };
 
-        combine_deadlines(idle_deadline, matrix_deadline)
+        combine_deadlines(
+            combine_deadlines(idle_deadline, matrix_deadline),
+            hosted_route_next_wakeup(&self.app.model().route),
+        )
     }
 
     fn sync_hosted_window_state(&mut self, previous_route: &Route) {
@@ -993,6 +997,13 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             self.dispatch(Msg::IdleLock, _event_loop);
             self.last_user_input = None;
         }
+        if hosted_route_next_wakeup(&self.app.model().route)
+            .map(|deadline| deadline <= now)
+            .unwrap_or(false)
+            && self.app.hosted_on_idle()
+        {
+            self.needs_redraw = true;
+        }
         if self.needs_redraw {
             if let Some(window) = &self.window {
                 window.request_redraw();
@@ -1015,6 +1026,13 @@ fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<In
 
 fn route_is_hosted(route: &Route) -> bool {
     matches!(route, Route::HostedGame(_))
+}
+
+fn hosted_route_next_wakeup(route: &Route) -> Option<Instant> {
+    match route {
+        Route::HostedGame(hosted) => dashboard::hosted_next_wakeup(&hosted.dashboard),
+        _ => None,
+    }
 }
 
 fn route_uses_mouse(route: &Route) -> bool {
@@ -1303,17 +1321,29 @@ fn minimum_window_size() -> winit::dpi::LogicalSize<f64> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
     use std::time::{Duration, Instant};
+
+    use nc_data::GameStateBuilder;
+    use nc_nostr::state_sync::{
+        GameState, HostedPlayerState, HostedPlayerRosterEntry, HostedReportBlock,
+        HostedStatePayload, HostedStarmapState, HostedWorldState,
+    };
 
     use super::{
         HostedLaunchPending, HostedWindowTransition, ResizeObservation, ResizeShrinkTracker,
         ResizeVerdict, SessionBackend, WindowRestoreState, backend_supports_programmatic_focus,
-        classify_resize, combine_deadlines, hosted_launch_ready, hosted_window_transition,
-        map_pointer_cell, minimum_window_size, route_uses_mouse, session_backend_label,
-        window_decorations_for_session,
+        classify_resize, combine_deadlines, hosted_launch_ready, hosted_route_next_wakeup,
+        hosted_window_transition, map_pointer_cell, minimum_window_size, route_uses_mouse,
+        session_backend_label, window_decorations_for_session,
     };
     use crate::Point;
-    use crate::app::{BootModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, Route};
+    use crate::app::{
+        BootModel, HostedGameModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, MyGameRow,
+        Route,
+    };
+    use crate::dashboard::DashApp;
     use crate::geometry;
 
     #[test]
@@ -1399,6 +1429,24 @@ mod tests {
                 Some(now + Duration::from_secs(2)),
                 Some(now + Duration::from_secs(1))
             ),
+            Some(now + Duration::from_secs(1))
+        );
+    }
+
+    #[test]
+    fn hosted_route_next_wakeup_uses_dashboard_toast_deadline() {
+        let now = Instant::now();
+        let mut dashboard = hosted_dash_app();
+        dashboard.command_line_toast_deadline = Some(now + Duration::from_secs(1));
+        let route = Route::HostedGame(HostedGameModel {
+            row: hosted_game_row(),
+            snapshot: sample_snapshot(),
+            dashboard,
+            status: None,
+        });
+
+        assert_eq!(
+            hosted_route_next_wakeup(&route),
             Some(now + Duration::from_secs(1))
         );
     }
@@ -1854,5 +1902,100 @@ mod tests {
                 restore_to: (864, 1000)
             }
         );
+    }
+
+    fn hosted_dash_app() -> DashApp {
+        DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            crate::dashboard::geometry::ScreenGeometry::new(160, 40),
+            crate::dashboard::geometry::ScreenGeometry::new(108, 26),
+            1,
+        )
+    }
+
+    fn hosted_game_row() -> MyGameRow {
+        MyGameRow {
+            game_id: "game".to_string(),
+            status: "joined".to_string(),
+            game_tier: "sandbox".to_string(),
+            game: "Test Game".to_string(),
+            host: "host".to_string(),
+            host_contact_npub: None,
+            relay_url: "ws://127.0.0.1:8080".to_string(),
+            daemon_pubkey: "daemon".to_string(),
+            seat: Some(1),
+            turn_summary: "Y1:T1".to_string(),
+            last_turn: Some(1),
+            last_hash: Some("hash".to_string()),
+        }
+    }
+
+    fn sample_snapshot() -> GameState {
+        GameState {
+            game_id: "game".to_string(),
+            turn: 1,
+            year: 1,
+            player_seat: 1,
+            player_name: "Player One".to_string(),
+            state_hash: "hash".to_string(),
+            state: HostedStatePayload {
+                player: HostedPlayerState {
+                    seat: 1,
+                    empire_name: "Empire One".to_string(),
+                    handle: Some("player".to_string()),
+                    mode: "normal".to_string(),
+                    tax_rate: 15,
+                    planet_count: 1,
+                    starbase_count: 0,
+                    homeworld_planet_index: 1,
+                    last_run_year: 1,
+                    diplomacy: Vec::new(),
+                },
+                roster: vec![HostedPlayerRosterEntry {
+                    empire_id: 1,
+                    empire_name: "Empire One".to_string(),
+                    is_self: true,
+                }],
+                starmap: HostedStarmapState {
+                    map_width: 18,
+                    map_height: 18,
+                    viewer_empire_id: 1,
+                    year: 1,
+                    worlds: vec![HostedWorldState {
+                        planet_index: 1,
+                        coords: [1, 1],
+                        intel_tier: "full".to_string(),
+                        known_name: Some("Home".to_string()),
+                        known_owner_empire_id: Some(1),
+                        known_owner_empire_name: Some("Empire One".to_string()),
+                        known_potential_production: Some(20),
+                        known_armies: Some(5),
+                        known_ground_batteries: Some(2),
+                        known_starbase_count: Some(0),
+                        known_current_production: Some(15),
+                        known_stored_points: Some(10),
+                        known_docked_summary: None,
+                        known_orbit_summary: None,
+                    }],
+                },
+                owned_planets: Vec::new(),
+                owned_fleets: Vec::new(),
+            },
+            queued_mail: Vec::new(),
+            report_blocks: vec![HostedReportBlock {
+                viewer_empire_id: 1,
+                block_index: 0,
+                decoded_text: "Report".to_string(),
+            }],
+        }
     }
 }

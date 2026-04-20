@@ -29,6 +29,7 @@ pub use launch::DashLaunchState;
 use nc_data::TurnSubmission;
 use nc_nostr::state_sync::GameState;
 use std::io;
+use std::time::Instant;
 
 use self::native::NativeApp;
 
@@ -58,6 +59,14 @@ pub fn dispatch_hosted_key(dashboard: &mut DashApp, key: input::KeyEvent) {
 
 pub fn dispatch_hosted_mouse(dashboard: &mut DashApp, mouse: input::MouseEvent) -> bool {
     NativeApp::dispatch_mouse_event(dashboard, mouse)
+}
+
+pub fn hosted_on_idle(dashboard: &mut DashApp) -> bool {
+    NativeApp::on_idle(dashboard)
+}
+
+pub fn hosted_next_wakeup(dashboard: &DashApp) -> Option<Instant> {
+    NativeApp::next_wakeup(dashboard)
 }
 
 pub fn hosted_should_quit(dashboard: &DashApp) -> bool {
