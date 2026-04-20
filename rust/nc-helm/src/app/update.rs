@@ -120,7 +120,7 @@ fn handle_unlocked(
             let nsec = session.active_nsec.clone();
             model.cache = cache.clone();
             model.session = Some(session);
-            model.route = lobby_route(Some("Keychain unlocked.".to_string()), relay_url.clone());
+            model.route = restore_unlocked_route(model, relay_url.clone());
             model.network = NetworkState::Connecting;
             vec![Effect::ConnectTransport {
                 relay_url,
@@ -135,6 +135,19 @@ fn handle_unlocked(
             }
             Vec::new()
         }
+    }
+}
+
+fn restore_unlocked_route(model: &mut Model, relay_url: String) -> Route {
+    match model.lock_resume_route.take() {
+        Some(mut route) => {
+            if let Route::Lobby(lobby) = &mut route {
+                lobby.relay_draft = relay_url;
+                lobby.status = Some("Keychain unlocked.".to_string());
+            }
+            route
+        }
+        None => lobby_route(Some("Keychain unlocked.".to_string()), relay_url),
     }
 }
 
@@ -1016,6 +1029,7 @@ fn handle_idle_lock(model: &mut Model) -> Vec<Effect> {
 }
 
 fn lock_session(model: &mut Model) -> Vec<Effect> {
+    model.lock_resume_route = Some(model.route.clone());
     model.session = None;
     model.network = NetworkState::Idle;
     model.my_games.clear();
@@ -1066,10 +1080,17 @@ fn is_lock_shortcut(key: crate::input::KeyEvent) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_idle_lock, handle_key};
-    use crate::app::{App, Effect, HostedGameModel, Model, MyGameRow, NetworkState, Route, SessionState};
+    use super::{handle_idle_lock, handle_key, handle_unlocked};
+    use crate::app::{
+        App, Effect, HostedGameModel, LobbyTab, LockedModel, Model, MyGameRow, NetworkState,
+        Route, SessionState,
+    };
     use crate::dashboard;
+    use crate::dashboard::app::state::ActiveOverlay;
     use crate::input::{KeyCode, KeyEvent, KeyModifiers};
+    use crate::storage::StoredSession;
+    use nc_client::cache::ClientCache;
+    use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
     use nc_nostr::state_sync::{
         GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
         HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
@@ -1104,6 +1125,62 @@ mod tests {
         assert_eq!(model.network, NetworkState::Idle);
         assert_eq!(effects.len(), 1);
         assert!(matches!(effects[0], Effect::DisconnectTransport));
+    }
+
+    #[test]
+    fn unlock_restores_previous_hosted_screen_after_lock() {
+        let mut model = hosted_game_model();
+        let previous_route = model.route.clone();
+        if let Route::HostedGame(hosted) = &mut model.route {
+            hosted.dashboard.overlay = ActiveOverlay::PlanetList;
+        }
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::ALT),
+        );
+        assert!(matches!(model.route, Route::MatrixLocked));
+        assert_eq!(effects.len(), 1);
+
+        model.route = Route::Locked(LockedModel {
+            password_input: "hunter2".to_string(),
+            status: None,
+            resume_session: true,
+        });
+        let effects = handle_unlocked(&mut model, Ok(dummy_session("captain")));
+
+        assert_eq!(effects.len(), 1);
+        assert!(matches!(effects[0], Effect::ConnectTransport { .. }));
+        assert_eq!(model.network, NetworkState::Connecting);
+        assert!(matches!(model.route, Route::HostedGame(_)));
+        assert!(model.lock_resume_route.is_none());
+        if let Route::HostedGame(hosted) = &model.route {
+            assert_eq!(hosted.dashboard.overlay, ActiveOverlay::PlanetList);
+        }
+        assert!(!matches!(previous_route, Route::Lobby(_)));
+    }
+
+    #[test]
+    fn unlock_without_saved_route_returns_to_lobby() {
+        let (app, _) = App::new(None);
+        let mut model = app.model;
+        model.route = Route::Locked(LockedModel {
+            password_input: "hunter2".to_string(),
+            status: None,
+            resume_session: false,
+        });
+
+        let effects = handle_unlocked(&mut model, Ok(dummy_session("captain")));
+
+        assert_eq!(effects.len(), 1);
+        assert!(matches!(effects[0], Effect::ConnectTransport { .. }));
+        match &model.route {
+            Route::Lobby(lobby) => {
+                assert_eq!(lobby.active_tab, LobbyTab::MyGames);
+                assert_eq!(lobby.status.as_deref(), Some("Keychain unlocked."));
+            }
+            other => panic!("expected lobby after unlock, got {other:?}"),
+        }
     }
 
     fn hosted_game_model() -> Model {
@@ -1258,6 +1335,21 @@ mod tests {
                 block_index: 1,
                 decoded_text: "Battle report".to_string(),
             }],
+        }
+    }
+
+    fn dummy_session(handle: &str) -> StoredSession {
+        let mut keychain = Keychain::empty();
+        push_new_identity(&mut keychain, now_iso8601(), Some(handle.to_string()))
+            .expect("new identity");
+        let active_npub = active_identity_npub(&keychain).expect("npub");
+        let active = keychain.active_identity().expect("active identity").clone();
+        StoredSession {
+            keychain,
+            cache: ClientCache::empty(),
+            active_npub,
+            active_nsec: active.nsec.clone(),
+            active_handle: active.handle.clone(),
         }
     }
 }

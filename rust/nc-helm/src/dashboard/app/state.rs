@@ -847,6 +847,62 @@ pub struct DashApp {
     pub(crate) panel_cache: std::cell::RefCell<PanelCache>,
 }
 
+impl Clone for DashApp {
+    fn clone(&self) -> Self {
+        Self {
+            _game_dir: self._game_dir.clone(),
+            campaign_store: self.campaign_store.clone(),
+            hosted_turn_draft: self.hosted_turn_draft.clone(),
+            game_data: self.game_data.clone(),
+            owned_planet_years: self.owned_planet_years.clone(),
+            planet_scorch_orders: self.planet_scorch_orders.clone(),
+            report_block_rows: self.report_block_rows.clone(),
+            queued_mail: self.queued_mail.clone(),
+            planet_intel_snapshots: self.planet_intel_snapshots.clone(),
+            player_activity_states: self.player_activity_states.clone(),
+            player_lifecycle_states: self.player_lifecycle_states.clone(),
+            winner_state: self.winner_state.clone(),
+            player_war_stats: self.player_war_stats,
+            geometry: self.geometry,
+            frame: self.frame,
+            player_record_index_1_based: self.player_record_index_1_based,
+            _startup_sequence: self._startup_sequence.clone(),
+            _startup_phase: self._startup_phase,
+            focus: self.focus,
+            overlay: self.overlay,
+            popup: self.popup,
+            help_return_overlay: self.help_return_overlay,
+            overlay_position: self.overlay_position,
+            popup_position: self.popup_position,
+            help_return_overlay_position: self.help_return_overlay_position,
+            mouse_gesture: self.mouse_gesture,
+            help_context: self.help_context,
+            autopilot_on: self.autopilot_on,
+            crosshair_x: self.crosshair_x,
+            crosshair_y: self.crosshair_y,
+            map_view_mode: self.map_view_mode,
+            map_zoom_level: self.map_zoom_level,
+            map_coord_input: self.map_coord_input.clone(),
+            client_settings: self.client_settings.clone(),
+            client_settings_path: self.client_settings_path.clone(),
+            diplomacy_scroll: self.diplomacy_scroll,
+            planet_overlay: self.planet_overlay.clone(),
+            fleet_overlay: self.fleet_overlay.clone(),
+            intel_overlay: self.intel_overlay.clone(),
+            diplomacy_overlay: self.diplomacy_overlay.clone(),
+            inbox_overlay: self.inbox_overlay.clone(),
+            settings_overlay: self.settings_overlay.clone(),
+            owned_planet_popup: self.owned_planet_popup.clone(),
+            is_terminal_too_small: self.is_terminal_too_small,
+            should_quit: self.should_quit,
+            command_line_toast_message: self.command_line_toast_message.clone(),
+            command_line_toast_deadline: self.command_line_toast_deadline,
+            game_data_revision: self.game_data_revision,
+            panel_cache: std::cell::RefCell::new(PanelCache::default()),
+        }
+    }
+}
+
 impl DashApp {
     pub fn new(
         game_dir: std::path::PathBuf,

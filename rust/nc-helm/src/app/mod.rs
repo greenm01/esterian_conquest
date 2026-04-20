@@ -42,6 +42,7 @@ impl App {
             route: Route::Boot(BootModel {
                 status: "Loading local client state...".to_string(),
             }),
+            lock_resume_route: None,
             session: None,
             network: NetworkState::Idle,
             cache: ClientCache::empty(),
@@ -82,6 +83,7 @@ pub struct Model {
     pub relay_url: String,
     pub relay_overridden: bool,
     pub route: Route,
+    pub lock_resume_route: Option<Route>,
     pub session: Option<SessionState>,
     pub network: NetworkState,
     pub cache: ClientCache,
@@ -251,13 +253,10 @@ pub struct HostedGameModel {
 
 impl Clone for HostedGameModel {
     fn clone(&self) -> Self {
-        let geometry = self.dashboard.geometry;
-        let dashboard = dashboard::build_hosted_dash_app(&self.snapshot, geometry)
-            .expect("hosted dashboard rebuild");
         Self {
             row: self.row.clone(),
             snapshot: self.snapshot.clone(),
-            dashboard,
+            dashboard: self.dashboard.clone(),
             status: self.status.clone(),
         }
     }
