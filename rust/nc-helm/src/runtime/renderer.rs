@@ -164,6 +164,8 @@ struct CachedTextCell {
 #[derive(Clone, Debug)]
 struct TextPlacement {
     key: TextBufferKey,
+    start_col: usize,
+    end_col: usize,
     left: f32,
     top: f32,
     bounds: TextBounds,
@@ -209,10 +211,11 @@ pub enum UploadStrategy {
 
 #[derive(Clone, Debug, Default)]
 struct PreparedFrame {
-    placements: Vec<TextPlacement>,
     full_rebuild: bool,
     dirty_rows: usize,
     raw_spans: usize,
+    text_rebuild_spans: usize,
+    text_rebuild_cells: usize,
     compacted_rects: usize,
     compacted_upload_area_pct: f64,
     upload_rects: usize,
@@ -234,6 +237,8 @@ pub struct RenderTimings {
     pub total: Duration,
     pub dirty_rows: usize,
     pub raw_spans: usize,
+    pub text_rebuild_spans: usize,
+    pub text_rebuild_cells: usize,
     pub compacted_rects: usize,
     pub compacted_upload_area_pct: f64,
     pub upload_rects: usize,
@@ -395,9 +400,11 @@ impl Renderer {
         let prepared = self.prepare_playfield(playfield);
         let playfield_prepare = prepare_start.elapsed();
         let glyph_prepare_start = Instant::now();
-        let text_areas = prepared
-            .placements
+        let text_areas = self
+            .row_placements
             .iter()
+            .flatten()
+            .chain(self.overlay_placements.iter())
             .map(|placement| TextArea {
                 buffer: self
                     .text_buffers
@@ -435,6 +442,8 @@ impl Renderer {
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
                     raw_spans: prepared.raw_spans,
+                    text_rebuild_spans: prepared.text_rebuild_spans,
+                    text_rebuild_cells: prepared.text_rebuild_cells,
                     compacted_rects: prepared.compacted_rects,
                     compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
@@ -452,6 +461,8 @@ impl Renderer {
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
                     raw_spans: prepared.raw_spans,
+                    text_rebuild_spans: prepared.text_rebuild_spans,
+                    text_rebuild_cells: prepared.text_rebuild_cells,
                     compacted_rects: prepared.compacted_rects,
                     compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
@@ -504,6 +515,8 @@ impl Renderer {
             total: total_start.elapsed(),
             dirty_rows: prepared.dirty_rows,
             raw_spans: prepared.raw_spans,
+            text_rebuild_spans: prepared.text_rebuild_spans,
+            text_rebuild_cells: prepared.text_rebuild_cells,
             compacted_rects: prepared.compacted_rects,
             compacted_upload_area_pct: prepared.compacted_upload_area_pct,
             upload_rects: prepared.upload_rects,
@@ -575,8 +588,15 @@ impl Renderer {
                         end_col: playfield.width(),
                     }],
                 );
-                self.row_placements[row_idx] =
-                    self.collect_row_placements(playfield, mapper, row_idx);
+                self.row_placements[row_idx] = self.collect_row_placements_in_span(
+                    playfield,
+                    mapper,
+                    row_idx,
+                    DirtyColumnSpan {
+                        start_col: 0,
+                        end_col: playfield.width(),
+                    },
+                );
             }
             let mut overlay_placements = Vec::new();
             prepare_overlay_texts(
@@ -591,16 +611,12 @@ impl Renderer {
             }
             self.write_full_background_texture();
             self.previous_playfield = Some(snapshot_playfield(playfield));
-            let mut placements = Vec::new();
-            for row in &self.row_placements {
-                placements.extend(row.iter().cloned());
-            }
-            placements.extend(self.overlay_placements.iter().cloned());
             return PreparedFrame {
-                placements,
                 full_rebuild: true,
                 dirty_rows,
                 raw_spans,
+                text_rebuild_spans: playfield.height(),
+                text_rebuild_cells: playfield.width().saturating_mul(playfield.height()),
                 compacted_rects: 1,
                 compacted_upload_area_pct: 100.0,
                 upload_rects: 1,
@@ -626,12 +642,22 @@ impl Renderer {
                 }
                 self.repaint_row_spans(playfield, mapper, row_idx, spans);
             }
+            let mut text_rebuild_spans = 0usize;
+            let mut text_rebuild_cells = 0usize;
             for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
                 if spans.is_empty() {
                     continue;
                 }
-                self.row_placements[row_idx] =
-                    self.collect_row_placements(playfield, mapper, row_idx);
+                let rebuild_spans = expanded_text_rebuild_spans_for_row(
+                    playfield.row(row_idx),
+                    &compacted_row_spans[row_idx],
+                );
+                text_rebuild_spans += rebuild_spans.len();
+                text_rebuild_cells += rebuild_spans
+                    .iter()
+                    .map(|span| span.end_col.saturating_sub(span.start_col))
+                    .sum::<usize>();
+                self.rebuild_row_placements(playfield, mapper, row_idx, &rebuild_spans);
             }
             if dirty.overlay_changed {
                 let mut overlay_placements = Vec::new();
@@ -668,16 +694,12 @@ impl Renderer {
                 }
             };
             self.previous_playfield = Some(snapshot_playfield(playfield));
-            let mut placements = Vec::new();
-            for row in &self.row_placements {
-                placements.extend(row.iter().cloned());
-            }
-            placements.extend(self.overlay_placements.iter().cloned());
             return PreparedFrame {
-                placements,
                 full_rebuild: false,
                 dirty_rows,
                 raw_spans,
+                text_rebuild_spans,
+                text_rebuild_cells,
                 compacted_rects: compacted_rects_len,
                 compacted_upload_area_pct,
                 upload_rects,
@@ -763,17 +785,18 @@ impl Renderer {
         }
     }
 
-    fn collect_row_placements(
+    fn collect_row_placements_in_span(
         &mut self,
         playfield: &PlayfieldBuffer,
         mapper: GridMapper,
         row_idx: usize,
+        span: DirtyColumnSpan,
     ) -> Vec<TextPlacement> {
         let mut placements = Vec::new();
         let mut run_start = None;
         let mut run_style: Option<CellStyle> = None;
         let mut run_text = String::new();
-        for col_idx in 0..playfield.width() {
+        for col_idx in span.start_col..span.end_col {
             let source = playfield.row(row_idx)[col_idx];
             let style = source.style;
             if source.ch == ' ' {
@@ -831,9 +854,30 @@ impl Renderer {
             &mut run_style,
             &mut run_text,
             row_idx,
-            playfield.width(),
+            span.end_col,
         );
         placements
+    }
+
+    fn rebuild_row_placements(
+        &mut self,
+        playfield: &PlayfieldBuffer,
+        mapper: GridMapper,
+        row_idx: usize,
+        rebuild_spans: &[DirtyColumnSpan],
+    ) {
+        if rebuild_spans.is_empty() {
+            return;
+        }
+        let mut placements = std::mem::take(&mut self.row_placements[row_idx]);
+        splice_row_placements(
+            &mut placements,
+            rebuild_spans,
+            rebuild_spans.iter().flat_map(|span| {
+                self.collect_row_placements_in_span(playfield, mapper, row_idx, *span)
+            }),
+        );
+        self.row_placements[row_idx] = placements;
     }
 
     fn repaint_row_spans(
@@ -1070,6 +1114,47 @@ fn compact_spans_for_row(spans: &[DirtyColumnSpan]) -> Vec<DirtyColumnSpan> {
     compacted
 }
 
+fn expanded_text_rebuild_spans_for_row(
+    row: &[Cell],
+    compacted_spans: &[DirtyColumnSpan],
+) -> Vec<DirtyColumnSpan> {
+    let mut spans = compacted_spans
+        .iter()
+        .copied()
+        .map(|span| expand_text_rebuild_span(row, span))
+        .collect::<Vec<_>>();
+    merge_column_spans(&mut spans);
+    spans
+}
+
+fn expand_text_rebuild_span(row: &[Cell], span: DirtyColumnSpan) -> DirtyColumnSpan {
+    if row.is_empty() {
+        return span;
+    }
+    let mut start_col = span.start_col.min(row.len());
+    while start_col > 0 && !is_text_run_boundary(row, start_col) {
+        start_col -= 1;
+    }
+    let mut end_col = span.end_col.min(row.len());
+    while end_col < row.len() && !is_text_run_boundary(row, end_col) {
+        end_col += 1;
+    }
+    DirtyColumnSpan { start_col, end_col }
+}
+
+fn is_text_run_boundary(row: &[Cell], boundary_col: usize) -> bool {
+    if boundary_col == 0 || boundary_col >= row.len() {
+        return true;
+    }
+    let left = row[boundary_col - 1];
+    let right = row[boundary_col];
+    !is_text_cell(left) || !is_text_cell(right) || left.style != right.style
+}
+
+fn is_text_cell(cell: Cell) -> bool {
+    cell.ch != ' ' && !primitives::should_draw_as_primitive(cell.ch)
+}
+
 fn record_dirty_spans_for_row(previous: &[Cell], next: &[Cell], spans: &mut Vec<DirtyColumnSpan>) {
     let mut start_col = None;
     for col_idx in 0..next.len() {
@@ -1122,6 +1207,24 @@ fn merge_column_spans(spans: &mut Vec<DirtyColumnSpan>) {
     }
     merged.push(current);
     *spans = merged;
+}
+
+fn spans_overlap(start_col: usize, end_col: usize, span: DirtyColumnSpan) -> bool {
+    start_col < span.end_col && span.start_col < end_col
+}
+
+fn splice_row_placements(
+    placements: &mut Vec<TextPlacement>,
+    rebuild_spans: &[DirtyColumnSpan],
+    rebuilt: impl IntoIterator<Item = TextPlacement>,
+) {
+    placements.retain(|placement| {
+        !rebuild_spans
+            .iter()
+            .any(|span| spans_overlap(placement.start_col, placement.end_col, *span))
+    });
+    placements.extend(rebuilt);
+    placements.sort_unstable_by_key(|placement| placement.start_col);
 }
 
 fn choose_upload_strategy(
@@ -1625,6 +1728,8 @@ fn flush_run(
     };
     placements.push(TextPlacement {
         key,
+        start_col,
+        end_col,
         left: text_origin.left,
         top: text_origin.top,
         bounds: expanded_text_bounds(
@@ -1742,6 +1847,8 @@ fn prepare_cell_rect_overlay(
     let line_height = f32::from_bits(key.line_height_bits);
     placements.push(TextPlacement {
         key,
+        start_col: 0,
+        end_col: 0,
         left: bounds.x as f32 + ((bounds.width as f32 - measured_width).max(0.0) / 2.0),
         top: bounds.y as f32 + ((bounds.height as f32 - line_height).max(0.0) / 2.0),
         bounds: TextBounds {
@@ -1803,6 +1910,8 @@ fn prepare_fractional_cell_overlay(
     let surface_h = renderer.surface_config.height as i32;
     placements.push(TextPlacement {
         key,
+        start_col: 0,
+        end_col: 0,
         left,
         top,
         bounds: TextBounds {
@@ -1979,7 +2088,7 @@ fn clear_color(color: GameColor) -> wgpu::Color {
 
 #[cfg(test)]
 mod tests {
-    use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, fontdb};
+    use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, TextBounds, fontdb};
 
     use crate::geometry::{GridMapper, GridMetrics, caret_rect};
     use crate::grid::{
@@ -1989,11 +2098,12 @@ mod tests {
 
     use super::{
         DIRTY_SPAN_COLLAPSE_THRESHOLD, DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY,
-        STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, UploadStrategy, build_font_system,
-        choose_upload_strategy, compact_row_spans, dirty_cells, dirty_rect_area_px,
-        dirty_rectangles, dirty_row_upload_rectangles, expanded_text_bounds, fit_grid_to_pixels,
-        full_width_row_spans, grid_area_px, measure_single_line_width,
-        repaint_row_spans_into_pixels, snapshot_playfield,
+        STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, TextPlacement, UploadStrategy,
+        build_font_system, choose_upload_strategy, compact_row_spans, dirty_cells,
+        dirty_rect_area_px, dirty_rectangles, dirty_row_upload_rectangles, expanded_text_bounds,
+        expanded_text_rebuild_spans_for_row, fit_grid_to_pixels, full_width_row_spans,
+        grid_area_px, measure_single_line_width, repaint_row_spans_into_pixels, snapshot_playfield,
+        splice_row_placements,
     };
 
     fn base_style() -> CellStyle {
@@ -2028,6 +2138,29 @@ mod tests {
             frame[pixel + 2],
             frame[pixel + 3],
         ]
+    }
+
+    fn placement(start_col: usize, end_col: usize) -> TextPlacement {
+        TextPlacement {
+            key: super::make_text_key(
+                std::sync::Arc::<str>::from("TXT"),
+                TextFamilyKey::Monospace,
+                18.0,
+                24.0,
+                false,
+            ),
+            start_col,
+            end_col,
+            left: 0.0,
+            top: 0.0,
+            bounds: TextBounds {
+                left: 0,
+                top: 0,
+                right: 1,
+                bottom: 1,
+            },
+            color: GameColor::White,
+        }
     }
 
     #[test]
@@ -2308,6 +2441,95 @@ mod tests {
                 }],
             ]
         );
+    }
+
+    #[test]
+    fn expanded_text_rebuild_spans_grow_through_same_style_runs_and_stop_at_spaces() {
+        let mut playfield = PlayfieldBuffer::new(7, 1, base_style());
+        playfield.write_text(0, 0, "ABC DE", base_style());
+        assert_eq!(
+            expanded_text_rebuild_spans_for_row(
+                playfield.row(0),
+                &[DirtyColumnSpan {
+                    start_col: 1,
+                    end_col: 2,
+                }],
+            ),
+            vec![DirtyColumnSpan {
+                start_col: 0,
+                end_col: 3,
+            }],
+        );
+    }
+
+    #[test]
+    fn expanded_text_rebuild_spans_stop_at_primitives_and_style_changes() {
+        let mut playfield = PlayfieldBuffer::new(5, 1, base_style());
+        playfield.write_text(0, 0, "AB", base_style());
+        playfield.set_cell(0, 2, '│', base_style());
+        playfield.write_text(0, 3, "D", base_style());
+        playfield.write_text(
+            0,
+            4,
+            "E",
+            CellStyle::new(GameColor::Yellow, GameColor::Black, false),
+        );
+        assert_eq!(
+            expanded_text_rebuild_spans_for_row(
+                playfield.row(0),
+                &[DirtyColumnSpan {
+                    start_col: 3,
+                    end_col: 4,
+                }],
+            ),
+            vec![DirtyColumnSpan {
+                start_col: 3,
+                end_col: 4,
+            }],
+        );
+    }
+
+    #[test]
+    fn expanded_text_rebuild_spans_merge_touching_expanded_ranges() {
+        let mut playfield = PlayfieldBuffer::new(8, 1, base_style());
+        playfield.write_text(0, 0, "ABCDEFGH", base_style());
+        assert_eq!(
+            expanded_text_rebuild_spans_for_row(
+                playfield.row(0),
+                &[
+                    DirtyColumnSpan {
+                        start_col: 1,
+                        end_col: 2,
+                    },
+                    DirtyColumnSpan {
+                        start_col: 4,
+                        end_col: 5,
+                    },
+                ],
+            ),
+            vec![DirtyColumnSpan {
+                start_col: 0,
+                end_col: 8,
+            }],
+        );
+    }
+
+    #[test]
+    fn splice_row_placements_preserves_untouched_segments_in_order() {
+        let mut placements = vec![placement(0, 2), placement(4, 6), placement(8, 10)];
+        splice_row_placements(
+            &mut placements,
+            &[DirtyColumnSpan {
+                start_col: 4,
+                end_col: 6,
+            }],
+            [placement(3, 7)],
+        );
+        let spans = placements
+            .iter()
+            .map(|placement| (placement.start_col, placement.end_col))
+            .collect::<Vec<_>>();
+        assert_eq!(spans, vec![(0, 2), (3, 7), (8, 10)]);
     }
 
     #[test]

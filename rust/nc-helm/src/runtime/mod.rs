@@ -128,6 +128,8 @@ struct FrameTimingSample {
     total: Duration,
     dirty_rows: usize,
     raw_spans: usize,
+    text_rebuild_spans: usize,
+    text_rebuild_cells: usize,
     compacted_rects: usize,
     compacted_upload_area_pct: f64,
     upload_rects: usize,
@@ -508,6 +510,8 @@ impl Runtime {
             total: render.total,
             dirty_rows: render.dirty_rows,
             raw_spans: render.raw_spans,
+            text_rebuild_spans: render.text_rebuild_spans,
+            text_rebuild_cells: render.text_rebuild_cells,
             compacted_rects: render.compacted_rects,
             compacted_upload_area_pct: render.compacted_upload_area_pct,
             upload_rects: render.upload_rects,
@@ -1038,6 +1042,18 @@ impl FrameTimingSummary {
             .map(|sample| sample.raw_spans as f64)
             .sum::<f64>()
             / frames as f64;
+        let avg_text_rebuild_spans = self
+            .samples
+            .iter()
+            .map(|sample| sample.text_rebuild_spans as f64)
+            .sum::<f64>()
+            / frames as f64;
+        let avg_text_rebuild_cells = self
+            .samples
+            .iter()
+            .map(|sample| sample.text_rebuild_cells as f64)
+            .sum::<f64>()
+            / frames as f64;
         let avg_compacted_rects = self
             .samples
             .iter()
@@ -1069,7 +1085,7 @@ impl FrameTimingSummary {
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1539,6 +1555,8 @@ mod tests {
             total: Duration::from_millis(5),
             dirty_rows: 2,
             raw_spans: 3,
+            text_rebuild_spans: 4,
+            text_rebuild_cells: 8,
             compacted_rects: 2,
             compacted_upload_area_pct: 12.5,
             upload_rects: 1,
@@ -1555,6 +1573,8 @@ mod tests {
         assert!(message.contains("frame timings [120 frames]"));
         assert!(message.contains("avg_dirty_rows=2.0"));
         assert!(message.contains("avg_raw_spans=3.0"));
+        assert!(message.contains("avg_text_rebuild_spans=4.0"));
+        assert!(message.contains("avg_text_rebuild_cells=8.0"));
         assert!(message.contains("avg_compacted_rects=2.0"));
         assert!(message.contains("avg_compacted_upload_area_pct=12.5"));
         assert!(message.contains("avg_upload_rects=1.0"));
