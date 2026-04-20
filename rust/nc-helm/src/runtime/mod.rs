@@ -119,6 +119,24 @@ enum ResizeVerdict {
     SpuriousShrink { restore_to: (u32, u32) },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FrameTimingSample {
+    view_build: Duration,
+    playfield_prepare: Duration,
+    glyph_prepare: Duration,
+    gpu_submit_present: Duration,
+    total: Duration,
+    dirty_rows: usize,
+    upload_bands: usize,
+    full_rebuild: bool,
+}
+
+#[derive(Debug, Default)]
+struct FrameTimingSummary {
+    samples: Vec<FrameTimingSample>,
+    started_at: Option<Instant>,
+}
+
 struct Runtime {
     options: LaunchTargetOptions,
     session_backend: SessionBackend,
@@ -140,6 +158,7 @@ struct Runtime {
     left_mouse_down: bool,
     shrink_tracker: Option<ResizeShrinkTracker>,
     next_matrix_frame_at: Option<Instant>,
+    frame_timings: FrameTimingSummary,
 }
 
 impl Runtime {
@@ -173,6 +192,7 @@ impl Runtime {
             left_mouse_down: false,
             shrink_tracker: None,
             next_matrix_frame_at: None,
+            frame_timings: FrameTimingSummary::default(),
         }
     }
 
@@ -469,6 +489,24 @@ impl Runtime {
         }
     }
 
+    fn record_frame_timing(&mut self, view_build: Duration, render: renderer::RenderTimings) {
+        if !self.options.native.diagnostic_mode {
+            return;
+        }
+        if let Some(message) = self.frame_timings.record(FrameTimingSample {
+            view_build,
+            playfield_prepare: render.playfield_prepare,
+            glyph_prepare: render.glyph_prepare,
+            gpu_submit_present: render.gpu_submit_present,
+            total: render.total,
+            dirty_rows: render.dirty_rows,
+            upload_bands: render.upload_bands,
+            full_rebuild: render.full_rebuild,
+        }) {
+            self.diagnostic_log(&message);
+        }
+    }
+
     fn sync_window_input_state(&self) {
         let Some(window) = &self.window else {
             return;
@@ -732,6 +770,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
+                let previous_pointer = self.pointer_cell;
                 if self.options.native.diagnostic_mode {
                     self.diagnostic_log(&format!(
                         "event: CursorMoved route={} x={:.1} y={:.1} mouse_enabled={mouse_enabled}",
@@ -743,15 +782,17 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 self.update_pointer_cell(position);
                 if mouse_enabled {
                     if let Some(pointer_cell) = self.pointer_cell {
-                        self.last_user_input = Some(Instant::now());
-                        self.dispatch(
-                            Msg::Mouse(MouseEvent {
-                                kind: pointer_move_event_kind(self.left_mouse_down),
-                                position: pointer_cell,
-                                modifiers: key_modifiers_from_winit(self.modifiers),
-                            }),
-                            event_loop,
-                        );
+                        if should_dispatch_pointer_move(previous_pointer, Some(pointer_cell)) {
+                            self.last_user_input = Some(Instant::now());
+                            self.dispatch(
+                                Msg::Mouse(MouseEvent {
+                                    kind: pointer_move_event_kind(self.left_mouse_down),
+                                    position: pointer_cell,
+                                    modifiers: key_modifiers_from_winit(self.modifiers),
+                                }),
+                                event_loop,
+                            );
+                        }
                     }
                 } else {
                     self.pointer_cell = None;
@@ -880,12 +921,18 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     route_label(&self.app.model().route)
                 ));
                 if let Some(renderer) = &mut self.renderer {
+                    let view_started = Instant::now();
                     let buffer = self.app.view();
-                    if let Err(err) = renderer.render(&buffer) {
-                        eprintln!("nc-helm render error: {err}");
-                        event_loop.exit();
-                    } else {
-                        self.needs_redraw = false;
+                    let view_build = view_started.elapsed();
+                    match renderer.render(&buffer) {
+                        Ok(render_timings) => {
+                            self.record_frame_timing(view_build, render_timings);
+                            self.needs_redraw = false;
+                        }
+                        Err(err) => {
+                            eprintln!("nc-helm render error: {err}");
+                            event_loop.exit();
+                        }
                     }
                 }
             }
@@ -946,12 +993,89 @@ fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<In
     }
 }
 
+impl FrameTimingSummary {
+    fn record(&mut self, sample: FrameTimingSample) -> Option<String> {
+        let now = Instant::now();
+        let started_at = *self.started_at.get_or_insert(now);
+        self.samples.push(sample);
+        if now.duration_since(started_at) < Duration::from_secs(1) && self.samples.len() < 120 {
+            return None;
+        }
+        let frames = self.samples.len();
+        let view_ms = percentile_duration_ms(&self.samples, |sample| sample.view_build);
+        let prepare_ms = percentile_duration_ms(&self.samples, |sample| sample.playfield_prepare);
+        let glyph_ms = percentile_duration_ms(&self.samples, |sample| sample.glyph_prepare);
+        let gpu_ms = percentile_duration_ms(&self.samples, |sample| sample.gpu_submit_present);
+        let total_ms = percentile_duration_ms(&self.samples, |sample| sample.total);
+        let avg_dirty_rows = self
+            .samples
+            .iter()
+            .map(|sample| sample.dirty_rows as f64)
+            .sum::<f64>()
+            / frames as f64;
+        let avg_upload_bands = self
+            .samples
+            .iter()
+            .map(|sample| sample.upload_bands as f64)
+            .sum::<f64>()
+            / frames as f64;
+        let full_rebuilds = self
+            .samples
+            .iter()
+            .filter(|sample| sample.full_rebuild)
+            .count();
+        self.samples.clear();
+        self.started_at = Some(now);
+        Some(format!(
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_upload_bands={avg_upload_bands:.1} full_rebuilds={full_rebuilds}",
+            frames,
+            total_ms.0,
+            total_ms.1,
+            view_ms.0,
+            view_ms.1,
+            prepare_ms.0,
+            prepare_ms.1,
+            glyph_ms.0,
+            glyph_ms.1,
+            gpu_ms.0,
+            gpu_ms.1,
+        ))
+    }
+}
+
+fn percentile_duration_ms(
+    samples: &[FrameTimingSample],
+    project: impl Fn(&FrameTimingSample) -> Duration,
+) -> (f64, f64) {
+    let mut values = samples
+        .iter()
+        .map(|sample| project(sample).as_secs_f64() * 1000.0)
+        .collect::<Vec<_>>();
+    values.sort_by(f64::total_cmp);
+    (
+        percentile_sorted(&values, 0.50),
+        percentile_sorted(&values, 0.95),
+    )
+}
+
+fn percentile_sorted(values: &[f64], percentile: f64) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let index = ((values.len() - 1) as f64 * percentile).round() as usize;
+    values[index.min(values.len() - 1)]
+}
+
 fn pointer_move_event_kind(left_mouse_down: bool) -> MouseEventKind {
     if left_mouse_down {
         MouseEventKind::Drag(MouseButton::Left)
     } else {
         MouseEventKind::Moved
     }
+}
+
+fn should_dispatch_pointer_move(previous: Option<Point>, next: Option<Point>) -> bool {
+    previous != next
 }
 
 fn hosted_route_next_wakeup(route: &Route) -> Option<Instant> {
@@ -1231,11 +1355,11 @@ mod tests {
     };
 
     use super::{
-        ResizeObservation, ResizeShrinkTracker, ResizeVerdict, SessionBackend,
-        backend_supports_programmatic_focus, classify_resize, combine_deadlines,
-        hosted_route_next_wakeup, map_pointer_cell, minimum_window_size, pointer_move_event_kind,
-        route_uses_mouse, session_backend_label, window_attributes_for_mode,
-        window_decorations_for_session,
+        FrameTimingSample, FrameTimingSummary, ResizeObservation, ResizeShrinkTracker,
+        ResizeVerdict, SessionBackend, backend_supports_programmatic_focus, classify_resize,
+        combine_deadlines, hosted_route_next_wakeup, map_pointer_cell, minimum_window_size,
+        pointer_move_event_kind, route_uses_mouse, session_backend_label,
+        should_dispatch_pointer_move, window_attributes_for_mode, window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{
@@ -1345,6 +1469,40 @@ mod tests {
             pointer_move_event_kind(true),
             MouseEventKind::Drag(MouseButton::Left)
         );
+    }
+
+    #[test]
+    fn pointer_move_skips_same_cell() {
+        let cell = Point::from_usize(4, 7);
+        assert!(!should_dispatch_pointer_move(Some(cell), Some(cell)));
+        assert!(should_dispatch_pointer_move(
+            Some(cell),
+            Some(Point::from_usize(5, 7))
+        ));
+    }
+
+    #[test]
+    fn frame_timing_summary_emits_after_full_sample_window() {
+        let mut summary = FrameTimingSummary::default();
+        let sample = FrameTimingSample {
+            view_build: Duration::from_millis(1),
+            playfield_prepare: Duration::from_millis(2),
+            glyph_prepare: Duration::from_millis(3),
+            gpu_submit_present: Duration::from_millis(4),
+            total: Duration::from_millis(5),
+            dirty_rows: 2,
+            upload_bands: 1,
+            full_rebuild: false,
+        };
+
+        let mut message = None;
+        for _ in 0..120 {
+            message = summary.record(sample);
+        }
+
+        let message = message.expect("summary should emit after enough samples");
+        assert!(message.contains("frame timings [120 frames]"));
+        assert!(message.contains("avg_dirty_rows=2.0"));
     }
 
     #[test]
