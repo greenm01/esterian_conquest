@@ -844,100 +844,15 @@ impl Renderer {
         spans: &[DirtyColumnSpan],
     ) {
         let frame_width = self.surface_config.width as usize;
-        let body_bg_color = theme::app_background();
-        let body_bg = primitives::color_to_rgba(body_bg_color);
-        for span in spans {
-            if span.start_col >= span.end_col {
-                continue;
-            }
-            let start_rect = mapper.cell_rect(Point::from_usize(span.start_col, row_idx));
-            primitives::fill_rect_rgba(
-                &mut self.background_pixels,
-                frame_width,
-                start_rect.x,
-                start_rect.y,
-                (span.end_col - span.start_col) * mapper.cell.width_px,
-                mapper.cell.height_px,
-                body_bg,
-            );
-            let mut background_run_start = None;
-            let mut background_run_style = None;
-            for col_idx in span.start_col..span.end_col {
-                let source = playfield.row(row_idx)[col_idx];
-                let style = source.style;
-                let background_key = background_fill_key(style, body_bg_color);
-                if background_key != background_run_style {
-                    self.flush_background_run(
-                        frame_width,
-                        mapper,
-                        row_idx,
-                        &mut background_run_start,
-                        &mut background_run_style,
-                        col_idx,
-                    );
-                    if background_key.is_some() {
-                        background_run_start = Some(col_idx);
-                        background_run_style = background_key;
-                    }
-                }
-                if primitives::should_draw_as_primitive(source.ch) {
-                    let point = Point::from_usize(col_idx, row_idx);
-                    let rect = if style.bg_mode == BackgroundMode::TextBand {
-                        mapper.text_band_rect(point, self.grid_metrics.text)
-                    } else {
-                        mapper.cell_rect(point)
-                    };
-                    primitives::draw_cell_primitive(
-                        &mut self.background_pixels,
-                        frame_width,
-                        rect.x,
-                        rect.y,
-                        rect.width,
-                        rect.height,
-                        source.ch,
-                        primitives::color_to_rgba(style.fg),
-                    );
-                }
-            }
-            self.flush_background_run(
-                frame_width,
-                mapper,
-                row_idx,
-                &mut background_run_start,
-                &mut background_run_style,
-                span.end_col,
-            );
-        }
-    }
-
-    fn flush_background_run(
-        &mut self,
-        frame_width: usize,
-        mapper: GridMapper,
-        row_idx: usize,
-        run_start: &mut Option<usize>,
-        run_style: &mut Option<(GameColor, BackgroundMode)>,
-        end_col: usize,
-    ) {
-        let (Some(start_col), Some((bg, bg_mode))) = (run_start.take(), run_style.take()) else {
-            return;
-        };
-        let rect = span_fill_rect(
-            mapper,
-            row_idx,
-            start_col,
-            end_col,
-            bg_mode,
-            self.grid_metrics.text,
-        );
-        primitives::fill_rect_rgba(
+        repaint_row_spans_into_pixels(
             &mut self.background_pixels,
             frame_width,
-            rect.x,
-            rect.y,
-            rect.width,
-            rect.height,
-            primitives::color_to_rgba(bg),
+            playfield,
+            mapper,
+            self.grid_metrics.text,
+            row_idx,
+            spans,
+            theme::app_background(),
         );
     }
 
@@ -1355,6 +1270,140 @@ fn background_fill_key(
         return None;
     }
     Some((style.bg, style.bg_mode))
+}
+
+fn repaint_row_spans_into_pixels(
+    background_pixels: &mut [u8],
+    frame_width: usize,
+    playfield: &PlayfieldBuffer,
+    mapper: GridMapper,
+    text_metrics: TextMetrics,
+    row_idx: usize,
+    spans: &[DirtyColumnSpan],
+    body_bg_color: GameColor,
+) {
+    let body_bg = primitives::color_to_rgba(body_bg_color);
+    for span in spans {
+        if span.start_col >= span.end_col {
+            continue;
+        }
+        let start_rect = mapper.cell_rect(Point::from_usize(span.start_col, row_idx));
+        primitives::fill_rect_rgba(
+            background_pixels,
+            frame_width,
+            start_rect.x,
+            start_rect.y,
+            (span.end_col - span.start_col) * mapper.cell.width_px,
+            mapper.cell.height_px,
+            body_bg,
+        );
+        let mut background_run_start = None;
+        let mut background_run_style = None;
+        for col_idx in span.start_col..span.end_col {
+            let source = playfield.row(row_idx)[col_idx];
+            let style = source.style;
+            if primitives::should_draw_as_primitive(source.ch) {
+                flush_background_run_into_pixels(
+                    background_pixels,
+                    frame_width,
+                    mapper,
+                    text_metrics,
+                    row_idx,
+                    &mut background_run_start,
+                    &mut background_run_style,
+                    col_idx,
+                );
+                if let Some((bg, bg_mode)) = background_fill_key(style, body_bg_color) {
+                    let rect = span_fill_rect(
+                        mapper,
+                        row_idx,
+                        col_idx,
+                        col_idx + 1,
+                        bg_mode,
+                        text_metrics,
+                    );
+                    primitives::fill_rect_rgba(
+                        background_pixels,
+                        frame_width,
+                        rect.x,
+                        rect.y,
+                        rect.width,
+                        rect.height,
+                        primitives::color_to_rgba(bg),
+                    );
+                }
+                let point = Point::from_usize(col_idx, row_idx);
+                let rect = if style.bg_mode == BackgroundMode::TextBand {
+                    mapper.text_band_rect(point, text_metrics)
+                } else {
+                    mapper.cell_rect(point)
+                };
+                primitives::draw_cell_primitive(
+                    background_pixels,
+                    frame_width,
+                    rect.x,
+                    rect.y,
+                    rect.width,
+                    rect.height,
+                    source.ch,
+                    primitives::color_to_rgba(style.fg),
+                );
+                continue;
+            }
+            let background_key = background_fill_key(style, body_bg_color);
+            if background_key != background_run_style {
+                flush_background_run_into_pixels(
+                    background_pixels,
+                    frame_width,
+                    mapper,
+                    text_metrics,
+                    row_idx,
+                    &mut background_run_start,
+                    &mut background_run_style,
+                    col_idx,
+                );
+                if background_key.is_some() {
+                    background_run_start = Some(col_idx);
+                    background_run_style = background_key;
+                }
+            }
+        }
+        flush_background_run_into_pixels(
+            background_pixels,
+            frame_width,
+            mapper,
+            text_metrics,
+            row_idx,
+            &mut background_run_start,
+            &mut background_run_style,
+            span.end_col,
+        );
+    }
+}
+
+fn flush_background_run_into_pixels(
+    background_pixels: &mut [u8],
+    frame_width: usize,
+    mapper: GridMapper,
+    text_metrics: TextMetrics,
+    row_idx: usize,
+    run_start: &mut Option<usize>,
+    run_style: &mut Option<(GameColor, BackgroundMode)>,
+    end_col: usize,
+) {
+    let (Some(start_col), Some((bg, bg_mode))) = (run_start.take(), run_style.take()) else {
+        return;
+    };
+    let rect = span_fill_rect(mapper, row_idx, start_col, end_col, bg_mode, text_metrics);
+    primitives::fill_rect_rgba(
+        background_pixels,
+        frame_width,
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height,
+        primitives::color_to_rgba(bg),
+    );
 }
 
 fn span_fill_rect(
@@ -1936,13 +1985,15 @@ mod tests {
     use crate::grid::{
         CellStyle, GameColor, OverlayTextFamily, PlayfieldBuffer, Point, ScreenGeometry,
     };
+    use crate::runtime::primitives;
 
     use super::{
         DIRTY_SPAN_COLLAPSE_THRESHOLD, DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY,
         STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, UploadStrategy, build_font_system,
         choose_upload_strategy, compact_row_spans, dirty_cells, dirty_rect_area_px,
         dirty_rectangles, dirty_row_upload_rectangles, expanded_text_bounds, fit_grid_to_pixels,
-        full_width_row_spans, grid_area_px, measure_single_line_width, snapshot_playfield,
+        full_width_row_spans, grid_area_px, measure_single_line_width,
+        repaint_row_spans_into_pixels, snapshot_playfield,
     };
 
     fn base_style() -> CellStyle {
@@ -1967,6 +2018,16 @@ mod tests {
             GridMapper::centered(1200, 900, ScreenGeometry::new(100, 36), metrics.cell),
             metrics,
         )
+    }
+
+    fn pixel_rgba(frame: &[u8], stride_px: usize, x: usize, y: usize) -> [u8; 4] {
+        let pixel = (y * stride_px + x) * 4;
+        [
+            frame[pixel],
+            frame[pixel + 1],
+            frame[pixel + 2],
+            frame[pixel + 3],
+        ]
     }
 
     #[test]
@@ -2246,6 +2307,98 @@ mod tests {
                     end_col: 10,
                 }],
             ]
+        );
+    }
+
+    #[test]
+    fn repaint_row_spans_keep_primitive_foreground_on_non_body_background() {
+        let (mapper, metrics) = mapper();
+        let body_bg = GameColor::Black;
+        let panel_bg = GameColor::Blue;
+        let primitive_fg = GameColor::BrightWhite;
+        let primitive_style = CellStyle::new(primitive_fg, panel_bg, false);
+        let mut playfield =
+            PlayfieldBuffer::new(3, 1, CellStyle::new(GameColor::White, body_bg, false));
+        playfield.set_cell(0, 1, '│', primitive_style);
+
+        let stride_px = 1200usize;
+        let mut frame = vec![0; stride_px * 900 * 4];
+        let span = [DirtyColumnSpan {
+            start_col: 1,
+            end_col: 2,
+        }];
+        repaint_row_spans_into_pixels(
+            &mut frame,
+            stride_px,
+            &playfield,
+            mapper,
+            metrics.text,
+            0,
+            &span,
+            body_bg,
+        );
+
+        let rect = mapper.cell_rect(Point::from_usize(1, 0));
+        assert_eq!(
+            pixel_rgba(
+                &frame,
+                stride_px,
+                rect.x + metrics.cell.width_px / 2,
+                rect.y + metrics.cell.height_px / 2,
+            ),
+            primitives::color_to_rgba(primitive_fg),
+        );
+    }
+
+    #[test]
+    fn repaint_row_spans_do_not_flush_background_runs_over_primitives() {
+        let (mapper, metrics) = mapper();
+        let body_bg = GameColor::Black;
+        let panel_bg = GameColor::Blue;
+        let text_style = CellStyle::new(GameColor::White, panel_bg, false);
+        let primitive_style = CellStyle::new(GameColor::BrightWhite, panel_bg, false);
+        let mut playfield =
+            PlayfieldBuffer::new(3, 1, CellStyle::new(GameColor::White, body_bg, false));
+        playfield.set_cell(0, 0, 'A', text_style);
+        playfield.set_cell(0, 1, '│', primitive_style);
+        playfield.set_cell(0, 2, 'B', text_style);
+
+        let stride_px = 1200usize;
+        let mut frame = vec![0; stride_px * 900 * 4];
+        let span = [DirtyColumnSpan {
+            start_col: 0,
+            end_col: 3,
+        }];
+        repaint_row_spans_into_pixels(
+            &mut frame,
+            stride_px,
+            &playfield,
+            mapper,
+            metrics.text,
+            0,
+            &span,
+            body_bg,
+        );
+
+        let primitive_rect = mapper.cell_rect(Point::from_usize(1, 0));
+        let text_rect = mapper.cell_rect(Point::from_usize(0, 0));
+        assert_eq!(
+            pixel_rgba(
+                &frame,
+                stride_px,
+                primitive_rect.x + metrics.cell.width_px / 2,
+                primitive_rect.y + metrics.cell.height_px / 2,
+            ),
+            primitives::color_to_rgba(GameColor::BrightWhite),
+        );
+        assert_eq!(
+            pixel_rgba(
+                &frame,
+                stride_px,
+                text_rect.x + metrics.cell.width_px / 2,
+                text_rect.y + metrics.text.band_top_px + metrics.text.band_height_px / 2,
+            ),
+            primitives::color_to_rgba(panel_bg),
         );
     }
 
