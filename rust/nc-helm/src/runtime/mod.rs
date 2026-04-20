@@ -120,26 +120,6 @@ enum ResizeVerdict {
     SpuriousShrink { restore_to: (u32, u32) },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct WindowRestoreState {
-    width: u32,
-    height: u32,
-    maximized: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct HostedLaunchPending {
-    geometry: crate::ScreenGeometry,
-    observation: ResizeObservation,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum HostedWindowTransition {
-    None,
-    EnterHosted,
-    LeaveHosted(WindowRestoreState),
-}
-
 struct Runtime {
     options: LaunchTargetOptions,
     session_backend: SessionBackend,
@@ -161,8 +141,6 @@ struct Runtime {
     left_mouse_down: bool,
     shrink_tracker: Option<ResizeShrinkTracker>,
     next_matrix_frame_at: Option<Instant>,
-    hosted_window_restore_state: Option<WindowRestoreState>,
-    hosted_launch_pending: Option<HostedLaunchPending>,
 }
 
 impl Runtime {
@@ -196,8 +174,6 @@ impl Runtime {
             left_mouse_down: false,
             shrink_tracker: None,
             next_matrix_frame_at: None,
-            hosted_window_restore_state: None,
-            hosted_launch_pending: None,
         }
     }
 
@@ -227,12 +203,7 @@ impl Runtime {
         {
             attributes = attributes.with_name("nc-helm", "nc-helm");
         }
-        match self.options.native.window_mode {
-            NativeWindowMode::Windowed => {}
-            NativeWindowMode::BorderlessFullscreen => {
-                attributes = attributes.with_fullscreen(Some(Fullscreen::Borderless(None)));
-            }
-        }
+        attributes = window_attributes_for_mode(attributes, self.options.native.window_mode);
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -253,7 +224,6 @@ impl Runtime {
     fn dispatch(&mut self, msg: Msg, event_loop: &ActiveEventLoop) {
         let msg_label = msg_label(&msg);
         let sync_window_input_state = !matches!(msg, Msg::Resize(_));
-        let previous_route = self.app.model().route.clone();
         let effects = self.app.dispatch(msg);
         self.diagnostic_log(&format!(
             "state: msg={} route={} focus={} network={:?}",
@@ -273,7 +243,6 @@ impl Runtime {
         if !matches!(self.app.model().route, Route::MatrixLocked) {
             self.next_matrix_frame_at = None;
         }
-        self.sync_hosted_window_state(&previous_route);
         if sync_window_input_state {
             self.sync_window_input_state();
         }
@@ -574,19 +543,6 @@ impl Runtime {
         self.window_pixel_width = pixel_width;
         self.window_pixel_height = pixel_height;
         let geometry = renderer.grid_geometry_for_pixels(pixel_width, pixel_height, scale_factor);
-        let observation = ResizeObservation {
-            pixel_width,
-            pixel_height,
-            scale_factor,
-        };
-        if self
-            .hosted_launch_pending
-            .map(|pending| hosted_launch_ready(pending, observation, geometry))
-            .unwrap_or(false)
-        {
-            self.hosted_launch_pending = None;
-            self.needs_redraw = true;
-        }
         self.grid_metrics = Some(renderer.grid_metrics());
         if self.app.model().geometry == geometry {
             return;
@@ -640,45 +596,6 @@ impl Runtime {
             combine_deadlines(idle_deadline, matrix_deadline),
             hosted_route_next_wakeup(&self.app.model().route),
         )
-    }
-
-    fn sync_hosted_window_state(&mut self, previous_route: &Route) {
-        let transition = hosted_window_transition(
-            route_is_hosted(previous_route),
-            route_is_hosted(&self.app.model().route),
-            self.hosted_window_restore_state,
-        );
-        let Some(window) = self.window.as_ref() else {
-            return;
-        };
-        match transition {
-            HostedWindowTransition::None => {}
-            HostedWindowTransition::EnterHosted => {
-                if self.hosted_window_restore_state.is_none() {
-                    self.hosted_window_restore_state = Some(capture_window_restore_state(window));
-                }
-                if self.options.native.window_mode == NativeWindowMode::Windowed
-                    && !window.is_maximized()
-                {
-                    self.hosted_launch_pending = Some(HostedLaunchPending {
-                        geometry: self.app.model().geometry,
-                        observation: ResizeObservation {
-                            pixel_width: self.window_pixel_width,
-                            pixel_height: self.window_pixel_height,
-                            scale_factor: window.scale_factor(),
-                        },
-                    });
-                } else {
-                    self.hosted_launch_pending = None;
-                }
-                window.set_maximized(true);
-            }
-            HostedWindowTransition::LeaveHosted(state) => {
-                apply_window_restore_state(window, state);
-                self.hosted_window_restore_state = None;
-                self.hosted_launch_pending = None;
-            }
-        }
     }
 }
 
@@ -963,12 +880,6 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     "event: RedrawRequested route={}",
                     route_label(&self.app.model().route)
                 ));
-                if matches!(self.app.model().route, Route::HostedGame(_))
-                    && self.hosted_launch_pending.is_some()
-                {
-                    self.needs_redraw = false;
-                    return;
-                }
                 if let Some(renderer) = &mut self.renderer {
                     let buffer = self.app.view();
                     if let Err(err) = renderer.render(&buffer) {
@@ -1044,10 +955,6 @@ fn pointer_move_event_kind(left_mouse_down: bool) -> MouseEventKind {
     }
 }
 
-fn route_is_hosted(route: &Route) -> bool {
-    matches!(route, Route::HostedGame(_))
-}
-
 fn hosted_route_next_wakeup(route: &Route) -> Option<Instant> {
     match route {
         Route::HostedGame(hosted) => dashboard::hosted_next_wakeup(&hosted.dashboard),
@@ -1059,43 +966,16 @@ fn route_uses_mouse(route: &Route) -> bool {
     matches!(route, Route::Lobby(_) | Route::HostedGame(_))
 }
 
-fn capture_window_restore_state(window: &Window) -> WindowRestoreState {
-    let size = window.inner_size();
-    WindowRestoreState {
-        width: size.width,
-        height: size.height,
-        maximized: window.is_maximized(),
+fn window_attributes_for_mode(
+    attributes: WindowAttributes,
+    window_mode: NativeWindowMode,
+) -> WindowAttributes {
+    match window_mode {
+        NativeWindowMode::Windowed => attributes.with_maximized(true),
+        NativeWindowMode::BorderlessFullscreen => {
+            attributes.with_fullscreen(Some(Fullscreen::Borderless(None)))
+        }
     }
-}
-
-fn apply_window_restore_state(window: &Window, state: WindowRestoreState) {
-    window.set_maximized(state.maximized);
-    if !state.maximized {
-        let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(state.width, state.height));
-    }
-}
-
-fn hosted_window_transition(
-    was_hosted: bool,
-    is_hosted: bool,
-    restore_state: Option<WindowRestoreState>,
-) -> HostedWindowTransition {
-    match (was_hosted, is_hosted, restore_state) {
-        (false, true, _) => HostedWindowTransition::EnterHosted,
-        (true, false, Some(state)) => HostedWindowTransition::LeaveHosted(state),
-        _ => HostedWindowTransition::None,
-    }
-}
-
-fn hosted_launch_ready(
-    pending: HostedLaunchPending,
-    observation: ResizeObservation,
-    geometry: crate::ScreenGeometry,
-) -> bool {
-    geometry != pending.geometry
-        || observation.pixel_width != pending.observation.pixel_width
-        || observation.pixel_height != pending.observation.pixel_height
-        || (observation.scale_factor - pending.observation.scale_factor).abs() >= 0.001
 }
 
 fn map_pointer_cell(
@@ -1352,11 +1232,11 @@ mod tests {
     };
 
     use super::{
-        HostedLaunchPending, HostedWindowTransition, ResizeObservation, ResizeShrinkTracker,
-        ResizeVerdict, SessionBackend, WindowRestoreState, backend_supports_programmatic_focus,
-        classify_resize, combine_deadlines, hosted_launch_ready, hosted_route_next_wakeup,
-        hosted_window_transition, map_pointer_cell, minimum_window_size, pointer_move_event_kind,
-        route_uses_mouse, session_backend_label, window_decorations_for_session,
+        ResizeObservation, ResizeShrinkTracker, ResizeVerdict,
+        backend_supports_programmatic_focus, classify_resize, combine_deadlines,
+        hosted_route_next_wakeup, map_pointer_cell, minimum_window_size,
+        pointer_move_event_kind, route_uses_mouse, session_backend_label,
+        window_attributes_for_mode, window_decorations_for_session, SessionBackend,
     };
     use crate::Point;
     use crate::app::{
@@ -1366,6 +1246,8 @@ mod tests {
     use crate::dashboard::DashApp;
     use crate::geometry;
     use crate::input::{MouseButton, MouseEventKind};
+    use crate::startup::NativeWindowMode;
+    use winit::window::WindowAttributes;
 
     #[test]
     fn wayland_backend_disables_programmatic_focus() {
@@ -1491,7 +1373,10 @@ mod tests {
             active_tab: LobbyTab::MyGames,
             help_open: false,
             selected_my_game: 0,
+            my_games_scroll: 0,
             selected_open_game: 0,
+            open_games_scroll: 0,
+            settings_scroll: 0,
             editing_relay: false,
             relay_draft: String::new(),
             status: None,
@@ -1503,77 +1388,23 @@ mod tests {
     }
 
     #[test]
-    fn hosted_window_transition_maximizes_on_entry_only() {
-        assert_eq!(
-            hosted_window_transition(false, true, None),
-            HostedWindowTransition::EnterHosted
-        );
-        assert_eq!(
-            hosted_window_transition(true, true, None),
-            HostedWindowTransition::None
-        );
+    fn windowed_mode_starts_maximized() {
+        let attributes =
+            window_attributes_for_mode(WindowAttributes::default(), NativeWindowMode::Windowed);
+
+        assert!(attributes.maximized);
+        assert!(attributes.fullscreen.is_none());
     }
 
     #[test]
-    fn hosted_window_transition_restores_saved_window_on_exit() {
-        let saved = WindowRestoreState {
-            width: 1280,
-            height: 720,
-            maximized: false,
-        };
-        assert_eq!(
-            hosted_window_transition(true, false, Some(saved)),
-            HostedWindowTransition::LeaveHosted(saved)
+    fn fullscreen_mode_stays_borderless() {
+        let attributes = window_attributes_for_mode(
+            WindowAttributes::default(),
+            NativeWindowMode::BorderlessFullscreen,
         );
-        assert_eq!(
-            hosted_window_transition(true, false, None),
-            HostedWindowTransition::None
-        );
-    }
 
-    #[test]
-    fn hosted_launch_pending_clears_after_maximize_resize_changes_pixels() {
-        let pending = HostedLaunchPending {
-            geometry: crate::ScreenGeometry::new(100, 36),
-            observation: ResizeObservation {
-                pixel_width: 1200,
-                pixel_height: 900,
-                scale_factor: 1.0,
-            },
-        };
-
-        assert!(hosted_launch_ready(
-            pending,
-            ResizeObservation {
-                pixel_width: 1600,
-                pixel_height: 1200,
-                scale_factor: 1.0,
-            },
-            crate::ScreenGeometry::new(100, 36),
-        ));
-    }
-
-    #[test]
-    fn hosted_launch_pending_clears_after_geometry_changes() {
-        let pending = HostedLaunchPending {
-            geometry: crate::ScreenGeometry::new(100, 36),
-            observation: ResizeObservation {
-                pixel_width: 1200,
-                pixel_height: 900,
-                scale_factor: 1.0,
-            },
-        };
-
-        assert!(hosted_launch_ready(
-            pending,
-            pending.observation,
-            crate::ScreenGeometry::new(132, 44),
-        ));
-        assert!(!hosted_launch_ready(
-            pending,
-            pending.observation,
-            pending.geometry,
-        ));
+        assert!(!attributes.maximized);
+        assert!(attributes.fullscreen.is_some());
     }
 
     #[test]

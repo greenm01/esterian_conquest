@@ -44,7 +44,8 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
         buffer.plain_line(2).find(tab_strip),
         Some((buffer.width() - tab_strip.chars().count()) / 2)
     );
-    assert_eq!(buffer.row(4)[1].ch, '╭');
+    let my_games_border = buffer.plain_line(4).find('╭').expect("my games border");
+    assert!(my_games_border > 1);
     assert!(buffer.plain_line(4).contains("┐MY GAMES┌"));
     assert!(buffer.plain_line(33).contains("┐COMMANDS┌"));
     assert!(buffer.plain_line(34).contains("Alt+ Q>uit"));
@@ -52,6 +53,18 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
     assert!(buffer.plain_line(34).contains("D>elete"));
     assert!(buffer.plain_line(34).contains("<?>Keys H>ints"));
     assert!(!buffer.plain_line(26).contains("STATUS"));
+}
+
+#[test]
+fn comms_panel_still_uses_full_width_shell() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('c'))));
+
+    let buffer = app.view();
+    assert_eq!(buffer.row(4)[1].ch, '╭');
+    assert!(buffer.plain_line(4).contains("┐COMMS┌"));
 }
 
 #[test]
@@ -117,8 +130,7 @@ fn sandbox_delete_confirm_popup_renders_copy() {
 fn matrix_locked_route_renders_rain_without_lock_panel_copy() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
 
     let buffer = app.view();
     let allowed = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*";

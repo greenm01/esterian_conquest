@@ -5,6 +5,9 @@ use super::{
     chrome::{draw_panel, draw_top_tag_right},
     lobby_tab_bounds, mask,
 };
+use crate::dashboard::table::{
+    TableAlign, TableColumn as DashboardTableColumn, table_render_width,
+};
 use crate::grid::OverlayTextFamily;
 use crate::theme;
 use crate::{CellStyle, Column, PlayfieldBuffer, Point, Row, ScreenGeometry, StyledSpan};
@@ -33,11 +36,34 @@ const GATE_LOGO_BLOCK_ROWS: usize = 7;
 const COMMAND_PANEL_HEIGHT: usize = 3;
 const HEADER_WORDMARK: &str = "Nostrian Conquest";
 const HEADER_WORDMARK_WIDTH: usize = 22;
+const LOBBY_PANEL_TOP: usize = 4;
+const LOBBY_PANEL_INSET_X: usize = 2;
+const LOBBY_PANEL_TABLE_WIDTH_GUTTER: usize = 1;
+const LOBBY_TABLE_GAME_WIDTH: usize = 24;
+const LOBBY_OPEN_GAME_WIDTH: usize = 17;
 
 struct GateLayout {
     content_left: usize,
     content_width: usize,
     next_row: usize,
+}
+
+struct LobbyPanelLayout {
+    left: usize,
+    top: usize,
+    width: usize,
+    height: usize,
+    content_left: usize,
+    content_width: usize,
+    first_content_row: usize,
+    first_data_row: usize,
+    visible_data_rows: usize,
+    scrollbar_col: usize,
+}
+
+enum SettingsRow {
+    RelayInput,
+    Text { content: String, style: CellStyle },
 }
 
 fn body() -> CellStyle {
@@ -586,27 +612,27 @@ fn draw_my_games(
     model: &Model,
     reserve_status_row: bool,
 ) {
-    let height = content_panel_height(geometry, 4, reserve_status_row);
+    let columns = my_games_columns();
+    let layout = lobby_table_panel_layout(
+        geometry,
+        reserve_status_row,
+        "MY GAMES",
+        &columns,
+        model.my_games.len(),
+    );
     draw_panel(
         buffer,
-        1,
-        4,
-        geometry.width().saturating_sub(2),
-        height,
+        layout.left,
+        layout.top,
+        layout.width,
+        layout.height,
         theme::panel_border_style(),
         panel_accent(),
         Some(panel()),
         Some("MY GAMES"),
         None,
     );
-    render_my_games_table(
-        buffer,
-        3,
-        6,
-        geometry.width().saturating_sub(6),
-        height.saturating_sub(4),
-        model,
-    );
+    render_my_games_table(buffer, &layout, model);
 }
 
 fn draw_open_games(
@@ -617,27 +643,27 @@ fn draw_open_games(
     reserve_status_row: bool,
 ) {
     let _ = lobby;
-    let height = content_panel_height(geometry, 4, reserve_status_row);
+    let columns = open_games_columns();
+    let layout = lobby_table_panel_layout(
+        geometry,
+        reserve_status_row,
+        "OPEN GAMES AVAILABLE TO JOIN",
+        &columns,
+        model.open_games.len(),
+    );
     draw_panel(
         buffer,
-        1,
-        4,
-        geometry.width().saturating_sub(2),
-        height,
+        layout.left,
+        layout.top,
+        layout.width,
+        layout.height,
         theme::panel_border_style(),
         panel_accent(),
         Some(panel()),
         Some("OPEN GAMES AVAILABLE TO JOIN"),
         None,
     );
-    render_open_games_table(
-        buffer,
-        3,
-        6,
-        geometry.width().saturating_sub(6),
-        height.saturating_sub(4),
-        model,
-    );
+    render_open_games_table(buffer, &layout, model);
 }
 
 fn draw_comms(
@@ -691,12 +717,13 @@ fn draw_settings(
     model: &Model,
     reserve_status_row: bool,
 ) {
+    let layout = settings_panel_layout(geometry, reserve_status_row);
     draw_panel(
         buffer,
-        1,
-        4,
-        geometry.width().saturating_sub(2),
-        content_panel_height(geometry, 4, reserve_status_row),
+        layout.left,
+        layout.top,
+        layout.width,
+        layout.height,
         theme::panel_border_style(),
         panel_accent(),
         Some(panel()),
@@ -708,87 +735,7 @@ fn draw_settings(
     } else {
         (model.relay_url.as_str(), false)
     };
-    draw_boxed_input_row(
-        buffer,
-        4,
-        7,
-        SETTINGS_FIELD_LABEL_WIDTH,
-        SETTINGS_FIELD_TRACK_WIDTH,
-        "Relay URL",
-        relay_draft,
-        editing_relay,
-        false,
-    );
-    buffer.write_text(
-        8,
-        4,
-        &format!(
-            "Window Focus : {}",
-            if model.window_focused { "yes" } else { "no" }
-        ),
-        panel(),
-    );
-    buffer.write_text(
-        9,
-        4,
-        &format!(
-            "Text Input   : {}",
-            if model.wants_text_input() {
-                "armed"
-            } else {
-                "off"
-            }
-        ),
-        panel(),
-    );
-    if let Some(session) = &model.session {
-        buffer.write_text(
-            11,
-            4,
-            &format!(
-                "Handle       : {}",
-                session.active_handle.as_deref().unwrap_or("unset")
-            ),
-            panel(),
-        );
-        buffer.write_text_clipped(
-            12,
-            4,
-            &format!("Identity     : {}", session.active_npub),
-            panel(),
-        );
-    }
-    buffer.write_text(
-        10,
-        4,
-        &format!(
-            "Idle Lock    : {}",
-            if model.lock_timeout_minutes == 0 {
-                "Off".to_string()
-            } else {
-                format!("{} min", model.lock_timeout_minutes)
-            }
-        ),
-        panel(),
-    );
-    buffer.write_text(
-        14,
-        4,
-        "R : Edit relay URL   Enter : Save relay   Esc : Cancel edit",
-        if editing_relay {
-            panel_accent()
-        } else {
-            panel_dim()
-        },
-    );
-    buffer.write_text(
-        15,
-        4,
-        "L : Lock the local session and stop background sync",
-        panel_accent(),
-    );
-    buffer.write_text(16, 4, "I : Cycle idle lock timeout", panel_accent());
-    buffer.write_text(18, 4, "Alt+Q : Quit nc-helm", panel_dim());
+    render_settings_rows(buffer, &layout, model, relay_draft, editing_relay);
 }
 
 fn render_fatal(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, message: &str) {
@@ -835,33 +782,33 @@ fn draw_tabs(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, lobby: &sup
     }
 }
 
-fn render_my_games_table(
-    buffer: &mut PlayfieldBuffer,
-    left: usize,
-    top: usize,
-    width: usize,
-    height: usize,
-    model: &Model,
-) {
-    let columns = [
-        TableColumn::left("Status", 10),
-        TableColumn::fill("Game"),
-        TableColumn::left("Type", 9),
-        TableColumn::right("Seat", 6),
-        TableColumn::right("Time (Y:T)", 12),
-    ];
-    render_table_header(buffer, left, top, width, &columns);
+fn render_my_games_table(buffer: &mut PlayfieldBuffer, layout: &LobbyPanelLayout, model: &Model) {
+    let base_columns = my_games_columns();
+    let columns = resolve_lobby_table_columns(&base_columns, layout.content_width);
+    render_table_header(buffer, layout.content_left, layout.first_content_row, &columns);
     if model.my_games.is_empty() {
         buffer.write_text_clipped(
-            top + 2,
-            left,
+            layout.first_data_row + 1,
+            layout.content_left,
             "<no games yet - press 'j' to join an open game>",
             panel_warning(),
         );
         return;
     }
-    let visible_rows = height.saturating_sub(1);
-    for (index, row) in model.my_games.iter().take(visible_rows).enumerate() {
+    let scroll = lobby_my_games_scroll(model).min(
+        model
+            .my_games
+            .len()
+            .saturating_sub(layout.visible_data_rows.max(1)),
+    );
+    for (index, row) in model
+        .my_games
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(layout.visible_data_rows)
+    {
+        let draw_row = layout.first_data_row + index - scroll;
         let style = if index == lobby_selected_my_game(model) {
             theme::selected_panel_row_style()
         } else {
@@ -878,46 +825,54 @@ fn render_my_games_table(
         ];
         render_table_row(
             buffer,
-            left,
-            top + 1 + index,
-            width,
+            layout.content_left,
+            draw_row,
             &columns,
             &values,
             style,
         );
     }
+    draw_lobby_scrollbar(
+        buffer,
+        layout.first_data_row,
+        layout.scrollbar_col,
+        layout.visible_data_rows,
+        model.my_games.len(),
+        scroll,
+    );
 }
 
 fn render_open_games_table(
     buffer: &mut PlayfieldBuffer,
-    left: usize,
-    top: usize,
-    width: usize,
-    height: usize,
+    layout: &LobbyPanelLayout,
     model: &Model,
 ) {
-    let columns = [
-        TableColumn::left("Status", 10),
-        TableColumn::fill("Game"),
-        TableColumn::left("Host", 12),
-        TableColumn::left("Type", 9),
-        TableColumn::right("Seats", 7),
-        TableColumn::right("Map", 7),
-        TableColumn::right("Created", 10),
-        TableColumn::right("Time", 12),
-    ];
-    render_table_header(buffer, left, top, width, &columns);
+    let base_columns = open_games_columns();
+    let columns = resolve_lobby_table_columns(&base_columns, layout.content_width);
+    render_table_header(buffer, layout.content_left, layout.first_content_row, &columns);
     if model.open_games.is_empty() {
         buffer.write_text_clipped(
-            top + 2,
-            left,
+            layout.first_data_row + 1,
+            layout.content_left,
             "<no open games - check back later or ask the sysop in COMMS>",
             panel_warning(),
         );
         return;
     }
-    let visible_rows = height.saturating_sub(1);
-    for (index, row) in model.open_games.iter().take(visible_rows).enumerate() {
+    let scroll = lobby_open_games_scroll(model).min(
+        model
+            .open_games
+            .len()
+            .saturating_sub(layout.visible_data_rows.max(1)),
+    );
+    for (index, row) in model
+        .open_games
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(layout.visible_data_rows)
+    {
+        let draw_row = layout.first_data_row + index - scroll;
         let style = if index == lobby_selected_open_game(model) {
             theme::selected_panel_row_style()
         } else {
@@ -935,14 +890,323 @@ fn render_open_games_table(
         ];
         render_table_row(
             buffer,
-            left,
-            top + 1 + index,
-            width,
+            layout.content_left,
+            draw_row,
             &columns,
             &values,
             style,
         );
     }
+    draw_lobby_scrollbar(
+        buffer,
+        layout.first_data_row,
+        layout.scrollbar_col,
+        layout.visible_data_rows,
+        model.open_games.len(),
+        scroll,
+    );
+}
+
+fn my_games_columns() -> [DashboardTableColumn<'static>; 5] {
+    [
+        DashboardTableColumn::left("Status", 10),
+        DashboardTableColumn::left_flex("Game", LOBBY_TABLE_GAME_WIDTH, 1),
+        DashboardTableColumn::left("Type", 9),
+        DashboardTableColumn::right("Seat", 6),
+        DashboardTableColumn::right("Time (Y:T)", 12),
+    ]
+}
+
+fn open_games_columns() -> [DashboardTableColumn<'static>; 8] {
+    [
+        DashboardTableColumn::left("Status", 10),
+        DashboardTableColumn::left_flex("Game", LOBBY_OPEN_GAME_WIDTH, 1),
+        DashboardTableColumn::left("Host", 12),
+        DashboardTableColumn::left("Type", 9),
+        DashboardTableColumn::right("Seats", 7),
+        DashboardTableColumn::right("Map", 7),
+        DashboardTableColumn::right("Created", 10),
+        DashboardTableColumn::right("Time", 12),
+    ]
+}
+
+fn lobby_table_panel_layout(
+    geometry: ScreenGeometry,
+    reserve_status_row: bool,
+    title: &str,
+    columns: &[DashboardTableColumn<'_>],
+    total_rows: usize,
+) -> LobbyPanelLayout {
+    let height = content_panel_height(geometry, LOBBY_PANEL_TOP, reserve_status_row);
+    let desired_width = (table_render_width(columns) + 5).max(title.chars().count() + 4);
+    let width = desired_width.min(geometry.width().saturating_sub(2));
+    let left = geometry.width().saturating_sub(width) / 2;
+    let content_width = width
+        .saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER);
+    let visible_data_rows = height.saturating_sub(5);
+    let _ = total_rows;
+    LobbyPanelLayout {
+        left,
+        top: LOBBY_PANEL_TOP,
+        width,
+        height,
+        content_left: left + LOBBY_PANEL_INSET_X,
+        content_width,
+        first_content_row: LOBBY_PANEL_TOP + 2,
+        first_data_row: LOBBY_PANEL_TOP + 3,
+        visible_data_rows,
+        scrollbar_col: left + width.saturating_sub(2),
+    }
+}
+
+fn settings_panel_layout(geometry: ScreenGeometry, reserve_status_row: bool) -> LobbyPanelLayout {
+    let height = content_panel_height(geometry, LOBBY_PANEL_TOP, reserve_status_row);
+    let desired_width = (SETTINGS_FIELD_LABEL_WIDTH + SETTINGS_FIELD_TRACK_WIDTH + 5)
+        .max("SETTINGS".chars().count() + 4);
+    let width = desired_width.min(geometry.width().saturating_sub(2));
+    let left = geometry.width().saturating_sub(width) / 2;
+    let content_width = width
+        .saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER);
+    LobbyPanelLayout {
+        left,
+        top: LOBBY_PANEL_TOP,
+        width,
+        height,
+        content_left: left + LOBBY_PANEL_INSET_X,
+        content_width,
+        first_content_row: LOBBY_PANEL_TOP + 3,
+        first_data_row: LOBBY_PANEL_TOP + 3,
+        visible_data_rows: height.saturating_sub(4),
+        scrollbar_col: left + width.saturating_sub(2),
+    }
+}
+
+fn render_settings_rows(
+    buffer: &mut PlayfieldBuffer,
+    layout: &LobbyPanelLayout,
+    model: &Model,
+    relay_draft: &str,
+    editing_relay: bool,
+) {
+    let rows = settings_rows(model);
+    let scroll = lobby_settings_scroll(model).min(
+        rows.len()
+            .saturating_sub(layout.visible_data_rows.max(1)),
+    );
+    let track_width = layout
+        .content_width
+        .saturating_sub(SETTINGS_FIELD_LABEL_WIDTH + 2)
+        .min(SETTINGS_FIELD_TRACK_WIDTH);
+    for (index, row) in rows
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(layout.visible_data_rows)
+    {
+        let draw_row = layout.first_content_row + index - scroll;
+        match row {
+            SettingsRow::RelayInput => draw_boxed_input_row(
+                buffer,
+                layout.content_left,
+                draw_row,
+                SETTINGS_FIELD_LABEL_WIDTH,
+                track_width,
+                "Relay URL",
+                relay_draft,
+                editing_relay,
+                false,
+            ),
+            SettingsRow::Text { content, style } => {
+                buffer.write_text_clipped(draw_row, layout.content_left, content, *style);
+            }
+        }
+    }
+    draw_lobby_scrollbar(
+        buffer,
+        layout.first_content_row,
+        layout.scrollbar_col,
+        layout.visible_data_rows,
+        rows.len(),
+        scroll,
+    );
+}
+
+fn settings_rows(model: &Model) -> Vec<SettingsRow> {
+    let mut rows = vec![
+        SettingsRow::RelayInput,
+        SettingsRow::Text {
+            content: format!(
+                "Window Focus : {}",
+                if model.window_focused { "yes" } else { "no" }
+            ),
+            style: panel(),
+        },
+        SettingsRow::Text {
+            content: format!(
+                "Text Input   : {}",
+                if model.wants_text_input() {
+                    "armed"
+                } else {
+                    "off"
+                }
+            ),
+            style: panel(),
+        },
+        SettingsRow::Text {
+            content: format!(
+                "Idle Lock    : {}",
+                if model.lock_timeout_minutes == 0 {
+                    String::from("Off")
+                } else {
+                    format!("{} min", model.lock_timeout_minutes)
+                }
+            ),
+            style: panel(),
+        },
+    ];
+    if let Some(session) = &model.session {
+        rows.push(SettingsRow::Text {
+            content: format!(
+                "Handle       : {}",
+                session.active_handle.as_deref().unwrap_or("unset")
+            ),
+            style: panel(),
+        });
+        rows.push(SettingsRow::Text {
+            content: format!("Identity     : {}", session.active_npub),
+            style: panel(),
+        });
+    }
+    rows.push(SettingsRow::Text {
+        content: String::from("R : Edit relay URL   Enter : Save relay   Esc : Cancel edit"),
+        style: if lobby_is_editing_relay(model) {
+            panel_accent()
+        } else {
+            panel_dim()
+        },
+    });
+    rows.push(SettingsRow::Text {
+        content: String::from("L : Lock the local session and stop background sync"),
+        style: panel_accent(),
+    });
+    rows.push(SettingsRow::Text {
+        content: String::from("I : Cycle idle lock timeout"),
+        style: panel_accent(),
+    });
+    rows.push(SettingsRow::Text {
+        content: String::from("Alt+Q : Quit nc-helm"),
+        style: panel_dim(),
+    });
+    rows
+}
+
+fn resolve_lobby_table_columns<'a>(
+    columns: &'a [DashboardTableColumn<'a>],
+    available_width: usize,
+) -> Vec<DashboardTableColumn<'a>> {
+    let mut resolved = columns.to_vec();
+    let minimum_flex_width = 8usize;
+    let mut current_width = table_render_width(&resolved);
+    while current_width > available_width {
+        let mut shrank = false;
+        for column in &mut resolved {
+            if column.flex == 0 || column.width <= minimum_flex_width {
+                continue;
+            }
+            column.width -= 1;
+            current_width = current_width.saturating_sub(1);
+            shrank = true;
+            if current_width <= available_width {
+                break;
+            }
+        }
+        if !shrank {
+            break;
+        }
+    }
+    resolved
+}
+
+fn render_table_header(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    columns: &[DashboardTableColumn<'_>],
+) {
+    let mut col = left;
+    for column in columns {
+        let cell = format_table_cell(column.header, column.width, column.align);
+        buffer.write_text_clipped(top, col, &cell, panel_dim());
+        col += column.width + 1;
+    }
+}
+
+fn render_table_row(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    columns: &[DashboardTableColumn<'_>],
+    values: &[String],
+    style: CellStyle,
+) {
+    let mut col = left;
+    for (index, column) in columns.iter().enumerate() {
+        let value = values.get(index).map(String::as_str).unwrap_or("");
+        let cell = format_table_cell(value, column.width, column.align);
+        buffer.write_text_clipped(top, col, &cell, style);
+        col += column.width + 1;
+    }
+}
+
+fn format_table_cell(value: &str, width: usize, align: TableAlign) -> String {
+    let clipped = truncate(value, width);
+    match align {
+        TableAlign::Left => format!("{clipped:<width$}"),
+        TableAlign::Center => {
+            let padding = width.saturating_sub(clipped.chars().count());
+            let left = padding / 2;
+            let right = padding.saturating_sub(left);
+            format!("{}{}{}", " ".repeat(left), clipped, " ".repeat(right))
+        }
+        TableAlign::Right => format!("{clipped:>width$}"),
+    }
+}
+
+fn draw_lobby_scrollbar(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
+    visible_rows: usize,
+    total_rows: usize,
+    scroll_offset: usize,
+) {
+    if total_rows <= visible_rows || visible_rows < 3 || col >= buffer.width() {
+        return;
+    }
+
+    let displayed_rows = usize::min(visible_rows, total_rows.saturating_sub(scroll_offset));
+    if displayed_rows < 3 {
+        return;
+    }
+
+    let last_row = start_row + displayed_rows - 1;
+    let track_top = start_row + 1;
+    let track_bottom = last_row.saturating_sub(1);
+
+    buffer.write_text(start_row, col, "^", panel_dim());
+    buffer.write_text(last_row, col, "v", panel_dim());
+    for row in track_top..=track_bottom {
+        buffer.write_text(row, col, "|", panel_dim());
+    }
+
+    let max_offset = total_rows.saturating_sub(visible_rows);
+    let thumb_span = track_bottom.saturating_sub(track_top);
+    let thumb_row = if max_offset == 0 || thumb_span == 0 {
+        track_top
+    } else {
+        track_top + (scroll_offset * thumb_span) / max_offset
+    };
+    buffer.write_text(thumb_row, col, "#", panel_accent());
 }
 
 fn draw_command_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
@@ -1312,105 +1576,6 @@ fn panel_status_style(status: &str) -> CellStyle {
     }
 }
 
-#[derive(Clone, Copy)]
-struct TableColumn {
-    title: &'static str,
-    width: Option<usize>,
-    align_right: bool,
-}
-
-impl TableColumn {
-    fn left(title: &'static str, width: usize) -> Self {
-        Self {
-            title,
-            width: Some(width),
-            align_right: false,
-        }
-    }
-
-    fn right(title: &'static str, width: usize) -> Self {
-        Self {
-            title,
-            width: Some(width),
-            align_right: true,
-        }
-    }
-
-    fn fill(title: &'static str) -> Self {
-        Self {
-            title,
-            width: None,
-            align_right: false,
-        }
-    }
-}
-
-fn render_table_header(
-    buffer: &mut PlayfieldBuffer,
-    left: usize,
-    top: usize,
-    width: usize,
-    columns: &[TableColumn],
-) {
-    let widths = resolve_table_widths(width, columns);
-    let mut col = left;
-    for (index, column) in columns.iter().enumerate() {
-        let cell = format_table_cell(column.title, widths[index], column.align_right);
-        buffer.write_text_clipped(top, col, &cell, panel_dim());
-        col += widths[index] + 1;
-    }
-}
-
-fn render_table_row(
-    buffer: &mut PlayfieldBuffer,
-    left: usize,
-    top: usize,
-    width: usize,
-    columns: &[TableColumn],
-    values: &[String],
-    style: CellStyle,
-) {
-    let widths = resolve_table_widths(width, columns);
-    let mut col = left;
-    for (index, column) in columns.iter().enumerate() {
-        let value = values.get(index).map(String::as_str).unwrap_or("");
-        let cell = format_table_cell(value, widths[index], column.align_right);
-        buffer.write_text_clipped(top, col, &cell, style);
-        col += widths[index] + 1;
-    }
-}
-
-fn resolve_table_widths(width: usize, columns: &[TableColumn]) -> Vec<usize> {
-    let gaps = columns.len().saturating_sub(1);
-    let fixed = columns
-        .iter()
-        .filter_map(|column| column.width)
-        .sum::<usize>();
-    let fill_count = columns
-        .iter()
-        .filter(|column| column.width.is_none())
-        .count();
-    let remaining = width.saturating_sub(fixed + gaps);
-    let fill_width = if fill_count == 0 {
-        0
-    } else {
-        remaining / fill_count
-    };
-    columns
-        .iter()
-        .map(|column| column.width.unwrap_or(fill_width.max(8)))
-        .collect()
-}
-
-fn format_table_cell(value: &str, width: usize, align_right: bool) -> String {
-    let clipped = truncate(value, width);
-    if align_right {
-        format!("{clipped:>width$}")
-    } else {
-        format!("{clipped:<width$}")
-    }
-}
-
 fn lobby_selected_my_game(model: &Model) -> usize {
     match &model.route {
         Route::Lobby(lobby) => lobby.selected_my_game,
@@ -1422,6 +1587,34 @@ fn lobby_selected_open_game(model: &Model) -> usize {
     match &model.route {
         Route::Lobby(lobby) => lobby.selected_open_game,
         _ => 0,
+    }
+}
+
+fn lobby_my_games_scroll(model: &Model) -> usize {
+    match &model.route {
+        Route::Lobby(lobby) => lobby.my_games_scroll,
+        _ => 0,
+    }
+}
+
+fn lobby_open_games_scroll(model: &Model) -> usize {
+    match &model.route {
+        Route::Lobby(lobby) => lobby.open_games_scroll,
+        _ => 0,
+    }
+}
+
+fn lobby_settings_scroll(model: &Model) -> usize {
+    match &model.route {
+        Route::Lobby(lobby) => lobby.settings_scroll,
+        _ => 0,
+    }
+}
+
+fn lobby_is_editing_relay(model: &Model) -> bool {
+    match &model.route {
+        Route::Lobby(lobby) => lobby.editing_relay,
+        _ => false,
     }
 }
 

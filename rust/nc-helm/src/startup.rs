@@ -143,7 +143,7 @@ pub fn print_usage() {
     eprintln!("OPTIONS:");
     eprintln!("    --help, -h       Show this help");
     eprintln!("    --relay <url>    Override the hosted relay for this session");
-    eprintln!("    --windowed       Open in a normal decorated resizable window");
+    eprintln!("    --windowed       Open in a normal decorated resizable maximized window");
     eprintln!("    --fullscreen     Force borderless fullscreen for this session");
     eprintln!("    --backend <...>  Select native backend: auto (default), wayland, or x11");
     eprintln!("    --diagnostic     Enable verbose native diagnostics");

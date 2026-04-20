@@ -86,8 +86,7 @@ fn lobby_update_populates_games_and_notices() {
 fn lock_action_disconnects_transport_and_returns_to_locked_route() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+    let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
     assert!(matches!(effects.as_slice(), [Effect::DisconnectTransport]));
     match &app.model().route {
         Route::MatrixLocked => {}
@@ -103,8 +102,7 @@ fn lock_action_disconnects_transport_and_returns_to_locked_route() {
 fn any_key_from_matrix_lock_opens_unlock_gate() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
     match &app.model().route {
@@ -121,14 +119,46 @@ fn any_key_from_matrix_lock_opens_unlock_gate() {
 fn escape_from_resume_unlock_returns_to_matrix_lock() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('l'))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     match &app.model().route {
         Route::MatrixLocked => {}
         other => panic!("expected matrix lock route, got {other:?}"),
+    }
+    assert!(!app.model().should_quit);
+}
+
+#[test]
+fn alt_q_is_ignored_while_matrix_locked() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
+
+    let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+
+    assert!(effects.is_empty());
+    assert!(matches!(app.model().route, Route::MatrixLocked));
+    assert!(!app.model().should_quit);
+}
+
+#[test]
+fn alt_q_is_ignored_on_resume_unlock_prompt() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+
+    let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+
+    assert!(effects.is_empty());
+    match &app.model().route {
+        Route::Locked(locked) => {
+            assert!(locked.resume_session);
+            assert!(locked.password_input.is_empty());
+        }
+        other => panic!("expected locked route, got {other:?}"),
     }
     assert!(!app.model().should_quit);
 }
@@ -205,6 +235,40 @@ fn alt_q_quits_the_lobby() {
     let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
     assert!(matches!(effects.as_slice(), [Effect::Quit]));
     assert!(app.model().should_quit);
+}
+
+#[test]
+fn open_games_scrolls_when_selection_moves_past_visible_body() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let open_games = (0..30)
+        .map(|index| {
+            let mut row = sandbox_open_game_row();
+            row.game_id = format!("open-{index:02}");
+            row.game = format!("Open Game {index:02}");
+            row
+        })
+        .collect();
+    let _ = app.dispatch(Msg::LobbyUpdated(Ok(LobbySnapshot {
+        cache: ClientCache::empty(),
+        my_games: Vec::new(),
+        open_games,
+        notices: Vec::new(),
+    })));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('o'))));
+    for _ in 0..25 {
+        let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Down)));
+    }
+
+    match &app.model().route {
+        Route::Lobby(lobby) => {
+            assert_eq!(lobby.selected_open_game, 25);
+            assert!(lobby.open_games_scroll > 0);
+        }
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+    let buffer = app.view();
+    assert!(buffer.plain_line(7).contains("^"));
 }
 
 #[test]

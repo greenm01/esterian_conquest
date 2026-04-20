@@ -20,6 +20,7 @@ use crate::dashboard::table_filter::{
     format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
 };
 use crate::dashboard::table_selection;
+use crate::dashboard::table_selection::{sync_scroll_to_cursor, wrap_next_index, wrap_prev_index};
 use input::{Action, key_to_action};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
@@ -2577,34 +2578,6 @@ fn parse_table_coord(cell: &str) -> Option<[u8; 2]> {
     Some([x.parse().ok()?, y.parse().ok()?])
 }
 
-fn wrap_prev_index(selected: usize, total_rows: usize) -> usize {
-    if total_rows == 0 {
-        0
-    } else if selected == 0 {
-        total_rows - 1
-    } else {
-        selected - 1
-    }
-}
-
-fn wrap_next_index(selected: usize, total_rows: usize) -> usize {
-    if total_rows == 0 {
-        0
-    } else if selected + 1 >= total_rows {
-        0
-    } else {
-        selected + 1
-    }
-}
-
-fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize) {
-    if cursor < *scroll_offset {
-        *scroll_offset = cursor;
-    } else if cursor >= scroll_offset.saturating_add(visible) {
-        *scroll_offset = cursor + 1 - visible;
-    }
-}
-
 fn delete_selected_inbox_item(app: &mut DashApp) {
     let viewer = app.player_record_index_1_based as u8;
     let state = &app.inbox_overlay;
@@ -2651,7 +2624,7 @@ fn modal_chrome_contains(popup: Rect, col: usize, row: usize) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
+    use super::{map_coord_rows, parse_table_coord};
     use crate::dashboard::app::state::{
         ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest, FleetOrderScope,
         FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort,
@@ -2664,6 +2637,7 @@ mod tests {
     use crate::dashboard::input::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
+    use crate::dashboard::table_selection::{wrap_next_index, wrap_prev_index};
     use crate::dashboard::layout::dashboard::dashboard_layout;
     use crate::dashboard::native::NativeApp;
     use crate::dashboard::overlays::{fleet_list, intel_database, planet_list};

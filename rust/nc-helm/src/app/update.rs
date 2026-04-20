@@ -9,6 +9,7 @@ use super::{
 };
 use crate::ScreenGeometry;
 use crate::dashboard;
+use crate::dashboard::table_selection::{sync_scroll_to_cursor, wrap_next_index, wrap_prev_index};
 use crate::input::{KeyCode, KeyModifiers, MouseButton, MouseEventKind};
 
 const TABLE_DATA_ROW_START: usize = 7;
@@ -318,7 +319,10 @@ fn handle_relay_saved(model: &mut Model, result: Result<String, String>) -> Vec<
 }
 
 fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
-    if is_quit_shortcut(key) && !matches!(model.route, Route::HostedGame(_)) {
+    if is_quit_shortcut(key)
+        && !matches!(model.route, Route::HostedGame(_))
+        && !route_blocks_quit_shortcut(&model.route)
+    {
         model.should_quit = true;
         return vec![Effect::Quit];
     }
@@ -375,13 +379,30 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
                 return Vec::new();
             }
 
-            let index = row.saturating_sub(TABLE_DATA_ROW_START);
+            let visible_rows = lobby_table_visible_rows(model.geometry, lobby.status.is_some());
+            if row >= TABLE_DATA_ROW_START.saturating_add(visible_rows) {
+                return Vec::new();
+            }
+
             match lobby.active_tab {
                 LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    let index = lobby.my_games_scroll + row.saturating_sub(TABLE_DATA_ROW_START);
                     lobby.selected_my_game = index.min(model.my_games.len().saturating_sub(1));
+                    sync_scroll_to_cursor(
+                        &mut lobby.my_games_scroll,
+                        lobby.selected_my_game,
+                        visible_rows,
+                    );
                 }
                 LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    let index =
+                        lobby.open_games_scroll + row.saturating_sub(TABLE_DATA_ROW_START);
                     lobby.selected_open_game = index.min(model.open_games.len().saturating_sub(1));
+                    sync_scroll_to_cursor(
+                        &mut lobby.open_games_scroll,
+                        lobby.selected_open_game,
+                        visible_rows,
+                    );
                 }
                 _ => {}
             }
@@ -481,6 +502,9 @@ fn handle_first_run_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<E
 }
 
 fn handle_matrix_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    if is_quit_shortcut(key) {
+        return Vec::new();
+    }
     match key.code {
         _ => {
             model.route = Route::Locked(super::LockedModel {
@@ -497,6 +521,9 @@ fn handle_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effe
     let Route::Locked(locked) = &mut model.route else {
         return Vec::new();
     };
+    if locked.resume_session && is_quit_shortcut(key) {
+        return Vec::new();
+    }
     match key.code {
         KeyCode::Backspace => {
             locked.password_input.pop();
@@ -530,9 +557,11 @@ fn handle_locked_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effe
 }
 
 fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    let settings_row_count = lobby_settings_rows(model).len();
     let Route::Lobby(lobby) = &mut model.route else {
         return Vec::new();
     };
+    let visible_rows = lobby_table_visible_rows(model.geometry, lobby.status.is_some());
     if lobby.help_open {
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => lobby.help_open = false,
@@ -594,16 +623,166 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
             Vec::new()
         }
         KeyCode::Up => {
-            lobby.set_selected_index(lobby.selected_index().saturating_sub(1));
+            match lobby.active_tab {
+                LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    lobby.selected_my_game =
+                        wrap_prev_index(lobby.selected_my_game, model.my_games.len());
+                    sync_scroll_to_cursor(
+                        &mut lobby.my_games_scroll,
+                        lobby.selected_my_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    lobby.selected_open_game =
+                        wrap_prev_index(lobby.selected_open_game, model.open_games.len());
+                    sync_scroll_to_cursor(
+                        &mut lobby.open_games_scroll,
+                        lobby.selected_open_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::Settings => {
+                    lobby.settings_scroll = lobby.settings_scroll.saturating_sub(1);
+                }
+                LobbyTab::MyGames | LobbyTab::OpenGames => {}
+                LobbyTab::Comms => {}
+            }
             Vec::new()
         }
         KeyCode::Down => {
-            let max_index = match lobby.active_tab {
-                LobbyTab::MyGames => model.my_games.len().saturating_sub(1),
-                LobbyTab::OpenGames => model.open_games.len().saturating_sub(1),
-                _ => 0,
-            };
-            lobby.set_selected_index((lobby.selected_index() + 1).min(max_index));
+            match lobby.active_tab {
+                LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    lobby.selected_my_game =
+                        wrap_next_index(lobby.selected_my_game, model.my_games.len());
+                    sync_scroll_to_cursor(
+                        &mut lobby.my_games_scroll,
+                        lobby.selected_my_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    lobby.selected_open_game =
+                        wrap_next_index(lobby.selected_open_game, model.open_games.len());
+                    sync_scroll_to_cursor(
+                        &mut lobby.open_games_scroll,
+                        lobby.selected_open_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::Settings => {
+                    let max_scroll = settings_row_count.saturating_sub(visible_rows);
+                    lobby.settings_scroll = lobby.settings_scroll.saturating_add(1).min(max_scroll);
+                }
+                LobbyTab::MyGames | LobbyTab::OpenGames => {}
+                LobbyTab::Comms => {}
+            }
+            Vec::new()
+        }
+        KeyCode::PageUp => {
+            match lobby.active_tab {
+                LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    lobby.selected_my_game = lobby.selected_my_game.saturating_sub(visible_rows);
+                    sync_scroll_to_cursor(
+                        &mut lobby.my_games_scroll,
+                        lobby.selected_my_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    lobby.selected_open_game =
+                        lobby.selected_open_game.saturating_sub(visible_rows);
+                    sync_scroll_to_cursor(
+                        &mut lobby.open_games_scroll,
+                        lobby.selected_open_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::Settings => {
+                    lobby.settings_scroll = lobby.settings_scroll.saturating_sub(visible_rows);
+                }
+                LobbyTab::MyGames | LobbyTab::OpenGames => {}
+                LobbyTab::Comms => {}
+            }
+            Vec::new()
+        }
+        KeyCode::PageDown => {
+            match lobby.active_tab {
+                LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    lobby.selected_my_game = lobby
+                        .selected_my_game
+                        .saturating_add(visible_rows)
+                        .min(model.my_games.len().saturating_sub(1));
+                    sync_scroll_to_cursor(
+                        &mut lobby.my_games_scroll,
+                        lobby.selected_my_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    lobby.selected_open_game = lobby
+                        .selected_open_game
+                        .saturating_add(visible_rows)
+                        .min(model.open_games.len().saturating_sub(1));
+                    sync_scroll_to_cursor(
+                        &mut lobby.open_games_scroll,
+                        lobby.selected_open_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::Settings => {
+                    let max_scroll = settings_row_count.saturating_sub(visible_rows);
+                    lobby.settings_scroll = lobby
+                        .settings_scroll
+                        .saturating_add(visible_rows)
+                        .min(max_scroll);
+                }
+                LobbyTab::MyGames | LobbyTab::OpenGames => {}
+                LobbyTab::Comms => {}
+            }
+            Vec::new()
+        }
+        KeyCode::Home => {
+            match lobby.active_tab {
+                LobbyTab::MyGames => {
+                    lobby.selected_my_game = 0;
+                    lobby.my_games_scroll = 0;
+                }
+                LobbyTab::OpenGames => {
+                    lobby.selected_open_game = 0;
+                    lobby.open_games_scroll = 0;
+                }
+                LobbyTab::Settings => {
+                    lobby.settings_scroll = 0;
+                }
+                LobbyTab::Comms => {}
+            }
+            Vec::new()
+        }
+        KeyCode::End => {
+            match lobby.active_tab {
+                LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    lobby.selected_my_game = model.my_games.len().saturating_sub(1);
+                    sync_scroll_to_cursor(
+                        &mut lobby.my_games_scroll,
+                        lobby.selected_my_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    lobby.selected_open_game = model.open_games.len().saturating_sub(1);
+                    sync_scroll_to_cursor(
+                        &mut lobby.open_games_scroll,
+                        lobby.selected_open_game,
+                        visible_rows,
+                    );
+                }
+                LobbyTab::Settings => {
+                    lobby.settings_scroll = settings_row_count.saturating_sub(visible_rows);
+                }
+                LobbyTab::MyGames | LobbyTab::OpenGames => {}
+                LobbyTab::Comms => {}
+            }
             Vec::new()
         }
         KeyCode::Enter => activate_selected_row(model),
@@ -637,6 +816,7 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
         }
         KeyCode::Char('r') | KeyCode::Char('R') if lobby.active_tab == LobbyTab::Settings => {
             lobby.editing_relay = true;
+            lobby.settings_scroll = 0;
             lobby.relay_draft = model.relay_url.clone();
             lobby.status = Some("Editing relay URL. Enter saves, Esc cancels.".to_string());
             Vec::new()
@@ -940,14 +1120,92 @@ fn apply_lobby_snapshot(model: &mut Model, snapshot: crate::transport::LobbySnap
     model.my_games = snapshot.my_games;
     model.open_games = snapshot.open_games;
     model.notices = snapshot.notices;
+    let settings_row_count = lobby_settings_rows(model).len();
     if let Route::Lobby(lobby) = &mut model.route {
+        let visible_rows = lobby_table_visible_rows(model.geometry, lobby.status.is_some());
         lobby.selected_my_game = lobby
             .selected_my_game
             .min(model.my_games.len().saturating_sub(1));
         lobby.selected_open_game = lobby
             .selected_open_game
             .min(model.open_games.len().saturating_sub(1));
+        sync_scroll_to_cursor(
+            &mut lobby.my_games_scroll,
+            lobby.selected_my_game,
+            visible_rows,
+        );
+        sync_scroll_to_cursor(
+            &mut lobby.open_games_scroll,
+            lobby.selected_open_game,
+            visible_rows,
+        );
+        lobby.my_games_scroll = lobby
+            .my_games_scroll
+            .min(model.my_games.len().saturating_sub(visible_rows));
+        lobby.open_games_scroll = lobby
+            .open_games_scroll
+            .min(model.open_games.len().saturating_sub(visible_rows));
+        lobby.settings_scroll = lobby
+            .settings_scroll
+            .min(settings_row_count.saturating_sub(visible_rows));
     }
+}
+
+fn route_blocks_quit_shortcut(route: &Route) -> bool {
+    matches!(route, Route::MatrixLocked)
+        || matches!(route, Route::Locked(locked) if locked.resume_session)
+}
+
+fn lobby_table_visible_rows(geometry: ScreenGeometry, reserve_status_row: bool) -> usize {
+    let command_panel_top = geometry.height().saturating_sub(3);
+    let content_bottom_row = if reserve_status_row {
+        command_panel_top.saturating_sub(2)
+    } else {
+        command_panel_top.saturating_sub(1)
+    };
+    content_bottom_row.saturating_sub(TABLE_DATA_ROW_START)
+}
+
+fn lobby_settings_rows(model: &Model) -> Vec<String> {
+    let mut rows = vec![
+        String::from("Relay URL"),
+        format!(
+            "Window Focus : {}",
+            if model.window_focused { "yes" } else { "no" }
+        ),
+        format!(
+            "Text Input   : {}",
+            if model.wants_text_input() {
+                "armed"
+            } else {
+                "off"
+            }
+        ),
+        format!(
+            "Idle Lock    : {}",
+            if model.lock_timeout_minutes == 0 {
+                String::from("Off")
+            } else {
+                format!("{} min", model.lock_timeout_minutes)
+            }
+        ),
+    ];
+    if let Some(session) = &model.session {
+        rows.push(format!(
+            "Handle       : {}",
+            session.active_handle.as_deref().unwrap_or("unset")
+        ));
+        rows.push(format!("Identity     : {}", session.active_npub));
+    }
+    rows.push(String::from(
+        "R : Edit relay URL   Enter : Save relay   Esc : Cancel edit",
+    ));
+    rows.push(String::from(
+        "L : Lock the local session and stop background sync",
+    ));
+    rows.push(String::from("I : Cycle idle lock timeout"));
+    rows.push(String::from("Alt+Q : Quit nc-helm"));
+    rows
 }
 
 fn dashboard_key_event(key: crate::input::KeyEvent) -> Option<crate::dashboard::input::KeyEvent> {
@@ -1326,7 +1584,10 @@ mod tests {
             active_tab: LobbyTab::MyGames,
             help_open: true,
             selected_my_game: 0,
+            my_games_scroll: 0,
             selected_open_game: 0,
+            open_games_scroll: 0,
+            settings_scroll: 0,
             editing_relay: false,
             relay_draft: model.relay_url.clone(),
             status: None,

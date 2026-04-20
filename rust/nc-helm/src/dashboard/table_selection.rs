@@ -72,6 +72,34 @@ pub fn is_coordinate_input_char(ch: char) -> bool {
     ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']' | '{' | '}')
 }
 
+pub fn wrap_prev_index(selected: usize, total_rows: usize) -> usize {
+    if total_rows == 0 {
+        0
+    } else if selected == 0 {
+        total_rows - 1
+    } else {
+        selected - 1
+    }
+}
+
+pub fn wrap_next_index(selected: usize, total_rows: usize) -> usize {
+    if total_rows == 0 {
+        0
+    } else if selected + 1 >= total_rows {
+        0
+    } else {
+        selected + 1
+    }
+}
+
+pub fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize) {
+    if cursor < *scroll_offset {
+        *scroll_offset = cursor;
+    } else if cursor >= scroll_offset.saturating_add(visible) {
+        *scroll_offset = cursor + 1 - visible;
+    }
+}
+
 fn normalize_for_match(value: &str) -> String {
     let mut normalized = String::new();
     for token in value.split(|ch: char| !ch.is_ascii_alphanumeric()) {
@@ -92,7 +120,7 @@ fn normalize_for_match(value: &str) -> String {
 mod tests {
     use super::{
         TypedJumpMatch, find_typed_jump, find_typed_jump_index, is_coordinate_input_char,
-        selection_key_matches,
+        selection_key_matches, sync_scroll_to_cursor, wrap_next_index, wrap_prev_index,
     };
 
     #[test]
@@ -176,5 +204,23 @@ mod tests {
         assert!(is_coordinate_input_char(','));
         assert!(is_coordinate_input_char('['));
         assert!(!is_coordinate_input_char('A'));
+    }
+
+    #[test]
+    fn wrapped_index_navigation_matches_dashboard_tables() {
+        assert_eq!(wrap_prev_index(0, 4), 3);
+        assert_eq!(wrap_next_index(3, 4), 0);
+        assert_eq!(wrap_prev_index(0, 0), 0);
+        assert_eq!(wrap_next_index(0, 0), 0);
+    }
+
+    #[test]
+    fn scroll_sync_keeps_cursor_visible() {
+        let mut scroll = 0;
+        sync_scroll_to_cursor(&mut scroll, 5, 4);
+        assert_eq!(scroll, 2);
+
+        sync_scroll_to_cursor(&mut scroll, 1, 4);
+        assert_eq!(scroll, 1);
     }
 }

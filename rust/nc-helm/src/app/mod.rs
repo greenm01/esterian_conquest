@@ -226,7 +226,10 @@ pub struct LobbyModel {
     pub active_tab: LobbyTab,
     pub help_open: bool,
     pub selected_my_game: usize,
+    pub my_games_scroll: usize,
     pub selected_open_game: usize,
+    pub open_games_scroll: usize,
+    pub settings_scroll: usize,
     pub editing_relay: bool,
     pub relay_draft: String,
     pub status: Option<String>,
@@ -415,7 +418,10 @@ fn lobby_route(status: Option<String>, relay_url: String) -> Route {
         active_tab: LobbyTab::MyGames,
         help_open: false,
         selected_my_game: 0,
+        my_games_scroll: 0,
         selected_open_game: 0,
+        open_games_scroll: 0,
+        settings_scroll: 0,
         editing_relay: false,
         relay_draft: relay_url,
         status,
@@ -513,6 +519,24 @@ impl LobbyModel {
             LobbyTab::MyGames => self.selected_my_game = index,
             LobbyTab::OpenGames => self.selected_open_game = index,
             _ => {}
+        }
+    }
+
+    pub fn selected_scroll(&self) -> usize {
+        match self.active_tab {
+            LobbyTab::MyGames => self.my_games_scroll,
+            LobbyTab::OpenGames => self.open_games_scroll,
+            LobbyTab::Settings => self.settings_scroll,
+            LobbyTab::Comms => 0,
+        }
+    }
+
+    pub fn set_selected_scroll(&mut self, scroll: usize) {
+        match self.active_tab {
+            LobbyTab::MyGames => self.my_games_scroll = scroll,
+            LobbyTab::OpenGames => self.open_games_scroll = scroll,
+            LobbyTab::Settings => self.settings_scroll = scroll,
+            LobbyTab::Comms => {}
         }
     }
 }
