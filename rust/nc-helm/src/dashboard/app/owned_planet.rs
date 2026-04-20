@@ -175,8 +175,8 @@ impl DashApp {
         .collect::<Vec<_>>();
         let Some(first) = candidates.first() else {
             self.show_owned_planet_status(match mode {
-                ArmyTransportMode::Load => "No fleets at this planet can take more armies.",
-                ArmyTransportMode::Unload => "No fleets at this planet have loaded armies.",
+                ArmyTransportMode::Load => "No TT available",
+                ArmyTransportMode::Unload => "No TT* available",
             });
             return;
         };
