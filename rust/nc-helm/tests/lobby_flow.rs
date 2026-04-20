@@ -268,6 +268,28 @@ fn alt_q_opens_lobby_quit_confirm_and_y_quits() {
 }
 
 #[test]
+fn lobby_quit_confirm_uses_compact_shared_copy() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+
+    let buffer = app.view();
+    let title_row = find_line(&buffer, "QUIT");
+    let message_row = find_line(&buffer, "Quit NC? Y/[N]");
+
+    assert_eq!(message_row, title_row + 2);
+    assert_ne!(title_row, find_line(&buffer, "Quit NC? Y/[N]"));
+    assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("QUIT NC-HELM")));
+    assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("Quit nc-helm?")));
+    assert!((0..buffer.height()).all(|row| {
+        !buffer
+            .plain_line(row)
+            .contains("Enter, Esc, or N stays in the lobby.")
+    }));
+}
+
+#[test]
 fn lobby_quit_confirm_enter_defaults_to_no() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));

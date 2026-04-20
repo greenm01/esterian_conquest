@@ -33,7 +33,7 @@ use state::{
 
 use crate::dashboard::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::dashboard::layout::dashboard;
-use crate::dashboard::modal::{Rect, modal_close_button_contains, modal_min_width_for_title};
+use crate::dashboard::modal::{Rect, modal_close_button_contains};
 use crate::dashboard::native::NativeApp;
 use crate::dashboard::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::dashboard::panels::starmap;
@@ -42,15 +42,9 @@ use crate::dashboard::ui::UiScene;
 use std::time::{Duration, Instant};
 
 const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);
-const QUIT_CONFIRM_TITLE: &str = "QUIT";
-const QUIT_CONFIRM_HEIGHT: usize = 5;
 
 fn quit_confirm_message() -> &'static str {
     "Quit to Lobby? Y/[N]"
-}
-
-fn quit_confirm_popup_width() -> usize {
-    (quit_confirm_message().chars().count() + 4).max(modal_min_width_for_title(QUIT_CONFIRM_TITLE))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -974,9 +968,9 @@ impl DashApp {
             ActivePopup::QuitConfirm => Some(
                 crate::dashboard::overlays::frame::overlay_popup_rect_in_map(
                     map_frame,
-                    QUIT_CONFIRM_TITLE,
-                    quit_confirm_popup_width(),
-                    QUIT_CONFIRM_HEIGHT,
+                    crate::dashboard::QUIT_CONFIRM_TITLE,
+                    crate::dashboard::quit_confirm_popup_width(quit_confirm_message()),
+                    crate::dashboard::QUIT_CONFIRM_HEIGHT,
                     self.popup_position,
                 ),
             ),
@@ -1528,16 +1522,20 @@ impl DashApp {
             FleetOverlayPromptMode::OrderConfirm => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
                 KeyCode::Enter => {
+                    self.fleet_overlay.order_confirm_input.clear();
                     if let Err(err) = self.submit_fleet_order() {
                         self.fleet_overlay.order_status = Some(err.to_string());
                     }
                 }
-                KeyCode::Backspace => self.backspace_fleet_order_input(),
                 KeyCode::Esc => {
+                    self.fleet_overlay.order_confirm_input.clear();
                     self.cancel_fleet_order_input();
                 }
                 KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
-                    self.append_fleet_order_char(ch)
+                    self.fleet_overlay.order_confirm_input = ch.to_ascii_uppercase().to_string();
+                    if let Err(err) = self.submit_fleet_order() {
+                        self.fleet_overlay.order_status = Some(err.to_string());
+                    }
                 }
                 _ => {}
             },
@@ -3661,6 +3659,31 @@ mod tests {
             assert_eq!(fleet.standing_order_kind(), Order::MoveOnly);
             assert_eq!(fleet.standing_order_target_coords_raw(), [10, 10]);
         }
+    }
+
+    #[test]
+    fn fleet_order_confirm_y_submits_without_enter() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::FleetList;
+
+        app.open_selected_fleet_order_flow();
+        let selected_record_index = app
+            .selected_fleet_order_row()
+            .expect("selected fleet row")
+            .fleet_record_index_1_based;
+        app.fleet_overlay.mission_picker_input = Order::MoveOnly.to_raw().to_string();
+        app.submit_fleet_mission_picker();
+        app.fleet_overlay.order_target_x_input = "10".to_string();
+        app.submit_fleet_order().expect("submit x");
+        app.fleet_overlay.order_target_y_input = "10".to_string();
+        app.submit_fleet_order().expect("submit y");
+
+        app.handle_key(key(KeyCode::Char('y')));
+
+        assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+        let fleet = &app.game_data.fleets.records[selected_record_index - 1];
+        assert_eq!(fleet.standing_order_kind(), Order::MoveOnly);
+        assert_eq!(fleet.standing_order_target_coords_raw(), [10, 10]);
     }
 
     #[test]

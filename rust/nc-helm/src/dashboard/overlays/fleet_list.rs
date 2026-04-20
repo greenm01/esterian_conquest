@@ -53,6 +53,7 @@ use crate::dashboard::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <ESC>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
+const ORDER_PROMPT_LABEL_WIDTH: usize = 15;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
     dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets)
@@ -80,6 +81,66 @@ fn wrapped_prompt_blocks(parent: Rect, lines: &[String]) -> WrappedPromptBlocks 
 
 fn command_line_footer<'a>(app: &'a DashApp, footer: TableFooter<'a>) -> TableFooter<'a> {
     with_command_line_toast(footer, app.active_command_line_toast())
+}
+
+fn order_detail_line(label: &str, value: impl AsRef<str>) -> String {
+    format!("{label:<ORDER_PROMPT_LABEL_WIDTH$}: {}", value.as_ref())
+}
+
+fn fleet_order_prompt_lines(app: &DashApp) -> Vec<String> {
+    let Some(row) = app.selected_fleet_order_row() else {
+        return vec!["Selected fleet is no longer available.".to_string()];
+    };
+    if app.fleet_overlay.prompt_mode == FleetOverlayPromptMode::OrderConfirm {
+        let mut lines = vec![
+            order_detail_line("Fleet", format!("#{}", row.fleet_number)),
+            order_detail_line("Location", format_coords(row.coords)),
+            order_detail_line("Current Order", app.fleet_order_current_order_label()),
+            order_detail_line("New Order", app.fleet_order_new_order_label()),
+        ];
+        if let Some(eta) = app.fleet_order_confirmation_eta_label() {
+            lines.push(order_detail_line("ETA", eta));
+        }
+        lines.push(order_detail_line(
+            "Target",
+            app.fleet_order_confirm_target_label(),
+        ));
+        return lines;
+    }
+    vec![
+        format!("Fleet #{}", row.fleet_number),
+        format!("Location: {}", format_coords(row.coords)),
+        format!("Current Order: {}", app.fleet_order_current_order_label()),
+        format!("New Order: {}", app.fleet_order_new_order_label()),
+        app.fleet_order_target_status_line(),
+    ]
+}
+
+fn group_fleet_order_prompt_lines(app: &DashApp) -> Vec<String> {
+    let selected_summary = app.selected_group_order_fleet_summary();
+    if matches!(
+        app.fleet_overlay.prompt_mode,
+        FleetOverlayPromptMode::OrderConfirm
+    ) {
+        let mut lines = vec![
+            order_detail_line("Stardate", app.game_data.conquest.game_year().to_string()),
+            order_detail_line("Selected Fleets", selected_summary),
+            order_detail_line("New Order", app.fleet_order_new_order_label()),
+        ];
+        if let Some(eta) = app.fleet_order_confirmation_eta_label() {
+            lines.push(order_detail_line("ETA", eta));
+        }
+        lines.push(order_detail_line(
+            "Target",
+            app.fleet_order_confirm_target_label(),
+        ));
+        return lines;
+    }
+    vec![
+        format!("Selected fleets: {selected_summary}"),
+        app.fleet_order_target_status_line(),
+        format!("New Order: {}", app.fleet_order_new_order_label()),
+    ]
 }
 
 const COLUMNS: [TableColumn<'static>; 10] = [
@@ -750,17 +811,7 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame:
         },
         _ => unreachable!("fleet order prompt expected"),
     };
-    let lines = if let Some(row) = app.selected_fleet_order_row() {
-        vec![
-            format!("Fleet #{}", row.fleet_number),
-            format!("Location: {}", format_coords(row.coords)),
-            format!("Current Order: {}", app.fleet_order_current_order_label()),
-            format!("New Order: {}", app.fleet_order_new_order_label()),
-            app.fleet_order_target_status_line(),
-        ]
-    } else {
-        vec!["Selected fleet is no longer available.".to_string()]
-    };
+    let lines = fleet_order_prompt_lines(app);
     let parent = overlay_parent_rect(app);
     let wrapped = wrapped_prompt_blocks(parent, &lines);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
@@ -854,20 +905,7 @@ fn draw_group_fleet_order_prompt(
         },
         _ => unreachable!("group fleet order prompt expected"),
     };
-    let selected_summary = app.selected_group_order_fleet_summary();
-    let mut lines = match app.fleet_overlay.prompt_mode {
-        FleetOverlayPromptMode::OrderConfirm => vec![
-            format!("Stardate: {}", app.game_data.conquest.game_year()),
-            format!("Selected fleets: {selected_summary}"),
-            app.fleet_order_target_status_line(),
-            format!("New Order: {}", app.fleet_order_new_order_label()),
-        ],
-        _ => vec![
-            format!("Selected fleets: {selected_summary}"),
-            app.fleet_order_target_status_line(),
-            format!("New Order: {}", app.fleet_order_new_order_label()),
-        ],
-    };
+    let mut lines = group_fleet_order_prompt_lines(app);
     let body_width = GROUP_ORDER_BODY_WIDTH.min(max_overlay_body_width(map_frame).max(1));
     let wrapped_lines = lines
         .drain(..)
@@ -900,7 +938,7 @@ fn draw_group_fleet_order_prompt(
             if matches!(
                 app.fleet_overlay.prompt_mode,
                 FleetOverlayPromptMode::OrderConfirm
-            ) && idx == 2
+            ) && idx + 1 == wrapped_lines.len()
             {
                 theme::dim_style()
             } else {
@@ -1232,20 +1270,7 @@ fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     };
 
     if app.fleet_order_is_group_scope() {
-        let selected_summary = app.selected_group_order_fleet_summary();
-        let mut lines = match app.fleet_overlay.prompt_mode {
-            FleetOverlayPromptMode::OrderConfirm => vec![
-                format!("Stardate: {}", app.game_data.conquest.game_year()),
-                format!("Selected fleets: {selected_summary}"),
-                app.fleet_order_target_status_line(),
-                format!("New Order: {}", app.fleet_order_new_order_label()),
-            ],
-            _ => vec![
-                format!("Selected fleets: {selected_summary}"),
-                app.fleet_order_target_status_line(),
-                format!("New Order: {}", app.fleet_order_new_order_label()),
-            ],
-        };
+        let mut lines = group_fleet_order_prompt_lines(app);
         let body_width = GROUP_ORDER_BODY_WIDTH.min(max_overlay_body_width(map_frame).max(1));
         let wrapped_lines = lines
             .drain(..)
@@ -1263,17 +1288,7 @@ fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         );
     }
 
-    let lines = if let Some(row) = app.selected_fleet_order_row() {
-        vec![
-            format!("Fleet #{}", row.fleet_number),
-            format!("Location: {}", format_coords(row.coords)),
-            format!("Current Order: {}", app.fleet_order_current_order_label()),
-            format!("New Order: {}", app.fleet_order_new_order_label()),
-            app.fleet_order_target_status_line(),
-        ]
-    } else {
-        vec!["Selected fleet is no longer available.".to_string()]
-    };
+    let lines = fleet_order_prompt_lines(app);
     let parent = overlay_parent_rect(app);
     let wrapped = wrapped_prompt_blocks(parent, &lines);
     overlay_popup_rect_for_body_in_parent(
@@ -2202,12 +2217,17 @@ mod tests {
         assert!(
             render_group_order_body(&wide)
                 .iter()
-                .any(|line| line.contains("Selected fleets:"))
+                .any(|line| line.contains("Selected Fleets"))
         );
         assert!(
             render_group_order_body(&wide)
                 .iter()
-                .any(|line| line.contains("New Order:"))
+                .any(|line| line.contains("New Order"))
+        );
+        assert!(
+            render_group_order_body(&wide)
+                .iter()
+                .any(|line| line.contains("ETA"))
         );
     }
 
@@ -2297,17 +2317,80 @@ mod tests {
         (0..buffer.height())
             .map(|row| buffer.plain_line(row))
             .filter(|line| {
-                line.contains("Selected fleets:")
-                    || line.contains("New Order:")
-                    || line.contains("Stardate:")
+                line.contains("Selected Fleets")
+                    || line.contains("New Order")
+                    || line.contains("Stardate")
+                    || line.contains("ETA")
+                    || line.contains("Target")
             })
             .collect()
+    }
+
+    #[test]
+    fn single_fleet_order_confirm_body_aligns_labels_and_shows_eta() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.order_target_x_input = "03".to_string();
+        app.fleet_overlay.order_target_y_input = "02".to_string();
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderConfirm;
+
+        let lines = render_single_order_body(&app);
+
+        assert!(lines.iter().any(|line| line.contains(&format!(
+            "{:<width$}:",
+            "Fleet",
+            width = super::ORDER_PROMPT_LABEL_WIDTH
+        ))));
+        assert!(lines.iter().any(|line| {
+            line.contains(&format!(
+                "{:<width$}:",
+                "Current Order",
+                width = super::ORDER_PROMPT_LABEL_WIDTH
+            ))
+        }));
+        assert!(lines.iter().any(|line| line.contains(&format!(
+            "{:<width$}:",
+            "New Order",
+            width = super::ORDER_PROMPT_LABEL_WIDTH
+        ))));
+        assert!(lines.iter().any(|line| line.contains(&format!(
+            "{:<width$}:",
+            "ETA",
+            width = super::ORDER_PROMPT_LABEL_WIDTH
+        ))));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains(&super::order_detail_line("Target", "(03,02)")))
+        );
     }
 
     fn render_lines_for_prompt(app: &DashApp) -> Vec<String> {
         render_prompt_rows(app)
             .into_iter()
             .map(|(_, line)| line)
+            .collect()
+    }
+
+    fn render_single_order_body(app: &DashApp) -> Vec<String> {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::dashboard::theme::body_style(),
+        );
+        draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .filter(|line| {
+                line.contains("Fleet          :")
+                    || line.contains("Current Order  :")
+                    || line.contains("New Order      :")
+                    || line.contains("ETA            :")
+                    || line.contains("Target         :")
+            })
             .collect()
     }
 

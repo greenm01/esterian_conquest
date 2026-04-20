@@ -11,6 +11,48 @@ fn find_line(buffer: &nc_helm::PlayfieldBuffer, needle: &str) -> usize {
         .unwrap_or_else(|| panic!("expected line containing {needle:?}"))
 }
 
+fn modal_bounds(
+    buffer: &nc_helm::PlayfieldBuffer,
+    title_needle: &str,
+) -> (usize, usize, usize, usize) {
+    let top = find_line(buffer, title_needle);
+    let line = buffer.plain_line(top);
+    let chars = line.chars().collect::<Vec<_>>();
+    let title_byte = line.find(title_needle).expect("modal title");
+    let title_col = line[..title_byte].chars().count();
+    let title_width = title_needle.chars().count();
+    let left = chars[..=title_col]
+        .iter()
+        .rposition(|ch| *ch == '╭')
+        .expect("modal left border");
+    let right = chars[title_col + title_width..]
+        .iter()
+        .position(|ch| *ch == '╮')
+        .map(|offset| title_col + title_width + offset)
+        .expect("modal right border");
+    let bottom = (top + 1..buffer.height())
+        .find(|&row| buffer.row(row)[left].ch == '╰' && buffer.row(row)[right].ch == '╯')
+        .expect("modal bottom row");
+    assert_eq!(buffer.row(bottom)[right].ch, '╯');
+    (top, left, right, bottom)
+}
+
+fn assert_modal_has_outer_padding(buffer: &nc_helm::PlayfieldBuffer, title_needle: &str) {
+    let (top, left, right, bottom) = modal_bounds(buffer, title_needle);
+    let body_style = buffer.row(0)[0].style;
+    let interior_style = buffer.row(top + 1)[left + 1].style;
+
+    assert_ne!(interior_style, body_style);
+    assert_eq!(buffer.row(top - 1)[left + 1].ch, ' ');
+    assert_eq!(buffer.row(top - 1)[left + 1].style, interior_style);
+    assert_eq!(buffer.row(bottom + 1)[left + 1].ch, ' ');
+    assert_eq!(buffer.row(bottom + 1)[left + 1].style, interior_style);
+    assert_eq!(buffer.row(top + 1)[left - 1].ch, ' ');
+    assert_eq!(buffer.row(top + 1)[left - 1].style, interior_style);
+    assert_eq!(buffer.row(top + 1)[right + 1].ch, ' ');
+    assert_eq!(buffer.row(top + 1)[right + 1].style, interior_style);
+}
+
 #[test]
 fn first_run_view_uses_unicode_centered_box_chrome() {
     let (mut app, _) = App::new(None);
@@ -24,6 +66,7 @@ fn first_run_view_uses_unicode_centered_box_chrome() {
     assert_eq!(buffer.row(7)[16].ch, '╭');
     assert_eq!(buffer.row(7)[83].ch, '╮');
     assert!(buffer.plain_line(7).contains("┐CREATE IDENTITY┌"));
+    assert_modal_has_outer_padding(&buffer, "┐CREATE IDENTITY┌");
 }
 
 #[test]
@@ -146,6 +189,31 @@ fn help_popup_uses_left_help_tag_and_right_close_tag() {
     let buffer = app.view();
     assert!(buffer.plain_line(11).contains("┐HELP┌"));
     assert!(buffer.plain_line(11).contains("┐[X]┌"));
+    assert_modal_has_outer_padding(&buffer, "┐HELP┌");
+}
+
+#[test]
+fn locked_view_uses_outer_padding_around_unlock_gate() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
+        has_keychain: true,
+        relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
+    })));
+
+    let buffer = app.view();
+    assert_modal_has_outer_padding(&buffer, "┐UNLOCK KEYCHAIN┌");
+}
+
+#[test]
+fn lobby_quit_popup_uses_outer_padding() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+
+    let buffer = app.view();
+    assert_modal_has_outer_padding(&buffer, "┐QUIT┌");
 }
 
 #[test]

@@ -1202,6 +1202,39 @@ impl DashApp {
             .unwrap_or_else(|| "Unknown".to_string())
     }
 
+    pub(crate) fn fleet_order_confirm_target_label(&self) -> String {
+        match fleet_target_input_kind(self.fleet_overlay.order_mission_code) {
+            nc_engine::FleetTargetInputKind::Coordinates => self
+                .resolve_order_split_target()
+                .map(|destination| format!("({:02},{:02})", destination[0], destination[1]))
+                .unwrap_or_else(|_| self.fleet_order_target_status_line()),
+            nc_engine::FleetTargetInputKind::StarbaseId => self
+                .resolve_starbase_target_for_current_mission()
+                .map(|row| format!("Starbase #{}", row.base_id))
+                .unwrap_or_else(|| self.fleet_order_target_status_line()),
+            nc_engine::FleetTargetInputKind::FleetId => self
+                .resolve_host_fleet_for_current_mission()
+                .map(|row| format!("Fleet #{}", row.fleet_number))
+                .unwrap_or_else(|| self.fleet_order_target_status_line()),
+            nc_engine::FleetTargetInputKind::None => self.fleet_order_target_status_line(),
+        }
+    }
+
+    pub(crate) fn fleet_order_confirmation_eta_label(&self) -> Option<String> {
+        let mission_code = self.fleet_overlay.order_mission_code?;
+        let destination = self.resolve_order_split_target().ok()?;
+        match self.fleet_overlay.order_scope {
+            FleetOrderScope::Group => {
+                self.fleet_group_confirmation_eta_label(mission_code, destination)
+            }
+            _ => {
+                let row = self.selected_fleet_order_row()?;
+                let estimate = self.fleet_target_eta_estimate(&row, mission_code, destination);
+                Some(self.format_target_eta_label(None, estimate))
+            }
+        }
+    }
+
     pub(crate) fn selected_fleet_order_row(&self) -> Option<OrderFleetRow> {
         match self.fleet_overlay.active_row_key {
             Some(FleetOverlayRowKey::Fleet(record_index)) => self
@@ -2194,6 +2227,29 @@ impl DashApp {
         Some(self.format_target_eta_message(&subject, destination, estimate))
     }
 
+    fn fleet_group_confirmation_eta_label(
+        &self,
+        mission_code: u8,
+        destination: [u8; 2],
+    ) -> Option<String> {
+        let selected = self.selected_group_order_rows();
+        let (row, estimate) = selected
+            .iter()
+            .map(|row| {
+                (
+                    row,
+                    self.fleet_target_eta_estimate(row, mission_code, destination),
+                )
+            })
+            .max_by_key(|(_, estimate)| self.fleet_target_eta_sort_key(*estimate))?;
+        let subject = if selected.len() == 1 {
+            None
+        } else {
+            Some(format!("Slowest Fleet {}", row.fleet_number))
+        };
+        Some(self.format_target_eta_label(subject.as_deref(), estimate))
+    }
+
     fn fleet_target_eta_estimate(
         &self,
         row: &OrderFleetRow,
@@ -2245,6 +2301,28 @@ impl DashApp {
             nc_engine::FleetEtaEstimate::Unreachable => {
                 format!("No route found for {subject} to {target}.")
             }
+        }
+    }
+
+    fn format_target_eta_label(
+        &self,
+        subject: Option<&str>,
+        estimate: nc_engine::FleetEtaEstimate,
+    ) -> String {
+        let summary = match estimate {
+            nc_engine::FleetEtaEstimate::Arrived => {
+                format!("0 year(s), arrive {}", self.game_data.conquest.game_year())
+            }
+            nc_engine::FleetEtaEstimate::Years(years) => format!(
+                "{years} year(s), arrive {}",
+                self.game_data.conquest.game_year() + years
+            ),
+            nc_engine::FleetEtaEstimate::Stopped => "Stopped".to_string(),
+            nc_engine::FleetEtaEstimate::Unreachable => "No route".to_string(),
+        };
+        match subject {
+            Some(subject) => format!("{subject} - {summary}"),
+            None => summary,
         }
     }
 }

@@ -242,12 +242,12 @@ fn render_quit_confirm(
         })
         .unwrap_or(ModalPlacement::Centered);
     let message = super::quit_confirm_message();
-    let popup_width = super::quit_confirm_popup_width();
+    let popup_width = crate::dashboard::quit_confirm_popup_width(message);
     let popup = draw_modal_frame_in_parent_with_placement(
         buf,
-        super::QUIT_CONFIRM_TITLE,
+        crate::dashboard::QUIT_CONFIRM_TITLE,
         popup_width,
-        super::QUIT_CONFIRM_HEIGHT as u16,
+        crate::dashboard::QUIT_CONFIRM_HEIGHT as u16,
         parent,
         placement,
         ModalTheme {

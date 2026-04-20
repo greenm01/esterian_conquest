@@ -22,6 +22,7 @@ pub mod table_selection;
 pub mod theme;
 pub mod ui;
 
+use self::modal::modal_min_width_for_title;
 pub use app::state::{DashApp, DashboardExitRequest};
 pub use geometry::ScreenGeometry;
 pub use launch::DashLaunchState;
@@ -32,6 +33,13 @@ use std::io;
 use std::time::Instant;
 
 use self::native::NativeApp;
+
+pub(crate) const QUIT_CONFIRM_TITLE: &str = "QUIT";
+pub(crate) const QUIT_CONFIRM_HEIGHT: usize = 5;
+
+pub(crate) fn quit_confirm_popup_width(message: &str) -> usize {
+    (message.chars().count() + 4).max(modal_min_width_for_title(QUIT_CONFIRM_TITLE))
+}
 
 pub fn build_hosted_dash_app(
     snapshot: &GameState,

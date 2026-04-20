@@ -84,6 +84,55 @@ pub fn draw_panel(
     }
 }
 
+pub fn draw_modal_panel(
+    buffer: &mut PlayfieldBuffer,
+    left: usize,
+    top: usize,
+    width: usize,
+    height: usize,
+    border_style: CellStyle,
+    title_style: CellStyle,
+    fill_style: Option<CellStyle>,
+    top_title: Option<&str>,
+    bottom_title: Option<&str>,
+) {
+    if width < 2 || height < 2 {
+        return;
+    }
+
+    if let Some(style) = fill_style {
+        let pad_left = left.saturating_sub(1);
+        let pad_top = top.saturating_sub(1);
+        let pad_right = left
+            .saturating_add(width)
+            .min(buffer.width().saturating_sub(1));
+        let pad_bottom = top
+            .saturating_add(height)
+            .min(buffer.height().saturating_sub(1));
+        fill_rect(
+            buffer,
+            pad_left,
+            pad_top,
+            pad_right.saturating_sub(pad_left).saturating_add(1),
+            pad_bottom.saturating_sub(pad_top).saturating_add(1),
+            style,
+        );
+    }
+
+    draw_panel(
+        buffer,
+        left,
+        top,
+        width,
+        height,
+        border_style,
+        title_style,
+        fill_style,
+        top_title,
+        bottom_title,
+    );
+}
+
 pub fn draw_top_tag(
     buffer: &mut PlayfieldBuffer,
     row: usize,

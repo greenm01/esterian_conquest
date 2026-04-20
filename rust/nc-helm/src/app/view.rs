@@ -2,7 +2,7 @@ use super::{
     DEFAULT_GEOMETRY, FirstJoinSetupField, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT,
     HELP_POPUP_WIDTH, LOBBY_TAB_ROW, LobbyTab, MIN_SUPPORTED_GEOMETRY, Model, NetworkState, Route,
     centered_box_geometry,
-    chrome::{draw_panel, draw_top_tag_right},
+    chrome::{draw_modal_panel, draw_panel, draw_top_tag_right},
     lobby_tab_bounds, mask,
 };
 use crate::dashboard::table::{
@@ -34,8 +34,6 @@ const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
 const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
 const GATE_LOGO_BLOCK_ROWS: usize = 7;
 const COMMAND_PANEL_HEIGHT: usize = 3;
-const LOBBY_QUIT_CONFIRM_WIDTH: usize = 40;
-const LOBBY_QUIT_CONFIRM_HEIGHT: usize = 9;
 const HEADER_WORDMARK: &str = "Nostrian Conquest";
 const HEADER_WORDMARK_WIDTH: usize = 22;
 const LOBBY_PANEL_TOP: usize = 4;
@@ -505,7 +503,7 @@ fn render_locked(
         LOCKED_GATE_HEIGHT
     };
     let (left, top, width, height) = centered_box_geometry(geometry, LOCKED_GATE_WIDTH, height);
-    draw_panel(
+    draw_modal_panel(
         buffer,
         left,
         top,
@@ -1396,7 +1394,7 @@ fn draw_command_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
 fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
     let (left, top, width, height) =
         centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT);
-    draw_panel(
+    draw_modal_panel(
         buffer,
         left,
         top,
@@ -1448,21 +1446,20 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
 }
 
 fn draw_lobby_quit_confirm_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
+    let message = "Quit NC? Y/[N]";
+    let width = crate::dashboard::quit_confirm_popup_width(message);
     centered_box(
         buffer,
         geometry,
-        LOBBY_QUIT_CONFIRM_WIDTH,
-        LOBBY_QUIT_CONFIRM_HEIGHT,
-        "QUIT NC-HELM",
+        width,
+        crate::dashboard::QUIT_CONFIRM_HEIGHT,
+        crate::dashboard::QUIT_CONFIRM_TITLE,
         |buffer, left, top| {
-            let content_left = left + 3;
-            buffer.write_text_clipped(top + 2, content_left, "Quit nc-helm? Y/[N]", panel_accent());
-            buffer.write_text_clipped(
-                top + 4,
-                content_left,
-                "Enter, Esc, or N stays in the lobby.",
-                panel_dim(),
-            );
+            let content_left = left + 1;
+            let content_width = width.saturating_sub(2);
+            let start_col =
+                content_left + content_width.saturating_sub(message.chars().count()) / 2;
+            buffer.write_text_clipped(top + 2, start_col, message, panel_accent());
         },
     );
 }
@@ -1477,7 +1474,7 @@ fn render_gate_shell(
     copy_lines: &[&str],
 ) -> GateLayout {
     let (left, top, width, height) = centered_box_geometry(geometry, width, height);
-    draw_panel(
+    draw_modal_panel(
         buffer,
         left,
         top,
@@ -1584,7 +1581,7 @@ fn centered_box<F: FnOnce(&mut PlayfieldBuffer, usize, usize)>(
     inner: F,
 ) {
     let (left, top, width, height) = centered_box_geometry(geometry, width, height);
-    draw_panel(
+    draw_modal_panel(
         buffer,
         left,
         top,
