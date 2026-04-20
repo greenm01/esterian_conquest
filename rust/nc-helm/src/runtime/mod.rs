@@ -119,7 +119,7 @@ enum ResizeVerdict {
     SpuriousShrink { restore_to: (u32, u32) },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct FrameTimingSample {
     view_build: Duration,
     playfield_prepare: Duration,
@@ -128,10 +128,11 @@ struct FrameTimingSample {
     total: Duration,
     dirty_rows: usize,
     raw_spans: usize,
+    compacted_rects: usize,
+    compacted_upload_area_pct: f64,
     upload_rects: usize,
     full_rebuild: bool,
     row_upload_fallback: bool,
-    full_frame_upload_fallback: bool,
 }
 
 #[derive(Debug, Default)]
@@ -507,11 +508,11 @@ impl Runtime {
             total: render.total,
             dirty_rows: render.dirty_rows,
             raw_spans: render.raw_spans,
+            compacted_rects: render.compacted_rects,
+            compacted_upload_area_pct: render.compacted_upload_area_pct,
             upload_rects: render.upload_rects,
             full_rebuild: render.full_rebuild,
             row_upload_fallback: render.upload_strategy == renderer::UploadStrategy::DirtyRows,
-            full_frame_upload_fallback: !render.full_rebuild
-                && render.upload_strategy == renderer::UploadStrategy::FullFrame,
         }) {
             self.diagnostic_log(&message);
         }
@@ -1037,6 +1038,18 @@ impl FrameTimingSummary {
             .map(|sample| sample.raw_spans as f64)
             .sum::<f64>()
             / frames as f64;
+        let avg_compacted_rects = self
+            .samples
+            .iter()
+            .map(|sample| sample.compacted_rects as f64)
+            .sum::<f64>()
+            / frames as f64;
+        let avg_compacted_upload_area_pct = self
+            .samples
+            .iter()
+            .map(|sample| sample.compacted_upload_area_pct)
+            .sum::<f64>()
+            / frames as f64;
         let avg_upload_rects = self
             .samples
             .iter()
@@ -1053,15 +1066,10 @@ impl FrameTimingSummary {
             .iter()
             .filter(|sample| sample.row_upload_fallback)
             .count();
-        let full_frame_upload_fallbacks = self
-            .samples
-            .iter()
-            .filter(|sample| sample.full_frame_upload_fallback)
-            .count();
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks} full_frame_upload_fallbacks={full_frame_upload_fallbacks}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1531,10 +1539,11 @@ mod tests {
             total: Duration::from_millis(5),
             dirty_rows: 2,
             raw_spans: 3,
+            compacted_rects: 2,
+            compacted_upload_area_pct: 12.5,
             upload_rects: 1,
             full_rebuild: false,
             row_upload_fallback: true,
-            full_frame_upload_fallback: false,
         };
 
         let mut message = None;
@@ -1546,9 +1555,10 @@ mod tests {
         assert!(message.contains("frame timings [120 frames]"));
         assert!(message.contains("avg_dirty_rows=2.0"));
         assert!(message.contains("avg_raw_spans=3.0"));
+        assert!(message.contains("avg_compacted_rects=2.0"));
+        assert!(message.contains("avg_compacted_upload_area_pct=12.5"));
         assert!(message.contains("avg_upload_rects=1.0"));
         assert!(message.contains("row_upload_fallbacks=120"));
-        assert!(message.contains("full_frame_upload_fallbacks=0"));
     }
 
     #[test]

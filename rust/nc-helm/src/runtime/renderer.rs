@@ -205,7 +205,6 @@ pub enum UploadStrategy {
     #[default]
     Rects,
     DirtyRows,
-    FullFrame,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -214,6 +213,8 @@ struct PreparedFrame {
     full_rebuild: bool,
     dirty_rows: usize,
     raw_spans: usize,
+    compacted_rects: usize,
+    compacted_upload_area_pct: f64,
     upload_rects: usize,
     upload_strategy: UploadStrategy,
 }
@@ -225,7 +226,7 @@ struct DirtyCells {
     full_rebuild: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RenderTimings {
     pub playfield_prepare: Duration,
     pub glyph_prepare: Duration,
@@ -233,6 +234,8 @@ pub struct RenderTimings {
     pub total: Duration,
     pub dirty_rows: usize,
     pub raw_spans: usize,
+    pub compacted_rects: usize,
+    pub compacted_upload_area_pct: f64,
     pub upload_rects: usize,
     pub full_rebuild: bool,
     pub upload_strategy: UploadStrategy,
@@ -240,7 +243,7 @@ pub struct RenderTimings {
 
 const DIRTY_SPAN_GAP_MERGE_CELLS: usize = 2;
 const DIRTY_SPAN_COLLAPSE_THRESHOLD: usize = 4;
-const MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK: usize = 64;
+const MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK: usize = 24;
 
 pub struct Renderer {
     window: Arc<winit::window::Window>,
@@ -432,6 +435,8 @@ impl Renderer {
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
                     raw_spans: prepared.raw_spans,
+                    compacted_rects: prepared.compacted_rects,
+                    compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
                     upload_strategy: prepared.upload_strategy,
@@ -447,6 +452,8 @@ impl Renderer {
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
                     raw_spans: prepared.raw_spans,
+                    compacted_rects: prepared.compacted_rects,
+                    compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
                     upload_strategy: prepared.upload_strategy,
@@ -497,6 +504,8 @@ impl Renderer {
             total: total_start.elapsed(),
             dirty_rows: prepared.dirty_rows,
             raw_spans: prepared.raw_spans,
+            compacted_rects: prepared.compacted_rects,
+            compacted_upload_area_pct: prepared.compacted_upload_area_pct,
             upload_rects: prepared.upload_rects,
             full_rebuild: prepared.full_rebuild,
             upload_strategy: prepared.upload_strategy,
@@ -592,8 +601,10 @@ impl Renderer {
                 full_rebuild: true,
                 dirty_rows,
                 raw_spans,
+                compacted_rects: 1,
+                compacted_upload_area_pct: 100.0,
                 upload_rects: 1,
-                upload_strategy: UploadStrategy::FullFrame,
+                upload_strategy: UploadStrategy::Rects,
             };
         } else {
             let compacted_row_spans = compact_row_spans(&dirty.row_spans);
@@ -630,8 +641,12 @@ impl Renderer {
                 }
             }
             let compacted_rects = dirty_rectangles(&compacted_row_spans, mapper);
+            let compacted_rects_len = compacted_rects.len();
+            let compacted_upload_area_px = dirty_rect_area_px(&compacted_rects);
+            let grid_area_px = grid_area_px(playfield, mapper);
+            let compacted_upload_area_pct = upload_area_pct(compacted_upload_area_px, grid_area_px);
             let upload_strategy =
-                choose_upload_strategy(compacted_rects.len(), dirty_rows, playfield.height());
+                choose_upload_strategy(compacted_rects_len, compacted_upload_area_px, grid_area_px);
             let upload_rects = match upload_strategy {
                 UploadStrategy::Rects => {
                     if !compacted_rects.is_empty() {
@@ -640,16 +655,11 @@ impl Renderer {
                     compacted_rects.len()
                 }
                 UploadStrategy::DirtyRows => {
-                    let dirty_row_rects =
-                        dirty_row_upload_rectangles(&compacted_row_spans, mapper, frame_width);
+                    let dirty_row_rects = dirty_row_upload_rectangles(&compacted_row_spans, mapper);
                     if !dirty_row_rects.is_empty() {
                         self.write_dirty_rects(frame_width, &dirty_row_rects);
                     }
                     dirty_row_rects.len()
-                }
-                UploadStrategy::FullFrame => {
-                    self.write_full_background_texture();
-                    1
                 }
             };
             self.previous_playfield = Some(snapshot_playfield(playfield));
@@ -663,6 +673,8 @@ impl Renderer {
                 full_rebuild: false,
                 dirty_rows,
                 raw_spans,
+                compacted_rects: compacted_rects_len,
+                compacted_upload_area_pct,
                 upload_rects,
                 upload_strategy,
             };
@@ -1175,16 +1187,13 @@ fn merge_column_spans(spans: &mut Vec<DirtyColumnSpan>) {
 
 fn choose_upload_strategy(
     compacted_rect_count: usize,
-    dirty_rows: usize,
-    playfield_height: usize,
+    compacted_upload_area_px: usize,
+    grid_area_px: usize,
 ) -> UploadStrategy {
-    if dirty_rows == 0 {
-        return UploadStrategy::Rects;
-    }
-    if dirty_rows.saturating_mul(2) > playfield_height {
-        return UploadStrategy::FullFrame;
-    }
     if compacted_rect_count > MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK {
+        return UploadStrategy::DirtyRows;
+    }
+    if grid_area_px != 0 && compacted_upload_area_px.saturating_mul(4) > grid_area_px {
         return UploadStrategy::DirtyRows;
     }
     UploadStrategy::Rects
@@ -1193,17 +1202,17 @@ fn choose_upload_strategy(
 fn dirty_row_upload_rectangles(
     row_spans: &[Vec<DirtyColumnSpan>],
     mapper: GridMapper,
-    frame_width: usize,
 ) -> Vec<DirtyPixelRect> {
     let mut rects = Vec::new();
     let mut current_start = None;
+    let grid_width_px = mapper.geometry.width().saturating_mul(mapper.cell.width_px);
     for (row_idx, spans) in row_spans.iter().enumerate() {
         if spans.is_empty() {
             if let Some(start_row) = current_start.take() {
                 rects.push(DirtyPixelRect {
-                    left_px: 0,
+                    left_px: mapper.origin_x,
                     top_px: mapper.origin_y + start_row * mapper.cell.height_px,
-                    width_px: frame_width,
+                    width_px: grid_width_px,
                     height_px: (row_idx - start_row) * mapper.cell.height_px,
                 });
             }
@@ -1213,13 +1222,34 @@ fn dirty_row_upload_rectangles(
     }
     if let Some(start_row) = current_start {
         rects.push(DirtyPixelRect {
-            left_px: 0,
+            left_px: mapper.origin_x,
             top_px: mapper.origin_y + start_row * mapper.cell.height_px,
-            width_px: frame_width,
+            width_px: grid_width_px,
             height_px: (row_spans.len() - start_row) * mapper.cell.height_px,
         });
     }
     rects
+}
+
+fn dirty_rect_area_px(rects: &[DirtyPixelRect]) -> usize {
+    rects
+        .iter()
+        .map(|rect| rect.width_px.saturating_mul(rect.height_px))
+        .sum()
+}
+
+fn grid_area_px(playfield: &PlayfieldBuffer, mapper: GridMapper) -> usize {
+    playfield
+        .width()
+        .saturating_mul(mapper.cell.width_px)
+        .saturating_mul(playfield.height().saturating_mul(mapper.cell.height_px))
+}
+
+fn upload_area_pct(upload_area_px: usize, grid_area_px: usize) -> f64 {
+    if grid_area_px == 0 {
+        return 0.0;
+    }
+    (upload_area_px as f64 * 100.0) / grid_area_px as f64
 }
 
 fn dirty_rectangles(row_spans: &[Vec<DirtyColumnSpan>], mapper: GridMapper) -> Vec<DirtyPixelRect> {
@@ -1886,9 +1916,9 @@ mod tests {
     use super::{
         DIRTY_SPAN_COLLAPSE_THRESHOLD, DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY,
         STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, UploadStrategy, build_font_system,
-        choose_upload_strategy, compact_row_spans, dirty_cells, dirty_rectangles,
-        dirty_row_upload_rectangles, expanded_text_bounds, fit_grid_to_pixels,
-        measure_single_line_width, snapshot_playfield,
+        choose_upload_strategy, compact_row_spans, dirty_cells, dirty_rect_area_px,
+        dirty_rectangles, dirty_row_upload_rectangles, expanded_text_bounds, fit_grid_to_pixels,
+        grid_area_px, measure_single_line_width, snapshot_playfield,
     };
 
     fn base_style() -> CellStyle {
@@ -2218,20 +2248,20 @@ mod tests {
             start_col: 2,
             end_col: 3,
         });
-        let rects = dirty_row_upload_rectangles(&row_spans, mapper, 1200);
+        let rects = dirty_row_upload_rectangles(&row_spans, mapper);
         assert_eq!(
             rects,
             vec![
                 DirtyPixelRect {
-                    left_px: 0,
+                    left_px: mapper.origin_x,
                     top_px: mapper.origin_y + mapper.cell.height_px,
-                    width_px: 1200,
+                    width_px: mapper.geometry.width() * mapper.cell.width_px,
                     height_px: 2 * mapper.cell.height_px,
                 },
                 DirtyPixelRect {
-                    left_px: 0,
+                    left_px: mapper.origin_x,
                     top_px: mapper.origin_y + 4 * mapper.cell.height_px,
-                    width_px: 1200,
+                    width_px: mapper.geometry.width() * mapper.cell.width_px,
                     height_px: mapper.cell.height_px,
                 },
             ]
@@ -2240,14 +2270,51 @@ mod tests {
 
     #[test]
     fn upload_strategy_uses_dirty_rows_when_rects_explode() {
-        assert_eq!(choose_upload_strategy(65, 8, 40), UploadStrategy::DirtyRows);
+        assert_eq!(
+            choose_upload_strategy(25, 10, 1000),
+            UploadStrategy::DirtyRows
+        );
     }
 
     #[test]
-    fn upload_strategy_uses_full_frame_when_rows_exceed_half_height() {
+    fn upload_strategy_uses_dirty_rows_when_upload_area_exceeds_quarter_grid() {
         assert_eq!(
-            choose_upload_strategy(10, 11, 20),
-            UploadStrategy::FullFrame
+            choose_upload_strategy(4, 251, 1000),
+            UploadStrategy::DirtyRows
+        );
+    }
+
+    #[test]
+    fn upload_strategy_keeps_small_sparse_updates_as_rects() {
+        assert_eq!(choose_upload_strategy(4, 250, 1000), UploadStrategy::Rects);
+    }
+
+    #[test]
+    fn dirty_rect_area_px_sums_rectangle_area() {
+        let rects = vec![
+            DirtyPixelRect {
+                left_px: 10,
+                top_px: 20,
+                width_px: 5,
+                height_px: 4,
+            },
+            DirtyPixelRect {
+                left_px: 30,
+                top_px: 40,
+                width_px: 3,
+                height_px: 2,
+            },
+        ];
+        assert_eq!(dirty_rect_area_px(&rects), 26);
+    }
+
+    #[test]
+    fn grid_area_px_matches_grid_dimensions() {
+        let (mapper, _) = mapper();
+        let playfield = PlayfieldBuffer::new(100, 36, base_style());
+        assert_eq!(
+            grid_area_px(&playfield, mapper),
+            100 * mapper.cell.width_px * 36 * mapper.cell.height_px
         );
     }
 
