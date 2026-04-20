@@ -43,8 +43,7 @@ use winit::window::{Fullscreen, Window, WindowAttributes};
 
 use crate::Point;
 use crate::app::{
-    App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route,
-    route_supports_session_lock,
+    App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route, route_supports_session_lock,
 };
 use crate::dashboard;
 use crate::geometry;
@@ -1227,21 +1226,20 @@ mod tests {
 
     use nc_data::GameStateBuilder;
     use nc_nostr::state_sync::{
-        GameState, HostedPlayerState, HostedPlayerRosterEntry, HostedReportBlock,
-        HostedStatePayload, HostedStarmapState, HostedWorldState,
+        GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedReportBlock,
+        HostedStarmapState, HostedStatePayload, HostedWorldState,
     };
 
     use super::{
-        ResizeObservation, ResizeShrinkTracker, ResizeVerdict,
+        ResizeObservation, ResizeShrinkTracker, ResizeVerdict, SessionBackend,
         backend_supports_programmatic_focus, classify_resize, combine_deadlines,
-        hosted_route_next_wakeup, map_pointer_cell, minimum_window_size,
-        pointer_move_event_kind, route_uses_mouse, session_backend_label,
-        window_attributes_for_mode, window_decorations_for_session, SessionBackend,
+        hosted_route_next_wakeup, map_pointer_cell, minimum_window_size, pointer_move_event_kind,
+        route_uses_mouse, session_backend_label, window_attributes_for_mode,
+        window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{
-        BootModel, HostedGameModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, MyGameRow,
-        Route,
+        BootModel, HostedGameModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, MyGameRow, Route,
     };
     use crate::dashboard::DashApp;
     use crate::geometry;
@@ -1372,6 +1370,7 @@ mod tests {
         assert!(route_uses_mouse(&Route::Lobby(LobbyModel {
             active_tab: LobbyTab::MyGames,
             help_open: false,
+            quit_confirm_open: false,
             selected_my_game: 0,
             my_games_scroll: 0,
             selected_open_game: 0,

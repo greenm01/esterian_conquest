@@ -23,10 +23,10 @@ use crate::dashboard::table_selection;
 use crate::dashboard::table_selection::{sync_scroll_to_cursor, wrap_next_index, wrap_prev_index};
 use input::{Action, key_to_action};
 use state::{
-    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
-    FleetOrderScope, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlaySort, HelpContext,
-    IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort, MapViewMode,
-    OwnedPlanetPopupMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest, FleetOrderScope,
+    FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
+    IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, OwnedPlanetPopupMode,
+    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
     default_planet_overlay_sort_direction,
 };
@@ -580,9 +580,7 @@ impl DashApp {
     fn handle_popup_key(&mut self, key: KeyEvent) -> bool {
         match self.popup {
             ActivePopup::QuitConfirm => match key.code {
-                KeyCode::Char('y' | 'Y') => {
-                    self.request_exit(DashboardExitRequest::ReturnToLobby)
-                }
+                KeyCode::Char('y' | 'Y') => self.request_exit(DashboardExitRequest::ReturnToLobby),
                 KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n' | 'N') => {
                     self.apply_action(Action::ClosePopup);
                 }
@@ -1217,9 +1215,7 @@ impl DashApp {
                     }
                 }
                 KeyCode::Backspace => self.backspace_planet_build_unit_input(),
-                KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    self.append_planet_build_unit_char(ch)
-                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => self.append_planet_build_unit_char(ch),
                 KeyCode::Char('d') | KeyCode::Char('D') => {
                     if let Err(err) = self.clear_selected_planet_build_kind_queue() {
                         self.planet_overlay.build_unit_status = Some(err.to_string());
@@ -2637,11 +2633,11 @@ mod tests {
     use crate::dashboard::input::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
-    use crate::dashboard::table_selection::{wrap_next_index, wrap_prev_index};
     use crate::dashboard::layout::dashboard::dashboard_layout;
     use crate::dashboard::native::NativeApp;
     use crate::dashboard::overlays::{fleet_list, intel_database, planet_list};
     use crate::dashboard::planet_view;
+    use crate::dashboard::table_selection::{wrap_next_index, wrap_prev_index};
     use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot};
     use nc_engine::{
         fleet_target_input_kind, recommended_coordinate_target,
@@ -2901,7 +2897,10 @@ mod tests {
             PlanetOverlayPromptMode::BuildSpecify
         );
         assert_eq!(app.planet_overlay.footer_notice, None);
-        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, Some(1));
+        assert_eq!(
+            app.planet_overlay.build_planet_record_index_1_based,
+            Some(1)
+        );
     }
 
     #[test]
@@ -2924,7 +2923,10 @@ mod tests {
         );
         assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(app.planet_overlay.footer_notice, None);
-        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, Some(1));
+        assert_eq!(
+            app.planet_overlay.build_planet_record_index_1_based,
+            Some(1)
+        );
     }
 
     #[test]
@@ -2991,6 +2993,25 @@ mod tests {
         assert_eq!(
             app.planet_overlay.prompt_mode,
             PlanetOverlayPromptMode::BuildQuantity
+        );
+        assert_eq!(
+            app.planet_overlay.build_selected_kind,
+            Some(nc_data::ProductionItemKind::Cruiser)
+        );
+    }
+
+    #[test]
+    fn numeric_build_browse_input_highlights_matching_unit_before_enter() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(80);
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Char('2')));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
         );
         assert_eq!(
             app.planet_overlay.build_selected_kind,
@@ -4816,10 +4837,7 @@ mod tests {
         app.popup = ActivePopup::PlanetDetail {
             planet_record_index_1_based: 1,
         };
-        app.dispatch_key_event(KeyEvent::new(
-            KeyCode::Char('q'),
-            KeyModifiers::ALT,
-        ));
+        app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
         let map_frame = dashboard_layout(&app).widgets.center_map;
         let popup = app
             .current_popup_rect(map_frame)
@@ -5316,7 +5334,10 @@ mod tests {
             app.planet_overlay.prompt_mode,
             PlanetOverlayPromptMode::BuildSpecify
         );
-        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, Some(expected_record));
+        assert_eq!(
+            app.planet_overlay.build_planet_record_index_1_based,
+            Some(expected_record)
+        );
     }
 
     #[test]
@@ -6107,10 +6128,7 @@ mod tests {
     fn alt_q_opens_quit_confirm_popup() {
         let mut app = dash_app();
 
-        app.dispatch_key_event(KeyEvent::new(
-            KeyCode::Char('q'),
-            KeyModifiers::ALT,
-        ));
+        app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
 
         assert_eq!(app.popup, ActivePopup::QuitConfirm);
         assert_eq!(app.take_exit_request(), None);
@@ -6123,10 +6141,7 @@ mod tests {
             planet_record_index_1_based: 1,
         };
 
-        app.dispatch_key_event(KeyEvent::new(
-            KeyCode::Char('q'),
-            KeyModifiers::ALT,
-        ));
+        app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
         app.dispatch_key_event(key(KeyCode::Enter));
 
         assert_eq!(
@@ -6156,10 +6171,7 @@ mod tests {
     fn control_c_requests_client_quit() {
         let mut app = dash_app();
 
-        app.dispatch_key_event(KeyEvent::new(
-            KeyCode::Char('c'),
-            KeyModifiers::CONTROL,
-        ));
+        app.dispatch_key_event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
 
         assert_eq!(
             app.take_exit_request(),

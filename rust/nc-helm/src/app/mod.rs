@@ -225,6 +225,7 @@ impl LobbyTab {
 pub struct LobbyModel {
     pub active_tab: LobbyTab,
     pub help_open: bool,
+    pub quit_confirm_open: bool,
     pub selected_my_game: usize,
     pub my_games_scroll: usize,
     pub selected_open_game: usize,
@@ -417,6 +418,7 @@ fn lobby_route(status: Option<String>, relay_url: String) -> Route {
     Route::Lobby(LobbyModel {
         active_tab: LobbyTab::MyGames,
         help_open: false,
+        quit_confirm_open: false,
         selected_my_game: 0,
         my_games_scroll: 0,
         selected_open_game: 0,

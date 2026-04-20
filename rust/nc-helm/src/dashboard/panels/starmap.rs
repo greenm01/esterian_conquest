@@ -1327,16 +1327,10 @@ mod tests {
         );
         // Crosshair lines are still in the cell grid (Phase 2).
         if rect.width > 1 {
-            assert_eq!(
-                buffer.row(marker_row)[rect.col].ch,
-                CROSSHAIR_HORIZONTAL
-            );
+            assert_eq!(buffer.row(marker_row)[rect.col].ch, CROSSHAIR_HORIZONTAL);
         }
         if rect.height > 1 {
-            assert_eq!(
-                buffer.row(rect.row)[marker_col].ch,
-                CROSSHAIR_VERTICAL
-            );
+            assert_eq!(buffer.row(rect.row)[marker_col].ch, CROSSHAIR_VERTICAL);
         }
     }
 

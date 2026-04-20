@@ -116,12 +116,14 @@ impl DashApp {
         if self.planet_overlay.build_unit_input.len() < 2 {
             self.planet_overlay.build_unit_input.push(ch);
             self.planet_overlay.build_unit_status = None;
+            self.sync_planet_build_selection_from_input();
         }
     }
 
     pub(crate) fn backspace_planet_build_unit_input(&mut self) {
         self.planet_overlay.build_unit_input.pop();
         self.planet_overlay.build_unit_status = None;
+        self.sync_planet_build_selection_from_input();
     }
 
     pub(crate) fn submit_planet_build_browse_input(
@@ -139,7 +141,8 @@ impl DashApp {
         let number = match raw_input.parse::<u8>() {
             Ok(value) => value,
             Err(_) => {
-                self.planet_overlay.build_unit_status = Some("Enter a valid unit number.".to_string());
+                self.planet_overlay.build_unit_status =
+                    Some("Enter a valid unit number.".to_string());
                 return Ok(());
             }
         };
@@ -485,10 +488,27 @@ impl DashApp {
         } else {
             index
         };
-        self.planet_overlay.build_selected_kind =
-            BUILD_UNITS.get(next_index).map(|unit| unit.kind);
+        self.planet_overlay.build_selected_kind = BUILD_UNITS.get(next_index).map(|unit| unit.kind);
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;
+    }
+
+    fn sync_planet_build_selection_from_input(&mut self) {
+        let raw_input = self.planet_overlay.build_unit_input.trim();
+        if raw_input.is_empty() || raw_input == "0" {
+            return;
+        }
+        let Ok(number) = raw_input.parse::<u8>() else {
+            return;
+        };
+        let Some(entry) = self
+            .planet_build_specify_entries()
+            .into_iter()
+            .find(|entry| entry.number == number)
+        else {
+            return;
+        };
+        self.planet_overlay.build_selected_kind = Some(entry.kind);
     }
 
     fn planet_build_selection_unavailable_message(&self, kind: ProductionItemKind) -> String {

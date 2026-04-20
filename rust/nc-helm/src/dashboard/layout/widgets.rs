@@ -322,7 +322,9 @@ mod tests {
         // Axis row sits at the top of the grid, offset from map_block.row by
         // the top gutter (leftover vertical slack after grid snap split evenly
         // between top and bottom).
-        assert!(widgets.center_map.axis_row >= widgets.center_map.map_block.row + MAP_VERTICAL_PADDING);
+        assert!(
+            widgets.center_map.axis_row >= widgets.center_map.map_block.row + MAP_VERTICAL_PADDING
+        );
         assert!(widgets.center_map.axis_row <= widgets.center_map.map_block.last_row());
         assert_eq!(
             widgets.center_map.grid.col,

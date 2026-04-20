@@ -34,6 +34,8 @@ const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
 const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
 const GATE_LOGO_BLOCK_ROWS: usize = 7;
 const COMMAND_PANEL_HEIGHT: usize = 3;
+const LOBBY_QUIT_CONFIRM_WIDTH: usize = 40;
+const LOBBY_QUIT_CONFIRM_HEIGHT: usize = 9;
 const HEADER_WORDMARK: &str = "Nostrian Conquest";
 const HEADER_WORDMARK_WIDTH: usize = 22;
 const LOBBY_PANEL_TOP: usize = 4;
@@ -59,6 +61,12 @@ struct LobbyPanelLayout {
     first_data_row: usize,
     visible_data_rows: usize,
     scrollbar_col: usize,
+}
+
+#[derive(Clone, Copy)]
+struct LobbyBodyLayout {
+    top: usize,
+    height: usize,
 }
 
 enum SettingsRow {
@@ -142,6 +150,17 @@ fn content_panel_height(geometry: ScreenGeometry, top: usize, reserve_status_row
     content_bottom_row(geometry, reserve_status_row)
         .saturating_sub(top)
         .saturating_add(1)
+}
+
+fn lobby_body_layout(geometry: ScreenGeometry, reserve_status_row: bool) -> LobbyBodyLayout {
+    LobbyBodyLayout {
+        top: LOBBY_PANEL_TOP,
+        height: content_panel_height(geometry, LOBBY_PANEL_TOP, reserve_status_row),
+    }
+}
+
+fn centered_lobby_panel_top(body: LobbyBodyLayout, panel_height: usize) -> usize {
+    body.top + body.height.saturating_sub(panel_height) / 2
 }
 
 fn network_style(network: NetworkState) -> CellStyle {
@@ -604,6 +623,9 @@ fn render_lobby(
     if lobby.help_open {
         draw_help_popup(buffer, geometry);
     }
+    if lobby.quit_confirm_open {
+        draw_lobby_quit_confirm_popup(buffer, geometry);
+    }
 }
 
 fn draw_my_games(
@@ -717,7 +739,7 @@ fn draw_settings(
     model: &Model,
     reserve_status_row: bool,
 ) {
-    let layout = settings_panel_layout(geometry, reserve_status_row);
+    let layout = settings_panel_layout(geometry, reserve_status_row, model);
     draw_panel(
         buffer,
         layout.left,
@@ -785,7 +807,12 @@ fn draw_tabs(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry, lobby: &sup
 fn render_my_games_table(buffer: &mut PlayfieldBuffer, layout: &LobbyPanelLayout, model: &Model) {
     let base_columns = my_games_columns();
     let columns = resolve_lobby_table_columns(&base_columns, layout.content_width);
-    render_table_header(buffer, layout.content_left, layout.first_content_row, &columns);
+    render_table_header(
+        buffer,
+        layout.content_left,
+        layout.first_content_row,
+        &columns,
+    );
     if model.my_games.is_empty() {
         buffer.write_text_clipped(
             layout.first_data_row + 1,
@@ -842,14 +869,15 @@ fn render_my_games_table(buffer: &mut PlayfieldBuffer, layout: &LobbyPanelLayout
     );
 }
 
-fn render_open_games_table(
-    buffer: &mut PlayfieldBuffer,
-    layout: &LobbyPanelLayout,
-    model: &Model,
-) {
+fn render_open_games_table(buffer: &mut PlayfieldBuffer, layout: &LobbyPanelLayout, model: &Model) {
     let base_columns = open_games_columns();
     let columns = resolve_lobby_table_columns(&base_columns, layout.content_width);
-    render_table_header(buffer, layout.content_left, layout.first_content_row, &columns);
+    render_table_header(
+        buffer,
+        layout.content_left,
+        layout.first_content_row,
+        &columns,
+    );
     if model.open_games.is_empty() {
         buffer.write_text_clipped(
             layout.first_data_row + 1,
@@ -937,46 +965,58 @@ fn lobby_table_panel_layout(
     columns: &[DashboardTableColumn<'_>],
     total_rows: usize,
 ) -> LobbyPanelLayout {
-    let height = content_panel_height(geometry, LOBBY_PANEL_TOP, reserve_status_row);
+    let body = lobby_body_layout(geometry, reserve_status_row);
     let desired_width = (table_render_width(columns) + 5).max(title.chars().count() + 4);
     let width = desired_width.min(geometry.width().saturating_sub(2));
     let left = geometry.width().saturating_sub(width) / 2;
-    let content_width = width
-        .saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER);
-    let visible_data_rows = height.saturating_sub(5);
-    let _ = total_rows;
+    let content_width =
+        width.saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER);
+    let max_visible_data_rows = body.height.saturating_sub(5).max(1);
+    let desired_data_rows = if total_rows == 0 { 2 } else { total_rows };
+    let visible_data_rows = desired_data_rows.min(max_visible_data_rows);
+    let height = visible_data_rows + 5;
+    let top = centered_lobby_panel_top(body, height);
     LobbyPanelLayout {
         left,
-        top: LOBBY_PANEL_TOP,
+        top,
         width,
         height,
         content_left: left + LOBBY_PANEL_INSET_X,
         content_width,
-        first_content_row: LOBBY_PANEL_TOP + 2,
-        first_data_row: LOBBY_PANEL_TOP + 3,
+        first_content_row: top + 2,
+        first_data_row: top + 3,
         visible_data_rows,
         scrollbar_col: left + width.saturating_sub(2),
     }
 }
 
-fn settings_panel_layout(geometry: ScreenGeometry, reserve_status_row: bool) -> LobbyPanelLayout {
-    let height = content_panel_height(geometry, LOBBY_PANEL_TOP, reserve_status_row);
+fn settings_panel_layout(
+    geometry: ScreenGeometry,
+    reserve_status_row: bool,
+    model: &Model,
+) -> LobbyPanelLayout {
+    let body = lobby_body_layout(geometry, reserve_status_row);
     let desired_width = (SETTINGS_FIELD_LABEL_WIDTH + SETTINGS_FIELD_TRACK_WIDTH + 5)
         .max("SETTINGS".chars().count() + 4);
     let width = desired_width.min(geometry.width().saturating_sub(2));
     let left = geometry.width().saturating_sub(width) / 2;
-    let content_width = width
-        .saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER);
+    let content_width =
+        width.saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER);
+    let physical_rows = wrapped_settings_rows(model, content_width);
+    let max_visible_data_rows = body.height.saturating_sub(4).max(1);
+    let visible_data_rows = physical_rows.len().min(max_visible_data_rows);
+    let height = visible_data_rows + 4;
+    let top = centered_lobby_panel_top(body, height);
     LobbyPanelLayout {
         left,
-        top: LOBBY_PANEL_TOP,
+        top,
         width,
         height,
         content_left: left + LOBBY_PANEL_INSET_X,
         content_width,
-        first_content_row: LOBBY_PANEL_TOP + 3,
-        first_data_row: LOBBY_PANEL_TOP + 3,
-        visible_data_rows: height.saturating_sub(4),
+        first_content_row: top + 3,
+        first_data_row: top + 3,
+        visible_data_rows,
         scrollbar_col: left + width.saturating_sub(2),
     }
 }
@@ -988,11 +1028,9 @@ fn render_settings_rows(
     relay_draft: &str,
     editing_relay: bool,
 ) {
-    let rows = settings_rows(model);
-    let scroll = lobby_settings_scroll(model).min(
-        rows.len()
-            .saturating_sub(layout.visible_data_rows.max(1)),
-    );
+    let rows = wrapped_settings_rows(model, layout.content_width);
+    let scroll = lobby_settings_scroll(model)
+        .min(rows.len().saturating_sub(layout.visible_data_rows.max(1)));
     let track_width = layout
         .content_width
         .saturating_sub(SETTINGS_FIELD_LABEL_WIDTH + 2)
@@ -1098,6 +1136,86 @@ fn settings_rows(model: &Model) -> Vec<SettingsRow> {
         style: panel_dim(),
     });
     rows
+}
+
+fn wrapped_settings_rows(model: &Model, max_width: usize) -> Vec<SettingsRow> {
+    let mut wrapped = Vec::new();
+    for row in settings_rows(model) {
+        match row {
+            SettingsRow::RelayInput => wrapped.push(SettingsRow::RelayInput),
+            SettingsRow::Text { content, style } => {
+                for line in wrap_lobby_text(&content, max_width.max(1)) {
+                    wrapped.push(SettingsRow::Text {
+                        content: line,
+                        style,
+                    });
+                }
+            }
+        }
+    }
+    wrapped
+}
+
+fn wrap_lobby_text(text: &str, width: usize) -> Vec<String> {
+    if text.is_empty() {
+        return vec![String::new()];
+    }
+    if width == 0 {
+        return vec![String::new()];
+    }
+    if text.chars().count() <= width {
+        return vec![text.to_string()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        let word_width = word.chars().count();
+        if current.is_empty() {
+            if word_width <= width {
+                current.push_str(word);
+            } else {
+                let mut chunks = chunk_lobby_word(word, width);
+                current = chunks.pop().unwrap_or_default();
+                lines.extend(chunks);
+            }
+            continue;
+        }
+        if current.chars().count() + 1 + word_width <= width {
+            current.push(' ');
+            current.push_str(word);
+            continue;
+        }
+        lines.push(current);
+        current = String::new();
+        if word_width <= width {
+            current.push_str(word);
+        } else {
+            let mut chunks = chunk_lobby_word(word, width);
+            current = chunks.pop().unwrap_or_default();
+            lines.extend(chunks);
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+fn chunk_lobby_word(word: &str, width: usize) -> Vec<String> {
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+    for ch in word.chars() {
+        if current.chars().count() == width {
+            chunks.push(current);
+            current = String::new();
+        }
+        current.push(ch);
+    }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+    chunks
 }
 
 fn resolve_lobby_table_columns<'a>(
@@ -1327,6 +1445,26 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
             },
         );
     }
+}
+
+fn draw_lobby_quit_confirm_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
+    centered_box(
+        buffer,
+        geometry,
+        LOBBY_QUIT_CONFIRM_WIDTH,
+        LOBBY_QUIT_CONFIRM_HEIGHT,
+        "QUIT NC-HELM",
+        |buffer, left, top| {
+            let content_left = left + 3;
+            buffer.write_text_clipped(top + 2, content_left, "Quit nc-helm? Y/[N]", panel_accent());
+            buffer.write_text_clipped(
+                top + 4,
+                content_left,
+                "Enter, Esc, or N stays in the lobby.",
+                panel_dim(),
+            );
+        },
+    );
 }
 
 fn render_gate_shell(

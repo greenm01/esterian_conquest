@@ -152,7 +152,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetBuildSpecify => vec![
-            ("Type", "Enter a unit number, then press Enter"),
+            ("Type", "Enter a unit number to jump/highlight it"),
             ("?", "Open this helper"),
             ("+", "Queue one unit of the highlighted type"),
             ("-", "Remove one queued unit of the highlighted type"),

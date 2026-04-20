@@ -5,6 +5,12 @@ use nc_helm::{App, BootSnapshot, LobbySnapshot, Msg, ScreenGeometry};
 
 use crate::support::{alt_key, dummy_session, key, my_game_row, sandbox_open_game_row};
 
+fn find_line(buffer: &nc_helm::PlayfieldBuffer, needle: &str) -> usize {
+    (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains(needle))
+        .unwrap_or_else(|| panic!("expected line containing {needle:?}"))
+}
+
 #[test]
 fn first_run_view_uses_unicode_centered_box_chrome() {
     let (mut app, _) = App::new(None);
@@ -44,9 +50,13 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
         buffer.plain_line(2).find(tab_strip),
         Some((buffer.width() - tab_strip.chars().count()) / 2)
     );
-    let my_games_border = buffer.plain_line(4).find('╭').expect("my games border");
+    let my_games_row = find_line(&buffer, "┐MY GAMES┌");
+    let my_games_border = buffer
+        .plain_line(my_games_row)
+        .find('╭')
+        .expect("my games border");
     assert!(my_games_border > 1);
-    assert!(buffer.plain_line(4).contains("┐MY GAMES┌"));
+    assert!(my_games_row > 4);
     assert!(buffer.plain_line(33).contains("┐COMMANDS┌"));
     assert!(buffer.plain_line(34).contains("Alt+ Q>uit"));
     assert!(buffer.plain_line(34).contains("R>efresh"));
@@ -65,6 +75,42 @@ fn comms_panel_still_uses_full_width_shell() {
     let buffer = app.view();
     assert_eq!(buffer.row(4)[1].ch, '╭');
     assert!(buffer.plain_line(4).contains("┐COMMS┌"));
+}
+
+#[test]
+fn open_games_panel_centers_when_the_list_is_short() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('o'))));
+
+    let buffer = app.view();
+    let open_games_row = find_line(&buffer, "┐OPEN GAMES AVAILABLE TO JOIN┌");
+
+    assert!(open_games_row > 4);
+}
+
+#[test]
+fn settings_panel_shrinkwraps_and_wraps_inside_the_box() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(68, 36)));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
+
+    let buffer = app.view();
+    let settings_row = find_line(&buffer, "┐SETTINGS┌");
+    let right_border = buffer
+        .row(settings_row)
+        .iter()
+        .rposition(|cell| cell.ch == '╮')
+        .expect("settings panel right border");
+    let edit_row = find_line(&buffer, "Edit relay URL");
+    let cancel_row = find_line(&buffer, "Cancel edit");
+
+    assert!(settings_row > 4);
+    assert_eq!(buffer.row(edit_row)[right_border].ch, '│');
+    assert_eq!(buffer.row(cancel_row)[right_border].ch, '│');
 }
 
 #[test]

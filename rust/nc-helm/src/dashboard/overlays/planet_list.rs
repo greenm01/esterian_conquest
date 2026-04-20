@@ -6,10 +6,9 @@ use crate::chrome_tags;
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::coords::{format_sector_coords_default, format_sector_coords_table};
 use crate::dashboard::table::{
-    SplitTableRow, TableColumn, TableFooter, TableWidthMode,
-    centered_table_start_col, resolve_table_columns, table_footer_scaffold_width,
-    table_render_width, with_command_line_toast, write_split_table_at,
-    write_stacked_table_window_with_theme_at,
+    SplitTableRow, TableColumn, TableFooter, TableWidthMode, centered_table_start_col,
+    resolve_table_columns, table_footer_scaffold_width, table_render_width,
+    with_command_line_toast, write_split_table_at, write_stacked_table_window_with_theme_at,
 };
 use crate::dashboard::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use crate::dashboard::table_selection;
@@ -25,10 +24,9 @@ use crate::dashboard::layout::dashboard;
 use crate::dashboard::modal::{MODAL_CLOSE_BUTTON, Rect};
 use crate::dashboard::overlays::frame::{
     OverlayAxisSize, OverlaySizePolicy, assert_overlay_body_write_fits,
-    dashboard_overlay_parent_rect,
-    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_parent, stacked_table_body_height, standard_table_body_height,
-    write_clipped,
+    dashboard_overlay_parent_rect, draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, stacked_table_body_height,
+    standard_table_body_height, write_clipped,
 };
 use crate::dashboard::theme;
 
@@ -1351,12 +1349,15 @@ mod tests {
         draw(
             &mut buf,
             &app,
-            crate::dashboard::layout::dashboard::dashboard_layout(&app).widgets.center_map,
+            crate::dashboard::layout::dashboard::dashboard_layout(&app)
+                .widgets
+                .center_map,
         );
 
-        assert!(
-            (0..45).any(|row| buf.plain_line(row).contains("COMMAND <- ? + - D <ESC> [0] ->"))
-        );
+        assert!((0..45).any(|row| {
+            buf.plain_line(row)
+                .contains("COMMAND <- ? + - D <ESC> [0] ->")
+        }));
     }
 
     #[test]
@@ -1387,12 +1388,12 @@ mod tests {
         draw(
             &mut buf,
             &app,
-            crate::dashboard::layout::dashboard::dashboard_layout(&app).widgets.center_map,
+            crate::dashboard::layout::dashboard::dashboard_layout(&app)
+                .widgets
+                .center_map,
         );
 
-        assert!(
-            (0..45).any(|row| buf.plain_line(row).contains("COMMAND <- Qty [16] ->"))
-        );
+        assert!((0..45).any(|row| buf.plain_line(row).contains("COMMAND <- Qty [16] ->")));
     }
 
     #[test]
@@ -1421,10 +1422,15 @@ mod tests {
         draw(
             &mut buf,
             &app,
-            crate::dashboard::layout::dashboard::dashboard_layout(&app).widgets.center_map,
+            crate::dashboard::layout::dashboard::dashboard_layout(&app)
+                .widgets
+                .center_map,
         );
 
         assert!(buf.plain_line(popup.y as usize).contains("BUDGET: 80"));
-        assert!(!buf.plain_line((popup.y + 1) as usize).contains("BUDGET: 80"));
+        assert!(
+            !buf.plain_line((popup.y + 1) as usize)
+                .contains("BUDGET: 80")
+        );
     }
 }

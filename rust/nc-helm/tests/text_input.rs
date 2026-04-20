@@ -28,5 +28,8 @@ fn text_input_updates_settings_relay_draft() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
     let _ = app.dispatch(Msg::TextInput("relay".to_string()));
     let buffer = app.view();
-    assert!(buffer.plain_line(7).contains("relay"));
+    let settings_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("┐SETTINGS┌"))
+        .expect("settings panel title");
+    assert!(buffer.plain_line(settings_row + 3).contains("relay"));
 }

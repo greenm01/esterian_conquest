@@ -7,6 +7,12 @@ use crate::support::{
     alt_key, dummy_session, key, league_my_game_row, left_click, my_game_row, sandbox_open_game_row,
 };
 
+fn find_line(buffer: &nc_helm::PlayfieldBuffer, needle: &str) -> usize {
+    (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains(needle))
+        .unwrap_or_else(|| panic!("expected line containing {needle:?}"))
+}
+
 #[test]
 fn lobby_help_closes_on_q_or_escape_and_reopens_on_question_mark() {
     let (mut app, _) = App::new(None);
@@ -169,11 +175,19 @@ fn letter_shortcuts_switch_lobby_tabs() {
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let buffer = app.view();
-    assert!(buffer.plain_line(4).contains("MY GAMES"));
+    assert!(
+        buffer
+            .plain_line(find_line(&buffer, "┐MY GAMES┌"))
+            .contains("MY GAMES")
+    );
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('o'))));
     let buffer = app.view();
-    assert!(buffer.plain_line(4).contains("OPEN GAMES"));
+    assert!(
+        buffer
+            .plain_line(find_line(&buffer, "┐OPEN GAMES AVAILABLE TO JOIN┌"))
+            .contains("OPEN GAMES")
+    );
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('c'))));
     let buffer = app.view();
@@ -181,7 +195,11 @@ fn letter_shortcuts_switch_lobby_tabs() {
 
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
     let buffer = app.view();
-    assert!(buffer.plain_line(4).contains("SETTINGS"));
+    assert!(
+        buffer
+            .plain_line(find_line(&buffer, "┐SETTINGS┌"))
+            .contains("SETTINGS")
+    );
 }
 
 #[test]
@@ -199,7 +217,11 @@ fn left_clicking_tab_strip_switches_lobby_tabs() {
     let _ = app.dispatch(Msg::Mouse(left_click(tag_col + 1, row)));
 
     let buffer = app.view();
-    assert!(buffer.plain_line(4).contains("OPEN GAMES"));
+    assert!(
+        buffer
+            .plain_line(find_line(&buffer, "┐OPEN GAMES AVAILABLE TO JOIN┌"))
+            .contains("OPEN GAMES")
+    );
 }
 
 #[test]
@@ -227,14 +249,39 @@ fn settings_relay_edit_emits_save_and_reconnect_effects() {
 }
 
 #[test]
-fn alt_q_quits_the_lobby() {
+fn alt_q_opens_lobby_quit_confirm_and_y_quits() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
 
     let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+    assert!(effects.is_empty());
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(lobby.quit_confirm_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
+    assert!(!app.model().should_quit);
+
+    let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('y'))));
     assert!(matches!(effects.as_slice(), [Effect::Quit]));
     assert!(app.model().should_quit);
+}
+
+#[test]
+fn lobby_quit_confirm_enter_defaults_to_no() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
+
+    let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
+
+    assert!(effects.is_empty());
+    assert!(!app.model().should_quit);
+    match &app.model().route {
+        Route::Lobby(lobby) => assert!(!lobby.quit_confirm_open),
+        other => panic!("expected lobby route, got {other:?}"),
+    }
 }
 
 #[test]

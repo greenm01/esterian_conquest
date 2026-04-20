@@ -311,7 +311,13 @@ fn draw_cached<F>(
 {
     if entry.as_ref().is_some_and(|e| e.inputs_hash == inputs_hash) {
         let cached = entry.as_ref().unwrap();
-        buf.blit_region(outer.row, outer.col, outer.width, outer.height, &cached.cells);
+        buf.blit_region(
+            outer.row,
+            outer.col,
+            outer.width,
+            outer.height,
+            &cached.cells,
+        );
         for glyph in &cached.overlay_glyphs {
             buf.push_overlay_glyph_at(glyph.ch, glyph.style, glyph.center_col, glyph.center_row);
         }
