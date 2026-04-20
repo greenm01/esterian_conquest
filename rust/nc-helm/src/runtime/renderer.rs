@@ -608,7 +608,19 @@ impl Renderer {
             };
         } else {
             let compacted_row_spans = compact_row_spans(&dirty.row_spans);
-            for (row_idx, spans) in compacted_row_spans.iter().enumerate() {
+            let dirty_row_spans = full_width_row_spans(&dirty.row_spans, playfield.width());
+            let compacted_rects = dirty_rectangles(&compacted_row_spans, mapper);
+            let compacted_rects_len = compacted_rects.len();
+            let compacted_upload_area_px = dirty_rect_area_px(&compacted_rects);
+            let grid_area_px = grid_area_px(playfield, mapper);
+            let compacted_upload_area_pct = upload_area_pct(compacted_upload_area_px, grid_area_px);
+            let upload_strategy =
+                choose_upload_strategy(compacted_rects_len, compacted_upload_area_px, grid_area_px);
+            let repaint_row_spans = match upload_strategy {
+                UploadStrategy::Rects => &compacted_row_spans,
+                UploadStrategy::DirtyRows => &dirty_row_spans,
+            };
+            for (row_idx, spans) in repaint_row_spans.iter().enumerate() {
                 if spans.is_empty() {
                     continue;
                 }
@@ -640,13 +652,6 @@ impl Renderer {
                     self.paint_cursor(frame_width, mapper, cursor);
                 }
             }
-            let compacted_rects = dirty_rectangles(&compacted_row_spans, mapper);
-            let compacted_rects_len = compacted_rects.len();
-            let compacted_upload_area_px = dirty_rect_area_px(&compacted_rects);
-            let grid_area_px = grid_area_px(playfield, mapper);
-            let compacted_upload_area_pct = upload_area_pct(compacted_upload_area_px, grid_area_px);
-            let upload_strategy =
-                choose_upload_strategy(compacted_rects_len, compacted_upload_area_px, grid_area_px);
             let upload_rects = match upload_strategy {
                 UploadStrategy::Rects => {
                     if !compacted_rects.is_empty() {
@@ -1104,6 +1109,25 @@ fn compact_row_spans(row_spans: &[Vec<DirtyColumnSpan>]) -> Vec<Vec<DirtyColumnS
     row_spans
         .iter()
         .map(|spans| compact_spans_for_row(spans))
+        .collect()
+}
+
+fn full_width_row_spans(
+    row_spans: &[Vec<DirtyColumnSpan>],
+    width: usize,
+) -> Vec<Vec<DirtyColumnSpan>> {
+    row_spans
+        .iter()
+        .map(|spans| {
+            if spans.is_empty() {
+                Vec::new()
+            } else {
+                vec![DirtyColumnSpan {
+                    start_col: 0,
+                    end_col: width,
+                }]
+            }
+        })
         .collect()
 }
 
@@ -1918,7 +1942,7 @@ mod tests {
         STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, UploadStrategy, build_font_system,
         choose_upload_strategy, compact_row_spans, dirty_cells, dirty_rect_area_px,
         dirty_rectangles, dirty_row_upload_rectangles, expanded_text_bounds, fit_grid_to_pixels,
-        grid_area_px, measure_single_line_width, snapshot_playfield,
+        full_width_row_spans, grid_area_px, measure_single_line_width, snapshot_playfield,
     };
 
     fn base_style() -> CellStyle {
@@ -2193,6 +2217,35 @@ mod tests {
                 start_col: 0,
                 end_col: 17,
             }
+        );
+    }
+
+    #[test]
+    fn full_width_row_spans_expand_dirty_rows_to_entire_width() {
+        let row_spans = vec![
+            vec![DirtyColumnSpan {
+                start_col: 2,
+                end_col: 4,
+            }],
+            Vec::new(),
+            vec![DirtyColumnSpan {
+                start_col: 6,
+                end_col: 7,
+            }],
+        ];
+        assert_eq!(
+            full_width_row_spans(&row_spans, 10),
+            vec![
+                vec![DirtyColumnSpan {
+                    start_col: 0,
+                    end_col: 10,
+                }],
+                Vec::new(),
+                vec![DirtyColumnSpan {
+                    start_col: 0,
+                    end_col: 10,
+                }],
+            ]
         );
     }
 
