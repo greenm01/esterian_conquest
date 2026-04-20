@@ -5,9 +5,9 @@
 //! 1. **Background pixel buffer** (`background_pixels`): a CPU-side RGBA
 //!    image the size of the surface. The playfield's per-cell background
 //!    colour, `BackgroundMode::TextBand` strips, and the caret are written
-//!    into this buffer with `fill_rect_rgba`. Unchanged rows are reused
-//!    across frames; dirty rows are uploaded back to the GPU texture and
-//!    drawn first as a fullscreen quad via the [`BACKGROUND_SHADER`]
+//!    into this buffer with `fill_rect_rgba`. Unchanged cells are reused
+//!    across frames; dirty rectangles are uploaded back to the GPU texture
+//!    and drawn first as a fullscreen quad via the [`BACKGROUND_SHADER`]
 //!    pipeline.
 //! 2. **Glyph layer**: text runs are batched per (text, weight) into shaped
 //!    glyphon `Buffer`s, cached in `text_buffers`, and drawn on top by the
@@ -187,8 +187,16 @@ struct CachedPlayfield {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct DirtyPixelBand {
+struct DirtyColumnSpan {
+    start_col: usize,
+    end_col: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct DirtyPixelRect {
+    left_px: usize,
     top_px: usize,
+    width_px: usize,
     height_px: usize,
 }
 
@@ -197,12 +205,13 @@ struct PreparedFrame {
     placements: Vec<TextPlacement>,
     full_rebuild: bool,
     dirty_rows: usize,
-    upload_bands: usize,
+    upload_rects: usize,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct DirtyRows {
-    rows: Vec<usize>,
+struct DirtyCells {
+    row_spans: Vec<Vec<DirtyColumnSpan>>,
+    overlay_changed: bool,
     full_rebuild: bool,
 }
 
@@ -213,7 +222,7 @@ pub struct RenderTimings {
     pub gpu_submit_present: Duration,
     pub total: Duration,
     pub dirty_rows: usize,
-    pub upload_bands: usize,
+    pub upload_rects: usize,
     pub full_rebuild: bool,
 }
 
@@ -406,7 +415,7 @@ impl Renderer {
                     glyph_prepare,
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
-                    upload_bands: prepared.upload_bands,
+                    upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
                     ..RenderTimings::default()
                 });
@@ -419,7 +428,7 @@ impl Renderer {
                     glyph_prepare,
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
-                    upload_bands: prepared.upload_bands,
+                    upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
                     ..RenderTimings::default()
                 });
@@ -467,7 +476,7 @@ impl Renderer {
             gpu_submit_present: gpu_start.elapsed(),
             total: total_start.elapsed(),
             dirty_rows: prepared.dirty_rows,
-            upload_bands: prepared.upload_bands,
+            upload_rects: prepared.upload_rects,
             full_rebuild: prepared.full_rebuild,
         })
     }
@@ -508,18 +517,34 @@ impl Renderer {
         let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
         let mapper =
             GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
-        let dirty_rows = dirty_rows(
+        let dirty = dirty_cells(
             self.previous_playfield.as_ref(),
             playfield,
             frame_width,
             frame_height,
         );
 
-        if dirty_rows.full_rebuild {
+        let dirty_rows = dirty
+            .row_spans
+            .iter()
+            .filter(|spans| !spans.is_empty())
+            .count();
+
+        if dirty.full_rebuild {
             self.fill_body_background(frame_width, frame_height);
             self.row_placements = vec![Vec::new(); playfield.height()];
             for row_idx in 0..playfield.height() {
-                self.row_placements[row_idx] = self.prepare_row(playfield, mapper, row_idx);
+                self.repaint_row_spans(
+                    playfield,
+                    mapper,
+                    row_idx,
+                    &[DirtyColumnSpan {
+                        start_col: 0,
+                        end_col: playfield.width(),
+                    }],
+                );
+                self.row_placements[row_idx] =
+                    self.collect_row_placements(playfield, mapper, row_idx);
             }
             let mut overlay_placements = Vec::new();
             prepare_overlay_texts(
@@ -533,20 +558,38 @@ impl Renderer {
                 self.paint_cursor(frame_width, mapper, cursor);
             }
             self.write_full_background_texture();
-        } else if !dirty_rows.rows.is_empty() {
-            for &row_idx in &dirty_rows.rows {
-                self.row_placements[row_idx] = self.prepare_row(playfield, mapper, row_idx);
+        } else {
+            for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
+                if spans.is_empty() {
+                    continue;
+                }
+                self.repaint_row_spans(playfield, mapper, row_idx, spans);
+                self.row_placements[row_idx] =
+                    self.collect_row_placements(playfield, mapper, row_idx);
+            }
+            if dirty.overlay_changed {
+                let mut overlay_placements = Vec::new();
+                prepare_overlay_texts(
+                    self,
+                    mapper,
+                    playfield.overlay_texts(),
+                    &mut overlay_placements,
+                );
+                self.overlay_placements = overlay_placements;
             }
             if let Some(cursor) = playfield.cursor() {
-                if dirty_rows
-                    .rows
-                    .binary_search(&cursor.row.as_usize())
-                    .is_ok()
+                if dirty
+                    .row_spans
+                    .get(cursor.row.as_usize())
+                    .is_some_and(|spans| !spans.is_empty())
                 {
                     self.paint_cursor(frame_width, mapper, cursor);
                 }
             }
-            self.write_dirty_row_bands(frame_width, &dirty_bands(&dirty_rows.rows, mapper));
+            let dirty_rects = dirty_rectangles(&dirty.row_spans, mapper);
+            if !dirty_rects.is_empty() {
+                self.write_dirty_rects(frame_width, &dirty_rects);
+            }
         }
 
         self.previous_playfield = Some(snapshot_playfield(playfield));
@@ -557,12 +600,12 @@ impl Renderer {
         placements.extend(self.overlay_placements.iter().cloned());
         PreparedFrame {
             placements,
-            full_rebuild: dirty_rows.full_rebuild,
-            dirty_rows: dirty_rows.rows.len(),
-            upload_bands: if dirty_rows.full_rebuild {
+            full_rebuild: dirty.full_rebuild,
+            dirty_rows,
+            upload_rects: if dirty.full_rebuild {
                 1
             } else {
-                dirty_bands(&dirty_rows.rows, mapper).len()
+                dirty_rectangles(&dirty.row_spans, mapper).len()
             },
         }
     }
@@ -644,25 +687,12 @@ impl Renderer {
         }
     }
 
-    fn prepare_row(
+    fn collect_row_placements(
         &mut self,
         playfield: &PlayfieldBuffer,
         mapper: GridMapper,
         row_idx: usize,
     ) -> Vec<TextPlacement> {
-        let frame_width = self.surface_config.width as usize;
-        let row_rect = mapper.cell_rect(Point::from_usize(0, row_idx));
-        let body_bg = primitives::color_to_rgba(theme::app_background());
-        primitives::fill_rect_rgba(
-            &mut self.background_pixels,
-            frame_width,
-            mapper.origin_x,
-            row_rect.y,
-            playfield.width() * mapper.cell.width_px,
-            mapper.cell.height_px,
-            body_bg,
-        );
-
         let mut placements = Vec::new();
         let mut run_start = None;
         let mut run_style: Option<CellStyle> = None;
@@ -670,21 +700,6 @@ impl Renderer {
         for col_idx in 0..playfield.width() {
             let source = playfield.row(row_idx)[col_idx];
             let style = source.style;
-            let point = Point::from_usize(col_idx, row_idx);
-            let rect = if style.bg_mode == BackgroundMode::TextBand {
-                mapper.text_band_rect(point, self.grid_metrics.text)
-            } else {
-                mapper.cell_rect(point)
-            };
-            primitives::fill_rect_rgba(
-                &mut self.background_pixels,
-                frame_width,
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
-                primitives::color_to_rgba(style.bg),
-            );
             if source.ch == ' ' {
                 flush_run(
                     self,
@@ -708,16 +723,6 @@ impl Renderer {
                     &mut run_text,
                     row_idx,
                     col_idx,
-                );
-                primitives::draw_cell_primitive(
-                    &mut self.background_pixels,
-                    frame_width,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height,
-                    source.ch,
-                    primitives::color_to_rgba(style.fg),
                 );
                 continue;
             }
@@ -755,6 +760,63 @@ impl Renderer {
         placements
     }
 
+    fn repaint_row_spans(
+        &mut self,
+        playfield: &PlayfieldBuffer,
+        mapper: GridMapper,
+        row_idx: usize,
+        spans: &[DirtyColumnSpan],
+    ) {
+        let frame_width = self.surface_config.width as usize;
+        let body_bg = primitives::color_to_rgba(theme::app_background());
+        for span in spans {
+            if span.start_col >= span.end_col {
+                continue;
+            }
+            let start_rect = mapper.cell_rect(Point::from_usize(span.start_col, row_idx));
+            primitives::fill_rect_rgba(
+                &mut self.background_pixels,
+                frame_width,
+                start_rect.x,
+                start_rect.y,
+                (span.end_col - span.start_col) * mapper.cell.width_px,
+                mapper.cell.height_px,
+                body_bg,
+            );
+            for col_idx in span.start_col..span.end_col {
+                let source = playfield.row(row_idx)[col_idx];
+                let style = source.style;
+                let point = Point::from_usize(col_idx, row_idx);
+                let rect = if style.bg_mode == BackgroundMode::TextBand {
+                    mapper.text_band_rect(point, self.grid_metrics.text)
+                } else {
+                    mapper.cell_rect(point)
+                };
+                primitives::fill_rect_rgba(
+                    &mut self.background_pixels,
+                    frame_width,
+                    rect.x,
+                    rect.y,
+                    rect.width,
+                    rect.height,
+                    primitives::color_to_rgba(style.bg),
+                );
+                if primitives::should_draw_as_primitive(source.ch) {
+                    primitives::draw_cell_primitive(
+                        &mut self.background_pixels,
+                        frame_width,
+                        rect.x,
+                        rect.y,
+                        rect.width,
+                        rect.height,
+                        source.ch,
+                        primitives::color_to_rgba(style.fg),
+                    );
+                }
+            }
+        }
+    }
+
     fn paint_cursor(&mut self, frame_width: usize, mapper: GridMapper, point: Point) {
         let caret = caret_rect(point, mapper, self.grid_metrics.text);
         primitives::fill_rect_rgba(
@@ -790,17 +852,24 @@ impl Renderer {
         );
     }
 
-    fn write_dirty_row_bands(&self, frame_width: usize, bands: &[DirtyPixelBand]) {
-        for band in bands {
-            let start = band.top_px * frame_width * 4;
-            let len = band.height_px * frame_width * 4;
+    fn write_dirty_rects(&self, frame_width: usize, rects: &[DirtyPixelRect]) {
+        for rect in rects {
+            let start = (rect.top_px * frame_width + rect.left_px) * 4;
+            let len = if rect.height_px == 0 {
+                0
+            } else {
+                (rect.height_px - 1) * frame_width * 4 + rect.width_px * 4
+            };
+            if len == 0 {
+                continue;
+            }
             self.queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
                     texture: &self.background_texture.texture,
                     mip_level: 0,
                     origin: wgpu::Origin3d {
-                        x: 0,
-                        y: band.top_px as u32,
+                        x: rect.left_px as u32,
+                        y: rect.top_px as u32,
                         z: 0,
                     },
                     aspect: wgpu::TextureAspect::All,
@@ -809,11 +878,11 @@ impl Renderer {
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(self.surface_config.width * 4),
-                    rows_per_image: Some(band.height_px as u32),
+                    rows_per_image: Some(rect.height_px as u32),
                 },
                 wgpu::Extent3d {
-                    width: self.surface_config.width,
-                    height: band.height_px as u32,
+                    width: rect.width_px as u32,
+                    height: rect.height_px as u32,
                     depth_or_array_layers: 1,
                 },
             );
@@ -835,82 +904,157 @@ fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
     }
 }
 
-fn dirty_rows(
+fn dirty_cells(
     previous: Option<&CachedPlayfield>,
     playfield: &PlayfieldBuffer,
     frame_width: usize,
     frame_height: usize,
-) -> DirtyRows {
+) -> DirtyCells {
     let Some(previous) = previous else {
-        return DirtyRows {
-            rows: (0..playfield.height()).collect(),
+        return DirtyCells {
+            row_spans: vec![
+                vec![DirtyColumnSpan {
+                    start_col: 0,
+                    end_col: playfield.width(),
+                }];
+                playfield.height()
+            ],
+            overlay_changed: true,
             full_rebuild: true,
         };
     };
     if previous.width != playfield.width()
         || previous.height != playfield.height()
-        || previous.overlay_texts != playfield.overlay_texts()
         || frame_width == 0
         || frame_height == 0
     {
-        return DirtyRows {
-            rows: (0..playfield.height()).collect(),
+        return DirtyCells {
+            row_spans: vec![
+                vec![DirtyColumnSpan {
+                    start_col: 0,
+                    end_col: playfield.width(),
+                }];
+                playfield.height()
+            ],
+            overlay_changed: true,
             full_rebuild: true,
         };
     }
 
-    let mut rows = Vec::new();
+    let mut row_spans = vec![Vec::new(); playfield.height()];
     for row_idx in 0..playfield.height() {
-        if previous.rows[row_idx].as_slice() != playfield.row(row_idx) {
-            rows.push(row_idx);
-        }
+        record_dirty_spans_for_row(
+            &previous.rows[row_idx],
+            playfield.row(row_idx),
+            &mut row_spans[row_idx],
+        );
     }
     if previous.cursor != playfield.cursor() {
         if let Some(cursor) = previous.cursor {
-            rows.push(cursor.row.as_usize());
+            push_dirty_cell(
+                &mut row_spans,
+                cursor.row.as_usize(),
+                cursor.column.as_usize(),
+                playfield.width(),
+            );
         }
         if let Some(cursor) = playfield.cursor() {
-            rows.push(cursor.row.as_usize());
+            push_dirty_cell(
+                &mut row_spans,
+                cursor.row.as_usize(),
+                cursor.column.as_usize(),
+                playfield.width(),
+            );
         }
     }
-    rows.sort_unstable();
-    rows.dedup();
-    DirtyRows {
-        rows,
+    for spans in &mut row_spans {
+        merge_column_spans(spans);
+    }
+    DirtyCells {
+        row_spans,
+        overlay_changed: previous.overlay_texts != playfield.overlay_texts(),
         full_rebuild: false,
     }
 }
 
-fn dirty_bands(rows: &[usize], mapper: GridMapper) -> Vec<DirtyPixelBand> {
-    if rows.is_empty() {
-        return Vec::new();
-    }
-    let mut bands = Vec::new();
-    let mut band_start = rows[0];
-    let mut last_row = rows[0];
-    for &row in &rows[1..] {
-        if row == last_row + 1 {
-            last_row = row;
-            continue;
+fn record_dirty_spans_for_row(previous: &[Cell], next: &[Cell], spans: &mut Vec<DirtyColumnSpan>) {
+    let mut start_col = None;
+    for col_idx in 0..next.len() {
+        if previous[col_idx] != next[col_idx] {
+            start_col.get_or_insert(col_idx);
+        } else if let Some(start_col) = start_col.take() {
+            spans.push(DirtyColumnSpan {
+                start_col,
+                end_col: col_idx,
+            });
         }
-        bands.push(dirty_band(mapper, band_start, last_row));
-        band_start = row;
-        last_row = row;
     }
-    bands.push(dirty_band(mapper, band_start, last_row));
-    bands
+    if let Some(start_col) = start_col {
+        spans.push(DirtyColumnSpan {
+            start_col,
+            end_col: next.len(),
+        });
+    }
 }
 
-fn dirty_band(mapper: GridMapper, start_row: usize, end_row: usize) -> DirtyPixelBand {
-    let start_rect = mapper.cell_rect(Point::from_usize(0, start_row));
-    let end_rect = mapper.cell_rect(Point::from_usize(0, end_row));
-    DirtyPixelBand {
-        top_px: start_rect.y,
-        height_px: end_rect
-            .y
-            .saturating_add(end_rect.height)
-            .saturating_sub(start_rect.y),
+fn push_dirty_cell(
+    row_spans: &mut [Vec<DirtyColumnSpan>],
+    row_idx: usize,
+    col_idx: usize,
+    width: usize,
+) {
+    if row_idx >= row_spans.len() || col_idx >= width {
+        return;
     }
+    row_spans[row_idx].push(DirtyColumnSpan {
+        start_col: col_idx,
+        end_col: col_idx + 1,
+    });
+}
+
+fn merge_column_spans(spans: &mut Vec<DirtyColumnSpan>) {
+    if spans.len() <= 1 {
+        return;
+    }
+    spans.sort_unstable_by_key(|span| span.start_col);
+    let mut merged = Vec::with_capacity(spans.len());
+    let mut current = spans[0];
+    for span in spans.iter().copied().skip(1) {
+        if span.start_col <= current.end_col {
+            current.end_col = current.end_col.max(span.end_col);
+        } else {
+            merged.push(current);
+            current = span;
+        }
+    }
+    merged.push(current);
+    *spans = merged;
+}
+
+fn dirty_rectangles(row_spans: &[Vec<DirtyColumnSpan>], mapper: GridMapper) -> Vec<DirtyPixelRect> {
+    let mut rects: Vec<DirtyPixelRect> = Vec::new();
+    for (row_idx, spans) in row_spans.iter().enumerate() {
+        for span in spans {
+            let start_rect = mapper.cell_rect(Point::from_usize(span.start_col, row_idx));
+            let width_px = (span.end_col - span.start_col) * mapper.cell.width_px;
+            if let Some(last) = rects.last_mut() {
+                if last.left_px == start_rect.x
+                    && last.width_px == width_px
+                    && last.top_px + last.height_px == start_rect.y
+                {
+                    last.height_px += mapper.cell.height_px;
+                    continue;
+                }
+            }
+            rects.push(DirtyPixelRect {
+                left_px: start_rect.x,
+                top_px: start_rect.y,
+                width_px,
+                height_px: mapper.cell.height_px,
+            });
+        }
+    }
+    rects
 }
 
 /// Build a `FontSystem` preloaded with the bundled monospace face plus a
@@ -1466,9 +1610,9 @@ mod tests {
     };
 
     use super::{
-        DirtyPixelBand, PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang,
-        build_font_system, dirty_bands, dirty_rows, expanded_text_bounds, fit_grid_to_pixels,
-        measure_single_line_width, snapshot_playfield,
+        DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY, TextFamilyKey,
+        TextOverhang, build_font_system, dirty_cells, dirty_rectangles, expanded_text_bounds,
+        fit_grid_to_pixels, measure_single_line_width, snapshot_playfield,
     };
 
     fn base_style() -> CellStyle {
@@ -1635,7 +1779,7 @@ mod tests {
     }
 
     #[test]
-    fn dirty_rows_tracks_changed_rows_and_cursor_rows() {
+    fn dirty_cells_track_changed_rows_and_cursor_rows() {
         let mut previous = PlayfieldBuffer::new(4, 3, base_style());
         previous.write_text(1, 0, "AB", base_style());
         previous.set_cursor(Point::from_usize(0, 0));
@@ -1645,36 +1789,70 @@ mod tests {
         next.write_text(1, 0, "AX", base_style());
         next.set_cursor(Point::from_usize(1, 2));
 
-        let dirty = dirty_rows(Some(&previous), &next, 640, 480);
+        let dirty = dirty_cells(Some(&previous), &next, 640, 480);
         assert!(!dirty.full_rebuild);
-        assert_eq!(dirty.rows, vec![0, 1, 2]);
+        assert_eq!(
+            dirty.row_spans,
+            vec![
+                vec![DirtyColumnSpan {
+                    start_col: 0,
+                    end_col: 1
+                }],
+                vec![DirtyColumnSpan {
+                    start_col: 1,
+                    end_col: 2
+                }],
+                vec![DirtyColumnSpan {
+                    start_col: 1,
+                    end_col: 2
+                }],
+            ]
+        );
     }
 
     #[test]
-    fn dirty_rows_force_full_rebuild_when_overlay_text_changes() {
+    fn dirty_cells_keep_background_incremental_when_only_overlay_text_changes() {
         let mut previous = PlayfieldBuffer::new(4, 3, base_style());
         previous.push_overlay_text("NC", OverlayTextFamily::Monospace, base_style(), 0, 0, 2, 1);
         let previous = snapshot_playfield(&previous);
 
         let next = PlayfieldBuffer::new(4, 3, base_style());
-        let dirty = dirty_rows(Some(&previous), &next, 640, 480);
-        assert!(dirty.full_rebuild);
-        assert_eq!(dirty.rows, vec![0, 1, 2]);
+        let dirty = dirty_cells(Some(&previous), &next, 640, 480);
+        assert!(!dirty.full_rebuild);
+        assert!(dirty.overlay_changed);
+        assert!(dirty.row_spans.iter().all(|spans| spans.is_empty()));
     }
 
     #[test]
-    fn dirty_bands_merge_adjacent_rows() {
+    fn dirty_rectangles_merge_adjacent_rows_with_same_columns() {
         let (mapper, _) = mapper();
-        let bands = dirty_bands(&[2, 3, 5], mapper);
+        let mut row_spans = vec![Vec::new(); 6];
+        row_spans[2].push(DirtyColumnSpan {
+            start_col: 0,
+            end_col: 1,
+        });
+        row_spans[3].push(DirtyColumnSpan {
+            start_col: 0,
+            end_col: 1,
+        });
+        row_spans[5].push(DirtyColumnSpan {
+            start_col: 2,
+            end_col: 3,
+        });
+        let rects = dirty_rectangles(&row_spans, mapper);
         assert_eq!(
-            bands,
+            rects,
             vec![
-                DirtyPixelBand {
+                DirtyPixelRect {
+                    left_px: mapper.origin_x,
                     top_px: mapper.origin_y + 2 * mapper.cell.height_px,
+                    width_px: mapper.cell.width_px,
                     height_px: 2 * mapper.cell.height_px,
                 },
-                DirtyPixelBand {
+                DirtyPixelRect {
+                    left_px: mapper.origin_x + 2 * mapper.cell.width_px,
                     top_px: mapper.origin_y + 5 * mapper.cell.height_px,
+                    width_px: mapper.cell.width_px,
                     height_px: mapper.cell.height_px,
                 },
             ]

@@ -127,7 +127,7 @@ struct FrameTimingSample {
     gpu_submit_present: Duration,
     total: Duration,
     dirty_rows: usize,
-    upload_bands: usize,
+    upload_rects: usize,
     full_rebuild: bool,
 }
 
@@ -149,6 +149,7 @@ struct Runtime {
     renderer: Option<renderer::Renderer>,
     modifiers: ModifiersState,
     pointer_cell: Option<Point>,
+    pending_mouse_motion: Option<MouseEvent>,
     grid_metrics: Option<geometry::GridMetrics>,
     window_pixel_width: u32,
     window_pixel_height: u32,
@@ -183,6 +184,7 @@ impl Runtime {
             renderer: None,
             modifiers: ModifiersState::empty(),
             pointer_cell: None,
+            pending_mouse_motion: None,
             grid_metrics: None,
             window_pixel_width: 0,
             window_pixel_height: 0,
@@ -258,6 +260,7 @@ impl Runtime {
         }
         if !route_uses_mouse(&self.app.model().route) {
             self.pointer_cell = None;
+            self.pending_mouse_motion = None;
         }
         if !matches!(self.app.model().route, Route::MatrixLocked) {
             self.next_matrix_frame_at = None;
@@ -500,7 +503,7 @@ impl Runtime {
             gpu_submit_present: render.gpu_submit_present,
             total: render.total,
             dirty_rows: render.dirty_rows,
-            upload_bands: render.upload_bands,
+            upload_rects: render.upload_rects,
             full_rebuild: render.full_rebuild,
         }) {
             self.diagnostic_log(&message);
@@ -784,18 +787,21 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     if let Some(pointer_cell) = self.pointer_cell {
                         if should_dispatch_pointer_move(previous_pointer, Some(pointer_cell)) {
                             self.last_user_input = Some(Instant::now());
-                            self.dispatch(
-                                Msg::Mouse(MouseEvent {
+                            store_pending_pointer_motion(
+                                &mut self.pending_mouse_motion,
+                                MouseEvent {
                                     kind: pointer_move_event_kind(self.left_mouse_down),
                                     position: pointer_cell,
                                     modifiers: key_modifiers_from_winit(self.modifiers),
-                                }),
-                                event_loop,
+                                },
                             );
                         }
+                    } else {
+                        self.pending_mouse_motion = None;
                     }
                 } else {
                     self.pointer_cell = None;
+                    self.pending_mouse_motion = None;
                 }
             }
             WindowEvent::CursorLeft { .. } => {
@@ -806,6 +812,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     ));
                 }
                 self.pointer_cell = None;
+                self.pending_mouse_motion = None;
             }
             WindowEvent::MouseInput { button, state, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
@@ -828,6 +835,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                         state.is_pressed()
                     ));
                 }
+                self.pending_mouse_motion = None;
                 if mouse_enabled {
                     if let (Some(button), Some(position)) = (button, self.pointer_cell) {
                         self.dispatch(
@@ -973,6 +981,9 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
         {
             self.needs_redraw = true;
         }
+        if let Some(mouse) = self.pending_mouse_motion.take() {
+            self.dispatch(Msg::Mouse(mouse), _event_loop);
+        }
         if self.needs_redraw {
             if let Some(window) = &self.window {
                 window.request_redraw();
@@ -1013,10 +1024,10 @@ impl FrameTimingSummary {
             .map(|sample| sample.dirty_rows as f64)
             .sum::<f64>()
             / frames as f64;
-        let avg_upload_bands = self
+        let avg_upload_rects = self
             .samples
             .iter()
-            .map(|sample| sample.upload_bands as f64)
+            .map(|sample| sample.upload_rects as f64)
             .sum::<f64>()
             / frames as f64;
         let full_rebuilds = self
@@ -1027,7 +1038,7 @@ impl FrameTimingSummary {
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_upload_bands={avg_upload_bands:.1} full_rebuilds={full_rebuilds}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1076,6 +1087,10 @@ fn pointer_move_event_kind(left_mouse_down: bool) -> MouseEventKind {
 
 fn should_dispatch_pointer_move(previous: Option<Point>, next: Option<Point>) -> bool {
     previous != next
+}
+
+fn store_pending_pointer_motion(pending: &mut Option<MouseEvent>, mouse: MouseEvent) {
+    *pending = Some(mouse);
 }
 
 fn hosted_route_next_wakeup(route: &Route) -> Option<Instant> {
@@ -1359,7 +1374,8 @@ mod tests {
         ResizeVerdict, SessionBackend, backend_supports_programmatic_focus, classify_resize,
         combine_deadlines, hosted_route_next_wakeup, map_pointer_cell, minimum_window_size,
         pointer_move_event_kind, route_uses_mouse, session_backend_label,
-        should_dispatch_pointer_move, window_attributes_for_mode, window_decorations_for_session,
+        should_dispatch_pointer_move, store_pending_pointer_motion, window_attributes_for_mode,
+        window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{
@@ -1367,7 +1383,7 @@ mod tests {
     };
     use crate::dashboard::DashApp;
     use crate::geometry;
-    use crate::input::{MouseButton, MouseEventKind};
+    use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use crate::startup::NativeWindowMode;
     use winit::window::WindowAttributes;
 
@@ -1491,7 +1507,7 @@ mod tests {
             gpu_submit_present: Duration::from_millis(4),
             total: Duration::from_millis(5),
             dirty_rows: 2,
-            upload_bands: 1,
+            upload_rects: 1,
             full_rebuild: false,
         };
 
@@ -1503,6 +1519,32 @@ mod tests {
         let message = message.expect("summary should emit after enough samples");
         assert!(message.contains("frame timings [120 frames]"));
         assert!(message.contains("avg_dirty_rows=2.0"));
+        assert!(message.contains("avg_upload_rects=1.0"));
+    }
+
+    #[test]
+    fn storing_pending_pointer_motion_keeps_latest_event() {
+        let mut pending = None;
+        store_pending_pointer_motion(
+            &mut pending,
+            MouseEvent {
+                kind: MouseEventKind::Moved,
+                position: Point::from_usize(2, 3),
+                modifiers: KeyModifiers::NONE,
+            },
+        );
+        store_pending_pointer_motion(
+            &mut pending,
+            MouseEvent {
+                kind: MouseEventKind::Moved,
+                position: Point::from_usize(4, 5),
+                modifiers: KeyModifiers::SHIFT,
+            },
+        );
+
+        let pending = pending.expect("latest pointer motion should be retained");
+        assert_eq!(pending.position, Point::from_usize(4, 5));
+        assert_eq!(pending.modifiers, KeyModifiers::SHIFT);
     }
 
     #[test]
