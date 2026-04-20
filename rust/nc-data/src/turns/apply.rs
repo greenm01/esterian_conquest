@@ -2,7 +2,7 @@ use super::{
     FleetTurnAction, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS, PlanetTurnAction,
     TurnMessage, TurnSubmission, TurnSubmissionError, TurnSubmissionReport,
 };
-use crate::{CoreGameData, QueuedPlayerMail, validate_queue_message_limit};
+use crate::{CoreGameData, ProductionItemKind, QueuedPlayerMail, validate_queue_message_limit};
 
 pub(super) fn apply_turn_submission(
     submission: &TurnSubmission,
@@ -133,6 +133,36 @@ fn apply_planet_action(
                 planet.planet_record_index_1_based,
             )?;
             game_data.clear_planet_build_queue(planet.planet_record_index_1_based)?;
+        }
+        PlanetTurnAction::ClearBuildKind { kind_raw } => {
+            ensure_player_owns_planet(
+                game_data,
+                player_record_index_1_based,
+                planet.planet_record_index_1_based,
+            )?;
+            game_data.clear_planet_build_orders_by_kind(
+                planet.planet_record_index_1_based,
+                ProductionItemKind::from_raw(*kind_raw),
+            )?;
+        }
+        PlanetTurnAction::RemoveBuild { qty, kind_raw } => {
+            ensure_player_owns_planet(
+                game_data,
+                player_record_index_1_based,
+                planet.planet_record_index_1_based,
+            )?;
+            let kind = ProductionItemKind::from_raw(*kind_raw);
+            let Some(cost) = kind.build_cost() else {
+                return Err(TurnSubmissionError::Validation(format!(
+                    "unknown production kind: {kind_raw}"
+                )));
+            };
+            let points_to_remove = u32::from(*qty).saturating_mul(cost);
+            game_data.remove_planet_build_points_by_kind(
+                planet.planet_record_index_1_based,
+                kind,
+                points_to_remove,
+            )?;
         }
         PlanetTurnAction::Build {
             points_remaining_raw,

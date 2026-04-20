@@ -242,61 +242,58 @@ impl DashApp {
     }
 
     pub(crate) fn active_command_line_toast(&self) -> Option<&str> {
-        match self.popup {
-            ActivePopup::OwnedPlanet { .. } => self.owned_planet_popup.status.as_deref(),
-            ActivePopup::QuitConfirm | ActivePopup::PlanetDetail { .. } => None,
-            ActivePopup::None => match self.overlay {
-                ActiveOverlay::None => None,
-                ActiveOverlay::PlanetList => match self.planet_overlay.prompt_mode {
-                    PlanetOverlayPromptMode::None => self.planet_overlay.footer_notice.as_deref(),
-                    PlanetOverlayPromptMode::SortMenu
-                    | PlanetOverlayPromptMode::FilterMenu
-                    | PlanetOverlayPromptMode::FilterValueInput => {
-                        self.planet_overlay.prompt_status.as_deref()
-                    }
-                    PlanetOverlayPromptMode::BuildSpecify => {
-                        self.planet_overlay.build_unit_status.as_deref()
-                    }
-                    PlanetOverlayPromptMode::BuildQuantity => {
-                        self.planet_overlay.build_quantity_status.as_deref()
-                    }
-                    PlanetOverlayPromptMode::BuildList
-                    | PlanetOverlayPromptMode::BuildAbortConfirm => None,
-                },
-                ActiveOverlay::FleetList => match self.fleet_overlay.prompt_mode {
-                    FleetOverlayPromptMode::None
-                    | FleetOverlayPromptMode::SortMenu
-                    | FleetOverlayPromptMode::FilterMenu
-                    | FleetOverlayPromptMode::FilterValueInput => {
-                        self.fleet_overlay.filter_prompt_status.as_deref()
-                    }
-                    FleetOverlayPromptMode::ChangeField
-                    | FleetOverlayPromptMode::ChangeValue
-                    | FleetOverlayPromptMode::MergeHost
-                    | FleetOverlayPromptMode::MergeConfirm
-                    | FleetOverlayPromptMode::TransferHost
-                    | FleetOverlayPromptMode::TransferStage => {
-                        self.fleet_overlay.aux_status.as_deref()
-                    }
-                    FleetOverlayPromptMode::MissionPicker => {
-                        self.fleet_overlay.mission_picker_status.as_deref()
-                    }
-                    FleetOverlayPromptMode::OrderTarget
-                    | FleetOverlayPromptMode::OrderTargetX
-                    | FleetOverlayPromptMode::OrderTargetY
-                    | FleetOverlayPromptMode::OrderConfirm => {
-                        self.fleet_overlay.order_status.as_deref()
-                    }
-                    FleetOverlayPromptMode::StarbaseMoveDecision
-                    | FleetOverlayPromptMode::StarbaseMoveDestination
-                    | FleetOverlayPromptMode::StarbaseHaltConfirm => {
-                        self.fleet_overlay.starbase_move_status.as_deref()
-                    }
-                },
-                ActiveOverlay::IntelDatabase => self.intel_overlay.prompt_status.as_deref(),
-                ActiveOverlay::Settings => self.settings_overlay.status_message.as_deref(),
-                ActiveOverlay::Inbox | ActiveOverlay::Diplomacy | ActiveOverlay::Help => None,
+        match self.overlay {
+            ActiveOverlay::None => match self.popup {
+                ActivePopup::OwnedPlanet { .. } => self.owned_planet_popup.status.as_deref(),
+                ActivePopup::QuitConfirm | ActivePopup::PlanetDetail { .. } | ActivePopup::None => {
+                    None
+                }
             },
+            ActiveOverlay::PlanetList => match self.planet_overlay.prompt_mode {
+                PlanetOverlayPromptMode::None => self.planet_overlay.footer_notice.as_deref(),
+                PlanetOverlayPromptMode::SortMenu
+                | PlanetOverlayPromptMode::FilterMenu
+                | PlanetOverlayPromptMode::FilterValueInput => {
+                    self.planet_overlay.prompt_status.as_deref()
+                }
+                PlanetOverlayPromptMode::BuildSpecify => {
+                    self.planet_overlay.build_unit_status.as_deref()
+                }
+                PlanetOverlayPromptMode::BuildQuantity => {
+                    self.planet_overlay.build_quantity_status.as_deref()
+                }
+            },
+            ActiveOverlay::FleetList => match self.fleet_overlay.prompt_mode {
+                FleetOverlayPromptMode::None
+                | FleetOverlayPromptMode::SortMenu
+                | FleetOverlayPromptMode::FilterMenu
+                | FleetOverlayPromptMode::FilterValueInput => {
+                    self.fleet_overlay.filter_prompt_status.as_deref()
+                }
+                FleetOverlayPromptMode::ChangeField
+                | FleetOverlayPromptMode::ChangeValue
+                | FleetOverlayPromptMode::MergeHost
+                | FleetOverlayPromptMode::MergeConfirm
+                | FleetOverlayPromptMode::TransferHost
+                | FleetOverlayPromptMode::TransferStage => self.fleet_overlay.aux_status.as_deref(),
+                FleetOverlayPromptMode::MissionPicker => {
+                    self.fleet_overlay.mission_picker_status.as_deref()
+                }
+                FleetOverlayPromptMode::OrderTarget
+                | FleetOverlayPromptMode::OrderTargetX
+                | FleetOverlayPromptMode::OrderTargetY
+                | FleetOverlayPromptMode::OrderConfirm => {
+                    self.fleet_overlay.order_status.as_deref()
+                }
+                FleetOverlayPromptMode::StarbaseMoveDecision
+                | FleetOverlayPromptMode::StarbaseMoveDestination
+                | FleetOverlayPromptMode::StarbaseHaltConfirm => {
+                    self.fleet_overlay.starbase_move_status.as_deref()
+                }
+            },
+            ActiveOverlay::IntelDatabase => self.intel_overlay.prompt_status.as_deref(),
+            ActiveOverlay::Settings => self.settings_overlay.status_message.as_deref(),
+            ActiveOverlay::Inbox | ActiveOverlay::Diplomacy | ActiveOverlay::Help => None,
         }
     }
 
@@ -536,10 +533,6 @@ impl DashApp {
                     KeyCode::Char('b') | KeyCode::Char('B') => {
                         self.open_owned_planet_build_specify()
                     }
-                    KeyCode::Char('d') | KeyCode::Char('D') => self.open_owned_planet_build_list(),
-                    KeyCode::Char('a') | KeyCode::Char('A') => {
-                        self.open_owned_planet_build_abort_confirm()
-                    }
                     KeyCode::Char('c') | KeyCode::Char('C') => {
                         self.open_owned_planet_commission_select()
                     }
@@ -556,45 +549,6 @@ impl DashApp {
                         ),
                     KeyCode::Char('x') | KeyCode::Char('X') => {
                         self.open_owned_planet_scorch_confirm()
-                    }
-                    _ => {}
-                },
-                OwnedPlanetPopupMode::BuildList => match key.code {
-                    KeyCode::Esc | KeyCode::Enter => {
-                        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse)
-                    }
-                    _ => {}
-                },
-                OwnedPlanetPopupMode::BuildAbortConfirm => match key.code {
-                    KeyCode::Char('y') | KeyCode::Char('Y') => {
-                        if let Err(err) = self.confirm_owned_planet_build_abort() {
-                            self.owned_planet_popup.status = Some(err.to_string());
-                        }
-                    }
-                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Enter | KeyCode::Esc => {
-                        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse)
-                    }
-                    _ => {}
-                },
-                OwnedPlanetPopupMode::BuildSpecify => match key.code {
-                    KeyCode::Esc => self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse),
-                    KeyCode::Enter => self.submit_owned_planet_build_unit(),
-                    KeyCode::Backspace => self.backspace_owned_planet_input(),
-                    KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                        self.append_owned_planet_input_char(ch)
-                    }
-                    _ => {}
-                },
-                OwnedPlanetPopupMode::BuildQuantity => match key.code {
-                    KeyCode::Esc => self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse),
-                    KeyCode::Enter => {
-                        if let Err(err) = self.submit_owned_planet_build_quantity() {
-                            self.owned_planet_popup.status = Some(err.to_string());
-                        }
-                    }
-                    KeyCode::Backspace => self.backspace_owned_planet_input(),
-                    KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                        self.append_owned_planet_input_char(ch)
                     }
                     _ => {}
                 },
@@ -1170,33 +1124,45 @@ impl DashApp {
     fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
         let prompt_mode = self.planet_overlay.prompt_mode;
         match prompt_mode {
-            PlanetOverlayPromptMode::BuildList => match key.code {
-                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
-                KeyCode::Esc => {
-                    self.close_planet_build_list();
-                }
-                _ => {}
-            },
-            PlanetOverlayPromptMode::BuildAbortConfirm => match key.code {
-                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
-                KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    if let Err(err) = self.confirm_planet_build_abort() {
-                        self.show_planet_overlay_footer_notice(err.to_string());
-                    }
-                }
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Enter | KeyCode::Esc => {
-                    self.close_planet_build_abort_prompt()
-                }
-                _ => {}
-            },
             PlanetOverlayPromptMode::BuildSpecify => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetBuildSpecify),
-                KeyCode::Esc => {
-                    self.close_planet_build_overlay();
+                KeyCode::Esc => self.close_planet_build_overlay(),
+                KeyCode::Char('+') | KeyCode::Char('=') => {
+                    if let Err(err) = self.queue_selected_planet_build_unit() {
+                        self.planet_overlay.build_unit_status = Some(err.to_string());
+                    }
                 }
-                KeyCode::Enter => self.submit_planet_build_unit(),
+                KeyCode::Char('-') => {
+                    if let Err(err) = self.remove_selected_planet_build_unit() {
+                        self.planet_overlay.build_unit_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    self.select_previous_planet_build_kind()
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    self.select_next_planet_build_kind()
+                }
+                KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+                    self.select_left_planet_build_kind()
+                }
+                KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+                    self.select_right_planet_build_kind()
+                }
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_planet_build_browse_input() {
+                        self.planet_overlay.build_unit_status = Some(err.to_string());
+                    }
+                }
                 KeyCode::Backspace => self.backspace_planet_build_unit_input(),
-                KeyCode::Char(ch) if ch.is_ascii_digit() => self.append_planet_build_unit_char(ch),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.append_planet_build_unit_char(ch)
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    if let Err(err) = self.clear_selected_planet_build_kind_queue() {
+                        self.planet_overlay.build_unit_status = Some(err.to_string());
+                    }
+                }
                 _ => {}
             },
             PlanetOverlayPromptMode::BuildQuantity => match key.code {
@@ -1353,8 +1319,6 @@ impl DashApp {
                 self.planet_overlay.prompt_status = None;
             }
             KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
-            KeyCode::Char('d') | KeyCode::Char('D') => self.open_planet_build_list(),
-            KeyCode::Char('a') | KeyCode::Char('A') => self.open_planet_build_abort_prompt(),
             KeyCode::Char(ch)
                 if self.planet_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
@@ -2650,7 +2614,7 @@ mod tests {
     };
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
-    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn wrap_prev_goes_from_first_to_last() {
@@ -2890,7 +2854,7 @@ mod tests {
     }
 
     #[test]
-    fn opening_build_specify_with_no_budget_shows_overlay_footer_notice() {
+    fn opening_build_specify_with_no_budget_keeps_build_table_open() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::PlanetList;
         app.game_data.planets.records[0].set_stored_production_points(1);
@@ -2899,16 +2863,14 @@ mod tests {
 
         assert_eq!(
             app.planet_overlay.prompt_mode,
-            PlanetOverlayPromptMode::None
+            PlanetOverlayPromptMode::BuildSpecify
         );
-        assert_eq!(
-            app.planet_overlay.footer_notice.as_deref(),
-            Some("No build budget remains.")
-        );
+        assert_eq!(app.planet_overlay.footer_notice, None);
+        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, Some(1));
     }
 
     #[test]
-    fn successful_build_that_exhausts_budget_closes_prompt_and_shows_footer_notice() {
+    fn successful_build_that_exhausts_budget_stays_in_build_table() {
         let mut app = dash_app_with_store();
         app.overlay = ActiveOverlay::PlanetList;
         app.game_data.planets.records[0].set_stored_production_points(2);
@@ -2919,43 +2881,60 @@ mod tests {
             PlanetOverlayPromptMode::BuildSpecify
         );
 
-        app.append_planet_build_unit_char('9');
-        app.submit_planet_build_unit();
+        app.handle_key(key(KeyCode::Char('+')));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(app.planet_overlay.footer_notice, None);
+        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, Some(1));
+    }
+
+    #[test]
+    fn equals_key_queues_selected_build_unit() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(80);
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Char('=')));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
+        let orders = nc_engine::planet_build_orders(&app.game_data.planets.records[0]);
+        assert_eq!(orders.len(), 1);
+        assert_eq!(orders[0].kind, nc_data::ProductionItemKind::Destroyer);
+        assert_eq!(orders[0].points_remaining, 5);
+    }
+
+    #[test]
+    fn empty_build_browse_enter_opens_quantity_for_highlighted_unit() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(80);
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(
             app.planet_overlay.prompt_mode,
             PlanetOverlayPromptMode::BuildQuantity
         );
-        app.append_planet_build_quantity_char('1');
-        app.submit_planet_build_quantity()
-            .expect("build quantity should submit");
-
-        assert_eq!(
-            app.planet_overlay.prompt_mode,
-            PlanetOverlayPromptMode::None
-        );
-        assert_eq!(
-            app.planet_overlay.footer_notice.as_deref(),
-            Some("No build budget remains.")
-        );
-        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, None);
     }
 
     #[test]
-    fn planet_overlay_display_queue_opens_and_closes_for_selected_planet() {
+    fn zero_build_browse_enter_exits_overlay() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::PlanetList;
-        app.game_data
-            .append_planet_build_order(1, 10, 1)
-            .expect("queue build order");
+        app.open_planet_build_specify();
 
-        app.open_planet_build_list();
-
-        assert_eq!(
-            app.planet_overlay.prompt_mode,
-            PlanetOverlayPromptMode::BuildList
-        );
-
-        app.handle_key(key(KeyCode::Esc));
+        app.handle_key(key(KeyCode::Char('0')));
+        app.handle_key(key(KeyCode::Enter));
 
         assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(
@@ -2965,32 +2944,86 @@ mod tests {
     }
 
     #[test]
-    fn planet_overlay_abort_builds_clears_queue_and_shows_notice() {
+    fn numeric_build_browse_enter_selects_unit_and_opens_quantity() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data.planets.records[0].set_stored_production_points(80);
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Char('2')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildQuantity
+        );
+        assert_eq!(
+            app.planet_overlay.build_selected_kind,
+            Some(nc_data::ProductionItemKind::Cruiser)
+        );
+    }
+
+    #[test]
+    fn planet_overlay_delete_clears_selected_kind_queue_in_place() {
         let mut app = dash_app_with_store();
         app.overlay = ActiveOverlay::PlanetList;
         app.game_data
             .append_planet_build_order(1, 10, 1)
             .expect("queue build order");
-
-        app.open_planet_build_abort_prompt();
-        assert_eq!(
-            app.planet_overlay.prompt_mode,
-            PlanetOverlayPromptMode::BuildAbortConfirm
-        );
-
-        app.handle_key(key(KeyCode::Char('y')));
+        app.open_planet_build_specify();
 
         assert_eq!(
             app.planet_overlay.prompt_mode,
-            PlanetOverlayPromptMode::None
+            PlanetOverlayPromptMode::BuildSpecify
         );
         assert_eq!(
-            app.planet_overlay.footer_notice.as_deref(),
-            Some("Build orders aborted.")
+            app.planet_overlay.build_selected_kind,
+            Some(nc_data::ProductionItemKind::Destroyer)
+        );
+
+        app.handle_key(key(KeyCode::Char('d')));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
         );
         assert!(
             nc_engine::planet_build_orders(&app.game_data.planets.records[0]).is_empty(),
-            "build queue should be cleared after confirming abort"
+            "build queue should be cleared for the selected unit"
+        );
+    }
+
+    #[test]
+    fn planet_overlay_minus_removes_one_selected_unit_in_place() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.game_data
+            .append_planet_build_order(1, 15, 1)
+            .expect("queue build order");
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Char('-')));
+
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
+        let orders = nc_engine::planet_build_orders(&app.game_data.planets.records[0]);
+        assert_eq!(orders.len(), 1);
+        assert_eq!(orders[0].points_remaining, 10);
+    }
+
+    #[test]
+    fn planet_overlay_delete_reports_empty_selected_kind_queue_inline() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Char('d')));
+
+        assert_eq!(
+            app.planet_overlay.build_unit_status.as_deref(),
+            Some("No queued units of this type.")
         );
     }
 
@@ -5011,8 +5044,8 @@ mod tests {
         app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
 
         assert!(
-            render_owned_planet_popup_line(&app, "COMMAND <- ? B D A C M L U X <ESC> ->")
-                .contains("COMMAND <- ? B D A C M L U X <ESC> ->")
+            render_owned_planet_popup_line(&app, "COMMAND <- ? B C M L U X <ESC> ->")
+                .contains("COMMAND <- ? B C M L U X <ESC> ->")
         );
     }
 
@@ -5072,20 +5105,10 @@ mod tests {
     }
 
     #[test]
-    fn owned_planet_popup_build_prompt_uses_command_line_footer() {
+    fn owned_planet_popup_build_opens_shared_overlay_with_command_line_footer() {
         let mut app = dash_app();
         let owned_coords = first_owned_planet_coords(&app);
-        let expected_record = app
-            .game_data
-            .planets
-            .records
-            .iter()
-            .enumerate()
-            .find(|(_, planet)| {
-                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
-            })
-            .map(|(idx, _)| idx + 1)
-            .expect("owned planet");
+        let expected_record = owned_planet_record_index(&app, owned_coords);
         let planet = app
             .game_data
             .planets
@@ -5099,38 +5122,27 @@ mod tests {
         app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
         app.handle_key(key(KeyCode::Char('b')));
 
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(
-            app.owned_planet_popup.mode,
-            OwnedPlanetPopupMode::BuildSpecify
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
         );
+        assert_eq!(
+            app.planet_overlay.build_planet_record_index_1_based,
+            Some(expected_record)
+        );
+        assert_eq!(app.owned_planet_popup.mode, OwnedPlanetPopupMode::Browse);
         assert!(
-            render_owned_planet_popup_line(&app, "COMMAND <- Unit [0] <ESC> ->")
-                .contains("COMMAND <- Unit [0] <ESC> ->")
+            render_dashboard_line(&app, "COMMAND <- ? + - D <ESC> [0] ->")
+                .contains("COMMAND <- ? + - D <ESC> [0] ->")
         );
     }
 
     #[test]
-    fn owned_planet_build_popup_uses_build_title_budget_and_full_bordered_table() {
+    fn owned_planet_build_overlay_uses_planet_title_instead_of_build_on_planet() {
         let mut app = dash_app();
         let owned_coords = first_owned_planet_coords(&app);
-        let expected_record = app
-            .game_data
-            .planets
-            .records
-            .iter()
-            .enumerate()
-            .find(|(_, planet)| {
-                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
-            })
-            .map(|(idx, _)| idx + 1)
-            .expect("owned planet");
-        let planet_name = app
-            .game_data
-            .empire_planet_economy_rows(app.player_record_index_1_based)
-            .into_iter()
-            .find(|row| row.planet_record_index_1_based == expected_record)
-            .map(|row| row.planet_name)
-            .expect("owned planet row");
+        let expected_record = owned_planet_record_index(&app, owned_coords);
         let planet = app
             .game_data
             .planets
@@ -5144,38 +5156,24 @@ mod tests {
         app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
         app.handle_key(key(KeyCode::Char('b')));
 
+        let title = app.planet_build_title();
+        let title_line = render_dashboard_line(&app, &title);
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(
-            app.owned_planet_popup.mode,
-            OwnedPlanetPopupMode::BuildSpecify
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
         );
-        assert!(
-            render_owned_planet_popup_line(&app, &format!("BUILD ON PLANET: {planet_name}"))
-                .contains(&format!("BUILD ON PLANET: {planet_name}"))
-        );
-        assert!(render_owned_planet_popup_line(&app, "BUDGET: ").contains("BUDGET: "));
-        assert!(render_owned_planet_popup_line(&app, "┌").contains("┌"));
-        let header_line = render_owned_planet_popup_line(&app, "Queue");
-        assert!(header_line.contains("Queue"));
-        assert!(header_line.contains("Status"));
-        assert!(render_owned_planet_popup_line(&app, "┼").contains("┼"));
-        assert!(header_line.contains("Unit"));
+        assert!(title_line.contains(&title));
+        assert!(!title_line.contains("SPECIFY BUILD ORDERS"));
+        assert!(!title_line.contains("BUILD ON PLANET"));
     }
 
     #[test]
-    fn owned_planet_build_quantity_prompt_defaults_to_max() {
+    fn owned_planet_build_quantity_stays_on_shared_overlay() {
         let mut app = dash_app();
         let owned_coords = first_owned_planet_coords(&app);
-        let expected_record = app
-            .game_data
-            .planets
-            .records
-            .iter()
-            .enumerate()
-            .find(|(_, planet)| {
-                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
-            })
-            .map(|(idx, _)| idx + 1)
-            .expect("owned planet");
+        let expected_record = owned_planet_record_index(&app, owned_coords);
         let planet = app
             .game_data
             .planets
@@ -5191,31 +5189,26 @@ mod tests {
         app.handle_key(key(KeyCode::Char('1')));
         app.handle_key(key(KeyCode::Enter));
 
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(
-            app.owned_planet_popup.mode,
-            OwnedPlanetPopupMode::BuildQuantity
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildQuantity
+        );
+        assert_eq!(
+            app.planet_overlay.build_planet_record_index_1_based,
+            Some(expected_record)
         );
         assert!(
-            render_owned_planet_popup_line(&app, "COMMAND <- Qty [MAX] <ESC> ->")
-                .contains("COMMAND <- Qty [MAX] <ESC> ->")
+            render_dashboard_line(&app, "COMMAND <- Qty [16] ->")
+                .contains("COMMAND <- Qty [16] ->")
         );
     }
 
     #[test]
-    fn owned_planet_no_budget_toast_replaces_footer_then_restores_command_line() {
+    fn owned_planet_no_budget_still_opens_build_overlay() {
         let mut app = dash_app();
         let owned_coords = first_owned_planet_coords(&app);
-        let expected_record = app
-            .game_data
-            .planets
-            .records
-            .iter()
-            .enumerate()
-            .find(|(_, planet)| {
-                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
-            })
-            .map(|(idx, _)| idx + 1)
-            .expect("owned planet");
+        let expected_record = owned_planet_record_index(&app, owned_coords);
         let planet = app
             .game_data
             .planets
@@ -5229,19 +5222,108 @@ mod tests {
         app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
         app.handle_key(key(KeyCode::Char('b')));
 
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
         assert_eq!(app.owned_planet_popup.mode, OwnedPlanetPopupMode::Browse);
-        assert!(
-            render_owned_planet_popup_line(&app, "No available budget.")
-                .contains("No available budget.")
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
         );
+        assert_eq!(app.planet_overlay.build_planet_record_index_1_based, Some(expected_record));
+    }
 
-        let start = Instant::now();
-        assert!(app.update_command_line_toast_state(start));
-        assert!(app.update_command_line_toast_state(start + Duration::from_secs(2)));
+    #[test]
+    fn popup_launched_build_escape_returns_to_owned_planet_popup() {
+        let mut app = dash_app();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = owned_planet_record_index(&app, owned_coords);
+        let planet = app
+            .game_data
+            .planets
+            .records
+            .get_mut(expected_record.saturating_sub(1))
+            .expect("owned planet record");
+        let _ = planet.set_present_production_points(80);
+        planet.set_stored_production_points(80);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+        app.handle_key(key(KeyCode::Char('b')));
+        app.handle_key(key(KeyCode::Esc));
+
+        assert_eq!(app.overlay, ActiveOverlay::None);
+        assert_eq!(app.owned_planet_popup.mode, OwnedPlanetPopupMode::Browse);
+        assert!(matches!(
+            app.popup,
+            ActivePopup::OwnedPlanet {
+                planet_record_index_1_based
+            } if planet_record_index_1_based == expected_record
+        ));
+    }
+
+    #[test]
+    fn popup_launched_build_success_stays_in_build_overlay() {
+        let mut app = dash_app_with_store();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = owned_planet_record_index(&app, owned_coords);
+        let planet = app
+            .game_data
+            .planets
+            .records
+            .get_mut(expected_record.saturating_sub(1))
+            .expect("owned planet record");
+        let _ = planet.set_present_production_points(80);
+        planet.set_stored_production_points(80);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+        app.handle_key(key(KeyCode::Char('b')));
+        app.handle_key(key(KeyCode::Char('1')));
+        app.handle_key(key(KeyCode::Enter));
+        app.handle_key(key(KeyCode::Char('1')));
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(app.owned_planet_popup.mode, OwnedPlanetPopupMode::Browse);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
+        assert_eq!(
+            app.planet_overlay.build_planet_record_index_1_based,
+            Some(expected_record)
+        );
         assert_eq!(app.owned_planet_popup.status, None);
+    }
+
+    #[test]
+    fn popup_launched_build_delete_clears_selected_kind_in_place() {
+        let mut app = dash_app_with_store();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = owned_planet_record_index(&app, owned_coords);
+        let planet = app
+            .game_data
+            .planets
+            .records
+            .get_mut(expected_record.saturating_sub(1))
+            .expect("owned planet record");
+        planet.set_build_kind_raw(0, 1);
+        planet.set_build_count_raw(0, 10);
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+        app.handle_key(key(KeyCode::Char('b')));
+        app.handle_key(key(KeyCode::Char('d')));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(app.owned_planet_popup.mode, OwnedPlanetPopupMode::Browse);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::BuildSpecify
+        );
         assert!(
-            render_owned_planet_popup_line(&app, "COMMAND <- ? B D A C M L U X <ESC> ->")
-                .contains("COMMAND <- ? B D A C M L U X <ESC> ->")
+            nc_engine::planet_build_orders(&app.game_data.planets.records[expected_record - 1])
+                .is_empty(),
+            "selected queued build should be deleted in place"
         );
     }
 
@@ -5624,6 +5706,19 @@ mod tests {
             .iter()
             .find(|planet| planet.owner_empire_slot_raw() == 1 && planet.coords_raw() != [0, 0])
             .map(|planet| planet.coords_raw())
+            .expect("owned planet")
+    }
+
+    fn owned_planet_record_index(app: &DashApp, coords: [u8; 2]) -> usize {
+        app.game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == coords
+            })
+            .map(|(idx, _)| idx + 1)
             .expect("owned planet")
     }
 

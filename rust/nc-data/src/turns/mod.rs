@@ -44,6 +44,13 @@ pub enum PlanetTurnAction {
         name: String,
     },
     ClearBuildQueue,
+    ClearBuildKind {
+        kind_raw: u8,
+    },
+    RemoveBuild {
+        qty: u16,
+        kind_raw: u8,
+    },
     Build {
         points_remaining_raw: u8,
         kind_raw: u8,

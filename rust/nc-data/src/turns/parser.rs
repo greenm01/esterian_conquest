@@ -81,6 +81,13 @@ fn parse_planet_block(node: &::kdl::KdlNode) -> Result<PlanetTurnBlock, TurnSubm
                 name: prop_string(child, "name")?,
             }),
             "clear_build_queue" => actions.push(PlanetTurnAction::ClearBuildQueue),
+            "clear_build_kind" => actions.push(PlanetTurnAction::ClearBuildKind {
+                kind_raw: parse_production_kind_raw(child)?,
+            }),
+            "remove_build" => actions.push(PlanetTurnAction::RemoveBuild {
+                qty: prop_u16(child, "qty")?,
+                kind_raw: parse_production_kind_raw(child)?,
+            }),
             "build" => actions.push(PlanetTurnAction::Build {
                 points_remaining_raw: prop_u8(child, "points")?,
                 kind_raw: parse_production_kind_raw(child)?,

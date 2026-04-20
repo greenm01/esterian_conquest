@@ -12,15 +12,8 @@ use crate::dashboard::table::{TableFooter, with_command_line_toast};
 use crate::dashboard::theme;
 use nc_data::ProductionItemKind;
 use nc_engine::{
-    ArmyTransportMode, PlanetBuildSpecifyEntry, build_unit_spec_by_kind,
-    transport_fleet_candidates_for_planet,
+    ArmyTransportMode, build_unit_spec_by_kind, transport_fleet_candidates_for_planet,
 };
-const BUILD_TABLE_NUMBER_WIDTH: usize = 2;
-const BUILD_TABLE_COST_WIDTH: usize = 4;
-const BUILD_TABLE_QUEUE_WIDTH: usize = 5;
-const BUILD_TABLE_STATUS_WIDTH: usize = 6;
-const BUILD_TABLE_MIN_UNIT_WIDTH: usize = 4;
-const BUILD_TABLE_SEPARATOR_WIDTH: usize = 1;
 
 pub fn draw(
     buf: &mut PlayfieldBuffer,
@@ -75,15 +68,6 @@ struct PopupLayout<'a> {
 
 enum PopupBody {
     Plain(Vec<String>),
-    BuildSpecify(BuildSpecifyPopupLayout),
-}
-
-#[derive(Debug, Clone)]
-struct BuildSpecifyPopupLayout {
-    budget_title: String,
-    body_width: usize,
-    table_height: usize,
-    entries: Vec<PlanetBuildSpecifyEntry>,
 }
 
 fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> {
@@ -97,64 +81,11 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
                     app,
                     TableFooter::CommandPrompt {
                         label: "COMMAND",
-                        prompt: "? B D A C M L U X <ESC> ->",
+                        prompt: "? B C M L U X <ESC> ->",
                     },
                 ),
             )
         }
-        OwnedPlanetPopupMode::BuildList => plain_popup_layout(
-            build_popup_title(app),
-            wrap_plain_lines(&build_list_lines(app), max_body_width),
-            command_line_toast_footer(
-                app,
-                TableFooter::CommandPrompt {
-                    label: "COMMAND",
-                    prompt: "<ESC> ->",
-                },
-            ),
-        ),
-        OwnedPlanetPopupMode::BuildAbortConfirm => plain_popup_layout(
-            build_popup_title(app),
-            vec![String::from("Abort all queued builds for this planet?")],
-            command_line_toast_footer(
-                app,
-                TableFooter::CommandPrompt {
-                    label: "COMMAND",
-                    prompt: "Abort queued builds? Y/[N] ->",
-                },
-            ),
-        ),
-        OwnedPlanetPopupMode::BuildSpecify => {
-            let build = build_specify_popup_layout(app, max_body_width);
-            PopupLayout {
-                title: build_popup_title(app),
-                body_width: build.body_width,
-                body_height: build_specify_body_height(&build),
-                footer: command_line_toast_footer(
-                    app,
-                    TableFooter::CommandInput {
-                        label: "COMMAND",
-                        prompt: "Unit ",
-                        default: "0",
-                        input: &app.owned_planet_popup.input,
-                    },
-                ),
-                body: PopupBody::BuildSpecify(build),
-            }
-        }
-        OwnedPlanetPopupMode::BuildQuantity => plain_popup_layout(
-            build_popup_title(app),
-            wrap_plain_lines(&build_quantity_lines(app), max_body_width),
-            command_line_toast_footer(
-                app,
-                TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt: "Qty ",
-                    default: "MAX",
-                    input: &app.owned_planet_popup.input,
-                },
-            ),
-        ),
         OwnedPlanetPopupMode::CommissionSelect => {
             let default = if app.owned_planet_popup.default.is_empty() {
                 "01"
@@ -316,187 +247,17 @@ fn plain_popup_layout<'a>(
 }
 
 fn draw_popup_body(buf: &mut PlayfieldBuffer, frame: OverlayFrame, body: PopupBody) {
-    match body {
-        PopupBody::Plain(lines) => {
-            for (idx, line) in lines.into_iter().enumerate().take(frame.body_height) {
-                layout::write_clipped(
-                    buf,
-                    frame.body_row + idx,
-                    frame.body_col,
-                    frame.body_width,
-                    &line,
-                    theme::value_style(),
-                );
-            }
-        }
-        PopupBody::BuildSpecify(build) => {
-            render_build_specify_playfield(buf, frame, &build);
-        }
-    }
-}
-
-fn render_build_specify_playfield(
-    buf: &mut PlayfieldBuffer,
-    frame: OverlayFrame,
-    layout: &BuildSpecifyPopupLayout,
-) {
-    if frame.body_width < 3 || frame.body_height < 4 {
-        return;
-    }
-
-    let top = frame.body_row;
-    let left = frame.body_col;
-    let bottom = frame.body_row + frame.body_height.saturating_sub(1);
-    let right = frame.body_col + frame.body_width.saturating_sub(1);
-    let chrome = theme::table_chrome_style();
-
-    for col in left..=right {
-        buf.set_cell(top, col, '─', chrome);
-        buf.set_cell(bottom, col, '─', chrome);
-    }
-    for row in top..=bottom {
-        buf.set_cell(row, left, '│', chrome);
-        buf.set_cell(row, right, '│', chrome);
-    }
-    buf.set_cell(top, left, '┌', chrome);
-    buf.set_cell(top, right, '┐', chrome);
-    buf.set_cell(bottom, left, '└', chrome);
-    buf.set_cell(bottom, right, '┘', chrome);
-
-    let title_width = layout
-        .budget_title
-        .chars()
-        .count()
-        .min(frame.body_width.saturating_sub(4));
-    if title_width > 0 {
-        let title_col = left + frame.body_width.saturating_sub(title_width + 2);
+    let PopupBody::Plain(lines) = body;
+    for (idx, line) in lines.into_iter().enumerate().take(frame.body_height) {
         layout::write_clipped(
             buf,
-            top,
-            title_col,
-            title_width,
-            &layout.budget_title,
-            theme::label_style(),
+            frame.body_row + idx,
+            frame.body_col,
+            frame.body_width,
+            &line,
+            theme::value_style(),
         );
     }
-
-    let inner_width = frame.body_width.saturating_sub(2);
-    let unit_width = inner_width
-        .saturating_sub(
-            BUILD_TABLE_NUMBER_WIDTH
-                + BUILD_TABLE_SEPARATOR_WIDTH
-                + BUILD_TABLE_SEPARATOR_WIDTH
-                + BUILD_TABLE_COST_WIDTH
-                + BUILD_TABLE_SEPARATOR_WIDTH
-                + BUILD_TABLE_QUEUE_WIDTH
-                + BUILD_TABLE_SEPARATOR_WIDTH
-                + BUILD_TABLE_STATUS_WIDTH,
-        )
-        .max(BUILD_TABLE_MIN_UNIT_WIDTH);
-
-    let header = format!(
-        "{:>2}│{:<unit_width$}│{:>4}│{:>5}│{:<6}",
-        "#", "Unit", "Cost", "Queue", "Status"
-    );
-    layout::write_clipped(
-        buf,
-        top + 1,
-        left + 1,
-        inner_width,
-        &header,
-        theme::table_header_style(),
-    );
-
-    let divider = format!(
-        "{}┼{}┼{}┼{}┼{}",
-        "─".repeat(BUILD_TABLE_NUMBER_WIDTH),
-        "─".repeat(unit_width),
-        "─".repeat(BUILD_TABLE_COST_WIDTH),
-        "─".repeat(BUILD_TABLE_QUEUE_WIDTH),
-        "─".repeat(BUILD_TABLE_STATUS_WIDTH),
-    );
-    layout::write_clipped(
-        buf,
-        top + 2,
-        left + 1,
-        inner_width,
-        &divider,
-        theme::table_chrome_style(),
-    );
-
-    for (offset, entry) in layout.entries.iter().enumerate() {
-        let row = top + 3 + offset;
-        if row >= bottom {
-            break;
-        }
-        let status = if entry.selectable { "" } else { "FULL" };
-        let line = format!(
-            "{:>2}│{:<unit_width$}│{:>4}│{:>5}│{:<6}",
-            format!("{:02}", entry.number),
-            entry.label,
-            entry.cost,
-            entry.queued_qty,
-            status,
-        );
-        let style = if entry.selectable {
-            theme::table_body_style()
-        } else {
-            theme::dim_style()
-        };
-        layout::write_clipped(buf, row, left + 1, inner_width, &line, style);
-    }
-}
-
-fn build_specify_popup_layout(app: &DashApp, max_body_width: usize) -> BuildSpecifyPopupLayout {
-    let entries = app.owned_planet_build_entries();
-    let fixed_width = BUILD_TABLE_NUMBER_WIDTH
-        + BUILD_TABLE_SEPARATOR_WIDTH
-        + BUILD_TABLE_SEPARATOR_WIDTH
-        + BUILD_TABLE_COST_WIDTH
-        + BUILD_TABLE_SEPARATOR_WIDTH
-        + BUILD_TABLE_QUEUE_WIDTH
-        + BUILD_TABLE_SEPARATOR_WIDTH
-        + BUILD_TABLE_STATUS_WIDTH
-        + 2;
-    let natural_unit_width = entries
-        .iter()
-        .map(|entry| entry.label.chars().count())
-        .max()
-        .unwrap_or("Unit".chars().count())
-        .max("Unit".chars().count());
-    let unit_width = natural_unit_width
-        .min(max_body_width.saturating_sub(fixed_width))
-        .max(BUILD_TABLE_MIN_UNIT_WIDTH);
-    let budget_title = format!("BUDGET: {}", app.owned_planet_build_budget());
-    let title_width = build_popup_title(app).chars().count().min(max_body_width);
-    let table_total_width = (fixed_width + unit_width).min(max_body_width.max(fixed_width));
-    let body_width = table_total_width
-        .max(budget_title.chars().count())
-        .max(title_width);
-    BuildSpecifyPopupLayout {
-        budget_title,
-        body_width,
-        table_height: entries.len() + 4,
-        entries,
-    }
-}
-
-fn build_specify_body_height(layout: &BuildSpecifyPopupLayout) -> usize {
-    layout.table_height
-}
-
-fn build_popup_title(app: &DashApp) -> String {
-    format!("BUILD ON PLANET: {}", popup_planet_name(app))
-}
-
-fn popup_planet_name(app: &DashApp) -> String {
-    app.owned_planet_row()
-        .map(|planet| planet.planet_name)
-        .or_else(|| {
-            app.owned_planet_record()
-                .map(|planet| planet.status_or_name_summary())
-        })
-        .unwrap_or_else(|| String::from("Unknown"))
 }
 
 fn max_line_width(lines: &[String]) -> usize {
@@ -516,31 +277,6 @@ fn browse_lines(app: &DashApp, max_body_width: usize) -> Vec<String> {
             )
         })
         .unwrap_or_else(|| vec![String::from("No planet selected.")])
-}
-
-fn build_list_lines(app: &DashApp) -> Vec<String> {
-    let mut lines = vec![String::from("Queued build orders:")];
-    for entry in app.owned_planet_build_list_entries() {
-        lines.push(format!(
-            "{:<16} qty {:>3}  cost {:>3}",
-            build_item_label(entry.kind),
-            entry.queue_qty,
-            entry.points
-        ));
-    }
-    lines
-}
-
-fn build_quantity_lines(app: &DashApp) -> Vec<String> {
-    let kind = app
-        .owned_planet_popup
-        .build_selected_kind
-        .unwrap_or(ProductionItemKind::Destroyer);
-    let label = build_item_label(kind);
-    vec![
-        format!("Selected unit: {label}"),
-        format!("Maximum quantity: {}", app.owned_planet_popup.default),
-    ]
 }
 
 fn commission_lines(app: &DashApp) -> Vec<String> {

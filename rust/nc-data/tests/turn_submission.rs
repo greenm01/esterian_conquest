@@ -151,6 +151,90 @@ tax rate=20
 }
 
 #[test]
+fn turn_submission_clear_build_kind_round_trips_and_clears_only_selected_kind() {
+    let mut data = build_seeded_initialized_game(4, 3000, 1515).unwrap();
+    let planet_record_index_1_based = data
+        .planets
+        .records
+        .iter()
+        .position(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|idx| idx + 1)
+        .unwrap();
+    let planet = &mut data.planets.records[planet_record_index_1_based - 1];
+    planet.set_build_kind_raw(0, 1);
+    planet.set_build_count_raw(0, 10);
+    planet.set_build_kind_raw(1, 2);
+    planet.set_build_count_raw(1, 30);
+
+    let submission = TurnSubmission::parse_kdl_str(&format!(
+        r#"
+turn player=1 year=3000
+planet record={planet_record_index_1_based} {{
+  clear_build_kind kind="destroyer"
+}}
+"#
+    ))
+    .expect("parse clear_build_kind");
+
+    assert_eq!(
+        TurnSubmission::parse_kdl_str(&submission.to_kdl_string()).expect("round-trip parse"),
+        submission
+    );
+
+    submission
+        .apply_to(&mut data, &mut Vec::new())
+        .expect("apply clear_build_kind");
+
+    let planet = &data.planets.records[planet_record_index_1_based - 1];
+    assert_eq!(planet.build_kind_raw(0), 0);
+    assert_eq!(planet.build_count_raw(0), 0);
+    assert_eq!(planet.build_kind_raw(1), 2);
+    assert_eq!(planet.build_count_raw(1), 30);
+}
+
+#[test]
+fn turn_submission_remove_build_round_trips_and_removes_one_unit_of_selected_kind() {
+    let mut data = build_seeded_initialized_game(4, 3000, 1515).unwrap();
+    let planet_record_index_1_based = data
+        .planets
+        .records
+        .iter()
+        .position(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|idx| idx + 1)
+        .unwrap();
+    let planet = &mut data.planets.records[planet_record_index_1_based - 1];
+    planet.set_build_kind_raw(0, 1);
+    planet.set_build_count_raw(0, 15);
+    planet.set_build_kind_raw(1, 2);
+    planet.set_build_count_raw(1, 30);
+
+    let submission = TurnSubmission::parse_kdl_str(&format!(
+        r#"
+turn player=1 year=3000
+planet record={planet_record_index_1_based} {{
+  remove_build kind="destroyer" qty=1
+}}
+"#
+    ))
+    .expect("parse remove_build");
+
+    assert_eq!(
+        TurnSubmission::parse_kdl_str(&submission.to_kdl_string()).expect("round-trip parse"),
+        submission
+    );
+
+    submission
+        .apply_to(&mut data, &mut Vec::new())
+        .expect("apply remove_build");
+
+    let planet = &data.planets.records[planet_record_index_1_based - 1];
+    assert_eq!(planet.build_kind_raw(0), 1);
+    assert_eq!(planet.build_count_raw(0), 10);
+    assert_eq!(planet.build_kind_raw(1), 2);
+    assert_eq!(planet.build_count_raw(1), 30);
+}
+
+#[test]
 fn turn_submission_rejects_duplicate_friendly_colonize_targets_without_mutation() {
     let mut data = build_seeded_initialized_game(4, 3000, 1515).unwrap();
     let fleet_indexes = data

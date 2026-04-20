@@ -34,6 +34,38 @@ impl DashApp {
         });
     }
 
+    pub(crate) fn stage_hosted_planet_clear_build_kind(
+        &mut self,
+        planet_record_index_1_based: usize,
+        kind_raw: u8,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = planet_actions_mut(submission, planet_record_index_1_based);
+        actions.retain(|action| {
+            !matches!(
+                action,
+                PlanetTurnAction::Build {
+                    kind_raw: existing_kind_raw,
+                    ..
+                } if *existing_kind_raw == kind_raw
+            ) && !matches!(
+                action,
+                PlanetTurnAction::RemoveBuild {
+                    kind_raw: existing_kind_raw,
+                    ..
+                } if *existing_kind_raw == kind_raw
+            ) && !matches!(
+                action,
+                PlanetTurnAction::ClearBuildKind {
+                    kind_raw: existing_kind_raw,
+                } if *existing_kind_raw == kind_raw
+            )
+        });
+        actions.push(PlanetTurnAction::ClearBuildKind { kind_raw });
+    }
+
     pub(crate) fn stage_hosted_planet_clear_build_queue(
         &mut self,
         planet_record_index_1_based: usize,
@@ -46,11 +78,26 @@ impl DashApp {
             !matches!(
                 action,
                 PlanetTurnAction::ClearBuildQueue
+                    | PlanetTurnAction::ClearBuildKind { .. }
+                    | PlanetTurnAction::RemoveBuild { .. }
                     | PlanetTurnAction::Build { .. }
                     | PlanetTurnAction::Commission { .. }
             )
         });
         actions.insert(0, PlanetTurnAction::ClearBuildQueue);
+    }
+
+    pub(crate) fn stage_hosted_planet_remove_build(
+        &mut self,
+        planet_record_index_1_based: usize,
+        qty: u16,
+        kind_raw: u8,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        let actions = planet_actions_mut(submission, planet_record_index_1_based);
+        actions.push(PlanetTurnAction::RemoveBuild { qty, kind_raw });
     }
 
     pub(crate) fn stage_hosted_planet_commission(

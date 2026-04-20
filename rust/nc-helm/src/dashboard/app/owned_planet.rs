@@ -1,12 +1,9 @@
 use nc_data::{
     AutoCommissionEntry, AutoCommissionFleetEntry, AutoCommissionStarbaseEntry, CommissionResult,
-    EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind,
+    EmpirePlanetEconomyRow, PlanetRecord,
 };
 use nc_engine::{
-    ArmyTransportMode, PlanetCommissionSlotEntry, build_unit_spec, build_unit_spec_by_kind,
-    planet_build_list_entries, planet_build_max_quantity, planet_build_orders,
-    planet_build_specify_entries, planet_build_unavailable_message, planet_build_view,
-    planet_commission_slot_entries, production_item_kind_raw,
+    ArmyTransportMode, PlanetCommissionSlotEntry, planet_commission_slot_entries,
     resolve_planet_transport_fleet_selection, transport_fleet_candidates_for_planet,
 };
 
@@ -43,7 +40,6 @@ impl DashApp {
         self.owned_planet_popup.input.clear();
         self.owned_planet_popup.default.clear();
         self.owned_planet_popup.status = None;
-        self.owned_planet_popup.build_selected_kind = None;
         self.owned_planet_popup
             .transport_selected_fleet_record_index_1_based = None;
         self.owned_planet_popup.transport_selected_fleet_number = None;
@@ -69,70 +65,13 @@ impl DashApp {
             .find(|row| row.planet_record_index_1_based == record)
     }
 
-    pub(crate) fn owned_planet_build_orders(&self) -> Vec<nc_engine::PlanetBuildOrderLine> {
-        self.owned_planet_record()
-            .map(planet_build_orders)
-            .unwrap_or_default()
-    }
-
-    pub(crate) fn owned_planet_build_entries(&self) -> Vec<nc_engine::PlanetBuildSpecifyEntry> {
-        let Some(view) = self.owned_planet_build_view() else {
-            return Vec::new();
-        };
-        planet_build_specify_entries(view.points_left, &self.owned_planet_build_orders())
-    }
-
-    pub(crate) fn owned_planet_build_budget(&self) -> u32 {
-        self.owned_planet_build_view()
-            .map(|view| view.points_left)
-            .unwrap_or_default()
-    }
-
-    pub(crate) fn owned_planet_build_view(
-        &self,
-    ) -> Option<super::planet_build::PlanetBuildOverlayView> {
-        let record = self.owned_planet_popup_record_index_1_based()?;
-        let row = self
-            .game_data
-            .empire_planet_economy_rows(self.player_record_index_1_based)
-            .into_iter()
-            .find(|row| row.planet_record_index_1_based == record)?;
-        let view = planet_build_view(&self.game_data, &row).ok()?;
-        Some(super::planet_build::PlanetBuildOverlayView {
-            row,
-            points_left: view.points_left,
-        })
-    }
-
-    pub(crate) fn owned_planet_build_list_entries(&self) -> Vec<nc_engine::PlanetBuildListEntry> {
-        self.owned_planet_record()
-            .map(planet_build_list_entries)
-            .unwrap_or_default()
-    }
-
     pub(crate) fn open_owned_planet_build_specify(&mut self) {
-        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::BuildSpecify);
-        if !self.owned_planet_can_afford_any_build() {
-            self.owned_planet_popup.status = Some("No available budget.".to_string());
-            self.owned_planet_popup.mode = OwnedPlanetPopupMode::Browse;
+        let Some(record) = self.owned_planet_popup_record_index_1_based() else {
+            self.close_owned_planet_popup();
             return;
-        }
-    }
-
-    pub(crate) fn open_owned_planet_build_list(&mut self) {
-        if self.owned_planet_build_list_entries().is_empty() {
-            self.show_owned_planet_status("No build orders are queued.");
-            return;
-        }
-        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::BuildList);
-    }
-
-    pub(crate) fn open_owned_planet_build_abort_confirm(&mut self) {
-        if self.owned_planet_build_list_entries().is_empty() {
-            self.show_owned_planet_status("No build orders are queued.");
-            return;
-        }
-        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::BuildAbortConfirm);
+        };
+        self.owned_planet_popup.status = None;
+        self.open_planet_build_specify_for_record(record);
     }
 
     pub(crate) fn append_owned_planet_input_char(&mut self, ch: char) {
@@ -143,126 +82,6 @@ impl DashApp {
     pub(crate) fn backspace_owned_planet_input(&mut self) {
         self.owned_planet_popup.input.pop();
         self.owned_planet_popup.status = None;
-    }
-
-    pub(crate) fn submit_owned_planet_build_unit(&mut self) {
-        let raw = self.owned_planet_popup.input.trim();
-        let number = if raw.is_empty() {
-            0
-        } else if let Ok(value) = raw.parse::<u8>() {
-            value
-        } else {
-            self.owned_planet_popup.status = Some("Enter a valid unit number.".to_string());
-            return;
-        };
-        if number == 0 {
-            self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-            return;
-        }
-        let Some(unit) = build_unit_spec(number) else {
-            self.owned_planet_popup.status = Some("That unit is not available.".to_string());
-            return;
-        };
-        let Ok(max_qty) = self.owned_planet_build_max_quantity_for(unit.kind) else {
-            self.owned_planet_popup.status = Some("No build budget available.".to_string());
-            return;
-        };
-        if max_qty == 0 {
-            self.owned_planet_popup.status =
-                Some(self.owned_planet_build_unavailable_message(unit.kind));
-            return;
-        }
-        self.owned_planet_popup.mode = OwnedPlanetPopupMode::BuildQuantity;
-        self.owned_planet_popup.input.clear();
-        self.owned_planet_popup.default = max_qty.to_string();
-        self.owned_planet_popup.status = None;
-        self.owned_planet_popup.build_selected_kind = Some(unit.kind);
-    }
-
-    pub(crate) fn submit_owned_planet_build_quantity(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(kind) = self.owned_planet_popup.build_selected_kind else {
-            self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-            return Ok(());
-        };
-        let Some(unit) = build_unit_spec_by_kind(kind) else {
-            self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-            return Ok(());
-        };
-        let max_qty = self.owned_planet_build_max_quantity_for(kind)?;
-        if max_qty == 0 {
-            self.owned_planet_popup.status =
-                Some(self.owned_planet_build_unavailable_message(kind));
-            return Ok(());
-        }
-        let raw = self.owned_planet_popup.input.trim();
-        let qty = if raw.is_empty() || raw.eq_ignore_ascii_case("max") {
-            max_qty
-        } else {
-            match raw.parse::<u32>() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.owned_planet_popup.status = Some("Enter a valid quantity.".to_string());
-                    return Ok(());
-                }
-            }
-        };
-        if qty == 0 {
-            self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-            return Ok(());
-        }
-        if qty > max_qty {
-            self.owned_planet_popup.status = Some(format!("Enter a quantity from 0 to {max_qty}."));
-            return Ok(());
-        }
-        let Some(record) = self.owned_planet_popup_record_index_1_based() else {
-            self.close_owned_planet_popup();
-            return Ok(());
-        };
-        let needs_stardock = !matches!(
-            kind,
-            ProductionItemKind::Army | ProductionItemKind::GroundBattery
-        );
-        if needs_stardock
-            && self
-                .game_data
-                .planet_additional_build_points_capacity(record, kind)?
-                == 0
-        {
-            self.owned_planet_popup.status =
-                Some("Stardock is full — commission ships first to free space.".to_string());
-            return Ok(());
-        }
-        let points = qty.saturating_mul(unit.cost);
-        self.game_data
-            .append_planet_build_order(record, points, production_item_kind_raw(kind))?;
-        if let Ok(points_remaining_raw) = u8::try_from(points) {
-            self.stage_hosted_planet_build(
-                record,
-                points_remaining_raw,
-                production_item_kind_raw(kind),
-            );
-        }
-        self.save_and_refresh_runtime()?;
-        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-        self.show_owned_planet_status(format!("Queued {} {}.", qty, unit.label));
-        Ok(())
-    }
-
-    pub(crate) fn confirm_owned_planet_build_abort(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(record) = self.owned_planet_popup_record_index_1_based() else {
-            self.close_owned_planet_popup();
-            return Ok(());
-        };
-        self.game_data.clear_planet_build_queue(record)?;
-        self.stage_hosted_planet_clear_build_queue(record);
-        self.save_and_refresh_runtime()?;
-        self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::Browse);
-        self.show_owned_planet_status("Build orders aborted.");
-        Ok(())
     }
 
     pub(crate) fn open_owned_planet_commission_select(&mut self) {
@@ -535,31 +354,6 @@ impl DashApp {
         self.owned_planet_popup.status = Some(message.into());
         self.owned_planet_popup.input.clear();
         self.owned_planet_popup.default.clear();
-        self.owned_planet_popup.build_selected_kind = None;
-    }
-
-    fn owned_planet_build_max_quantity_for(
-        &self,
-        kind: ProductionItemKind,
-    ) -> Result<u32, Box<dyn std::error::Error>> {
-        let Some(view) = self.owned_planet_build_view() else {
-            return Ok(0);
-        };
-        planet_build_max_quantity(&self.game_data, &view.row, kind).map_err(Into::into)
-    }
-
-    fn owned_planet_can_afford_any_build(&self) -> bool {
-        !self
-            .owned_planet_build_entries()
-            .into_iter()
-            .all(|entry| !entry.selectable)
-    }
-
-    fn owned_planet_build_unavailable_message(&self, kind: ProductionItemKind) -> String {
-        let Some(view) = self.owned_planet_build_view() else {
-            return "No build budget available.".to_string();
-        };
-        planet_build_unavailable_message(view.points_left, kind).to_string()
     }
 
     fn format_commission_result_line(&self, result: CommissionResult) -> String {

@@ -94,10 +94,6 @@ pub enum ActivePopup {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OwnedPlanetPopupMode {
     Browse,
-    BuildList,
-    BuildAbortConfirm,
-    BuildSpecify,
-    BuildQuantity,
     CommissionSelect,
     CommissionResult,
     MassCommissionConfirm,
@@ -115,7 +111,6 @@ pub struct OwnedPlanetPopupState {
     pub input: String,
     pub default: String,
     pub status: Option<String>,
-    pub build_selected_kind: Option<ProductionItemKind>,
     pub transport_selected_fleet_record_index_1_based: Option<usize>,
     pub transport_selected_fleet_number: Option<u16>,
     pub transport_available_qty: u16,
@@ -129,7 +124,6 @@ impl Default for OwnedPlanetPopupState {
             input: String::new(),
             default: String::new(),
             status: None,
-            build_selected_kind: None,
             transport_selected_fleet_record_index_1_based: None,
             transport_selected_fleet_number: None,
             transport_available_qty: 0,
@@ -299,8 +293,6 @@ pub enum PlanetOverlayPromptMode {
     SortMenu,
     FilterMenu,
     FilterValueInput,
-    BuildList,
-    BuildAbortConfirm,
     BuildSpecify,
     BuildQuantity,
 }
@@ -332,9 +324,9 @@ pub struct PlanetOverlayState {
     pub pending_range_anchor: Option<[u8; 2]>,
     pub prompt_stack: Vec<PlanetOverlayPromptFrame>,
     pub build_planet_record_index_1_based: Option<usize>,
-    pub build_unit_input: String,
     pub build_unit_status: Option<String>,
     pub build_selected_kind: Option<ProductionItemKind>,
+    pub build_unit_input: String,
     pub build_quantity_input: String,
     pub build_quantity_status: Option<String>,
 }
@@ -360,9 +352,9 @@ impl Default for PlanetOverlayState {
             pending_range_anchor: None,
             prompt_stack: Vec::new(),
             build_planet_record_index_1_based: None,
-            build_unit_input: String::new(),
             build_unit_status: None,
             build_selected_kind: None,
+            build_unit_input: String::new(),
             build_quantity_input: String::new(),
             build_quantity_status: None,
         }

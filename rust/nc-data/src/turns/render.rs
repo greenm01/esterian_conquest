@@ -48,6 +48,15 @@ fn render_planet_block(out: &mut String, planet: &PlanetTurnBlock) {
                 out.push_str(&format!("  rename name=\"{}\"\n", kdl_escape(name)));
             }
             PlanetTurnAction::ClearBuildQueue => out.push_str("  clear_build_queue\n"),
+            PlanetTurnAction::ClearBuildKind { kind_raw } => out.push_str(&format!(
+                "  clear_build_kind kind=\"{}\"\n",
+                production_kind_name(*kind_raw)
+            )),
+            PlanetTurnAction::RemoveBuild { qty, kind_raw } => out.push_str(&format!(
+                "  remove_build kind=\"{}\" qty={}\n",
+                production_kind_name(*kind_raw),
+                qty
+            )),
             PlanetTurnAction::Build {
                 points_remaining_raw,
                 kind_raw,

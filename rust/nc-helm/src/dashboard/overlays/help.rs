@@ -77,10 +77,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("S", "Open Settings"),
             ("Alt-Q", "Quit nc-dash"),
             ("?", "Open this helper"),
-            ("Esc", "Close overlay or cancel the current prompt"),
             ("Tab", "Cycle dashboard focus"),
             ("Shift+Tab", "Cycle dashboard focus backward"),
-            ("Enter", "Open planet detail for the selected world"),
             ("XX,YY", "Jump crosshair to real map coordinates"),
             ("[", "Jump to the previous planet on the map"),
             ("]", "Jump to the next planet on the map"),
@@ -107,24 +105,18 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         ],
         HelpContext::OwnedPlanetPopup => vec![
             ("B", "Specify new build orders for this planet"),
-            ("D", "Display queued build orders for this planet"),
-            ("A", "Abort queued build orders for this planet"),
             ("C", "Commission a completed stardock slot"),
             ("M", "Automatically commission all completed stardock slots"),
             ("L", "Load armies from this planet onto a fleet in orbit"),
             ("U", "Unload armies from a fleet in orbit onto this planet"),
             ("X", "Stage a scorch order for this planet"),
-            ("Esc", "Close this popup or back out of the current prompt"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetList => vec![
             ("F", "Open the planet-list filter prompt"),
             ("S", "Open the planet-list sort menu"),
             ("B", "Specify new build orders for the selected planet"),
-            ("D", "Display queued build orders for the selected planet"),
-            ("A", "Abort queued build orders for the selected planet"),
             ("Coords", "Typed jump; exact match clears the footer input"),
-            ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetListSort => vec![
@@ -138,8 +130,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Ambiguous prefixes stay open and show matching codes",
             ),
             ("Repeat", "Same sort flips ASC/DESC"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetListFilter => vec![
@@ -155,30 +145,21 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Coords", "coo accepts xx,yy or xx,yy/r"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),
             ("all", "Clear the current filter"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::PromptInput => vec![
             ("Type", "Enter the value shown on the command line"),
-            ("Enter", "Accept the current prompt"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetBuildSpecify => vec![
-            ("Type", "Enter a build-unit number"),
-            ("0", "Return to the planet list"),
-            ("Enter", "Accept the selected unit"),
-            ("Esc", "Return to the planet list"),
-            ("Esc", "Return to the planet list"),
+            ("Type", "Enter a unit number, then press Enter"),
             ("?", "Open this helper"),
+            ("+", "Queue one unit of the highlighted type"),
+            ("-", "Remove one queued unit of the highlighted type"),
+            ("D", "Clear queued builds for the highlighted unit type"),
         ],
         HelpContext::PlanetBuildQuantity => vec![
             ("Type", "Enter the quantity to queue"),
-            ("Enter", "Queue that many units"),
-            ("Esc", "Return to unit selection"),
-            ("Esc", "Return to unit selection"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetList => vec![
@@ -196,8 +177,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Fleet / SB ID",
                 "Typed jump; exact match clears the footer input",
             ),
-            ("Esc", "Close this overlay"),
-            ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetListSort => vec![
@@ -208,8 +187,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Ambiguous prefixes stay open and show matching codes",
             ),
             ("Repeat", "Same sort flips ASC/DESC"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetListFilter => vec![
@@ -222,44 +199,31 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Order", "ord also accepts holding, moving, and combat"),
             ("Selected", "sel accepts yes/no, selected, unselected, or x"),
             ("all", "Clear the current filter"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetMissionPicker => vec![
             ("Type", "Enter a mission number from 0 to 15"),
-            ("Enter", "Choose the current mission"),
             ("Up/Down", "Move between enabled missions"),
             ("PgUp/PgDn", "Page through the mission list"),
             (
                 "Filter",
                 "Only missions valid for all selected fleets stay enabled",
             ),
-            ("Esc", "Return to the fleet list"),
-            ("Esc", "Return to the fleet list"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetOrderInput => vec![
             ("Type", "Enter the requested target or confirm input"),
-            ("Enter", "Accept the current step"),
-            ("Esc", "Return to the previous order step"),
-            ("Esc", "Return to the previous order step"),
             ("?", "Open this helper"),
         ],
         HelpContext::StarbaseMove => vec![
             ("M", "Move the selected starbase"),
             ("H", "Halt the selected starbase"),
-            ("Enter", "Accept the current move step"),
-            ("Esc", "Return to the fleet list"),
-            ("Esc", "Return to the fleet list"),
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabase => vec![
             ("F", "Open the database filter prompt"),
             ("S", "Open the database sort menu"),
             ("Coords", "Typed jump; exact match clears the footer input"),
-            ("Esc", "Close this overlay"),
-            ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabaseSort => vec![
@@ -271,8 +235,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Ambiguous prefixes stay open and show matching codes",
             ),
             ("Repeat", "Same sort flips ASC/DESC"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabaseFilter => vec![
@@ -286,8 +248,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Unknown", "Use ? for unknown database values"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),
             ("all", "Clear the current filter"),
-            ("Esc", "Return to the table"),
-            ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
         HelpContext::Inbox => vec![
@@ -301,21 +261,13 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Visible ID",
                 "Typed jump; exact match clears the footer input",
             ),
-            ("Esc", "Close this overlay"),
-            ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
         ],
-        HelpContext::Diplomacy => vec![
-            ("Esc", "Close this overlay"),
-            ("Esc", "Close this overlay"),
-            ("?", "Open this helper"),
-        ],
+        HelpContext::Diplomacy => vec![("?", "Open this helper")],
         HelpContext::Settings => vec![
             ("M", "Toggle hover-follow crosshair on the map"),
             ("G", "Toggle full dense map-grid dots"),
             ("Clicks", "Always move the crosshair and run sector actions"),
-            ("Esc", "Close this overlay"),
-            ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
         ],
     })
@@ -372,7 +324,7 @@ mod tests {
         assert!(!inbox.iter().any(|line| line.contains("Enter")));
 
         let diplomacy = help_lines(HelpContext::Diplomacy);
-        assert_eq!(diplomacy.len(), 3);
+        assert_eq!(diplomacy.len(), 1);
         assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
 
         let settings = help_lines(HelpContext::Settings);
@@ -420,6 +372,38 @@ mod tests {
         assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));
+    }
+
+    #[test]
+    fn help_overlay_omits_implied_navigation_rows() {
+        for context in [
+            HelpContext::Global,
+            HelpContext::OwnedPlanetPopup,
+            HelpContext::PlanetList,
+            HelpContext::PlanetListSort,
+            HelpContext::PlanetListFilter,
+            HelpContext::PromptInput,
+            HelpContext::PlanetBuildSpecify,
+            HelpContext::PlanetBuildQuantity,
+            HelpContext::FleetList,
+            HelpContext::FleetListSort,
+            HelpContext::FleetListFilter,
+            HelpContext::FleetMissionPicker,
+            HelpContext::FleetOrderInput,
+            HelpContext::StarbaseMove,
+            HelpContext::IntelDatabase,
+            HelpContext::IntelDatabaseSort,
+            HelpContext::IntelDatabaseFilter,
+            HelpContext::Inbox,
+            HelpContext::Diplomacy,
+            HelpContext::Settings,
+        ] {
+            let lines = help_lines(context);
+            assert!(!lines.iter().any(|line| line.starts_with("Arrows")));
+            assert!(!lines.iter().any(|line| line.starts_with("H J K L")));
+            assert!(!lines.iter().any(|line| line.starts_with("Enter")));
+            assert!(!lines.iter().any(|line| line.starts_with("Esc")));
+        }
     }
 
     #[test]

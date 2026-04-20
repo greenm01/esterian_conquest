@@ -151,6 +151,8 @@ pub fn with_command_line_toast<'a>(
 pub struct SplitTableRow {
     pub left_cells: Vec<String>,
     pub right_cells: Vec<String>,
+    pub left_selected: bool,
+    pub right_selected: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1149,6 +1151,7 @@ pub fn write_split_table_at(
     rows: &[SplitTableRow],
     style: CellStyle,
 ) -> TableRenderMetrics {
+    let theme = TableRenderTheme::classic();
     let combined_columns = left_columns
         .iter()
         .chain(right_columns.iter())
@@ -1165,7 +1168,7 @@ pub fn write_split_table_at(
         })
         .collect::<Vec<_>>();
 
-    write_table_window_with_states_at(
+    let metrics = write_table_window_with_states_at(
         buffer,
         start_row,
         start_col,
@@ -1178,7 +1181,36 @@ pub fn write_split_table_at(
         None,
         0,
         None,
-    )
+    );
+
+    for (idx, row) in rows.iter().enumerate() {
+        let rendered_row = combined_rows.get(idx).map(Vec::as_slice).unwrap_or(&[]);
+        let refs = rendered_row.iter().map(String::as_str).collect::<Vec<_>>();
+        if row.left_selected {
+            highlight_selected_row_cells(
+                buffer,
+                start_row + 3 + idx,
+                start_col,
+                &combined_columns,
+                &refs,
+                0..left_columns.len(),
+                theme.selected_style,
+            );
+        }
+        if row.right_selected {
+            highlight_selected_row_cells(
+                buffer,
+                start_row + 3 + idx,
+                start_col,
+                &combined_columns,
+                &refs,
+                left_columns.len()..combined_columns.len(),
+                theme.selected_style,
+            );
+        }
+    }
+
+    metrics
 }
 
 pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
@@ -1415,6 +1447,28 @@ fn highlight_selected_row_cell(
         &rendered,
         selected_style,
     );
+}
+
+fn highlight_selected_row_cells(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    columns: &[TableColumn<'_>],
+    cells: &[&str],
+    selected_cols: std::ops::Range<usize>,
+    selected_style: CellStyle,
+) {
+    for selection_col in selected_cols {
+        highlight_selected_row_cell(
+            buffer,
+            row,
+            col,
+            columns,
+            cells,
+            selection_col,
+            selected_style,
+        );
+    }
 }
 
 fn column_start(columns: &[TableColumn<'_>], index: usize) -> usize {
