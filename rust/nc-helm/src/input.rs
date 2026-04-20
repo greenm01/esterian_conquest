@@ -67,6 +67,8 @@ pub enum MouseButton {
 pub enum MouseEventKind {
     Down(MouseButton),
     Up(MouseButton),
+    Drag(MouseButton),
+    Moved,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

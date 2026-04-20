@@ -979,6 +979,22 @@ fn dashboard_mouse_event(
             MouseEventKind::Up(MouseButton::Middle) => crate::dashboard::input::MouseEventKind::Up(
                 crate::dashboard::input::MouseButton::Middle,
             ),
+            MouseEventKind::Drag(MouseButton::Left) => {
+                crate::dashboard::input::MouseEventKind::Drag(
+                    crate::dashboard::input::MouseButton::Left,
+                )
+            }
+            MouseEventKind::Drag(MouseButton::Right) => {
+                crate::dashboard::input::MouseEventKind::Drag(
+                    crate::dashboard::input::MouseButton::Right,
+                )
+            }
+            MouseEventKind::Drag(MouseButton::Middle) => {
+                crate::dashboard::input::MouseEventKind::Drag(
+                    crate::dashboard::input::MouseButton::Middle,
+                )
+            }
+            MouseEventKind::Moved => crate::dashboard::input::MouseEventKind::Moved,
         },
         column: mouse.position.column.as_usize().min(u16::MAX as usize) as u16,
         row: mouse.position.row.as_usize().min(u16::MAX as usize) as u16,
@@ -1080,14 +1096,15 @@ fn is_lock_shortcut(key: crate::input::KeyEvent) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_idle_lock, handle_key, handle_unlocked};
+    use super::{dashboard_mouse_event, handle_idle_lock, handle_key, handle_unlocked};
     use crate::app::{
         App, Effect, HostedGameModel, LobbyTab, LockedModel, Model, MyGameRow, NetworkState,
         Route, SessionState,
     };
     use crate::dashboard;
     use crate::dashboard::app::state::ActiveOverlay;
-    use crate::input::{KeyCode, KeyEvent, KeyModifiers};
+    use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use crate::Point;
     use crate::storage::StoredSession;
     use nc_client::cache::ClientCache;
     use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
@@ -1181,6 +1198,43 @@ mod tests {
             }
             other => panic!("expected lobby after unlock, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn dashboard_mouse_event_maps_move_and_drag_variants() {
+        let moved = dashboard_mouse_event(MouseEvent {
+            kind: MouseEventKind::Moved,
+            position: Point::from_usize(12, 7),
+            modifiers: KeyModifiers::SHIFT,
+        })
+        .expect("moved event");
+        assert!(matches!(
+            moved.kind,
+            crate::dashboard::input::MouseEventKind::Moved
+        ));
+        assert_eq!(moved.column, 12);
+        assert_eq!(moved.row, 7);
+        assert!(moved
+            .modifiers
+            .contains(crate::dashboard::input::KeyModifiers::SHIFT));
+
+        let drag = dashboard_mouse_event(MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            position: Point::from_usize(5, 9),
+            modifiers: KeyModifiers::CONTROL,
+        })
+        .expect("drag event");
+        assert!(matches!(
+            drag.kind,
+            crate::dashboard::input::MouseEventKind::Drag(
+                crate::dashboard::input::MouseButton::Left
+            )
+        ));
+        assert_eq!(drag.column, 5);
+        assert_eq!(drag.row, 9);
+        assert!(drag
+            .modifiers
+            .contains(crate::dashboard::input::KeyModifiers::CONTROL));
     }
 
     fn hosted_game_model() -> Model {

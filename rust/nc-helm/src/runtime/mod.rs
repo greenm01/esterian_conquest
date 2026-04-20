@@ -158,7 +158,7 @@ struct Runtime {
     last_resize_observation: Option<ResizeObservation>,
     needs_redraw: bool,
     last_user_input: Option<Instant>,
-    mouse_buttons_held: u16,
+    left_mouse_down: bool,
     shrink_tracker: Option<ResizeShrinkTracker>,
     next_matrix_frame_at: Option<Instant>,
     hosted_window_restore_state: Option<WindowRestoreState>,
@@ -193,7 +193,7 @@ impl Runtime {
             last_resize_observation: None,
             needs_redraw: true,
             last_user_input: None,
-            mouse_buttons_held: 0,
+            left_mouse_down: false,
             shrink_tracker: None,
             next_matrix_frame_at: None,
             hosted_window_restore_state: None,
@@ -816,9 +816,6 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
-                if self.mouse_buttons_held > 0 && mouse_enabled {
-                    self.last_user_input = Some(Instant::now());
-                }
                 if self.options.native.diagnostic_mode {
                     self.diagnostic_log(&format!(
                         "event: CursorMoved route={} x={:.1} y={:.1} mouse_enabled={mouse_enabled}",
@@ -828,6 +825,21 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     ));
                 }
                 self.update_pointer_cell(position);
+                if mouse_enabled {
+                    if let Some(pointer_cell) = self.pointer_cell {
+                        self.last_user_input = Some(Instant::now());
+                        self.dispatch(
+                            Msg::Mouse(MouseEvent {
+                                kind: pointer_move_event_kind(self.left_mouse_down),
+                                position: pointer_cell,
+                                modifiers: key_modifiers_from_winit(self.modifiers),
+                            }),
+                            event_loop,
+                        );
+                    }
+                } else {
+                    self.pointer_cell = None;
+                }
             }
             WindowEvent::CursorLeft { .. } => {
                 if self.options.native.diagnostic_mode {
@@ -841,10 +853,10 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             WindowEvent::MouseInput { button, state, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
                 if state.is_pressed() && mouse_enabled {
-                    self.mouse_buttons_held += 1;
                     self.last_user_input = Some(Instant::now());
-                } else {
-                    self.mouse_buttons_held = self.mouse_buttons_held.saturating_sub(1);
+                }
+                if button == WinitMouseButton::Left {
+                    self.left_mouse_down = state.is_pressed();
                 }
                 let button = match button {
                     WinitMouseButton::Left => Some(MouseButton::Left),
@@ -1021,6 +1033,14 @@ fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<In
         (Some(left), None) => Some(left),
         (None, Some(right)) => Some(right),
         (None, None) => None,
+    }
+}
+
+fn pointer_move_event_kind(left_mouse_down: bool) -> MouseEventKind {
+    if left_mouse_down {
+        MouseEventKind::Drag(MouseButton::Left)
+    } else {
+        MouseEventKind::Moved
     }
 }
 
@@ -1335,8 +1355,8 @@ mod tests {
         HostedLaunchPending, HostedWindowTransition, ResizeObservation, ResizeShrinkTracker,
         ResizeVerdict, SessionBackend, WindowRestoreState, backend_supports_programmatic_focus,
         classify_resize, combine_deadlines, hosted_launch_ready, hosted_route_next_wakeup,
-        hosted_window_transition, map_pointer_cell, minimum_window_size, route_uses_mouse,
-        session_backend_label, window_decorations_for_session,
+        hosted_window_transition, map_pointer_cell, minimum_window_size, pointer_move_event_kind,
+        route_uses_mouse, session_backend_label, window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{
@@ -1345,6 +1365,7 @@ mod tests {
     };
     use crate::dashboard::DashApp;
     use crate::geometry;
+    use crate::input::{MouseButton, MouseEventKind};
 
     #[test]
     fn wayland_backend_disables_programmatic_focus() {
@@ -1430,6 +1451,19 @@ mod tests {
                 Some(now + Duration::from_secs(1))
             ),
             Some(now + Duration::from_secs(1))
+        );
+    }
+
+    #[test]
+    fn pointer_move_without_left_button_emits_hover_event() {
+        assert_eq!(pointer_move_event_kind(false), MouseEventKind::Moved);
+    }
+
+    #[test]
+    fn pointer_move_with_left_button_emits_left_drag() {
+        assert_eq!(
+            pointer_move_event_kind(true),
+            MouseEventKind::Drag(MouseButton::Left)
         );
     }
 
