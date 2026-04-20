@@ -416,6 +416,18 @@ fn lobby_route(status: Option<String>, relay_url: String) -> Route {
     })
 }
 
+pub(crate) fn route_supports_session_lock(route: &Route) -> bool {
+    matches!(
+        route,
+        Route::Lobby(_)
+            | Route::SandboxJoinConfirm(_)
+            | Route::SandboxJoinUnavailable { .. }
+            | Route::SandboxDeleteConfirm(_)
+            | Route::FirstJoinSetup(_)
+            | Route::HostedGame(_)
+    )
+}
+
 fn active_session_from_stored(stored: StoredSession, password: String) -> SessionState {
     SessionState {
         password,

@@ -5,7 +5,7 @@ use super::{
     Effect, FirstJoinSetupField, HostedGameModel, LOBBY_TAB_ROW, LOCK_TIMEOUT_OPTIONS, LobbyTab,
     Model, Msg, NetworkState, Route, active_session_from_stored, append_text, bootstrap_route,
     field_string_mut, first_join_setup_from_snapshot, handle_help_click, is_printable_key,
-    lobby_route, trim_first_join_setup_input,
+    lobby_route, route_supports_session_lock, trim_first_join_setup_input,
 };
 use crate::ScreenGeometry;
 use crate::dashboard;
@@ -308,6 +308,10 @@ fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
     if is_quit_shortcut(key) {
         model.should_quit = true;
         return vec![Effect::Quit];
+    }
+    if is_lock_shortcut(key) && model.session.is_some() && route_supports_session_lock(&model.route)
+    {
+        return lock_session(model);
     }
     match model.route {
         Route::Boot(_) => Vec::new(),
@@ -635,7 +639,6 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
                 lock_timeout_minutes: next,
             }]
         }
-        KeyCode::Char('l') | KeyCode::Char('L') => lock_session(model),
         KeyCode::Char('j') | KeyCode::Char('J') if lobby.active_tab == LobbyTab::OpenGames => {
             activate_selected_row(model)
         }
@@ -1006,7 +1009,7 @@ fn dashboard_modifiers(modifiers: KeyModifiers) -> crate::dashboard::input::KeyM
 }
 
 fn handle_idle_lock(model: &mut Model) -> Vec<Effect> {
-    if !matches!(model.route, Route::Lobby(_)) || model.lock_timeout_minutes == 0 {
+    if !route_supports_session_lock(&model.route) || model.lock_timeout_minutes == 0 {
         return Vec::new();
     }
     lock_session(model)
@@ -1054,6 +1057,209 @@ fn current_password(model: &Model) -> String {
 fn is_quit_shortcut(key: crate::input::KeyEvent) -> bool {
     matches!(key.code, KeyCode::Char('q') | KeyCode::Char('Q'))
         && key.modifiers.contains(KeyModifiers::ALT)
+}
+
+fn is_lock_shortcut(key: crate::input::KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Char('l') | KeyCode::Char('L'))
+        && key.modifiers.contains(KeyModifiers::ALT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{handle_idle_lock, handle_key};
+    use crate::app::{App, Effect, HostedGameModel, Model, MyGameRow, NetworkState, Route, SessionState};
+    use crate::dashboard;
+    use crate::input::{KeyCode, KeyEvent, KeyModifiers};
+    use nc_nostr::state_sync::{
+        GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
+        HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
+        HostedStardockSlot, HostedStarmapState, HostedStatePayload, HostedWorldState,
+    };
+
+    #[test]
+    fn alt_l_locks_from_hosted_game_route() {
+        let mut model = hosted_game_model();
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::ALT),
+        );
+
+        assert!(matches!(model.route, Route::MatrixLocked));
+        assert!(model.session.is_none());
+        assert_eq!(model.network, NetworkState::Idle);
+        assert_eq!(effects.len(), 1);
+        assert!(matches!(effects[0], Effect::DisconnectTransport));
+    }
+
+    #[test]
+    fn idle_lock_locks_from_hosted_game_route() {
+        let mut model = hosted_game_model();
+        model.lock_timeout_minutes = 10;
+
+        let effects = handle_idle_lock(&mut model);
+
+        assert!(matches!(model.route, Route::MatrixLocked));
+        assert!(model.session.is_none());
+        assert_eq!(model.network, NetworkState::Idle);
+        assert_eq!(effects.len(), 1);
+        assert!(matches!(effects[0], Effect::DisconnectTransport));
+    }
+
+    fn hosted_game_model() -> Model {
+        let (app, _) = App::new(None);
+        let mut model = app.model;
+        model.session = Some(SessionState {
+            password: "hunter2".to_string(),
+            active_npub: "npub1test".to_string(),
+            active_nsec: "nsec1test".to_string(),
+            active_handle: Some("captain".to_string()),
+        });
+        model.network = NetworkState::Synced;
+        let snapshot = sample_snapshot();
+        let row = sample_game_row();
+        let dashboard = dashboard::build_hosted_dash_app(
+            &snapshot,
+            dashboard::ScreenGeometry::new(model.geometry.width(), model.geometry.height()),
+        )
+        .expect("hosted dashboard");
+        model.route = Route::HostedGame(HostedGameModel {
+            row,
+            snapshot,
+            dashboard,
+            status: None,
+        });
+        model
+    }
+
+    fn sample_game_row() -> MyGameRow {
+        MyGameRow {
+            game_id: "friday-night".to_string(),
+            status: "active".to_string(),
+            game_tier: "sandbox".to_string(),
+            game: "Friday Night".to_string(),
+            host: "localhost".to_string(),
+            host_contact_npub: None,
+            relay_url: "ws://127.0.0.1:8080".to_string(),
+            daemon_pubkey: "daemon".to_string(),
+            seat: Some(1),
+            turn_summary: "Turn 4".to_string(),
+            last_turn: Some(4),
+            last_hash: Some("abc123".to_string()),
+        }
+    }
+
+    fn sample_snapshot() -> GameState {
+        GameState {
+            game_id: "friday-night".to_string(),
+            turn: 4,
+            year: 3004,
+            player_seat: 1,
+            player_name: "Terran Union".to_string(),
+            state_hash: "abc123".to_string(),
+            state: HostedStatePayload {
+                player: HostedPlayerState {
+                    seat: 1,
+                    empire_name: "Terran Union".to_string(),
+                    handle: Some("captain".to_string()),
+                    mode: "active".to_string(),
+                    tax_rate: 33,
+                    planet_count: 1,
+                    starbase_count: 1,
+                    homeworld_planet_index: 1,
+                    last_run_year: 3004,
+                    diplomacy: vec![HostedDiplomacyState {
+                        empire_id: 2,
+                        relation: "enemy".to_string(),
+                    }],
+                },
+                roster: vec![
+                    HostedPlayerRosterEntry {
+                        empire_id: 1,
+                        empire_name: "Terran Union".to_string(),
+                        is_self: true,
+                    },
+                    HostedPlayerRosterEntry {
+                        empire_id: 2,
+                        empire_name: "Rigel Empire".to_string(),
+                        is_self: false,
+                    },
+                ],
+                starmap: HostedStarmapState {
+                    map_width: 18,
+                    map_height: 18,
+                    viewer_empire_id: 1,
+                    year: 3004,
+                    worlds: vec![HostedWorldState {
+                        planet_index: 1,
+                        coords: [8, 8],
+                        intel_tier: "owned".to_string(),
+                        known_name: Some("Sol".to_string()),
+                        known_owner_empire_id: Some(1),
+                        known_owner_empire_name: Some("Terran Union".to_string()),
+                        known_potential_production: Some(100),
+                        known_armies: Some(20),
+                        known_ground_batteries: Some(5),
+                        known_starbase_count: Some(1),
+                        known_current_production: Some(40),
+                        known_stored_points: Some(12),
+                        known_docked_summary: None,
+                        known_orbit_summary: None,
+                    }],
+                },
+                owned_planets: vec![HostedOwnedPlanet {
+                    planet_index: 1,
+                    name: "Sol".to_string(),
+                    coords: [8, 8],
+                    potential_production: 100,
+                    current_production: 40,
+                    stored_points: 12,
+                    armies: 20,
+                    ground_batteries: 5,
+                    starbase_count: 1,
+                    stardock: vec![HostedStardockSlot {
+                        slot: 1,
+                        kind: "destroyer".to_string(),
+                        count: 2,
+                    }],
+                }],
+                owned_fleets: vec![HostedOwnedFleet {
+                    fleet_id: 1,
+                    local_slot: 1,
+                    coords: [8, 8],
+                    target_coords: [10, 10],
+                    order: "move".to_string(),
+                    order_summary: "Move fleet to Sector (10,10)".to_string(),
+                    rules_of_engagement: 4,
+                    current_speed: 5,
+                    max_speed: 6,
+                    ships: HostedFleetShips {
+                        scout: 1,
+                        battleship: 0,
+                        cruiser: 2,
+                        destroyer: 0,
+                        transport: 0,
+                        army: 0,
+                        etac: 0,
+                        total_starships: 3,
+                        summary: "1 SC 2 CA".to_string(),
+                    },
+                }],
+            },
+            queued_mail: vec![HostedQueuedMail {
+                sender_empire_id: 2,
+                recipient_empire_id: 1,
+                year: 3004,
+                subject: "Scout".to_string(),
+                body: "Hostiles near Rigel.".to_string(),
+            }],
+            report_blocks: vec![HostedReportBlock {
+                viewer_empire_id: 1,
+                block_index: 1,
+                decoded_text: "Battle report".to_string(),
+            }],
+        }
+    }
 }
 
 #[allow(dead_code)]

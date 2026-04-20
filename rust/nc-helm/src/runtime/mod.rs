@@ -42,7 +42,10 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::window::{Fullscreen, Window, WindowAttributes};
 
 use crate::Point;
-use crate::app::{App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route};
+use crate::app::{
+    App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route,
+    route_supports_session_lock,
+};
 use crate::geometry;
 use crate::input::{
     MouseButton, MouseEvent, MouseEventKind, key_event_from_winit, key_modifiers_from_winit,
@@ -611,7 +614,7 @@ impl Runtime {
     fn scheduled_wakeup(&mut self, now: Instant) -> Option<Instant> {
         let idle_deadline = match (
             self.app.model().session.is_some(),
-            matches!(self.app.model().route, Route::Lobby(_)),
+            route_supports_session_lock(&self.app.model().route),
             self.app.model().lock_timeout_minutes,
             self.last_user_input,
         ) {
@@ -977,7 +980,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             self.dispatch(Msg::MatrixFrame, _event_loop);
         }
         if self.app.model().session.is_some()
-            && matches!(self.app.model().route, Route::Lobby(_))
+            && route_supports_session_lock(&self.app.model().route)
             && self.app.model().lock_timeout_minutes != 0
             && self
                 .last_user_input
