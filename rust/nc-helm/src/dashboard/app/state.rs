@@ -92,6 +92,12 @@ pub enum ActivePopup {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DashboardExitRequest {
+    QuitClient,
+    ReturnToLobby,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OwnedPlanetPopupMode {
     Browse,
     CommissionSelect,
@@ -840,6 +846,9 @@ pub struct DashApp {
 
     pub is_terminal_too_small: bool,
     pub should_quit: bool,
+    pub exit_request: Option<DashboardExitRequest>,
+    pub quit_confirm_return_popup: ActivePopup,
+    pub quit_confirm_return_popup_position: Option<RelativePopupOrigin>,
     pub command_line_toast_message: Option<String>,
     pub command_line_toast_deadline: Option<Instant>,
 
@@ -895,6 +904,9 @@ impl Clone for DashApp {
             owned_planet_popup: self.owned_planet_popup.clone(),
             is_terminal_too_small: self.is_terminal_too_small,
             should_quit: self.should_quit,
+            exit_request: self.exit_request,
+            quit_confirm_return_popup: self.quit_confirm_return_popup,
+            quit_confirm_return_popup_position: self.quit_confirm_return_popup_position,
             command_line_toast_message: self.command_line_toast_message.clone(),
             command_line_toast_deadline: self.command_line_toast_deadline,
             game_data_revision: self.game_data_revision,
@@ -977,6 +989,9 @@ impl DashApp {
             owned_planet_popup: OwnedPlanetPopupState::default(),
             is_terminal_too_small: false,
             should_quit: false,
+            exit_request: None,
+            quit_confirm_return_popup: ActivePopup::None,
+            quit_confirm_return_popup_position: None,
             command_line_toast_message: None,
             command_line_toast_deadline: None,
             game_data_revision: 0,

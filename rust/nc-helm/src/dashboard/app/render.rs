@@ -14,7 +14,6 @@ use crate::dashboard::layout::{
 };
 use crate::dashboard::modal::{
     ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement,
-    modal_min_width_for_title,
 };
 use crate::dashboard::overlays;
 use crate::dashboard::panels::{
@@ -242,13 +241,13 @@ fn render_quit_confirm(
             y: parent.y.saturating_add(origin.row_offset as u16),
         })
         .unwrap_or(ModalPlacement::Centered);
-    let message = "Quit Game? Y/[N]";
-    let popup_width = (message.chars().count() + 4).max(modal_min_width_for_title("QUIT"));
+    let message = super::quit_confirm_message();
+    let popup_width = super::quit_confirm_popup_width();
     let popup = draw_modal_frame_in_parent_with_placement(
         buf,
-        "QUIT",
+        super::QUIT_CONFIRM_TITLE,
         popup_width,
-        5,
+        super::QUIT_CONFIRM_HEIGHT as u16,
         parent,
         placement,
         ModalTheme {

@@ -22,7 +22,7 @@ pub mod table_selection;
 pub mod theme;
 pub mod ui;
 
-pub use app::state::DashApp;
+pub use app::state::{DashApp, DashboardExitRequest};
 pub use geometry::ScreenGeometry;
 pub use launch::DashLaunchState;
 
@@ -69,8 +69,8 @@ pub fn hosted_next_wakeup(dashboard: &DashApp) -> Option<Instant> {
     NativeApp::next_wakeup(dashboard)
 }
 
-pub fn hosted_should_quit(dashboard: &DashApp) -> bool {
-    NativeApp::should_quit(dashboard)
+pub fn hosted_take_exit_request(dashboard: &mut DashApp) -> Option<DashboardExitRequest> {
+    dashboard.take_exit_request()
 }
 
 pub fn hosted_wants_text_input(dashboard: &DashApp) -> bool {

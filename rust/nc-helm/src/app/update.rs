@@ -318,7 +318,7 @@ fn handle_relay_saved(model: &mut Model, result: Result<String, String>) -> Vec<
 }
 
 fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
-    if is_quit_shortcut(key) {
+    if is_quit_shortcut(key) && !matches!(model.route, Route::HostedGame(_)) {
         model.should_quit = true;
         return vec![Effect::Quit];
     }
@@ -770,9 +770,16 @@ fn handle_hosted_game_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec
     };
     if let Some(mapped) = dashboard_key_event(key) {
         dashboard::dispatch_hosted_key(&mut hosted.dashboard, mapped);
-        if dashboard::hosted_should_quit(&hosted.dashboard) {
-            model.should_quit = true;
-            return vec![Effect::Quit];
+        if let Some(request) = dashboard::hosted_take_exit_request(&mut hosted.dashboard) {
+            return match request {
+                dashboard::DashboardExitRequest::QuitClient => {
+                    model.should_quit = true;
+                    vec![Effect::Quit]
+                }
+                dashboard::DashboardExitRequest::ReturnToLobby => {
+                    return_to_lobby_with_status(model, String::new())
+                }
+            };
         }
     }
     Vec::new()
@@ -1096,13 +1103,15 @@ fn is_lock_shortcut(key: crate::input::KeyEvent) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{dashboard_mouse_event, handle_idle_lock, handle_key, handle_unlocked};
+    use super::{
+        dashboard_mouse_event, handle_idle_lock, handle_key, handle_mouse, handle_unlocked,
+    };
     use crate::app::{
-        App, Effect, HostedGameModel, LobbyTab, LockedModel, Model, MyGameRow, NetworkState,
-        Route, SessionState,
+        App, Effect, HostedGameModel, LobbyModel, LobbyTab, LockedModel, Model, MyGameRow,
+        NetworkState, Route, SessionState, help_close_tag_bounds,
     };
     use crate::dashboard;
-    use crate::dashboard::app::state::ActiveOverlay;
+    use crate::dashboard::app::state::{ActiveOverlay, ActivePopup};
     use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use crate::Point;
     use crate::storage::StoredSession;
@@ -1237,9 +1246,113 @@ mod tests {
             .contains(crate::dashboard::input::KeyModifiers::CONTROL));
     }
 
+    #[test]
+    fn hosted_game_escape_opens_quit_to_lobby_confirm() {
+        let mut model = hosted_game_model();
+
+        let effects = handle_key(&mut model, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+        assert!(effects.is_empty());
+        assert!(matches!(model.route, Route::HostedGame(_)));
+        assert!(!model.should_quit);
+        if let Route::HostedGame(hosted) = &model.route {
+            assert_eq!(hosted.dashboard.popup, ActivePopup::QuitConfirm);
+        }
+    }
+
+    #[test]
+    fn hosted_game_alt_q_confirm_yes_returns_to_lobby() {
+        let mut model = hosted_game_model();
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT),
+        );
+        assert!(effects.is_empty());
+
+        let effects = handle_key(&mut model, KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
+
+        assert!(effects.is_empty());
+        assert!(!model.should_quit);
+        match &model.route {
+            Route::Lobby(lobby) => {
+                assert_eq!(lobby.active_tab, LobbyTab::MyGames);
+                assert_eq!(lobby.status, None);
+            }
+            other => panic!("expected lobby after confirm, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn hosted_game_quit_confirm_default_no_stays_in_hosted_game() {
+        let mut model = hosted_game_model();
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT),
+        );
+        assert!(effects.is_empty());
+
+        let effects = handle_key(&mut model, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        assert!(effects.is_empty());
+        assert!(matches!(model.route, Route::HostedGame(_)));
+        assert!(!model.should_quit);
+        if let Route::HostedGame(hosted) = &model.route {
+            assert_eq!(hosted.dashboard.popup, ActivePopup::None);
+        }
+    }
+
+    #[test]
+    fn hosted_game_control_c_still_quits_client() {
+        let mut model = hosted_game_model();
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+        );
+
+        assert_eq!(effects.len(), 1);
+        assert!(matches!(effects[0], Effect::Quit));
+        assert!(model.should_quit);
+        assert!(matches!(model.route, Route::HostedGame(_)));
+    }
+
+    #[test]
+    fn clicking_lobby_help_close_button_closes_help_popup() {
+        let (app, _) = App::new(None);
+        let mut model = app.model;
+        model.route = Route::Lobby(LobbyModel {
+            active_tab: LobbyTab::MyGames,
+            help_open: true,
+            selected_my_game: 0,
+            selected_open_game: 0,
+            editing_relay: false,
+            relay_draft: model.relay_url.clone(),
+            status: None,
+        });
+        let (row, col, _) = help_close_tag_bounds(model.geometry).expect("help close bounds");
+
+        let effects = handle_mouse(
+            &mut model,
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                position: Point::from_usize(col, row),
+                modifiers: KeyModifiers::NONE,
+            },
+        );
+
+        assert!(effects.is_empty());
+        match &model.route {
+            Route::Lobby(lobby) => assert!(!lobby.help_open),
+            other => panic!("expected lobby after click, got {other:?}"),
+        }
+    }
+
     fn hosted_game_model() -> Model {
         let (app, _) = App::new(None);
         let mut model = app.model;
+        model.geometry = crate::ScreenGeometry::new(132, 44);
         model.session = Some(SessionState {
             password: "hunter2".to_string(),
             active_npub: "npub1test".to_string(),
@@ -1254,6 +1367,9 @@ mod tests {
             dashboard::ScreenGeometry::new(model.geometry.width(), model.geometry.height()),
         )
         .expect("hosted dashboard");
+        let mut dashboard = dashboard;
+        dashboard.overlay = ActiveOverlay::None;
+        dashboard.popup = ActivePopup::None;
         model.route = Route::HostedGame(HostedGameModel {
             row,
             snapshot,

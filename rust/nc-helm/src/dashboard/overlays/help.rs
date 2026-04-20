@@ -75,7 +75,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("R", "Open Inbox"),
             ("D", "Open Diplomacy"),
             ("S", "Open Settings"),
-            ("Alt-Q", "Quit nc-dash"),
+            ("Alt-Q", "Return to lobby"),
             ("?", "Open this helper"),
             ("Tab", "Cycle dashboard focus"),
             ("Shift+Tab", "Cycle dashboard focus backward"),

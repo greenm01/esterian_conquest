@@ -22,17 +22,17 @@ use crate::dashboard::table_filter::{
 use crate::dashboard::table_selection;
 use input::{Action, key_to_action};
 use state::{
-    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
-    FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
-    IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, OwnedPlanetPopupMode,
-    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
+    FleetOrderScope, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlaySort, HelpContext,
+    IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort, MapViewMode,
+    OwnedPlanetPopupMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
     default_planet_overlay_sort_direction,
 };
 
 use crate::dashboard::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::dashboard::layout::dashboard;
-use crate::dashboard::modal::{Rect, modal_close_button_contains};
+use crate::dashboard::modal::{Rect, modal_close_button_contains, modal_min_width_for_title};
 use crate::dashboard::native::NativeApp;
 use crate::dashboard::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::dashboard::panels::starmap;
@@ -41,6 +41,16 @@ use crate::dashboard::ui::UiScene;
 use std::time::{Duration, Instant};
 
 const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);
+const QUIT_CONFIRM_TITLE: &str = "QUIT";
+const QUIT_CONFIRM_HEIGHT: usize = 5;
+
+fn quit_confirm_message() -> &'static str {
+    "Quit to Lobby? Y/[N]"
+}
+
+fn quit_confirm_popup_width() -> usize {
+    (quit_confirm_message().chars().count() + 4).max(modal_min_width_for_title(QUIT_CONFIRM_TITLE))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct MouseRenderState {
@@ -169,7 +179,7 @@ impl DashApp {
         } else if key.modifiers.contains(KeyModifiers::ALT)
             && matches!(key.code, KeyCode::Char('q' | 'Q'))
         {
-            self.should_quit = true;
+            self.request_exit(DashboardExitRequest::QuitClient);
         }
     }
 
@@ -205,6 +215,14 @@ impl DashApp {
 
     pub(crate) fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         render::render(self)
+    }
+
+    pub(crate) fn take_exit_request(&mut self) -> Option<DashboardExitRequest> {
+        let request = self.exit_request.take();
+        if matches!(request, Some(DashboardExitRequest::QuitClient)) {
+            self.should_quit = false;
+        }
+        request
     }
 
     #[doc(hidden)]
@@ -383,12 +401,46 @@ impl DashApp {
         false
     }
 
+    fn request_exit(&mut self, request: DashboardExitRequest) {
+        self.exit_request = Some(request);
+        self.should_quit = matches!(request, DashboardExitRequest::QuitClient);
+    }
+
+    fn open_quit_confirm(&mut self) {
+        if self.popup == ActivePopup::QuitConfirm {
+            return;
+        }
+        self.quit_confirm_return_popup = self.popup;
+        self.quit_confirm_return_popup_position = self.popup_position.take();
+        self.popup_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
+        self.popup = ActivePopup::QuitConfirm;
+    }
+
+    fn close_active_popup(&mut self) {
+        if self.popup == ActivePopup::QuitConfirm
+            && self.quit_confirm_return_popup != ActivePopup::None
+        {
+            self.popup = self.quit_confirm_return_popup;
+            self.popup_position = self.quit_confirm_return_popup_position.take();
+            self.quit_confirm_return_popup = ActivePopup::None;
+            self.mouse_gesture = ActiveMouseGesture::None;
+            return;
+        }
+        if matches!(self.popup, ActivePopup::OwnedPlanet { .. }) {
+            self.owned_planet_popup.reset();
+        }
+        self.popup = ActivePopup::None;
+        self.popup_position = None;
+        self.quit_confirm_return_popup = ActivePopup::None;
+        self.quit_confirm_return_popup_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
+    }
+
     fn handle_key(&mut self, key: crate::dashboard::input::KeyEvent) {
         if key.modifiers.contains(KeyModifiers::ALT) && matches!(key.code, KeyCode::Char('q' | 'Q'))
         {
-            self.popup_position = None;
-            self.mouse_gesture = ActiveMouseGesture::None;
-            self.popup = ActivePopup::QuitConfirm;
+            self.open_quit_confirm();
             return;
         }
         if self.overlay != ActiveOverlay::None && self.handle_overlay_key(key) {
@@ -396,6 +448,10 @@ impl DashApp {
             return;
         }
         if self.popup != ActivePopup::None && self.handle_popup_key(key) {
+            return;
+        }
+        if self.is_at_root_surface() && key.code == KeyCode::Esc {
+            self.open_quit_confirm();
             return;
         }
         if self.handle_map_coord_key(key) {
@@ -411,7 +467,7 @@ impl DashApp {
 
     fn apply_action(&mut self, action: Action) {
         match action {
-            Action::Quit => self.should_quit = true,
+            Action::Quit => self.request_exit(DashboardExitRequest::QuitClient),
             Action::FocusNext => self.focus = self.focus.next(),
             Action::FocusPrev => self.focus = self.focus.prev(),
             Action::ToggleAutopilot => self.autopilot_on = !self.autopilot_on,
@@ -432,14 +488,7 @@ impl DashApp {
                 self.overlay = overlay;
             }
             Action::CloseOverlay => self.close_active_overlay(),
-            Action::ClosePopup => {
-                if matches!(self.popup, ActivePopup::OwnedPlanet { .. }) {
-                    self.owned_planet_popup.reset();
-                }
-                self.popup = ActivePopup::None;
-                self.popup_position = None;
-                self.mouse_gesture = ActiveMouseGesture::None;
-            }
+            Action::ClosePopup => self.close_active_popup(),
             Action::MoveCrosshairUp => {
                 // Up arrow → higher Y (row 18 at top of screen).
                 let map_size =
@@ -530,7 +579,9 @@ impl DashApp {
     fn handle_popup_key(&mut self, key: KeyEvent) -> bool {
         match self.popup {
             ActivePopup::QuitConfirm => match key.code {
-                KeyCode::Char('y' | 'Y') => self.should_quit = true,
+                KeyCode::Char('y' | 'Y') => {
+                    self.request_exit(DashboardExitRequest::ReturnToLobby)
+                }
                 KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n' | 'N') => {
                     self.apply_action(Action::ClosePopup);
                 }
@@ -924,9 +975,9 @@ impl DashApp {
             ActivePopup::QuitConfirm => Some(
                 crate::dashboard::overlays::frame::overlay_popup_rect_in_map(
                     map_frame,
-                    "QUIT",
-                    18,
-                    5,
+                    QUIT_CONFIRM_TITLE,
+                    quit_confirm_popup_width(),
+                    QUIT_CONFIRM_HEIGHT,
                     self.popup_position,
                 ),
             ),
@@ -2602,9 +2653,9 @@ fn modal_chrome_contains(popup: Rect, col: usize, row: usize) -> bool {
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
     use crate::dashboard::app::state::{
-        ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
-        FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext,
-        IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort, MapViewMode,
+        ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest, FleetOrderScope,
+        FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort,
+        HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort, MapViewMode,
         OwnedPlanetPopupMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
         SortDirection,
     };
@@ -4764,6 +4815,59 @@ mod tests {
     }
 
     #[test]
+    fn clicking_help_overlay_close_button_restores_underlay_overlay() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        app.open_overlay_help(HelpContext::Inbox);
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("help popup rect");
+        let close_col =
+            crate::dashboard::modal::modal_close_button_col(popup).expect("help close col");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            close_col,
+            popup.y,
+        ));
+
+        assert_eq!(app.overlay, ActiveOverlay::Inbox);
+        assert_eq!(app.help_return_overlay, ActiveOverlay::None);
+    }
+
+    #[test]
+    fn clicking_quit_confirm_close_button_restores_underlying_popup() {
+        let mut app = dash_app();
+        app.popup = ActivePopup::PlanetDetail {
+            planet_record_index_1_based: 1,
+        };
+        app.dispatch_key_event(KeyEvent::new(
+            KeyCode::Char('q'),
+            KeyModifiers::ALT,
+        ));
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_popup_rect(map_frame)
+            .expect("quit confirm popup");
+        let close_col =
+            crate::dashboard::modal::modal_close_button_col(popup).expect("popup close col");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            close_col,
+            popup.y,
+        ));
+
+        assert_eq!(
+            app.popup,
+            ActivePopup::PlanetDetail {
+                planet_record_index_1_based: 1
+            }
+        );
+    }
+
+    #[test]
     fn fleet_helper_modal_rect_is_draggable_surface() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::FleetList;
@@ -6012,5 +6116,80 @@ mod tests {
 
         assert_eq!(app.overlay, ActiveOverlay::Help);
         assert_eq!(app.planet_overlay.prompt_status, None);
+    }
+
+    #[test]
+    fn root_escape_opens_quit_confirm_popup() {
+        let mut app = dash_app();
+
+        app.dispatch_key_event(key(KeyCode::Esc));
+
+        assert_eq!(app.popup, ActivePopup::QuitConfirm);
+        assert_eq!(app.overlay, ActiveOverlay::None);
+        assert_eq!(app.take_exit_request(), None);
+    }
+
+    #[test]
+    fn alt_q_opens_quit_confirm_popup() {
+        let mut app = dash_app();
+
+        app.dispatch_key_event(KeyEvent::new(
+            KeyCode::Char('q'),
+            KeyModifiers::ALT,
+        ));
+
+        assert_eq!(app.popup, ActivePopup::QuitConfirm);
+        assert_eq!(app.take_exit_request(), None);
+    }
+
+    #[test]
+    fn quit_confirm_cancel_restores_underlying_popup() {
+        let mut app = dash_app();
+        app.popup = ActivePopup::PlanetDetail {
+            planet_record_index_1_based: 1,
+        };
+
+        app.dispatch_key_event(KeyEvent::new(
+            KeyCode::Char('q'),
+            KeyModifiers::ALT,
+        ));
+        app.dispatch_key_event(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.popup,
+            ActivePopup::PlanetDetail {
+                planet_record_index_1_based: 1
+            }
+        );
+        assert_eq!(app.take_exit_request(), None);
+    }
+
+    #[test]
+    fn quit_confirm_yes_requests_return_to_lobby() {
+        let mut app = dash_app();
+        app.dispatch_key_event(key(KeyCode::Esc));
+
+        app.dispatch_key_event(key(KeyCode::Char('y')));
+
+        assert_eq!(
+            app.take_exit_request(),
+            Some(DashboardExitRequest::ReturnToLobby)
+        );
+        assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn control_c_requests_client_quit() {
+        let mut app = dash_app();
+
+        app.dispatch_key_event(KeyEvent::new(
+            KeyCode::Char('c'),
+            KeyModifiers::CONTROL,
+        ));
+
+        assert_eq!(
+            app.take_exit_request(),
+            Some(DashboardExitRequest::QuitClient)
+        );
     }
 }
