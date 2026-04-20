@@ -41,7 +41,7 @@ use wgpu::{
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
-use crate::geometry::{GridMapper, GridMetrics, caret_rect};
+use crate::geometry::{GridMapper, GridMetrics, PhysicalRect, TextMetrics, caret_rect};
 use crate::grid::{
     BackgroundMode, Cell, CellStyle, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily,
     PlayfieldBuffer, Point, ScreenGeometry,
@@ -200,12 +200,22 @@ struct DirtyPixelRect {
     height_px: usize,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum UploadStrategy {
+    #[default]
+    Rects,
+    DirtyRows,
+    FullFrame,
+}
+
 #[derive(Clone, Debug, Default)]
 struct PreparedFrame {
     placements: Vec<TextPlacement>,
     full_rebuild: bool,
     dirty_rows: usize,
+    raw_spans: usize,
     upload_rects: usize,
+    upload_strategy: UploadStrategy,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -222,9 +232,15 @@ pub struct RenderTimings {
     pub gpu_submit_present: Duration,
     pub total: Duration,
     pub dirty_rows: usize,
+    pub raw_spans: usize,
     pub upload_rects: usize,
     pub full_rebuild: bool,
+    pub upload_strategy: UploadStrategy,
 }
+
+const DIRTY_SPAN_GAP_MERGE_CELLS: usize = 2;
+const DIRTY_SPAN_COLLAPSE_THRESHOLD: usize = 4;
+const MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK: usize = 64;
 
 pub struct Renderer {
     window: Arc<winit::window::Window>,
@@ -415,8 +431,10 @@ impl Renderer {
                     glyph_prepare,
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
+                    raw_spans: prepared.raw_spans,
                     upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
+                    upload_strategy: prepared.upload_strategy,
                     ..RenderTimings::default()
                 });
             }
@@ -428,8 +446,10 @@ impl Renderer {
                     glyph_prepare,
                     total: total_start.elapsed(),
                     dirty_rows: prepared.dirty_rows,
+                    raw_spans: prepared.raw_spans,
                     upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
+                    upload_strategy: prepared.upload_strategy,
                     ..RenderTimings::default()
                 });
             }
@@ -476,8 +496,10 @@ impl Renderer {
             gpu_submit_present: gpu_start.elapsed(),
             total: total_start.elapsed(),
             dirty_rows: prepared.dirty_rows,
+            raw_spans: prepared.raw_spans,
             upload_rects: prepared.upload_rects,
             full_rebuild: prepared.full_rebuild,
+            upload_strategy: prepared.upload_strategy,
         })
     }
 
@@ -529,6 +551,7 @@ impl Renderer {
             .iter()
             .filter(|spans| !spans.is_empty())
             .count();
+        let raw_spans = count_dirty_spans(&dirty.row_spans);
 
         if dirty.full_rebuild {
             self.fill_body_background(frame_width, frame_height);
@@ -558,12 +581,32 @@ impl Renderer {
                 self.paint_cursor(frame_width, mapper, cursor);
             }
             self.write_full_background_texture();
+            self.previous_playfield = Some(snapshot_playfield(playfield));
+            let mut placements = Vec::new();
+            for row in &self.row_placements {
+                placements.extend(row.iter().cloned());
+            }
+            placements.extend(self.overlay_placements.iter().cloned());
+            return PreparedFrame {
+                placements,
+                full_rebuild: true,
+                dirty_rows,
+                raw_spans,
+                upload_rects: 1,
+                upload_strategy: UploadStrategy::FullFrame,
+            };
         } else {
-            for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
+            let compacted_row_spans = compact_row_spans(&dirty.row_spans);
+            for (row_idx, spans) in compacted_row_spans.iter().enumerate() {
                 if spans.is_empty() {
                     continue;
                 }
                 self.repaint_row_spans(playfield, mapper, row_idx, spans);
+            }
+            for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
+                if spans.is_empty() {
+                    continue;
+                }
                 self.row_placements[row_idx] =
                     self.collect_row_placements(playfield, mapper, row_idx);
             }
@@ -586,27 +629,43 @@ impl Renderer {
                     self.paint_cursor(frame_width, mapper, cursor);
                 }
             }
-            let dirty_rects = dirty_rectangles(&dirty.row_spans, mapper);
-            if !dirty_rects.is_empty() {
-                self.write_dirty_rects(frame_width, &dirty_rects);
+            let compacted_rects = dirty_rectangles(&compacted_row_spans, mapper);
+            let upload_strategy =
+                choose_upload_strategy(compacted_rects.len(), dirty_rows, playfield.height());
+            let upload_rects = match upload_strategy {
+                UploadStrategy::Rects => {
+                    if !compacted_rects.is_empty() {
+                        self.write_dirty_rects(frame_width, &compacted_rects);
+                    }
+                    compacted_rects.len()
+                }
+                UploadStrategy::DirtyRows => {
+                    let dirty_row_rects =
+                        dirty_row_upload_rectangles(&compacted_row_spans, mapper, frame_width);
+                    if !dirty_row_rects.is_empty() {
+                        self.write_dirty_rects(frame_width, &dirty_row_rects);
+                    }
+                    dirty_row_rects.len()
+                }
+                UploadStrategy::FullFrame => {
+                    self.write_full_background_texture();
+                    1
+                }
+            };
+            self.previous_playfield = Some(snapshot_playfield(playfield));
+            let mut placements = Vec::new();
+            for row in &self.row_placements {
+                placements.extend(row.iter().cloned());
             }
-        }
-
-        self.previous_playfield = Some(snapshot_playfield(playfield));
-        let mut placements = Vec::new();
-        for row in &self.row_placements {
-            placements.extend(row.iter().cloned());
-        }
-        placements.extend(self.overlay_placements.iter().cloned());
-        PreparedFrame {
-            placements,
-            full_rebuild: dirty.full_rebuild,
-            dirty_rows,
-            upload_rects: if dirty.full_rebuild {
-                1
-            } else {
-                dirty_rectangles(&dirty.row_spans, mapper).len()
-            },
+            placements.extend(self.overlay_placements.iter().cloned());
+            return PreparedFrame {
+                placements,
+                full_rebuild: false,
+                dirty_rows,
+                raw_spans,
+                upload_rects,
+                upload_strategy,
+            };
         }
     }
 
@@ -768,7 +827,8 @@ impl Renderer {
         spans: &[DirtyColumnSpan],
     ) {
         let frame_width = self.surface_config.width as usize;
-        let body_bg = primitives::color_to_rgba(theme::app_background());
+        let body_bg_color = theme::app_background();
+        let body_bg = primitives::color_to_rgba(body_bg_color);
         for span in spans {
             if span.start_col >= span.end_col {
                 continue;
@@ -783,25 +843,33 @@ impl Renderer {
                 mapper.cell.height_px,
                 body_bg,
             );
+            let mut background_run_start = None;
+            let mut background_run_style = None;
             for col_idx in span.start_col..span.end_col {
                 let source = playfield.row(row_idx)[col_idx];
                 let style = source.style;
-                let point = Point::from_usize(col_idx, row_idx);
-                let rect = if style.bg_mode == BackgroundMode::TextBand {
-                    mapper.text_band_rect(point, self.grid_metrics.text)
-                } else {
-                    mapper.cell_rect(point)
-                };
-                primitives::fill_rect_rgba(
-                    &mut self.background_pixels,
-                    frame_width,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height,
-                    primitives::color_to_rgba(style.bg),
-                );
+                let background_key = background_fill_key(style, body_bg_color);
+                if background_key != background_run_style {
+                    self.flush_background_run(
+                        frame_width,
+                        mapper,
+                        row_idx,
+                        &mut background_run_start,
+                        &mut background_run_style,
+                        col_idx,
+                    );
+                    if background_key.is_some() {
+                        background_run_start = Some(col_idx);
+                        background_run_style = background_key;
+                    }
+                }
                 if primitives::should_draw_as_primitive(source.ch) {
+                    let point = Point::from_usize(col_idx, row_idx);
+                    let rect = if style.bg_mode == BackgroundMode::TextBand {
+                        mapper.text_band_rect(point, self.grid_metrics.text)
+                    } else {
+                        mapper.cell_rect(point)
+                    };
                     primitives::draw_cell_primitive(
                         &mut self.background_pixels,
                         frame_width,
@@ -814,7 +882,46 @@ impl Renderer {
                     );
                 }
             }
+            self.flush_background_run(
+                frame_width,
+                mapper,
+                row_idx,
+                &mut background_run_start,
+                &mut background_run_style,
+                span.end_col,
+            );
         }
+    }
+
+    fn flush_background_run(
+        &mut self,
+        frame_width: usize,
+        mapper: GridMapper,
+        row_idx: usize,
+        run_start: &mut Option<usize>,
+        run_style: &mut Option<(GameColor, BackgroundMode)>,
+        end_col: usize,
+    ) {
+        let (Some(start_col), Some((bg, bg_mode))) = (run_start.take(), run_style.take()) else {
+            return;
+        };
+        let rect = span_fill_rect(
+            mapper,
+            row_idx,
+            start_col,
+            end_col,
+            bg_mode,
+            self.grid_metrics.text,
+        );
+        primitives::fill_rect_rgba(
+            &mut self.background_pixels,
+            frame_width,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            primitives::color_to_rgba(bg),
+        );
     }
 
     fn paint_cursor(&mut self, frame_width: usize, mapper: GridMapper, point: Point) {
@@ -977,6 +1084,41 @@ fn dirty_cells(
     }
 }
 
+fn count_dirty_spans(row_spans: &[Vec<DirtyColumnSpan>]) -> usize {
+    row_spans.iter().map(Vec::len).sum()
+}
+
+fn compact_row_spans(row_spans: &[Vec<DirtyColumnSpan>]) -> Vec<Vec<DirtyColumnSpan>> {
+    row_spans
+        .iter()
+        .map(|spans| compact_spans_for_row(spans))
+        .collect()
+}
+
+fn compact_spans_for_row(spans: &[DirtyColumnSpan]) -> Vec<DirtyColumnSpan> {
+    if spans.is_empty() {
+        return Vec::new();
+    }
+    let mut compacted = Vec::with_capacity(spans.len());
+    let mut current = spans[0];
+    for span in spans.iter().copied().skip(1) {
+        if span.start_col <= current.end_col.saturating_add(DIRTY_SPAN_GAP_MERGE_CELLS) {
+            current.end_col = current.end_col.max(span.end_col);
+        } else {
+            compacted.push(current);
+            current = span;
+        }
+    }
+    compacted.push(current);
+    if compacted.len() > DIRTY_SPAN_COLLAPSE_THRESHOLD {
+        return vec![DirtyColumnSpan {
+            start_col: compacted.first().map(|span| span.start_col).unwrap_or(0),
+            end_col: compacted.last().map(|span| span.end_col).unwrap_or(0),
+        }];
+    }
+    compacted
+}
+
 fn record_dirty_spans_for_row(previous: &[Cell], next: &[Cell], spans: &mut Vec<DirtyColumnSpan>) {
     let mut start_col = None;
     for col_idx in 0..next.len() {
@@ -1031,30 +1173,162 @@ fn merge_column_spans(spans: &mut Vec<DirtyColumnSpan>) {
     *spans = merged;
 }
 
-fn dirty_rectangles(row_spans: &[Vec<DirtyColumnSpan>], mapper: GridMapper) -> Vec<DirtyPixelRect> {
-    let mut rects: Vec<DirtyPixelRect> = Vec::new();
+fn choose_upload_strategy(
+    compacted_rect_count: usize,
+    dirty_rows: usize,
+    playfield_height: usize,
+) -> UploadStrategy {
+    if dirty_rows == 0 {
+        return UploadStrategy::Rects;
+    }
+    if dirty_rows.saturating_mul(2) > playfield_height {
+        return UploadStrategy::FullFrame;
+    }
+    if compacted_rect_count > MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK {
+        return UploadStrategy::DirtyRows;
+    }
+    UploadStrategy::Rects
+}
+
+fn dirty_row_upload_rectangles(
+    row_spans: &[Vec<DirtyColumnSpan>],
+    mapper: GridMapper,
+    frame_width: usize,
+) -> Vec<DirtyPixelRect> {
+    let mut rects = Vec::new();
+    let mut current_start = None;
     for (row_idx, spans) in row_spans.iter().enumerate() {
-        for span in spans {
-            let start_rect = mapper.cell_rect(Point::from_usize(span.start_col, row_idx));
-            let width_px = (span.end_col - span.start_col) * mapper.cell.width_px;
-            if let Some(last) = rects.last_mut() {
-                if last.left_px == start_rect.x
-                    && last.width_px == width_px
-                    && last.top_px + last.height_px == start_rect.y
-                {
-                    last.height_px += mapper.cell.height_px;
-                    continue;
-                }
+        if spans.is_empty() {
+            if let Some(start_row) = current_start.take() {
+                rects.push(DirtyPixelRect {
+                    left_px: 0,
+                    top_px: mapper.origin_y + start_row * mapper.cell.height_px,
+                    width_px: frame_width,
+                    height_px: (row_idx - start_row) * mapper.cell.height_px,
+                });
             }
-            rects.push(DirtyPixelRect {
-                left_px: start_rect.x,
-                top_px: start_rect.y,
-                width_px,
-                height_px: mapper.cell.height_px,
-            });
+            continue;
         }
+        current_start.get_or_insert(row_idx);
+    }
+    if let Some(start_row) = current_start {
+        rects.push(DirtyPixelRect {
+            left_px: 0,
+            top_px: mapper.origin_y + start_row * mapper.cell.height_px,
+            width_px: frame_width,
+            height_px: (row_spans.len() - start_row) * mapper.cell.height_px,
+        });
     }
     rects
+}
+
+fn dirty_rectangles(row_spans: &[Vec<DirtyColumnSpan>], mapper: GridMapper) -> Vec<DirtyPixelRect> {
+    #[derive(Clone, Copy, Debug)]
+    struct GridRect {
+        left_col: usize,
+        right_col: usize,
+        top_row: usize,
+        bottom_row: usize,
+    }
+
+    let mut rects = Vec::new();
+    let mut active: Vec<GridRect> = Vec::new();
+    for (row_idx, spans) in row_spans.iter().enumerate() {
+        let mut next_active: Vec<GridRect> = Vec::new();
+        for span in spans {
+            let mut merged = GridRect {
+                left_col: span.start_col,
+                right_col: span.end_col,
+                top_row: row_idx,
+                bottom_row: row_idx + 1,
+            };
+            let mut carry = Vec::new();
+            for active_rect in active.drain(..) {
+                if merged.left_col <= active_rect.right_col.saturating_add(1)
+                    && active_rect.left_col <= merged.right_col.saturating_add(1)
+                {
+                    merged.left_col = merged.left_col.min(active_rect.left_col);
+                    merged.right_col = merged.right_col.max(active_rect.right_col);
+                    merged.top_row = merged.top_row.min(active_rect.top_row);
+                    merged.bottom_row = merged.bottom_row.max(active_rect.bottom_row);
+                } else {
+                    carry.push(active_rect);
+                }
+            }
+            active = carry;
+            let mut idx = 0;
+            while idx < next_active.len() {
+                let existing = next_active[idx];
+                if merged.left_col <= existing.right_col.saturating_add(1)
+                    && existing.left_col <= merged.right_col.saturating_add(1)
+                {
+                    merged.left_col = merged.left_col.min(existing.left_col);
+                    merged.right_col = merged.right_col.max(existing.right_col);
+                    merged.top_row = merged.top_row.min(existing.top_row);
+                    merged.bottom_row = merged.bottom_row.max(existing.bottom_row);
+                    next_active.swap_remove(idx);
+                } else {
+                    idx += 1;
+                }
+            }
+            next_active.push(merged);
+        }
+        rects.extend(active.drain(..).map(|rect| DirtyPixelRect {
+            left_px: mapper.origin_x + rect.left_col * mapper.cell.width_px,
+            top_px: mapper.origin_y + rect.top_row * mapper.cell.height_px,
+            width_px: (rect.right_col - rect.left_col) * mapper.cell.width_px,
+            height_px: (rect.bottom_row - rect.top_row) * mapper.cell.height_px,
+        }));
+        active = next_active;
+    }
+    rects.extend(active.drain(..).map(|rect| DirtyPixelRect {
+        left_px: mapper.origin_x + rect.left_col * mapper.cell.width_px,
+        top_px: mapper.origin_y + rect.top_row * mapper.cell.height_px,
+        width_px: (rect.right_col - rect.left_col) * mapper.cell.width_px,
+        height_px: (rect.bottom_row - rect.top_row) * mapper.cell.height_px,
+    }));
+    rects
+}
+
+fn background_fill_key(
+    style: CellStyle,
+    body_bg_color: GameColor,
+) -> Option<(GameColor, BackgroundMode)> {
+    if style.bg_mode == BackgroundMode::Cell && style.bg == body_bg_color {
+        return None;
+    }
+    if style.bg == body_bg_color {
+        return None;
+    }
+    Some((style.bg, style.bg_mode))
+}
+
+fn span_fill_rect(
+    mapper: GridMapper,
+    row_idx: usize,
+    start_col: usize,
+    end_col: usize,
+    bg_mode: BackgroundMode,
+    text_metrics: TextMetrics,
+) -> PhysicalRect {
+    let start = Point::from_usize(start_col, row_idx);
+    let end = Point::from_usize(end_col.saturating_sub(1), row_idx);
+    let start_rect = if bg_mode == BackgroundMode::TextBand {
+        mapper.text_band_rect(start, text_metrics)
+    } else {
+        mapper.cell_rect(start)
+    };
+    let end_rect = if bg_mode == BackgroundMode::TextBand {
+        mapper.text_band_rect(end, text_metrics)
+    } else {
+        mapper.cell_rect(end)
+    };
+    PhysicalRect {
+        x: start_rect.x,
+        y: start_rect.y,
+        width: end_rect.x + end_rect.width - start_rect.x,
+        height: start_rect.height,
+    }
 }
 
 /// Build a `FontSystem` preloaded with the bundled monospace face plus a
@@ -1610,9 +1884,11 @@ mod tests {
     };
 
     use super::{
-        DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY, STORMFAZE_FONT_FAMILY, TextFamilyKey,
-        TextOverhang, build_font_system, dirty_cells, dirty_rectangles, expanded_text_bounds,
-        fit_grid_to_pixels, measure_single_line_width, snapshot_playfield,
+        DIRTY_SPAN_COLLAPSE_THRESHOLD, DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY,
+        STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, UploadStrategy, build_font_system,
+        choose_upload_strategy, compact_row_spans, dirty_cells, dirty_rectangles,
+        dirty_row_upload_rectangles, expanded_text_bounds, fit_grid_to_pixels,
+        measure_single_line_width, snapshot_playfield,
     };
 
     fn base_style() -> CellStyle {
@@ -1824,16 +2100,83 @@ mod tests {
     }
 
     #[test]
-    fn dirty_rectangles_merge_adjacent_rows_with_same_columns() {
+    fn compact_row_spans_merge_small_gaps() {
+        let row_spans = vec![vec![
+            DirtyColumnSpan {
+                start_col: 1,
+                end_col: 2,
+            },
+            DirtyColumnSpan {
+                start_col: 4,
+                end_col: 5,
+            },
+            DirtyColumnSpan {
+                start_col: 8,
+                end_col: 9,
+            },
+        ]];
+        assert_eq!(
+            compact_row_spans(&row_spans),
+            vec![vec![
+                DirtyColumnSpan {
+                    start_col: 1,
+                    end_col: 5,
+                },
+                DirtyColumnSpan {
+                    start_col: 8,
+                    end_col: 9,
+                },
+            ]]
+        );
+    }
+
+    #[test]
+    fn compact_row_spans_collapse_busy_rows() {
+        let row_spans = vec![vec![
+            DirtyColumnSpan {
+                start_col: 0,
+                end_col: 1,
+            },
+            DirtyColumnSpan {
+                start_col: 4,
+                end_col: 5,
+            },
+            DirtyColumnSpan {
+                start_col: 8,
+                end_col: 9,
+            },
+            DirtyColumnSpan {
+                start_col: 12,
+                end_col: 13,
+            },
+            DirtyColumnSpan {
+                start_col: 16,
+                end_col: 17,
+            },
+        ]];
+        let compacted = compact_row_spans(&row_spans);
+        assert_eq!(compacted[0].len(), 1);
+        assert!(DIRTY_SPAN_COLLAPSE_THRESHOLD < row_spans[0].len());
+        assert_eq!(
+            compacted[0][0],
+            DirtyColumnSpan {
+                start_col: 0,
+                end_col: 17,
+            }
+        );
+    }
+
+    #[test]
+    fn dirty_rectangles_merge_adjacent_rows_with_overlapping_columns() {
         let (mapper, _) = mapper();
         let mut row_spans = vec![Vec::new(); 6];
         row_spans[2].push(DirtyColumnSpan {
             start_col: 0,
-            end_col: 1,
+            end_col: 2,
         });
         row_spans[3].push(DirtyColumnSpan {
-            start_col: 0,
-            end_col: 1,
+            start_col: 1,
+            end_col: 3,
         });
         row_spans[5].push(DirtyColumnSpan {
             start_col: 2,
@@ -1846,7 +2189,7 @@ mod tests {
                 DirtyPixelRect {
                     left_px: mapper.origin_x,
                     top_px: mapper.origin_y + 2 * mapper.cell.height_px,
-                    width_px: mapper.cell.width_px,
+                    width_px: 3 * mapper.cell.width_px,
                     height_px: 2 * mapper.cell.height_px,
                 },
                 DirtyPixelRect {
@@ -1856,6 +2199,55 @@ mod tests {
                     height_px: mapper.cell.height_px,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn dirty_row_upload_rectangles_merge_contiguous_rows() {
+        let (mapper, _) = mapper();
+        let mut row_spans = vec![Vec::new(); 5];
+        row_spans[1].push(DirtyColumnSpan {
+            start_col: 1,
+            end_col: 2,
+        });
+        row_spans[2].push(DirtyColumnSpan {
+            start_col: 4,
+            end_col: 6,
+        });
+        row_spans[4].push(DirtyColumnSpan {
+            start_col: 2,
+            end_col: 3,
+        });
+        let rects = dirty_row_upload_rectangles(&row_spans, mapper, 1200);
+        assert_eq!(
+            rects,
+            vec![
+                DirtyPixelRect {
+                    left_px: 0,
+                    top_px: mapper.origin_y + mapper.cell.height_px,
+                    width_px: 1200,
+                    height_px: 2 * mapper.cell.height_px,
+                },
+                DirtyPixelRect {
+                    left_px: 0,
+                    top_px: mapper.origin_y + 4 * mapper.cell.height_px,
+                    width_px: 1200,
+                    height_px: mapper.cell.height_px,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn upload_strategy_uses_dirty_rows_when_rects_explode() {
+        assert_eq!(choose_upload_strategy(65, 8, 40), UploadStrategy::DirtyRows);
+    }
+
+    #[test]
+    fn upload_strategy_uses_full_frame_when_rows_exceed_half_height() {
+        assert_eq!(
+            choose_upload_strategy(10, 11, 20),
+            UploadStrategy::FullFrame
         );
     }
 

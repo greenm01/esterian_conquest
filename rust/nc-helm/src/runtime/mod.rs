@@ -127,8 +127,11 @@ struct FrameTimingSample {
     gpu_submit_present: Duration,
     total: Duration,
     dirty_rows: usize,
+    raw_spans: usize,
     upload_rects: usize,
     full_rebuild: bool,
+    row_upload_fallback: bool,
+    full_frame_upload_fallback: bool,
 }
 
 #[derive(Debug, Default)]
@@ -503,8 +506,12 @@ impl Runtime {
             gpu_submit_present: render.gpu_submit_present,
             total: render.total,
             dirty_rows: render.dirty_rows,
+            raw_spans: render.raw_spans,
             upload_rects: render.upload_rects,
             full_rebuild: render.full_rebuild,
+            row_upload_fallback: render.upload_strategy == renderer::UploadStrategy::DirtyRows,
+            full_frame_upload_fallback: !render.full_rebuild
+                && render.upload_strategy == renderer::UploadStrategy::FullFrame,
         }) {
             self.diagnostic_log(&message);
         }
@@ -1024,6 +1031,12 @@ impl FrameTimingSummary {
             .map(|sample| sample.dirty_rows as f64)
             .sum::<f64>()
             / frames as f64;
+        let avg_raw_spans = self
+            .samples
+            .iter()
+            .map(|sample| sample.raw_spans as f64)
+            .sum::<f64>()
+            / frames as f64;
         let avg_upload_rects = self
             .samples
             .iter()
@@ -1035,10 +1048,20 @@ impl FrameTimingSummary {
             .iter()
             .filter(|sample| sample.full_rebuild)
             .count();
+        let row_upload_fallbacks = self
+            .samples
+            .iter()
+            .filter(|sample| sample.row_upload_fallback)
+            .count();
+        let full_frame_upload_fallbacks = self
+            .samples
+            .iter()
+            .filter(|sample| sample.full_frame_upload_fallback)
+            .count();
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks} full_frame_upload_fallbacks={full_frame_upload_fallbacks}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1507,8 +1530,11 @@ mod tests {
             gpu_submit_present: Duration::from_millis(4),
             total: Duration::from_millis(5),
             dirty_rows: 2,
+            raw_spans: 3,
             upload_rects: 1,
             full_rebuild: false,
+            row_upload_fallback: true,
+            full_frame_upload_fallback: false,
         };
 
         let mut message = None;
@@ -1519,7 +1545,10 @@ mod tests {
         let message = message.expect("summary should emit after enough samples");
         assert!(message.contains("frame timings [120 frames]"));
         assert!(message.contains("avg_dirty_rows=2.0"));
+        assert!(message.contains("avg_raw_spans=3.0"));
         assert!(message.contains("avg_upload_rects=1.0"));
+        assert!(message.contains("row_upload_fallbacks=120"));
+        assert!(message.contains("full_frame_upload_fallbacks=0"));
     }
 
     #[test]
