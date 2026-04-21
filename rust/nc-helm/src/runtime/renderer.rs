@@ -1,41 +1,38 @@
-//! wgpu + glyphon GPU renderer for the nc-helm character grid.
+//! wgpu GPU renderer for the nc-helm character grid.
 //!
 //! The rigid playfield grid is rendered by a fullscreen shader fed from a
-//! storage buffer of per-cell glyph/style data plus a boot-time monospace
-//! atlas. glyphon is reserved for overlays and rare grid glyph fallbacks that
-//! are not part of the fixed atlas repertoire.
+//! storage buffer of per-cell glyph/style data plus boot-time monospace and
+//! logo atlases.
 //!
 //! Coordinate conventions:
-//! - `GridMapper` and glyphon both use pixel-space coordinates with row 0 at
-//!   the top (y-down).
+//! - `GridMapper` uses pixel-space coordinates with row 0 at the top
+//!   (y-down).
 //! - The fragment shader receives `@builtin(position)` in the same
 //!   framebuffer-space coordinates, so cell-local math can stay in y-down
 //!   pixels without NDC conversions.
 
-use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytemuck::{Pod, Zeroable};
-use glyphon::{
-    Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight, fontdb,
-};
+use swash::scale::ScaleContext;
+use swash::shape::ShapeContext;
 use wgpu::{
-    self, BindGroup, BindGroupLayout, Buffer, CommandEncoderDescriptor, CompositeAlphaMode, Device,
-    DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
+    self, BindGroup, BindGroupLayout, Buffer, BufferAddress, CommandEncoderDescriptor,
+    CompositeAlphaMode, Device, DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, Operations,
+    Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
     SamplerDescriptor, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension,
     TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
-use crate::geometry::{GridMapper, GridMetrics, PhysicalRect, TextMetrics};
+use crate::fonts::{ResolvedGlyph, render_alpha_glyph, resolve_mono_glyph, shape_stormfaze_text};
+use crate::geometry::{GridMapper, GridMetrics, PhysicalRect};
 use crate::grid::{
-    BackgroundMode, Cell, CellStyle, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily,
-    PlayfieldBuffer, Point, ScreenGeometry,
+    BackgroundMode, Cell, CellStyle, GameColor, OverlayLogo, OverlayLogoKind, PlayfieldBuffer,
+    Point, ScreenGeometry,
 };
 use crate::theme;
 
@@ -105,9 +102,9 @@ const GRID_GREEK_UPPERCASE: [char; GRID_ATLAS_GREEK_COUNT as usize] = [
 ///
 /// Mismatching these (e.g. pairing NDC `(-1, -1)` with UV `(0, 0)`) sample
 /// the background texture vertically mirrored, which would put cell strips
-/// and the caret at the wrong rows while glyphon (which paints in
-/// pixel-space, independently of this quad) keeps text in place — producing
-/// labels that look offset from their input strips.
+/// and the caret at the wrong rows while the grid shader still paints in
+/// framebuffer space — producing labels that look offset from their input
+/// strips.
 const BACKGROUND_SHADER: &str = r#"
 @group(0) @binding(0) var background_tex: texture_2d<f32>;
 @group(0) @binding(1) var background_sampler: sampler;
@@ -418,66 +415,46 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 }
 "#;
 
-const PRIMARY_FONT_FAMILY: &str = "JetBrains Mono";
-const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
-));
-const PRIMARY_BOLD_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/JetBrainsMono-Bold.ttf"
-));
-const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
-));
-const STORMFAZE_FONT_FAMILY: &str = "Stormfaze";
-const STORMFAZE_REGULAR_FONT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../docs/assets/fonts/Stormfaze.otf"
-));
+const LOGO_SHADER: &str = r#"
+@group(0) @binding(0) var logo_tex: texture_2d<f32>;
+@group(0) @binding(1) var logo_sampler: sampler;
 
-/// Cache key for shaped glyphon buffers. Same string + weight reuses one
-/// shaped layout across cells/rows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum TextFamilyKey {
-    Monospace,
-    Named(&'static str),
+struct VertexIn {
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) color: vec4<f32>,
+};
+
+struct VertexOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) color: vec4<f32>,
+};
+
+@vertex
+fn vs_main(in: VertexIn) -> VertexOut {
+    var out: VertexOut;
+    out.position = vec4<f32>(in.position, 0.0, 1.0);
+    out.uv = in.uv;
+    out.color = in.color;
+    return out;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct TextBufferKey {
-    text: Arc<str>,
-    family: TextFamilyKey,
-    font_size_bits: u32,
-    line_height_bits: u32,
-    bold: bool,
+@fragment
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    let alpha = textureSample(logo_tex, logo_sampler, in.uv).r;
+    return vec4<f32>(in.color.rgb, in.color.a * alpha);
 }
+"#;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct TextOverhang {
-    left_px: usize,
-    right_px: usize,
-    advance_width_px: usize,
-}
+const LOGO_KIND_COUNT: usize = OverlayLogoKind::ALL.len();
 
-struct CachedTextCell {
-    buffer: GlyphBuffer,
-    overhang: TextOverhang,
-}
-
-/// One run of contiguous styled text staged for the glyphon `TextRenderer`.
-/// `bounds` clips the run horizontally to the cells it occupies so adjacent
-/// runs can't bleed into each other.
-#[derive(Clone, Debug)]
-struct TextPlacement {
-    key: TextBufferKey,
-    start_col: usize,
-    end_col: usize,
-    left: f32,
-    top: f32,
-    bounds: TextBounds,
-    color: GameColor,
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+struct LogoVertex {
+    position: [f32; 2],
+    uv: [f32; 2],
+    color: [f32; 4],
 }
 
 /// GPU-side resources for the background image: a 2D texture sized to the
@@ -492,13 +469,36 @@ struct GridAtlas {
     view: TextureView,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+struct LogoSprite {
+    x_px: u32,
+    y_px: u32,
+    width_px: u32,
+    height_px: u32,
+}
+
+struct LogoAtlas {
+    texture: Texture,
+    view: TextureView,
+    width_px: u32,
+    height_px: u32,
+    sprites: [LogoSprite; LOGO_KIND_COUNT],
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LogoPlacement {
+    sprite: LogoSprite,
+    rect: PhysicalRect,
+    color: GameColor,
+}
+
 #[derive(Clone, Debug)]
 struct CachedPlayfield {
     width: usize,
     height: usize,
     rows: Vec<Vec<Cell>>,
     cursor: Option<Point>,
-    overlay_texts: Vec<OverlayText>,
+    overlay_logos: Vec<OverlayLogo>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -571,12 +571,6 @@ pub struct Renderer {
     device: Device,
     queue: Queue,
     surface_config: SurfaceConfiguration,
-    font_system: FontSystem,
-    swash_cache: SwashCache,
-    viewport: glyphon::Viewport,
-    atlas: TextAtlas,
-    text_renderer: TextRenderer,
-    text_buffers: HashMap<TextBufferKey, CachedTextCell>,
     background_pipeline: wgpu::RenderPipeline,
     background_bind_group_layout: BindGroupLayout,
     background_sampler: Sampler,
@@ -585,10 +579,16 @@ pub struct Renderer {
     grid_config_buffer: Buffer,
     grid_bind_group: BindGroup,
     grid_atlas: GridAtlas,
+    logo_pipeline: wgpu::RenderPipeline,
+    logo_bind_group_layout: BindGroupLayout,
+    logo_sampler: Sampler,
+    logo_bind_group: BindGroup,
+    logo_atlas: LogoAtlas,
+    logo_vertex_buffer: Buffer,
+    logo_vertex_capacity: usize,
     previous_playfield: Option<CachedPlayfield>,
-    grid_fallback_placements: Vec<TextPlacement>,
-    overlay_placements: Vec<TextPlacement>,
-    text_buffer_misses: usize,
+    logo_placements: Vec<LogoPlacement>,
+    reported_unsupported_grid_chars: HashSet<char>,
     grid_metrics: GridMetrics,
 }
 
@@ -620,14 +620,7 @@ impl Renderer {
         };
         surface.configure(&device, &surface_config);
 
-        let mut font_system = build_font_system();
-        let grid_metrics = GridMetrics::for_scale(window.scale_factor(), &mut font_system);
-        let mut swash_cache = SwashCache::new();
-        let cache = Cache::new(&device);
-        let viewport = glyphon::Viewport::new(&device, &cache);
-        let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
-        let text_renderer =
-            TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
+        let grid_metrics = GridMetrics::for_scale(window.scale_factor());
         let (background_pipeline, background_bind_group_layout) =
             create_background_pipeline(&device, surface_config.format);
         let background_sampler = device.create_sampler(&SamplerDescriptor {
@@ -653,13 +646,17 @@ impl Renderer {
             mapped_at_creation: false,
         });
 
-        let grid_atlas = generate_grid_atlas(
-            &device,
-            &queue,
-            &mut font_system,
-            &mut swash_cache,
-            grid_metrics,
-        );
+        let grid_atlas = generate_grid_atlas(&device, &queue, grid_metrics);
+        let logo_atlas = generate_logo_atlas(&device, &queue, grid_metrics);
+        let (logo_pipeline, logo_bind_group_layout) =
+            create_logo_pipeline(&device, surface_config.format);
+        let logo_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("nc-helm-logo-sampler"),
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+            ..SamplerDescriptor::default()
+        });
 
         let grid_bind_group = create_grid_bind_group(
             &device,
@@ -670,6 +667,15 @@ impl Renderer {
             &grid_config_buffer,
             &grid_atlas,
         );
+        let logo_bind_group =
+            create_logo_bind_group(&device, &logo_bind_group_layout, &logo_atlas, &logo_sampler);
+        let initial_logo_vertex_capacity = 6 * 16;
+        let logo_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("nc-helm-logo-vertex-buffer"),
+            size: (std::mem::size_of::<LogoVertex>() * initial_logo_vertex_capacity) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
 
         Ok(Self {
             window,
@@ -677,12 +683,6 @@ impl Renderer {
             device,
             queue,
             surface_config,
-            font_system,
-            swash_cache,
-            viewport,
-            atlas,
-            text_renderer,
-            text_buffers: HashMap::new(),
             background_pipeline,
             background_bind_group_layout,
             background_sampler,
@@ -691,10 +691,16 @@ impl Renderer {
             grid_config_buffer,
             grid_bind_group,
             grid_atlas,
+            logo_pipeline,
+            logo_bind_group_layout,
+            logo_sampler,
+            logo_bind_group,
+            logo_atlas,
+            logo_vertex_buffer,
+            logo_vertex_capacity: initial_logo_vertex_capacity,
             previous_playfield: None,
-            grid_fallback_placements: Vec::new(),
-            overlay_placements: Vec::new(),
-            text_buffer_misses: 0,
+            logo_placements: Vec::new(),
+            reported_unsupported_grid_chars: HashSet::new(),
             grid_metrics,
         })
     }
@@ -721,7 +727,7 @@ impl Renderer {
                 let fg_rgba = primitives::color_to_rgba(cell.style.fg);
                 let bg_rgba = primitives::color_to_rgba(cell.style.bg);
                 GpuCell {
-                    ch: cell.ch as u32,
+                    ch: self.canonical_grid_char(cell.ch).unwrap_or('?') as u32,
                     fg: u32::from_le_bytes(fg_rgba),
                     bg: u32::from_le_bytes(bg_rgba),
                     style: pack_gpu_style(cell.style),
@@ -776,11 +782,16 @@ impl Renderer {
         );
     }
 
+    fn rebuild_logo_bind_group(&mut self) {
+        self.logo_bind_group = create_logo_bind_group(
+            &self.device,
+            &self.logo_bind_group_layout,
+            &self.logo_atlas,
+            &self.logo_sampler,
+        );
+    }
+
     /// Render one frame of `playfield`.
-    ///
-    /// The grid itself is drawn by the fullscreen shader. glyphon is prepared
-    /// only for overlays and rare per-cell fallbacks that are outside the
-    /// fixed monospace atlas.
     pub fn render(
         &mut self,
         playfield: &PlayfieldBuffer,
@@ -792,48 +803,22 @@ impl Renderer {
             return Ok(RenderTimings::default());
         }
         self.ensure_surface_size(size.width, size.height);
-        self.viewport.update(
-            &self.queue,
-            Resolution {
-                width: self.surface_config.width,
-                height: self.surface_config.height,
-            },
-        );
 
         let prepare_start = Instant::now();
         let prepared = self.prepare_playfield(playfield);
         let playfield_prepare = prepare_start.elapsed();
-        let glyph_prepare_start = Instant::now();
-        let text_areas = self
-            .grid_fallback_placements
-            .iter()
-            .chain(self.overlay_placements.iter())
-            .map(|placement| TextArea {
-                buffer: self
-                    .text_buffers
-                    .get(&placement.key)
-                    .map(|cached| &cached.buffer)
-                    .expect("text buffer exists"),
-                left: placement.left,
-                top: placement.top,
-                scale: 1.0,
-                bounds: placement.bounds,
-                default_color: glyphon_color(placement.color),
-                custom_glyphs: &[],
-            })
-            .collect::<Vec<_>>();
-        self.text_renderer.prepare(
-            &self.device,
-            &self.queue,
-            &mut self.font_system,
-            &mut self.atlas,
-            &self.viewport,
-            text_areas,
-            &mut self.swash_cache,
-        )?;
-        let glyph_prepare = glyph_prepare_start.elapsed();
+        let glyph_prepare = Duration::ZERO;
 
         self.upload_grid_to_gpu(playfield);
+        let logo_vertices = self.build_logo_vertices();
+        self.ensure_logo_vertex_capacity(logo_vertices.len());
+        if !logo_vertices.is_empty() {
+            self.queue.write_buffer(
+                &self.logo_vertex_buffer,
+                0,
+                bytemuck::cast_slice(&logo_vertices),
+            );
+        }
 
         let gpu_start = Instant::now();
         let frame = match self.surface.get_current_texture() {
@@ -907,14 +892,17 @@ impl Renderer {
             pass.set_pipeline(&self.background_pipeline);
             pass.set_bind_group(0, &self.grid_bind_group, &[]);
             pass.draw(0..6, 0..1);
-            self.text_renderer
-                .render(&self.atlas, &self.viewport, &mut pass)?;
+            if !logo_vertices.is_empty() {
+                pass.set_pipeline(&self.logo_pipeline);
+                pass.set_bind_group(0, &self.logo_bind_group, &[]);
+                pass.set_vertex_buffer(0, self.logo_vertex_buffer.slice(..));
+                pass.draw(0..logo_vertices.len() as u32, 0..1);
+            }
         }
 
         self.window.pre_present_notify();
         self.queue.submit(Some(encoder.finish()));
         frame.present();
-        self.atlas.trim();
         Ok(RenderTimings {
             playfield_prepare,
             glyph_prepare,
@@ -933,37 +921,24 @@ impl Renderer {
         })
     }
 
-    /// Re-probe glyphon at the window's current DPI scale. If the resulting
-    /// metrics differ from the cached set, drop the shaped-text cache so
-    /// every run is reshaped at the new size on the next frame.
     fn sync_scale_metrics(&mut self) {
         self.sync_scale_metrics_for_scale(self.window.scale_factor());
     }
 
     fn sync_scale_metrics_for_scale(&mut self, scale_factor: f64) {
-        let updated = GridMetrics::for_scale(scale_factor, &mut self.font_system);
+        let updated = GridMetrics::for_scale(scale_factor);
         if updated != self.grid_metrics {
             self.grid_metrics = updated;
-            self.grid_atlas = generate_grid_atlas(
-                &self.device,
-                &self.queue,
-                &mut self.font_system,
-                &mut self.swash_cache,
-                self.grid_metrics,
-            );
+            self.grid_atlas = generate_grid_atlas(&self.device, &self.queue, self.grid_metrics);
+            self.logo_atlas = generate_logo_atlas(&self.device, &self.queue, self.grid_metrics);
             self.rebuild_grid_bind_group();
-            self.text_buffers.clear();
+            self.rebuild_logo_bind_group();
             self.previous_playfield = None;
-            self.grid_fallback_placements.clear();
-            self.overlay_placements.clear();
+            self.logo_placements.clear();
         }
     }
 
-    /// Refresh the overlay text set and collect any rare grid glyphs that
-    /// need glyphon fallback because they are outside the fixed atlas
-    /// repertoire.
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> PreparedFrame {
-        self.text_buffer_misses = 0;
         let frame_width = self.surface_config.width as usize;
         let frame_height = self.surface_config.height as usize;
         let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
@@ -973,42 +948,107 @@ impl Renderer {
         let dirty_overlay = self
             .previous_playfield
             .as_ref()
-            .map_or(true, |prev| prev.overlay_texts != playfield.overlay_texts());
+            .map_or(true, |prev| prev.overlay_logos != playfield.overlay_logos());
 
         if dirty_overlay {
-            let mut overlay_placements = Vec::new();
-            prepare_overlay_texts(
-                self,
-                mapper,
-                playfield.overlay_texts(),
-                &mut overlay_placements,
-            );
-            self.overlay_placements = overlay_placements;
+            self.logo_placements = playfield
+                .overlay_logos()
+                .iter()
+                .map(|overlay| LogoPlacement {
+                    sprite: self.logo_atlas.sprites[overlay.kind as usize],
+                    rect: logo_rect(mapper, *overlay),
+                    color: overlay.fg,
+                })
+                .collect();
         }
-        self.grid_fallback_placements = collect_grid_fallback_placements(self, mapper, playfield);
 
         self.previous_playfield = Some(snapshot_playfield(playfield));
-
-        PreparedFrame {
-            text_buffer_misses: self.text_buffer_misses,
-            ..Default::default()
-        }
+        PreparedFrame::default()
     }
 
-    /// Shape `key` into a glyphon `Buffer` and cache it. No-op if already
-    /// cached. Buffers are sized to one cell row in height; horizontal size
-    /// is left unconstrained so wider runs lay out on a single line.
-    fn ensure_text_buffer(&mut self, key: TextBufferKey) -> bool {
-        let inserted = ensure_text_buffer_cached(
-            &mut self.font_system,
-            &mut self.swash_cache,
-            &mut self.text_buffers,
-            key,
-        );
-        if inserted {
-            self.text_buffer_misses += 1;
+    fn build_logo_vertices(&self) -> Vec<LogoVertex> {
+        let mut vertices = Vec::with_capacity(self.logo_placements.len() * 6);
+        for placement in &self.logo_placements {
+            if placement.rect.width == 0 || placement.rect.height == 0 {
+                continue;
+            }
+            let left = pixel_to_ndc_x(placement.rect.x, self.surface_config.width);
+            let right = pixel_to_ndc_x(
+                placement.rect.x.saturating_add(placement.rect.width),
+                self.surface_config.width,
+            );
+            let top = pixel_to_ndc_y(placement.rect.y, self.surface_config.height);
+            let bottom = pixel_to_ndc_y(
+                placement.rect.y.saturating_add(placement.rect.height),
+                self.surface_config.height,
+            );
+            let color = linear_color_f32(placement.color);
+            let sprite = placement.sprite;
+            let u0 = sprite.x_px as f32 / self.logo_atlas.width_px as f32;
+            let v0 = sprite.y_px as f32 / self.logo_atlas.height_px as f32;
+            let u1 = (sprite.x_px + sprite.width_px) as f32 / self.logo_atlas.width_px as f32;
+            let v1 = (sprite.y_px + sprite.height_px) as f32 / self.logo_atlas.height_px as f32;
+            vertices.extend_from_slice(&[
+                LogoVertex {
+                    position: [left, top],
+                    uv: [u0, v0],
+                    color,
+                },
+                LogoVertex {
+                    position: [right, top],
+                    uv: [u1, v0],
+                    color,
+                },
+                LogoVertex {
+                    position: [left, bottom],
+                    uv: [u0, v1],
+                    color,
+                },
+                LogoVertex {
+                    position: [left, bottom],
+                    uv: [u0, v1],
+                    color,
+                },
+                LogoVertex {
+                    position: [right, top],
+                    uv: [u1, v0],
+                    color,
+                },
+                LogoVertex {
+                    position: [right, bottom],
+                    uv: [u1, v1],
+                    color,
+                },
+            ]);
         }
-        inserted
+        vertices
+    }
+
+    fn ensure_logo_vertex_capacity(&mut self, vertex_count: usize) {
+        if vertex_count <= self.logo_vertex_capacity {
+            return;
+        }
+        self.logo_vertex_capacity = vertex_count.next_power_of_two().max(6);
+        self.logo_vertex_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("nc-helm-logo-vertex-buffer"),
+            size: (std::mem::size_of::<LogoVertex>() * self.logo_vertex_capacity) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+    }
+
+    fn canonical_grid_char(&mut self, ch: char) -> Option<char> {
+        if ch == ' '
+            || primitives::should_draw_as_primitive(ch)
+            || char_atlas_base_index(ch).is_some()
+        {
+            return Some(ch);
+        }
+        debug_assert!(false, "unsupported nc-helm grid glyph: {ch:?}");
+        if self.reported_unsupported_grid_chars.insert(ch) {
+            eprintln!("nc-helm diagnostic: unsupported grid glyph {ch:?}; substituting '?'.");
+        }
+        Some('?')
     }
 
     /// Resize the swapchain surface and the background texture if the
@@ -1027,9 +1067,9 @@ impl Renderer {
             self.surface_config.height,
         );
         self.rebuild_grid_bind_group();
+        self.rebuild_logo_bind_group();
         self.previous_playfield = None;
-        self.grid_fallback_placements.clear();
-        self.overlay_placements.clear();
+        self.logo_placements.clear();
     }
 }
 
@@ -1070,6 +1110,28 @@ fn create_grid_bind_group(
     })
 }
 
+fn create_logo_bind_group(
+    device: &Device,
+    bind_group_layout: &BindGroupLayout,
+    logo_atlas: &LogoAtlas,
+    logo_sampler: &Sampler,
+) -> BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("nc-helm-logo-bind-group"),
+        layout: bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&logo_atlas.view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(logo_sampler),
+            },
+        ],
+    })
+}
+
 fn pack_gpu_style(style: CellStyle) -> u32 {
     let mut bits = 0;
     if style.bold {
@@ -1091,29 +1153,8 @@ fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
         height: playfield.height(),
         rows,
         cursor: playfield.cursor(),
-        overlay_texts: playfield.overlay_texts().to_vec(),
+        overlay_logos: playfield.overlay_logos().to_vec(),
     }
-}
-
-/// Build a `FontSystem` preloaded with the bundled monospace face plus a
-/// fallback. The primary family is set so glyphon resolves `Family::Monospace`
-/// to the bundled face rather than whatever the OS picks.
-fn build_font_system() -> FontSystem {
-    let mut db = fontdb::Database::new();
-    db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
-        PRIMARY_REGULAR_FONT,
-    ))));
-    db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
-        PRIMARY_BOLD_FONT,
-    ))));
-    db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
-        FALLBACK_REGULAR_FONT,
-    ))));
-    db.load_font_source(fontdb::Source::Binary(Arc::new(Cow::Borrowed(
-        STORMFAZE_REGULAR_FONT,
-    ))));
-    db.set_monospace_family(PRIMARY_FONT_FAMILY.to_string());
-    FontSystem::new_with_locale_and_db(String::from("en-US"), db)
 }
 
 /// Build the wgpu render pipeline that draws the background texture as a
@@ -1212,6 +1253,89 @@ fn create_background_pipeline(
     (pipeline, bind_group_layout)
 }
 
+fn create_logo_pipeline(
+    device: &Device,
+    surface_format: TextureFormat,
+) -> (wgpu::RenderPipeline, BindGroupLayout) {
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("nc-helm-logo-shader"),
+        source: wgpu::ShaderSource::Wgsl(LOGO_SHADER.into()),
+    });
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("nc-helm-logo-bind-group-layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+    });
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("nc-helm-logo-pipeline-layout"),
+        bind_group_layouts: &[Some(&bind_group_layout)],
+        immediate_size: 0,
+    });
+    let vertex_layout = wgpu::VertexBufferLayout {
+        array_stride: std::mem::size_of::<LogoVertex>() as BufferAddress,
+        step_mode: wgpu::VertexStepMode::Vertex,
+        attributes: &[
+            wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
+                offset: 0,
+                shader_location: 0,
+            },
+            wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
+                offset: std::mem::size_of::<[f32; 2]>() as BufferAddress,
+                shader_location: 1,
+            },
+            wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x4,
+                offset: std::mem::size_of::<[f32; 4]>() as BufferAddress,
+                shader_location: 2,
+            },
+        ],
+    };
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("nc-helm-logo-pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            buffers: &[vertex_layout],
+        },
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            targets: &[Some(wgpu::ColorTargetState {
+                format: surface_format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+        multiview_mask: None,
+        cache: None,
+    });
+    (pipeline, bind_group_layout)
+}
+
 impl BackgroundTexture {
     fn new(device: &Device, width: u32, height: u32) -> Self {
         let texture = device.create_texture(&TextureDescriptor {
@@ -1243,76 +1367,6 @@ fn fit_grid_to_pixels(
     ScreenGeometry::new(cols, rows)
 }
 
-fn collect_grid_fallback_placements(
-    renderer: &mut Renderer,
-    mapper: GridMapper,
-    playfield: &PlayfieldBuffer,
-) -> Vec<TextPlacement> {
-    let mut placements = Vec::new();
-    for row_idx in 0..playfield.height() {
-        for (col_idx, cell) in playfield.row(row_idx).iter().copied().enumerate() {
-            if !needs_grid_glyph_fallback(cell) {
-                continue;
-            }
-            let key = make_text_key(
-                Arc::<str>::from(cell.ch.to_string()),
-                TextFamilyKey::Monospace,
-                renderer.grid_metrics.text.font_size_px,
-                renderer.grid_metrics.text.line_height_px,
-                cell.style.bold,
-            );
-            renderer.ensure_text_buffer(key.clone());
-            let overhang = renderer
-                .text_buffers
-                .get(&key)
-                .map(|cached| cached.overhang)
-                .expect("text buffer exists after shaping");
-            let point = Point::from_usize(col_idx, row_idx);
-            let text_origin = mapper.text_origin(point, renderer.grid_metrics.text);
-            let fill_rect =
-                text_cell_fill_rect(mapper, point, cell.style, renderer.grid_metrics.text);
-            placements.push(TextPlacement {
-                key,
-                start_col: col_idx,
-                end_col: col_idx + 1,
-                left: text_origin.left,
-                top: text_origin.top,
-                bounds: expanded_text_bounds(
-                    text_origin.left.floor().max(0.0) as usize,
-                    fill_rect.x,
-                    fill_rect.y,
-                    fill_rect.x + fill_rect.width,
-                    mapper.cell.height_px,
-                    renderer.surface_config.width as usize,
-                    renderer.surface_config.height as usize,
-                    overhang,
-                ),
-                color: cell.style.fg,
-            });
-        }
-    }
-    placements
-}
-
-fn needs_grid_glyph_fallback(cell: Cell) -> bool {
-    cell.ch != ' '
-        && !primitives::should_draw_as_primitive(cell.ch)
-        && char_atlas_base_index(cell.ch).is_none()
-}
-
-fn text_cell_fill_rect(
-    mapper: GridMapper,
-    point: Point,
-    style: CellStyle,
-    text_metrics: TextMetrics,
-) -> PhysicalRect {
-    if style.bg_mode == BackgroundMode::TextBand {
-        mapper.text_band_rect(point, text_metrics)
-    } else {
-        mapper.cell_rect(point)
-    }
-}
-
 fn char_atlas_base_index(ch: char) -> Option<u32> {
     let code = ch as u32;
     if (GRID_ATLAS_ASCII_START..GRID_ATLAS_ASCII_END).contains(&code) {
@@ -1335,192 +1389,10 @@ fn char_atlas_base_index(ch: char) -> Option<u32> {
         })
 }
 
-fn prepare_overlay_texts(
-    renderer: &mut Renderer,
-    mapper: GridMapper,
-    overlays: &[OverlayText],
-    placements: &mut Vec<TextPlacement>,
-) {
-    for overlay in overlays {
-        if overlay.text.is_empty() {
-            continue;
-        }
-        match &overlay.anchor {
-            OverlayAnchor::CellRect {
-                left_col,
-                top_row,
-                width_cols,
-                height_rows,
-            } => {
-                prepare_cell_rect_overlay(
-                    renderer,
-                    mapper,
-                    overlay,
-                    *left_col,
-                    *top_row,
-                    *width_cols,
-                    *height_rows,
-                    placements,
-                );
-            }
-            OverlayAnchor::FractionalCell {
-                center_col,
-                center_row,
-                font_size_cells,
-            } => {
-                prepare_fractional_cell_overlay(
-                    renderer,
-                    mapper,
-                    overlay,
-                    *center_col,
-                    *center_row,
-                    *font_size_cells,
-                    placements,
-                );
-            }
-        }
-    }
-}
-
-/// Render a fit-to-bounds overlay (e.g. the Stormfaze wordmark).
-fn prepare_cell_rect_overlay(
-    renderer: &mut Renderer,
-    mapper: GridMapper,
-    overlay: &OverlayText,
-    left_col: usize,
-    top_row: usize,
-    width_cols: usize,
-    height_rows: usize,
-    placements: &mut Vec<TextPlacement>,
-) {
-    if width_cols == 0 || height_rows == 0 {
-        return;
-    }
-    let bounds = overlay_cell_rect_pixel_bounds(mapper, left_col, top_row, width_cols, height_rows);
-    if bounds.width <= 1 || bounds.height <= 1 {
-        return;
-    }
-    let family = match overlay.family {
-        OverlayTextFamily::Stormfaze => TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
-        OverlayTextFamily::Monospace => TextFamilyKey::Monospace,
-    };
-    let font_size = fit_overlay_font_size(
-        &mut renderer.font_system,
-        &overlay.text,
-        family,
-        bounds.width as f32,
-        bounds.height as f32,
-    );
-    if font_size <= 0.0 {
-        return;
-    }
-    let key = make_text_key(
-        Arc::<str>::from(overlay.text.as_str()),
-        family,
-        font_size,
-        font_size,
-        overlay.style.bold,
-    );
-    renderer.ensure_text_buffer(key.clone());
-    let cached = renderer
-        .text_buffers
-        .get(&key)
-        .expect("overlay text buffer exists after shaping");
-    let measured_width = cached
-        .buffer
-        .layout_runs()
-        .next()
-        .map(|run| run.line_w)
-        .unwrap_or(0.0);
-    let line_height = f32::from_bits(key.line_height_bits);
-    placements.push(TextPlacement {
-        key,
-        start_col: 0,
-        end_col: 0,
-        left: bounds.x as f32 + ((bounds.width as f32 - measured_width).max(0.0) / 2.0),
-        top: bounds.y as f32 + ((bounds.height as f32 - line_height).max(0.0) / 2.0),
-        bounds: TextBounds {
-            left: bounds.x as i32,
-            top: bounds.y as i32,
-            right: bounds.x.saturating_add(bounds.width) as i32,
-            bottom: bounds.y.saturating_add(bounds.height) as i32,
-        },
-        color: overlay.style.fg,
-    });
-}
-
-/// Render a single glyph floating at a fractional cell centre.
-fn prepare_fractional_cell_overlay(
-    renderer: &mut Renderer,
-    mapper: GridMapper,
-    overlay: &OverlayText,
-    center_col: f32,
-    center_row: f32,
-    font_size_cells: f32,
-    placements: &mut Vec<TextPlacement>,
-) {
-    let font_size_px = font_size_cells * renderer.grid_metrics.text.font_size_px;
-    if font_size_px <= 0.0 {
-        return;
-    }
-    // Pixel centre of the glyph.
-    let px_x = mapper.origin_x as f32 + center_col * mapper.cell.width_px as f32;
-    let px_y = mapper.origin_y as f32 + center_row * mapper.cell.height_px as f32;
-
-    let key = make_text_key(
-        Arc::<str>::from(overlay.text.as_str()),
-        TextFamilyKey::Monospace,
-        font_size_px,
-        font_size_px,
-        overlay.style.bold,
-    );
-    renderer.ensure_text_buffer(key.clone());
-    let cached = renderer
-        .text_buffers
-        .get(&key)
-        .expect("fractional glyph buffer exists after shaping");
-    let measured_width = cached
-        .buffer
-        .layout_runs()
-        .next()
-        .map(|run| run.line_w)
-        .unwrap_or(0.0);
-    let line_height = f32::from_bits(key.line_height_bits);
-
-    // Centre the glyph on (px_x, px_y).
-    let left = px_x - measured_width / 2.0;
-    let top = px_y - line_height / 2.0;
-
-    // Clip to a one-cell box centred at the pixel position.
-    let half_w = mapper.cell.width_px as f32 / 2.0;
-    let half_h = mapper.cell.height_px as f32 / 2.0;
-    let surface_w = renderer.surface_config.width as i32;
-    let surface_h = renderer.surface_config.height as i32;
-    placements.push(TextPlacement {
-        key,
-        start_col: 0,
-        end_col: 0,
-        left,
-        top,
-        bounds: TextBounds {
-            left: ((px_x - half_w).max(0.0) as i32).min(surface_w),
-            top: ((px_y - half_h).max(0.0) as i32).min(surface_h),
-            right: ((px_x + half_w) as i32).min(surface_w),
-            bottom: ((px_y + half_h) as i32).min(surface_h),
-        },
-        color: overlay.style.fg,
-    });
-}
-
-fn overlay_cell_rect_pixel_bounds(
-    mapper: GridMapper,
-    left_col: usize,
-    top_row: usize,
-    width_cols: usize,
-    height_rows: usize,
-) -> crate::geometry::PhysicalRect {
-    let top_left = mapper.cell_rect(Point::from_usize(left_col, top_row));
-    crate::geometry::PhysicalRect {
+fn logo_rect(mapper: GridMapper, overlay: OverlayLogo) -> PhysicalRect {
+    let top_left = mapper.cell_rect(Point::from_usize(overlay.left_col, overlay.top_row));
+    let (width_cols, height_rows) = overlay.kind.cell_size();
+    PhysicalRect {
         x: top_left.x,
         y: top_left.y,
         width: width_cols.saturating_mul(mapper.cell.width_px),
@@ -1528,160 +1400,22 @@ fn overlay_cell_rect_pixel_bounds(
     }
 }
 
-fn make_text_key(
-    text: Arc<str>,
-    family: TextFamilyKey,
-    font_size_px: f32,
-    line_height_px: f32,
-    bold: bool,
-) -> TextBufferKey {
-    TextBufferKey {
-        text,
-        family,
-        font_size_bits: font_size_px.to_bits(),
-        line_height_bits: line_height_px.to_bits(),
-        bold,
-    }
+fn linear_color_f32(color: GameColor) -> [f32; 4] {
+    let [r, g, b, a] = primitives::color_to_rgba(color);
+    [
+        linear_channel_from_srgb_u8(r) as f32,
+        linear_channel_from_srgb_u8(g) as f32,
+        linear_channel_from_srgb_u8(b) as f32,
+        f32::from(a) / 255.0,
+    ]
 }
 
-fn fit_overlay_font_size(
-    font_system: &mut FontSystem,
-    text: &str,
-    family: TextFamilyKey,
-    max_width_px: f32,
-    max_height_px: f32,
-) -> f32 {
-    let max_height_px = max_height_px.floor().max(1.0);
-    let mut low = 1usize;
-    let mut high = max_height_px as usize;
-    let mut best = 0usize;
-    while low <= high {
-        let mid = (low + high) / 2;
-        let width = measure_single_line_width(font_system, text, family, mid as f32);
-        if width <= max_width_px.max(1.0) {
-            best = mid;
-            low = mid.saturating_add(1);
-        } else {
-            high = mid.saturating_sub(1);
-        }
-    }
-    best as f32
+fn pixel_to_ndc_x(x_px: usize, surface_width_px: u32) -> f32 {
+    (x_px as f32 / surface_width_px.max(1) as f32) * 2.0 - 1.0
 }
 
-fn measure_single_line_width(
-    font_system: &mut FontSystem,
-    text: &str,
-    family: TextFamilyKey,
-    font_size_px: f32,
-) -> f32 {
-    let mut buffer = GlyphBuffer::new(font_system, Metrics::new(font_size_px, font_size_px));
-    buffer.set_size(font_system, None, Some(font_size_px.max(1.0)));
-    let attrs = Attrs::new().family(match family {
-        TextFamilyKey::Monospace => Family::Monospace,
-        TextFamilyKey::Named(name) => Family::Name(name),
-    });
-    buffer.set_text(font_system, text, &attrs, Shaping::Advanced, None);
-    buffer.shape_until_scroll(font_system, false);
-    buffer
-        .layout_runs()
-        .next()
-        .map(|run| run.line_w)
-        .unwrap_or(0.0)
-}
-
-fn ensure_text_buffer_cached(
-    font_system: &mut FontSystem,
-    swash_cache: &mut SwashCache,
-    text_buffers: &mut HashMap<TextBufferKey, CachedTextCell>,
-    key: TextBufferKey,
-) -> bool {
-    if text_buffers.contains_key(&key) {
-        return false;
-    }
-    let mut buffer = GlyphBuffer::new(
-        font_system,
-        Metrics::new(
-            f32::from_bits(key.font_size_bits),
-            f32::from_bits(key.line_height_bits),
-        ),
-    );
-    buffer.set_size(
-        font_system,
-        None,
-        Some(f32::from_bits(key.line_height_bits).max(1.0)),
-    );
-    let attrs = Attrs::new()
-        .family(match key.family {
-            TextFamilyKey::Monospace => Family::Monospace,
-            TextFamilyKey::Named(name) => Family::Name(name),
-        })
-        .weight(if key.bold {
-            Weight::BOLD
-        } else {
-            Weight::NORMAL
-        });
-    buffer.set_text(
-        font_system,
-        key.text.as_ref(),
-        &attrs,
-        Shaping::Advanced,
-        None,
-    );
-    buffer.shape_until_scroll(font_system, false);
-    let overhang = measure_text_overhang(font_system, swash_cache, &buffer);
-    text_buffers.insert(key, CachedTextCell { buffer, overhang });
-    true
-}
-
-fn measure_text_overhang(
-    font_system: &mut FontSystem,
-    swash_cache: &mut SwashCache,
-    buffer: &GlyphBuffer,
-) -> TextOverhang {
-    let advance_width = buffer
-        .layout_runs()
-        .next()
-        .map(|run| run.line_w.ceil().max(1.0) as i32)
-        .unwrap_or(1);
-    let mut ink_left = i32::MAX;
-    let mut ink_right = i32::MIN;
-
-    for run in buffer.layout_runs() {
-        for glyph in run.glyphs.iter() {
-            let physical = glyph.physical((0.0, 0.0), 1.0);
-            let Some(image) = swash_cache
-                .get_image(font_system, physical.cache_key)
-                .as_ref()
-            else {
-                continue;
-            };
-            let glyph_left = physical.x + image.placement.left as i32;
-            let glyph_right = glyph_left + image.placement.width as i32;
-            ink_left = ink_left.min(glyph_left);
-            ink_right = ink_right.max(glyph_right);
-        }
-    }
-
-    if ink_left == i32::MAX || ink_right <= ink_left {
-        return TextOverhang {
-            left_px: 0,
-            right_px: 0,
-            advance_width_px: advance_width as usize,
-        };
-    }
-
-    TextOverhang {
-        left_px: (-ink_left).max(0) as usize,
-        right_px: (ink_right - advance_width).max(0) as usize,
-        advance_width_px: advance_width as usize,
-    }
-}
-
-/// Map a `GameColor` to a glyphon `Color` (alpha is dropped — the glyph
-/// renderer uses its own coverage for anti-aliasing).
-fn glyphon_color(color: GameColor) -> Color {
-    let [r, g, b, _] = primitives::color_to_rgba(color);
-    Color::rgb(r, g, b)
+fn pixel_to_ndc_y(y_px: usize, surface_height_px: u32) -> f32 {
+    1.0 - (y_px as f32 / surface_height_px.max(1) as f32) * 2.0
 }
 
 fn linear_channel_from_srgb_u8(value: u8) -> f64 {
@@ -1703,39 +1437,7 @@ fn clear_color(color: GameColor) -> wgpu::Color {
     }
 }
 
-fn expanded_text_bounds(
-    text_left_px: usize,
-    left_px: usize,
-    top_px: usize,
-    right_px: usize,
-    cell_height_px: usize,
-    frame_width_px: usize,
-    frame_height_px: usize,
-    overhang: TextOverhang,
-) -> TextBounds {
-    let left = left_px.saturating_sub(overhang.left_px).min(frame_width_px) as i32;
-    let ink_right = text_left_px
-        .saturating_add(overhang.advance_width_px)
-        .saturating_add(overhang.right_px)
-        .min(frame_width_px);
-    let right = right_px.max(ink_right).min(frame_width_px) as i32;
-    let top = top_px.min(frame_height_px) as i32;
-    let bottom = top_px.saturating_add(cell_height_px).min(frame_height_px) as i32;
-    TextBounds {
-        left,
-        top,
-        right,
-        bottom,
-    }
-}
-
-fn generate_grid_atlas(
-    device: &Device,
-    queue: &Queue,
-    font_system: &mut FontSystem,
-    swash_cache: &mut SwashCache,
-    grid_metrics: GridMetrics,
-) -> GridAtlas {
+fn generate_grid_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics) -> GridAtlas {
     let slot_w = grid_metrics.cell.width_px.max(1) as u32;
     let slot_h = grid_metrics.cell.height_px.max(1) as u32;
     let atlas_width = slot_w * GRID_ATLAS_COLS;
@@ -1760,6 +1462,7 @@ fn generate_grid_atlas(
 
     let mut atlas_data = vec![0u8; (atlas_width * atlas_height) as usize];
 
+    let mut scale_context = ScaleContext::new();
     for bold in [false, true] {
         let bold_offset = if bold { GRID_ATLAS_BASE_GLYPH_COUNT } else { 0 };
         for ch in atlas_repertoire_chars() {
@@ -1773,87 +1476,58 @@ fn generate_grid_atlas(
             let slot_top = row as i32 * slot_h as i32;
             let slot_right = slot_left + slot_w as i32;
             let slot_bottom = slot_top + slot_h as i32;
-            let mut buffer = GlyphBuffer::new(
-                font_system,
-                Metrics::new(
-                    grid_metrics.text.font_size_px,
-                    grid_metrics.text.line_height_px,
-                ),
-            );
-            buffer.set_size(
-                font_system,
-                Some(slot_w as f32),
-                Some(grid_metrics.text.line_height_px),
-            );
-            buffer.set_text(
-                font_system,
-                &ch.to_string(),
-                &Attrs::new().family(Family::Monospace).weight(if bold {
-                    Weight::BOLD
-                } else {
-                    Weight::NORMAL
-                }),
-                Shaping::Advanced,
-                None,
-            );
-            buffer.shape_until_scroll(font_system, false);
+            let Some(glyph) = resolve_mono_glyph(ch, bold) else {
+                continue;
+            };
+            let Some(image) = render_alpha_glyph(
+                &mut scale_context,
+                glyph,
+                grid_metrics.text.font_size_px,
+                true,
+            ) else {
+                continue;
+            };
+            let glyph_left = image.placement.left;
+            let glyph_top = grid_metrics.text.baseline_px as i32 - image.placement.top as i32;
 
-            for run in buffer.layout_runs() {
-                let baseline = run.line_y.round() as i32;
-                for glyph in run.glyphs.iter() {
-                    let physical = glyph.physical((0.0, 0.0), 1.0);
-                    let Some(img) = swash_cache
-                        .get_image(font_system, physical.cache_key)
-                        .as_ref()
-                    else {
-                        continue;
-                    };
-                    let glyph_left = physical.x + img.placement.left;
-                    let glyph_top = baseline + physical.y - img.placement.top as i32;
-
-                    for y in 0..img.placement.height {
-                        for x in 0..img.placement.width {
-                            let src_idx = (y * img.placement.width + x) as usize;
-                            let alpha = match img.data.len() {
-                                len if len
-                                    == (img.placement.width * img.placement.height) as usize =>
-                                {
-                                    img.data[src_idx]
-                                }
-                                len if len
-                                    == (img.placement.width * img.placement.height * 4)
-                                        as usize =>
-                                {
-                                    img.data[src_idx * 4 + 3]
-                                }
-                                _ => continue,
-                            };
-                            if alpha == 0 {
-                                continue;
-                            }
-                            let dst_x = slot_left + glyph_left + x as i32;
-                            let dst_y = slot_top + glyph_top + y as i32;
-                            if !atlas_slot_contains_pixel(
-                                slot_left,
-                                slot_top,
-                                slot_right,
-                                slot_bottom,
-                                dst_x,
-                                dst_y,
-                            ) {
-                                continue;
-                            }
-                            if dst_x < 0
-                                || dst_y < 0
-                                || dst_x >= atlas_width as i32
-                                || dst_y >= atlas_height as i32
-                            {
-                                continue;
-                            }
-                            let dst_idx = dst_y as usize * atlas_width as usize + dst_x as usize;
-                            atlas_data[dst_idx] = atlas_data[dst_idx].max(alpha);
+            for y in 0..image.placement.height {
+                for x in 0..image.placement.width {
+                    let src_idx = (y * image.placement.width + x) as usize;
+                    let alpha = match image.data.len() {
+                        len if len == (image.placement.width * image.placement.height) as usize => {
+                            image.data[src_idx]
                         }
+                        len if len
+                            == (image.placement.width * image.placement.height * 4) as usize =>
+                        {
+                            image.data[src_idx * 4 + 3]
+                        }
+                        _ => continue,
+                    };
+                    if alpha == 0 {
+                        continue;
                     }
+                    let dst_x = slot_left + glyph_left + x as i32;
+                    let dst_y = slot_top + glyph_top + y as i32;
+                    if !atlas_slot_contains_pixel(
+                        slot_left,
+                        slot_top,
+                        slot_right,
+                        slot_bottom,
+                        dst_x,
+                        dst_y,
+                    ) {
+                        continue;
+                    }
+                    if dst_x < 0
+                        || dst_y < 0
+                        || dst_x >= atlas_width as i32
+                        || dst_y >= atlas_height as i32
+                    {
+                        continue;
+                    }
+                    let dst_idx = dst_y as usize * atlas_width as usize + dst_x as usize;
+                    atlas_data[dst_idx] = atlas_data[dst_idx].max(alpha);
                 }
             }
         }
@@ -1882,6 +1556,282 @@ fn generate_grid_atlas(
     GridAtlas { texture, view }
 }
 
+fn generate_logo_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics) -> LogoAtlas {
+    let mut shape_context = ShapeContext::new();
+    let mut scale_context = ScaleContext::new();
+    let rasterized = OverlayLogoKind::ALL.map(|kind| {
+        rasterize_logo_sprite(kind, grid_metrics, &mut shape_context, &mut scale_context)
+    });
+    let atlas_width = rasterized
+        .iter()
+        .map(|sprite| sprite.width_px)
+        .max()
+        .unwrap_or(1)
+        .max(1);
+    let atlas_height = rasterized
+        .iter()
+        .map(|sprite| sprite.height_px)
+        .sum::<u32>()
+        .max(1);
+    let texture = device.create_texture(&TextureDescriptor {
+        label: Some("nc-helm-logo-atlas"),
+        size: wgpu::Extent3d {
+            width: atlas_width,
+            height: atlas_height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::R8Unorm,
+        usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+    let view = texture.create_view(&TextureViewDescriptor::default());
+    let mut atlas_data = vec![0u8; (atlas_width * atlas_height) as usize];
+    let mut sprites = [LogoSprite::default(); LOGO_KIND_COUNT];
+    let mut y_cursor = 0u32;
+    for (index, raster) in rasterized.iter().enumerate() {
+        sprites[index] = LogoSprite {
+            x_px: 0,
+            y_px: y_cursor,
+            width_px: raster.width_px,
+            height_px: raster.height_px,
+        };
+        for row in 0..raster.height_px {
+            let dst_start = ((y_cursor + row) * atlas_width) as usize;
+            let src_start = (row * raster.width_px) as usize;
+            atlas_data[dst_start..dst_start + raster.width_px as usize]
+                .copy_from_slice(&raster.pixels[src_start..src_start + raster.width_px as usize]);
+        }
+        y_cursor += raster.height_px;
+    }
+    queue.write_texture(
+        wgpu::TexelCopyTextureInfo {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &atlas_data,
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(atlas_width),
+            rows_per_image: Some(atlas_height),
+        },
+        wgpu::Extent3d {
+            width: atlas_width,
+            height: atlas_height,
+            depth_or_array_layers: 1,
+        },
+    );
+    LogoAtlas {
+        texture,
+        view,
+        width_px: atlas_width,
+        height_px: atlas_height,
+        sprites,
+    }
+}
+
+#[derive(Clone, Debug)]
+struct RasterizedLogo {
+    width_px: u32,
+    height_px: u32,
+    pixels: Vec<u8>,
+}
+
+fn rasterize_logo_sprite(
+    kind: OverlayLogoKind,
+    grid_metrics: GridMetrics,
+    shape_context: &mut ShapeContext,
+    scale_context: &mut ScaleContext,
+) -> RasterizedLogo {
+    let (text, width_cols, height_rows) = logo_spec(kind);
+    let width_px = (width_cols * grid_metrics.cell.width_px).max(1) as u32;
+    let height_px = (height_rows * grid_metrics.cell.height_px).max(1) as u32;
+    let font_size_px = fit_logo_font_size(text, width_px, height_px, shape_context, scale_context);
+    if font_size_px <= 0.0 {
+        return RasterizedLogo {
+            width_px,
+            height_px,
+            pixels: vec![0; (width_px * height_px) as usize],
+        };
+    }
+    let measured = measure_logo(text, font_size_px, shape_context, scale_context);
+    let mut pixels = vec![0u8; (width_px * height_px) as usize];
+    let offset_x = ((width_px as i32 - measured.bounds_width()) / 2) - measured.left_px;
+    let offset_y = ((height_px as i32 - measured.bounds_height()) / 2) - measured.top_px;
+    for glyph in measured.glyphs {
+        blit_alpha_image(
+            &mut pixels,
+            width_px,
+            height_px,
+            glyph.left_px + offset_x,
+            glyph.top_px + offset_y,
+            &glyph.image,
+        );
+    }
+    RasterizedLogo {
+        width_px,
+        height_px,
+        pixels,
+    }
+}
+
+fn fit_logo_font_size(
+    text: &str,
+    width_px: u32,
+    height_px: u32,
+    shape_context: &mut ShapeContext,
+    scale_context: &mut ScaleContext,
+) -> f32 {
+    let mut low = 1usize;
+    let mut high = height_px.saturating_mul(2) as usize;
+    let mut best = 0usize;
+    while low <= high {
+        let mid = (low + high) / 2;
+        let measured = measure_logo(text, mid as f32, shape_context, scale_context);
+        if measured.bounds_width() <= width_px as i32
+            && measured.bounds_height() <= height_px as i32
+        {
+            best = mid;
+            low = mid.saturating_add(1);
+        } else {
+            high = mid.saturating_sub(1);
+        }
+    }
+    best as f32
+}
+
+#[derive(Clone)]
+struct MeasuredLogoGlyph {
+    image: swash::scale::image::Image,
+    left_px: i32,
+    top_px: i32,
+}
+
+#[derive(Clone)]
+struct MeasuredLogo {
+    glyphs: Vec<MeasuredLogoGlyph>,
+    left_px: i32,
+    top_px: i32,
+    right_px: i32,
+    bottom_px: i32,
+}
+
+impl MeasuredLogo {
+    fn bounds_width(&self) -> i32 {
+        (self.right_px - self.left_px).max(1)
+    }
+
+    fn bounds_height(&self) -> i32 {
+        (self.bottom_px - self.top_px).max(1)
+    }
+}
+
+fn measure_logo(
+    text: &str,
+    font_size_px: f32,
+    shape_context: &mut ShapeContext,
+    scale_context: &mut ScaleContext,
+) -> MeasuredLogo {
+    let shaped = shape_stormfaze_text(shape_context, text, font_size_px);
+    let baseline_px = shaped.ascent_px.round() as i32;
+    let mut glyphs = Vec::new();
+    let mut left_px = i32::MAX;
+    let mut top_px = i32::MAX;
+    let mut right_px = i32::MIN;
+    let mut bottom_px = i32::MIN;
+    for glyph in shaped.glyphs {
+        let resolved = ResolvedGlyph {
+            font: crate::fonts::stormfaze_font(),
+            glyph_id: glyph.glyph_id,
+            embolden: 0.0,
+        };
+        let Some(image) = render_alpha_glyph(scale_context, resolved, font_size_px, false) else {
+            continue;
+        };
+        let glyph_left = glyph.x.round() as i32 + image.placement.left;
+        let glyph_top = baseline_px + glyph.y.round() as i32 - image.placement.top as i32;
+        left_px = left_px.min(glyph_left);
+        top_px = top_px.min(glyph_top);
+        right_px = right_px.max(glyph_left + image.placement.width as i32);
+        bottom_px = bottom_px.max(glyph_top + image.placement.height as i32);
+        glyphs.push(MeasuredLogoGlyph {
+            image,
+            left_px: glyph_left,
+            top_px: glyph_top,
+        });
+    }
+    if glyphs.is_empty() {
+        return MeasuredLogo {
+            glyphs,
+            left_px: 0,
+            top_px: 0,
+            right_px: shaped.width_px.round().max(1.0) as i32,
+            bottom_px: (shaped.ascent_px + shaped.descent_px).round().max(1.0) as i32,
+        };
+    }
+    MeasuredLogo {
+        glyphs,
+        left_px,
+        top_px,
+        right_px,
+        bottom_px,
+    }
+}
+
+fn blit_alpha_image(
+    dst: &mut [u8],
+    dst_width_px: u32,
+    dst_height_px: u32,
+    dst_left_px: i32,
+    dst_top_px: i32,
+    image: &swash::scale::image::Image,
+) {
+    for y in 0..image.placement.height {
+        for x in 0..image.placement.width {
+            let src_idx = (y * image.placement.width + x) as usize;
+            let alpha = match image.data.len() {
+                len if len == (image.placement.width * image.placement.height) as usize => {
+                    image.data[src_idx]
+                }
+                len if len == (image.placement.width * image.placement.height * 4) as usize => {
+                    image.data[src_idx * 4 + 3]
+                }
+                _ => continue,
+            };
+            if alpha == 0 {
+                continue;
+            }
+            let dst_x = dst_left_px + x as i32;
+            let dst_y = dst_top_px + y as i32;
+            if dst_x < 0
+                || dst_y < 0
+                || dst_x >= dst_width_px as i32
+                || dst_y >= dst_height_px as i32
+            {
+                continue;
+            }
+            let dst_idx = dst_y as usize * dst_width_px as usize + dst_x as usize;
+            dst[dst_idx] = dst[dst_idx].max(alpha);
+        }
+    }
+}
+
+fn logo_spec(kind: OverlayLogoKind) -> (&'static str, usize, usize) {
+    match kind {
+        OverlayLogoKind::HeaderWordmark => ("Nostrian Conquest", 22, 1),
+        OverlayLogoKind::GateNostrian54x4 => ("NOSTRIAN", 54, 4),
+        OverlayLogoKind::GateConquest54x4 => ("CONQUEST", 54, 4),
+        OverlayLogoKind::GateNostrian62x4 => ("NOSTRIAN", 62, 4),
+        OverlayLogoKind::GateConquest62x4 => ("CONQUEST", 62, 4),
+        OverlayLogoKind::GateNostrian66x4 => ("NOSTRIAN", 66, 4),
+        OverlayLogoKind::GateConquest66x4 => ("CONQUEST", 66, 4),
+    }
+}
+
 fn atlas_slot_contains_pixel(
     slot_left: i32,
     slot_top: i32,
@@ -1908,10 +1858,9 @@ mod tests {
     use super::{
         GPU_STYLE_BOLD, GPU_STYLE_TEXT_BAND, GRID_ATLAS_BASE_GLYPH_COUNT, GRID_ATLAS_COLS,
         GRID_ATLAS_MISC_CHARS, GRID_ATLAS_ROWS, atlas_repertoire_chars, atlas_slot_contains_pixel,
-        char_atlas_base_index, clear_color, linear_channel_from_srgb_u8, needs_grid_glyph_fallback,
-        pack_gpu_style,
+        char_atlas_base_index, clear_color, linear_channel_from_srgb_u8, pack_gpu_style,
     };
-    use crate::grid::{BackgroundMode, Cell, CellStyle, GameColor};
+    use crate::grid::{BackgroundMode, CellStyle, GameColor};
 
     #[test]
     fn atlas_repertoire_fits_configured_grid() {
@@ -1934,11 +1883,10 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_grid_glyphs_use_fallback() {
-        let style = CellStyle::new(GameColor::White, GameColor::Black, false);
-        assert!(!needs_grid_glyph_fallback(Cell::new('A', style)));
-        assert!(!needs_grid_glyph_fallback(Cell::new('┌', style)));
-        assert!(needs_grid_glyph_fallback(Cell::new('🙂', style)));
+    fn unsupported_grid_glyphs_stay_out_of_the_gpu_repertoire() {
+        assert!(char_atlas_base_index('A').is_some());
+        assert!(char_atlas_base_index('┌').is_some());
+        assert!(char_atlas_base_index('🙂').is_none());
     }
 
     #[test]

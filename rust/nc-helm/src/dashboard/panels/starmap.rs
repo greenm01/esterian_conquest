@@ -1528,40 +1528,6 @@ mod tests {
         }
     }
 
-    /// Locks in that the starmap `draw` path does not push overlay glyphs.
-    /// All markers, dots, and crosshair characters live in the cell grid so
-    /// they all share the same integer cell alignment. Overlays are reserved
-    /// for the panel-cache replay path (`app/render.rs`).
-    #[test]
-    fn starmap_draw_pushes_no_overlay_glyphs() {
-        let app = DashApp::new_for_tests(
-            PathBuf::from("."),
-            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
-            BTreeMap::new(),
-            BTreeSet::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            ScreenGeometry::new(187, 45),
-            ScreenGeometry::new(0, 0),
-            1,
-        );
-        let frame = dashboard_layout(&app).widgets.center_map;
-        let mut buffer = PlayfieldBuffer::new(
-            app.geometry.width(),
-            app.geometry.height(),
-            theme::body_style(),
-        );
-
-        draw(&mut buffer, &app, frame);
-
-        assert_eq!(
-            buffer.overlay_glyphs().len(),
-            0,
-            "starmap draw should not emit overlay glyphs; all content is cell-aligned"
-        );
-    }
-
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {
         PlayerStarmapWorld {
             planet_record_index_1_based: 1,

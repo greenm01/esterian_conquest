@@ -77,7 +77,6 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
     let header = buffer.plain_line(0);
     let tab_strip = "[My Games] [Open Games] [Comms] [Settings]";
     assert_eq!(buffer.row(0)[0].ch, ' ');
-    assert!(buffer.has_overlay_text("Nostrian Conquest"));
     assert!(header.contains("<v"));
     assert!(!header.contains("beta"));
     assert!(!header.contains("Nostrian Conquest"));

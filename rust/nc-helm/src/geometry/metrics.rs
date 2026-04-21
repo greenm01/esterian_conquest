@@ -7,14 +7,14 @@
 //! descender bottom) used for `BackgroundMode::TextBand` strips so highlight
 //! fills hug the glyphs instead of the full line box.
 //!
-//! All values are produced from real shaping/rasterisation through glyphon +
-//! cosmic-text + swash, so they track whatever monospace face the renderer
-//! actually loads at the current DPI scale.
+//! All values are produced from direct swash metric probing and rasterisation
+//! of the bundled fonts so they track the same monospace face the GPU atlas
+//! generator uses at the current DPI scale.
 
-use glyphon::{
-    Attrs, Buffer as GlyphBuffer, Family, FontSystem, Metrics, Shaping, SwashCache, Weight,
-};
+use swash::scale::ScaleContext;
 use winit::dpi::LogicalSize;
+
+use crate::fonts::{primary_mono_font, render_alpha_glyph, resolve_mono_glyph};
 
 /// Logical font size, scaled by the window DPI factor at probe time.
 pub const FONT_SIZE: f32 = 18.0;
@@ -32,12 +32,6 @@ pub struct CellMetrics {
 }
 
 /// Glyph layout measurements for one cell row.
-///
-/// `baseline_px` is the y-offset (from the top of the line box) at which
-/// glyphon places the baseline. `band_top_px` and `band_height_px` describe
-/// the inked vertical slice of the line — the region a `TextBand` background
-/// fill should cover so the highlight tracks the glyphs rather than the full
-/// line box.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TextMetrics {
     pub font_size_px: f32,
@@ -55,11 +49,9 @@ pub struct GridMetrics {
 }
 
 impl GridMetrics {
-    /// Probe glyphon at the given DPI scale and return measurements suitable
-    /// for the current font. Calls into `probe_cell_width_px` and
-    /// `probe_text_band` so cell size and band geometry come from the real
-    /// bundled monospace face rather than constants.
-    pub fn for_scale(scale_factor: f64, font_system: &mut FontSystem) -> Self {
+    /// Probe swash at the given DPI scale and return measurements suitable
+    /// for the current font.
+    pub fn for_scale(scale_factor: f64) -> Self {
         let scale = scale_factor as f32;
         let text = TextMetrics {
             font_size_px: (FONT_SIZE * scale).max(1.0),
@@ -68,8 +60,8 @@ impl GridMetrics {
             band_top_px: 0,
             band_height_px: 0,
         };
-        let (baseline_px, band_top_px, band_height_px) = probe_text_band(font_system, text);
-        let width_px = probe_cell_width_px(font_system, text);
+        let (baseline_px, band_top_px, band_height_px) = probe_text_band(text);
+        let width_px = probe_cell_width_px(text);
         let text = TextMetrics {
             baseline_px,
             band_top_px,
@@ -77,14 +69,13 @@ impl GridMetrics {
             ..text
         };
         let height_px = text.line_height_px.round().max(1.0) as usize;
-        let m = Self {
+        Self {
             cell: CellMetrics {
                 width_px,
                 height_px,
             },
             text,
-        };
-        m
+        }
     }
 }
 
@@ -104,109 +95,56 @@ pub fn logical_window_size_for_grid(cols: usize, rows: usize) -> LogicalSize<f64
     )
 }
 
-/// Shape a single `M` and return its rounded advance in pixels. Monospace
-/// fonts give every cell the same advance, so this is also the cell width.
-fn probe_cell_width_px(font_system: &mut FontSystem, text: TextMetrics) -> usize {
-    probe_advance_px(font_system, text, "M")
+fn probe_cell_width_px(text: TextMetrics) -> usize {
+    probe_advance_px(text, "M")
 }
 
-fn probe_advance_px(font_system: &mut FontSystem, text: TextMetrics, sample: &str) -> usize {
-    let mut buffer = GlyphBuffer::new(
-        font_system,
-        Metrics::new(text.font_size_px, text.line_height_px),
-    );
-    buffer.set_size(font_system, None, Some(text.line_height_px));
-    buffer.set_text(
-        font_system,
-        sample,
-        &Attrs::new()
-            .family(Family::Monospace)
-            .weight(Weight::NORMAL),
-        Shaping::Advanced,
-        None,
-    );
-    buffer.shape_until_scroll(font_system, false);
-    let width = buffer
-        .layout_runs()
-        .next()
-        .map(|run| run.line_w.max(1.0))
-        .unwrap_or(1.0);
+fn probe_advance_px(text: TextMetrics, sample: &str) -> usize {
+    let font = primary_mono_font(false);
+    let glyph_metrics = font.glyph_metrics(&[]).scale(text.font_size_px);
+    let width = sample
+        .chars()
+        .filter_map(|ch| resolve_mono_glyph(ch, false))
+        .map(|glyph| {
+            glyph
+                .font
+                .glyph_metrics(&[])
+                .scale(text.font_size_px)
+                .advance_width(glyph.glyph_id)
+        })
+        .sum::<f32>()
+        .max(glyph_metrics.advance_width(font.charmap().map('M')))
+        .max(1.0);
     width.round().max(1.0) as usize
 }
 
-/// Measure the inked vertical extent of a line by rasterising probe glyphs
-/// that exercise both the ascender (`H`) and the descenders (`gyp`), plus a
-/// box-drawing-style `|` for tall vertical strokes.
-///
-/// Returns `(baseline_px, band_top_px, band_height_px)`, all measured from
-/// the top of the line box (y-down). The band is what
-/// `BackgroundMode::TextBand` paints so highlight strips hug the glyph
-/// silhouette instead of the entire `line_height_px`.
-///
-/// Geometry note: glyphon hands us
-///   - `run.line_y`: baseline y in line-box coords (y-down).
-///   - `glyph.physical(...).y`: sub-pixel residual after quantisation.
-///   - `image.placement.top`: distance from baseline *upward* to the top of
-///     the rasterised bitmap (positive = above the baseline).
-///
-/// In a y-down coordinate system the bitmap top is therefore
-/// `baseline + physical.y - placement.top`. Note the **subtraction** of
-/// `placement.top`: an earlier version added it, which placed the band below
-/// the baseline and pushed it out of the cell. The regression tests below
-/// guard against that sign flip.
-fn probe_text_band(font_system: &mut FontSystem, text: TextMetrics) -> (usize, usize, usize) {
-    let mut buffer = GlyphBuffer::new(
-        font_system,
-        Metrics::new(text.font_size_px, text.line_height_px),
-    );
-    buffer.set_size(font_system, None, Some(text.line_height_px));
-    buffer.set_text(
-        font_system,
-        "Hgyp|",
-        &Attrs::new()
-            .family(Family::Monospace)
-            .weight(Weight::NORMAL),
-        Shaping::Advanced,
-        None,
-    );
-    buffer.shape_until_scroll(font_system, false);
-
+fn probe_text_band(text: TextMetrics) -> (usize, usize, usize) {
+    let font = primary_mono_font(false);
+    let metrics = font.metrics(&[]).scale(text.font_size_px);
+    let baseline_px = metrics.ascent.round().max(0.0) as usize;
     let line_height_px = text.line_height_px.round().max(1.0) as i32;
-    let baseline_px = buffer
-        .layout_runs()
-        .next()
-        .map(|run| run.line_y.round().max(0.0) as usize)
-        .unwrap_or(line_height_px.max(1) as usize);
-
-    let mut swash_cache = SwashCache::new();
+    let mut scale_context = ScaleContext::new();
     let mut band_top = i32::MAX;
     let mut band_bottom = i32::MIN;
 
-    for run in buffer.layout_runs() {
-        let baseline = run.line_y.round() as i32;
-        for glyph in run.glyphs.iter() {
-            let physical = glyph.physical((0.0, 0.0), 1.0);
-            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key)
-            else {
-                continue;
-            };
-            // Screen-space (y-down) bitmap top: baseline minus the upward
-            // distance from the baseline to the bitmap top edge.
-            let glyph_top = baseline + physical.y - image.placement.top as i32;
-            let glyph_bottom = glyph_top + image.placement.height as i32;
-            band_top = band_top.min(glyph_top);
-            band_bottom = band_bottom.max(glyph_bottom);
-        }
+    for ch in ['H', 'g', 'y', 'p', '|'] {
+        let Some(glyph) = resolve_mono_glyph(ch, false) else {
+            continue;
+        };
+        let Some(image) = render_alpha_glyph(&mut scale_context, glyph, text.font_size_px, true)
+        else {
+            continue;
+        };
+        let glyph_top = baseline_px as i32 - image.placement.top as i32;
+        let glyph_bottom = glyph_top + image.placement.height as i32;
+        band_top = band_top.min(glyph_top);
+        band_bottom = band_bottom.max(glyph_bottom);
     }
 
     if band_top == i32::MAX || band_bottom <= band_top {
-        // No glyphs rasterised (font missing, etc.) — fall back to a band
-        // that covers the full line so highlights are still visible.
         return (baseline_px, 0, line_height_px.max(1) as usize);
     }
 
-    // Clamp into the line box. `band_top` must leave room for at least one
-    // pixel of height; `band_bottom` cannot exceed the line height.
     let top = band_top.clamp(0, line_height_px.saturating_sub(1));
     let bottom = band_bottom.clamp(top + 1, line_height_px.max(top + 1));
     (baseline_px, top as usize, (bottom - top) as usize)
@@ -214,40 +152,11 @@ fn probe_text_band(font_system: &mut FontSystem, text: TextMetrics) -> (usize, u
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
-    use std::sync::Arc;
-
     use super::{FONT_SIZE, GridMetrics, LINE_HEIGHT, TextMetrics, probe_advance_px};
 
-    // Load the same fonts the renderer uses so the probe sees a real monospace face.
-    const PRIMARY_REGULAR: &[u8] = include_bytes!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
-    ));
-    const FALLBACK_REGULAR: &[u8] = include_bytes!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
-    ));
-
-    fn font_system_with_bundled_font() -> super::FontSystem {
-        let mut db = glyphon::fontdb::Database::new();
-        db.load_font_source(glyphon::fontdb::Source::Binary(Arc::new(Cow::Borrowed(
-            PRIMARY_REGULAR,
-        ))));
-        db.load_font_source(glyphon::fontdb::Source::Binary(Arc::new(Cow::Borrowed(
-            FALLBACK_REGULAR,
-        ))));
-        db.set_monospace_family("JetBrains Mono".to_string());
-        super::FontSystem::new_with_locale_and_db(String::from("en-US"), db)
-    }
-
-    /// The probe must place the band in the upper portion of the line box, not at or
-    /// near the bottom. Prior to the sign fix, `band_top_px` was ~line_height/2 or
-    /// higher; after the fix it should sit close to the ascenders (well under half).
     #[test]
     fn text_band_sits_in_upper_half_of_line_box() {
-        let mut fs = font_system_with_bundled_font();
-        let m = GridMetrics::for_scale(1.0, &mut fs);
+        let m = GridMetrics::for_scale(1.0);
         let line_height = m.cell.height_px;
 
         assert!(
@@ -258,11 +167,9 @@ mod tests {
         );
     }
 
-    /// The band must stay entirely within the cell row.
     #[test]
     fn text_band_fits_within_cell_height() {
-        let mut fs = font_system_with_bundled_font();
-        let m = GridMetrics::for_scale(1.0, &mut fs);
+        let m = GridMetrics::for_scale(1.0);
         let line_height = m.cell.height_px;
         let band_bottom = m.text.band_top_px + m.text.band_height_px;
 
@@ -276,12 +183,9 @@ mod tests {
         );
     }
 
-    /// The band must cover a meaningful portion of the line (ascenders to descenders).
-    /// A correctly measured band should span at least half the cell height.
     #[test]
     fn text_band_covers_majority_of_line() {
-        let mut fs = font_system_with_bundled_font();
-        let m = GridMetrics::for_scale(1.0, &mut fs);
+        let m = GridMetrics::for_scale(1.0);
         let line_height = m.cell.height_px;
         let min_expected = line_height / 2;
 
@@ -295,7 +199,6 @@ mod tests {
 
     #[test]
     fn box_drawing_glyphs_match_cell_advance() {
-        let mut fs = font_system_with_bundled_font();
         let text = TextMetrics {
             font_size_px: FONT_SIZE,
             line_height_px: LINE_HEIGHT,
@@ -303,10 +206,10 @@ mod tests {
             band_top_px: 0,
             band_height_px: 0,
         };
-        let cell_width = probe_advance_px(&mut fs, text, "M");
+        let cell_width = probe_advance_px(text, "M");
 
         for glyph in ["─", "│", "╭", "╮", "╰", "╯", "┐", "┌", "┘", "└"] {
-            let width = probe_advance_px(&mut fs, text, glyph);
+            let width = probe_advance_px(text, glyph);
             assert_eq!(
                 width, cell_width,
                 "box glyph {glyph:?} should keep the same advance as the monospace cell width",

@@ -57,23 +57,12 @@ impl<'a> StyledSpan<'a> {
     }
 }
 
-/// A single glyph floating at a fractional cell centre, stored by dashboard
-/// panels and forwarded to the grid overlay pipeline by [`render_hosted_buffer`].
-#[derive(Clone, Debug, PartialEq)]
-pub struct OverlayGlyph {
-    pub ch: char,
-    pub style: CellStyle,
-    pub center_col: f32,
-    pub center_row: f32,
-}
-
 #[derive(Debug, Clone)]
 pub struct PlayfieldBuffer {
     width: usize,
     height: usize,
     cells: Vec<Cell>,
     cursor: Option<(u16, u16)>,
-    overlay_glyphs: Vec<OverlayGlyph>,
 }
 
 impl PlayfieldBuffer {
@@ -83,7 +72,6 @@ impl PlayfieldBuffer {
             height,
             cells: vec![Cell::new(' ', base_style); width * height],
             cursor: None,
-            overlay_glyphs: Vec::new(),
         }
     }
 
@@ -94,7 +82,6 @@ impl PlayfieldBuffer {
             .resize(width * height, Cell::new(' ', base_style));
         self.cells.fill(Cell::new(' ', base_style));
         self.cursor = None;
-        self.overlay_glyphs.clear();
     }
 
     pub fn width(&self) -> usize {
@@ -244,27 +231,6 @@ impl PlayfieldBuffer {
 
     pub fn clear_cursor(&mut self) {
         self.cursor = None;
-    }
-
-    /// Push a single glyph as a fractional-cell overlay, centred at
-    /// `(center_col, center_row)` in panel-local cell units.
-    pub fn push_overlay_glyph_at(
-        &mut self,
-        ch: char,
-        style: CellStyle,
-        center_col: f32,
-        center_row: f32,
-    ) {
-        self.overlay_glyphs.push(OverlayGlyph {
-            ch,
-            style,
-            center_col,
-            center_row,
-        });
-    }
-
-    pub fn overlay_glyphs(&self) -> &[OverlayGlyph] {
-        &self.overlay_glyphs
     }
 
     pub fn plain_line(&self, row: usize) -> String {

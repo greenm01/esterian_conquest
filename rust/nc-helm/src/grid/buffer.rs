@@ -78,44 +78,44 @@ impl<'a> StyledSpan<'a> {
     }
 }
 
-/// Positioning anchor for an [`OverlayText`].
-///
-/// Anticipated extension points: `Pixel { x_px: f32, y_px: f32 }` for raw-pixel
-/// anchoring, and `WorldSpace { world_x: f32, world_y: f32 }` for a future 2-D
-/// camera transform. New variants are additive; existing arms are unaffected.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum OverlayAnchor {
-    /// Fit text to a cell-aligned bounding box (e.g. the Stormfaze wordmark).
-    CellRect {
-        left_col: usize,
-        top_row: usize,
-        width_cols: usize,
-        height_rows: usize,
-    },
-    /// Single glyph floating at a fractional cell centre.
-    ///
-    /// `center_col` and `center_row` are in cell units (may be fractional).
-    /// `font_size_cells` scales the glyph relative to one cell height (1.0 =
-    /// the same size as normal cell text).
-    FractionalCell {
-        center_col: f32,
-        center_row: f32,
-        font_size_cells: f32,
-    },
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum OverlayTextFamily {
-    Stormfaze,
-    Monospace,
+pub(crate) enum OverlayLogoKind {
+    HeaderWordmark,
+    GateNostrian54x4,
+    GateConquest54x4,
+    GateNostrian62x4,
+    GateConquest62x4,
+    GateNostrian66x4,
+    GateConquest66x4,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct OverlayText {
-    pub text: String,
-    pub family: OverlayTextFamily,
-    pub style: CellStyle,
-    pub anchor: OverlayAnchor,
+impl OverlayLogoKind {
+    pub(crate) const ALL: [Self; 7] = [
+        Self::HeaderWordmark,
+        Self::GateNostrian54x4,
+        Self::GateConquest54x4,
+        Self::GateNostrian62x4,
+        Self::GateConquest62x4,
+        Self::GateNostrian66x4,
+        Self::GateConquest66x4,
+    ];
+
+    pub(crate) const fn cell_size(self) -> (usize, usize) {
+        match self {
+            Self::HeaderWordmark => (22, 1),
+            Self::GateNostrian54x4 | Self::GateConquest54x4 => (54, 4),
+            Self::GateNostrian62x4 | Self::GateConquest62x4 => (62, 4),
+            Self::GateNostrian66x4 | Self::GateConquest66x4 => (66, 4),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OverlayLogo {
+    pub kind: OverlayLogoKind,
+    pub fg: GameColor,
+    pub left_col: usize,
+    pub top_row: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -124,7 +124,7 @@ pub struct PlayfieldBuffer {
     height: usize,
     cells: Vec<Cell>,
     cursor: Option<Point>,
-    overlay_texts: Vec<OverlayText>,
+    overlay_logos: Vec<OverlayLogo>,
 }
 
 impl PlayfieldBuffer {
@@ -134,7 +134,7 @@ impl PlayfieldBuffer {
             height,
             cells: vec![Cell::new(' ', base_style); width * height],
             cursor: None,
-            overlay_texts: Vec::new(),
+            overlay_logos: Vec::new(),
         }
     }
 
@@ -145,7 +145,7 @@ impl PlayfieldBuffer {
             .resize(width * height, Cell::new(' ', base_style));
         self.cells.fill(Cell::new(' ', base_style));
         self.cursor = None;
-        self.overlay_texts.clear();
+        self.overlay_logos.clear();
     }
 
     pub fn width(&self) -> usize {
@@ -160,18 +160,12 @@ impl PlayfieldBuffer {
         self.cursor
     }
 
-    pub fn overlay_texts(&self) -> &[OverlayText] {
-        &self.overlay_texts
-    }
-
     pub fn get_all_cells(&self) -> &[Cell] {
         &self.cells
     }
 
-    pub fn has_overlay_text(&self, text: &str) -> bool {
-        self.overlay_texts
-            .iter()
-            .any(|overlay| overlay.text == text)
+    pub(crate) fn overlay_logos(&self) -> &[OverlayLogo] {
+        &self.overlay_logos
     }
 
     pub fn row(&self, row: usize) -> &[Cell] {
@@ -311,56 +305,22 @@ impl PlayfieldBuffer {
         self.cursor = None;
     }
 
-    pub(crate) fn clear_overlay_texts(&mut self) {
-        self.overlay_texts.clear();
+    pub(crate) fn clear_overlay_logos(&mut self) {
+        self.overlay_logos.clear();
     }
 
-    pub(crate) fn push_overlay_text(
+    pub(crate) fn push_overlay_logo(
         &mut self,
-        text: impl Into<String>,
-        family: OverlayTextFamily,
-        style: CellStyle,
+        kind: OverlayLogoKind,
+        fg: GameColor,
         left_col: usize,
         top_row: usize,
-        width_cols: usize,
-        height_rows: usize,
     ) {
-        if width_cols == 0 || height_rows == 0 {
-            return;
-        }
-        self.overlay_texts.push(OverlayText {
-            text: text.into(),
-            family,
-            style,
-            anchor: OverlayAnchor::CellRect {
-                left_col,
-                top_row,
-                width_cols,
-                height_rows,
-            },
-        });
-    }
-
-    /// Push a single glyph as a fractional-cell overlay.
-    ///
-    /// The glyph is rendered at the same font size as normal cell text and
-    /// centred on `(center_col, center_row)` in cell units (may be fractional).
-    pub(crate) fn push_overlay_glyph_at(
-        &mut self,
-        ch: char,
-        style: CellStyle,
-        center_col: f32,
-        center_row: f32,
-    ) {
-        self.overlay_texts.push(OverlayText {
-            text: ch.to_string(),
-            family: OverlayTextFamily::Monospace,
-            style,
-            anchor: OverlayAnchor::FractionalCell {
-                center_col,
-                center_row,
-                font_size_cells: 1.0,
-            },
+        self.overlay_logos.push(OverlayLogo {
+            kind,
+            fg,
+            left_col,
+            top_row,
         });
     }
 

@@ -2,6 +2,7 @@ mod app;
 mod chrome_box;
 mod chrome_tags;
 mod dashboard;
+mod fonts;
 mod geometry;
 mod grid;
 mod input;

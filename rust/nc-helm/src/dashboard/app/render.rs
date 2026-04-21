@@ -450,19 +450,10 @@ fn draw_cached<F>(
             outer.height,
             &cached.cells,
         );
-        for glyph in &cached.overlay_glyphs {
-            buf.push_overlay_glyph_at(glyph.ch, glyph.style, glyph.center_col, glyph.center_row);
-        }
     } else {
-        let overlay_len_before = buf.overlay_glyphs().len();
         draw_fn(buf);
         let cells = buf.copy_region(outer.row, outer.col, outer.width, outer.height);
-        let overlay_glyphs = buf.overlay_glyphs()[overlay_len_before..].to_vec();
-        *entry = Some(CachedPanel {
-            inputs_hash,
-            cells,
-            overlay_glyphs,
-        });
+        *entry = Some(CachedPanel { inputs_hash, cells });
     }
 }
 

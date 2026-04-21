@@ -214,15 +214,7 @@ fn sync_playfield_cursor_and_overlays(
     if let Some((column, row)) = playfield.cursor() {
         buffer.set_cursor(crate::Point::from_usize(column as usize, row as usize));
     }
-    buffer.clear_overlay_texts();
-    for glyph in playfield.overlay_glyphs() {
-        buffer.push_overlay_glyph_at(
-            glyph.ch,
-            convert_style(glyph.style),
-            glyph.center_col,
-            glyph.center_row,
-        );
-    }
+    buffer.clear_overlay_logos();
 }
 
 fn convert_style(style: buffer::CellStyle) -> crate::CellStyle {
@@ -303,7 +295,6 @@ mod tests {
         assert_eq!(actual.height(), expected.height());
         assert_eq!(actual.get_all_cells(), expected.get_all_cells());
         assert_eq!(actual.cursor(), expected.cursor());
-        assert_eq!(actual.overlay_texts(), expected.overlay_texts());
     }
 
     fn render_incrementally(

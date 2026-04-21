@@ -8,7 +8,7 @@ use super::{
 use crate::dashboard::table::{
     TableAlign, TableColumn as DashboardTableColumn, table_render_width,
 };
-use crate::grid::OverlayTextFamily;
+use crate::grid::OverlayLogoKind;
 use crate::theme;
 use crate::{
     CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry, StyledSpan,
@@ -39,7 +39,6 @@ const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
 const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
 const GATE_LOGO_BLOCK_ROWS: usize = 7;
 const COMMAND_PANEL_HEIGHT: usize = 3;
-const HEADER_WORDMARK: &str = "Nostrian Conquest";
 const HEADER_WORDMARK_WIDTH: usize = 22;
 const LOBBY_PANEL_TOP: usize = 4;
 const LOBBY_PANEL_INSET_X: usize = 2;
@@ -1012,14 +1011,11 @@ fn render_lobby_shell(
         NetworkState::Synced => "SYNCED",
         NetworkState::Error => "ERROR",
     };
-    buffer.push_overlay_text(
-        HEADER_WORDMARK,
-        OverlayTextFamily::Stormfaze,
-        root_title(),
+    buffer.push_overlay_logo(
+        OverlayLogoKind::HeaderWordmark,
+        root_title().fg,
         title_col,
         0,
-        HEADER_WORDMARK_WIDTH,
-        1,
     );
     buffer.write_text_clipped(0, version_col, &version, label());
     if let Some(session) = &model.session {
@@ -2048,25 +2044,11 @@ fn draw_gate_wordmark(
     let logo_left = left + GATE_LOGO_WIDTH_INSET;
     let logo_width = width.saturating_sub(GATE_LOGO_WIDTH_INSET * 2);
     if use_stormfaze {
-        buffer.push_overlay_text(
-            "NOSTRIAN",
-            OverlayTextFamily::Stormfaze,
-            panel_brand(),
-            logo_left,
-            top,
-            logo_width,
-            4,
-        );
-        buffer.push_overlay_text(
-            "CONQUEST",
-            OverlayTextFamily::Stormfaze,
-            panel_brand(),
-            logo_left,
-            top + 3,
-            logo_width,
-            4,
-        );
-        return;
+        if let Some((nostrian, conquest)) = gate_logo_kinds(logo_width) {
+            buffer.push_overlay_logo(nostrian, panel_brand().fg, logo_left, top);
+            buffer.push_overlay_logo(conquest, panel_brand().fg, logo_left, top + 3);
+            return;
+        }
     }
 
     let line_one = "NOSTRIAN";
@@ -2075,6 +2057,24 @@ fn draw_gate_wordmark(
     let line_two_col = left + width.saturating_sub(line_two.chars().count()) / 2;
     buffer.write_text_clipped(top, line_one_col, line_one, panel_brand());
     buffer.write_text_clipped(top + 1, line_two_col, line_two, panel_brand());
+}
+
+fn gate_logo_kinds(width_cols: usize) -> Option<(OverlayLogoKind, OverlayLogoKind)> {
+    match width_cols {
+        54 => Some((
+            OverlayLogoKind::GateNostrian54x4,
+            OverlayLogoKind::GateConquest54x4,
+        )),
+        62 => Some((
+            OverlayLogoKind::GateNostrian62x4,
+            OverlayLogoKind::GateConquest62x4,
+        )),
+        66 => Some((
+            OverlayLogoKind::GateNostrian66x4,
+            OverlayLogoKind::GateConquest66x4,
+        )),
+        _ => None,
+    }
 }
 
 fn fill(buffer: &mut PlayfieldBuffer, style: CellStyle) {
