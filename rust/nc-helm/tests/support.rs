@@ -23,7 +23,7 @@ pub fn left_click(column: usize, row: usize) -> MouseEvent {
     }
 }
 
-pub fn view_cursor(app: &App) -> Point {
+pub fn view_cursor(app: &mut App) -> Point {
     app.view().cursor().expect("cursor should be set")
 }
 

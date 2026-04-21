@@ -10,7 +10,11 @@ use crate::dashboard::table::{
 };
 use crate::grid::OverlayTextFamily;
 use crate::theme;
-use crate::{CellStyle, Column, PlayfieldBuffer, Point, Row, ScreenGeometry, StyledSpan};
+use crate::{
+    CellStyle, Column, GameColor, PlayfieldBuffer, Point, Row, ScreenGeometry, StyledSpan,
+};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 const FORM_FIELD_LABEL_WIDTH: usize = 9;
 const SETTINGS_FIELD_LABEL_WIDTH: usize = 12;
@@ -65,6 +69,90 @@ struct LobbyPanelLayout {
 struct LobbyBodyLayout {
     top: usize,
     height: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ViewCache {
+    simple: SimpleViewCache,
+    lobby: LobbyViewCache,
+    hosted: HostedGameViewCache,
+    last_hit: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SimpleViewCache {
+    key: Option<u64>,
+    buffer: Option<PlayfieldBuffer>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct LobbyViewCache {
+    shell_key: Option<LobbyShellKey>,
+    content_key: Option<LobbyContentKey>,
+    shell_buffer: Option<PlayfieldBuffer>,
+    buffer: Option<PlayfieldBuffer>,
+}
+
+#[derive(Debug, Clone)]
+struct HostedGameViewCache {
+    key: Option<HostedRenderKey>,
+    dashboard_buffer: crate::dashboard::buffer::PlayfieldBuffer,
+    buffer: Option<PlayfieldBuffer>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct LobbyShellKey {
+    geometry: ScreenGeometry,
+    network: NetworkState,
+    active_tab: LobbyTab,
+    reserve_status_row: bool,
+    identity_hash: u64,
+    my_games_len: usize,
+    open_games_len: usize,
+    settings_rows: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct LobbyContentKey {
+    active_tab: LobbyTab,
+    selected_my_game: usize,
+    my_games_scroll: usize,
+    selected_open_game: usize,
+    open_games_scroll: usize,
+    settings_scroll: usize,
+    editing_relay: bool,
+    relay_draft: String,
+    relay_url: String,
+    status: Option<String>,
+    help_open: bool,
+    quit_confirm_open: bool,
+    my_games_hash: u64,
+    open_games_hash: u64,
+    notices_hash: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct HostedRenderKey {
+    width: usize,
+    height: usize,
+    game_data_revision: u64,
+    player_record_index_1_based: usize,
+    focus: crate::dashboard::app::state::PanelFocus,
+    help_return_overlay: crate::dashboard::app::state::ActiveOverlay,
+    overlay_position: Option<crate::dashboard::overlays::frame::RelativePopupOrigin>,
+    popup_position: Option<crate::dashboard::overlays::frame::RelativePopupOrigin>,
+    help_return_overlay_position: Option<crate::dashboard::overlays::frame::RelativePopupOrigin>,
+    mouse_gesture: crate::dashboard::app::state::ActiveMouseGesture,
+    crosshair_x: u8,
+    crosshair_y: u8,
+    map_view_mode: crate::dashboard::app::state::MapViewMode,
+    map_zoom_level: u8,
+    dense_empty_sector_dots: bool,
+    diplomacy_scroll: usize,
+    command_line_toast_message: Option<String>,
+    report_block_rows_len: usize,
+    queued_mail_len: usize,
+    is_terminal_too_small: bool,
 }
 
 enum SettingsRow {
@@ -169,6 +257,303 @@ fn network_style(network: NetworkState) -> CellStyle {
         NetworkState::Error => theme::error_network_color(),
     };
     CellStyle::new(fg, body().bg, true)
+}
+
+impl Default for HostedGameViewCache {
+    fn default() -> Self {
+        Self {
+            key: None,
+            dashboard_buffer: crate::dashboard::buffer::PlayfieldBuffer::new(
+                0,
+                0,
+                crate::dashboard::buffer::CellStyle::new(
+                    crate::dashboard::buffer::GameColor::Black,
+                    crate::dashboard::buffer::GameColor::Black,
+                    false,
+                ),
+            ),
+            buffer: None,
+        }
+    }
+}
+
+impl ViewCache {
+    pub(crate) fn render<'a>(&'a mut self, model: &Model) -> (bool, &'a PlayfieldBuffer) {
+        let geometry = normalized_geometry(model);
+        if geometry.width() < MIN_SUPPORTED_GEOMETRY.width()
+            || geometry.height() < MIN_SUPPORTED_GEOMETRY.height()
+        {
+            return self.render_simple(model);
+        }
+        match &model.route {
+            Route::Lobby(lobby) => self.render_lobby(model, lobby),
+            Route::HostedGame(hosted) => self.render_hosted(hosted),
+            _ => self.render_simple(model),
+        }
+    }
+
+    fn render_simple<'a>(&'a mut self, model: &Model) -> (bool, &'a PlayfieldBuffer) {
+        let key = simple_render_key(model);
+        if self.simple.key != Some(key) || self.simple.buffer.is_none() {
+            self.simple.key = Some(key);
+            self.simple.buffer = Some(render(model));
+            self.last_hit = false;
+        } else {
+            self.last_hit = true;
+        }
+        (
+            self.last_hit,
+            self.simple.buffer.as_ref().expect("simple buffer"),
+        )
+    }
+
+    fn render_lobby<'a>(
+        &'a mut self,
+        model: &Model,
+        lobby: &super::LobbyModel,
+    ) -> (bool, &'a PlayfieldBuffer) {
+        let geometry = normalized_geometry(model);
+        let reserve_status_row = lobby.status.is_some();
+        let shell_key = lobby_shell_key(model, lobby, geometry, reserve_status_row);
+        let content_key = lobby_content_key(model, lobby);
+        let shell_changed =
+            self.lobby.shell_key.as_ref() != Some(&shell_key) || self.lobby.shell_buffer.is_none();
+
+        if shell_changed {
+            let mut shell_buffer =
+                PlayfieldBuffer::new(geometry.width(), geometry.height(), body());
+            fill(&mut shell_buffer, body());
+            render_lobby_shell(
+                &mut shell_buffer,
+                geometry,
+                model,
+                lobby,
+                reserve_status_row,
+            );
+            let mut buffer = shell_buffer.clone();
+            render_lobby_content(&mut buffer, geometry, model, lobby, reserve_status_row);
+            self.lobby.shell_key = Some(shell_key);
+            self.lobby.content_key = Some(content_key);
+            self.lobby.shell_buffer = Some(shell_buffer);
+            self.lobby.buffer = Some(buffer);
+            self.last_hit = false;
+        } else if self.lobby.content_key.as_ref() != Some(&content_key)
+            || self.lobby.buffer.is_none()
+        {
+            let mut buffer = self
+                .lobby
+                .shell_buffer
+                .as_ref()
+                .expect("lobby shell buffer")
+                .clone();
+            render_lobby_content(&mut buffer, geometry, model, lobby, reserve_status_row);
+            self.lobby.content_key = Some(content_key);
+            self.lobby.buffer = Some(buffer);
+            self.last_hit = false;
+        } else {
+            self.last_hit = true;
+        }
+
+        (
+            self.last_hit,
+            self.lobby.buffer.as_ref().expect("lobby buffer"),
+        )
+    }
+
+    fn render_hosted<'a>(
+        &'a mut self,
+        hosted: &super::HostedGameModel,
+    ) -> (bool, &'a PlayfieldBuffer) {
+        let key = hosted_render_key(&hosted.dashboard);
+        let can_hit = hosted_render_is_cacheable(&hosted.dashboard);
+        if !can_hit || self.hosted.key.as_ref() != Some(&key) || self.hosted.buffer.is_none() {
+            let buffer = self.hosted.buffer.get_or_insert_with(|| {
+                PlayfieldBuffer::new(
+                    0,
+                    0,
+                    CellStyle::new(GameColor::Black, GameColor::Black, false),
+                )
+            });
+            crate::dashboard::render_hosted_buffer_into(
+                &hosted.dashboard,
+                &mut self.hosted.dashboard_buffer,
+                buffer,
+            )
+            .expect("hosted dashboard should render");
+            self.hosted.key = can_hit.then_some(key);
+            self.last_hit = false;
+        } else {
+            self.last_hit = true;
+        }
+        (
+            self.last_hit,
+            self.hosted.buffer.as_ref().expect("hosted buffer"),
+        )
+    }
+}
+
+fn normalized_geometry(model: &Model) -> ScreenGeometry {
+    if model.geometry.width() == 0 || model.geometry.height() == 0 {
+        DEFAULT_GEOMETRY
+    } else {
+        model.geometry
+    }
+}
+
+fn simple_render_key(model: &Model) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    normalized_geometry(model).width().hash(&mut hasher);
+    normalized_geometry(model).height().hash(&mut hasher);
+    model.relay_url.hash(&mut hasher);
+    match &model.route {
+        Route::Boot(boot) => {
+            0u8.hash(&mut hasher);
+            boot.status.hash(&mut hasher);
+        }
+        Route::FirstRun(first_run) => {
+            1u8.hash(&mut hasher);
+            first_run.active_field.hash(&mut hasher);
+            first_run.handle_input.hash(&mut hasher);
+            first_run.password_input.hash(&mut hasher);
+            first_run.confirm_input.hash(&mut hasher);
+            first_run.relay_input.hash(&mut hasher);
+            first_run.status.hash(&mut hasher);
+        }
+        Route::MatrixLocked => {
+            2u8.hash(&mut hasher);
+        }
+        Route::Locked(locked) => {
+            3u8.hash(&mut hasher);
+            locked.password_input.hash(&mut hasher);
+            locked.status.hash(&mut hasher);
+            locked.resume_session.hash(&mut hasher);
+        }
+        Route::SandboxJoinConfirm(row) => {
+            4u8.hash(&mut hasher);
+            row.hash(&mut hasher);
+        }
+        Route::SandboxJoinUnavailable { row, notice } => {
+            5u8.hash(&mut hasher);
+            row.hash(&mut hasher);
+            notice.hash(&mut hasher);
+        }
+        Route::SandboxDeleteConfirm(row) => {
+            6u8.hash(&mut hasher);
+            row.hash(&mut hasher);
+        }
+        Route::FirstJoinSetup(setup) => {
+            7u8.hash(&mut hasher);
+            setup.row.hash(&mut hasher);
+            setup.empire_input.hash(&mut hasher);
+            setup.homeworld_input.hash(&mut hasher);
+            setup.active_field.hash(&mut hasher);
+            setup.status.hash(&mut hasher);
+            setup.homeworld_coords.hash(&mut hasher);
+            setup.present_production.hash(&mut hasher);
+            setup.potential_production.hash(&mut hasher);
+        }
+        Route::FatalError(message) => {
+            8u8.hash(&mut hasher);
+            message.hash(&mut hasher);
+        }
+        Route::Lobby(_) => {
+            9u8.hash(&mut hasher);
+        }
+        Route::HostedGame(_) => {
+            10u8.hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
+
+fn hash_value<T: Hash>(value: &T) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    value.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn lobby_identity_hash(model: &Model) -> u64 {
+    match &model.session {
+        Some(session) => hash_value(&(session
+            .active_handle
+            .as_deref()
+            .unwrap_or(session.active_npub.as_str()),)),
+        None => 0,
+    }
+}
+
+fn lobby_shell_key(
+    model: &Model,
+    lobby: &super::LobbyModel,
+    geometry: ScreenGeometry,
+    reserve_status_row: bool,
+) -> LobbyShellKey {
+    let settings_rows = wrapped_settings_rows(model, settings_content_width(geometry)).len();
+    LobbyShellKey {
+        geometry,
+        network: model.network,
+        active_tab: lobby.active_tab,
+        reserve_status_row,
+        identity_hash: lobby_identity_hash(model),
+        my_games_len: model.my_games.len(),
+        open_games_len: model.open_games.len(),
+        settings_rows,
+    }
+}
+
+fn lobby_content_key(model: &Model, lobby: &super::LobbyModel) -> LobbyContentKey {
+    LobbyContentKey {
+        active_tab: lobby.active_tab,
+        selected_my_game: lobby.selected_my_game,
+        my_games_scroll: lobby.my_games_scroll,
+        selected_open_game: lobby.selected_open_game,
+        open_games_scroll: lobby.open_games_scroll,
+        settings_scroll: lobby.settings_scroll,
+        editing_relay: lobby.editing_relay,
+        relay_draft: lobby.relay_draft.clone(),
+        relay_url: model.relay_url.clone(),
+        status: lobby.status.clone(),
+        help_open: lobby.help_open,
+        quit_confirm_open: lobby.quit_confirm_open,
+        my_games_hash: hash_value(&model.my_games),
+        open_games_hash: hash_value(&model.open_games),
+        notices_hash: hash_value(&model.notices),
+    }
+}
+
+fn hosted_render_key(dashboard: &crate::dashboard::DashApp) -> HostedRenderKey {
+    HostedRenderKey {
+        width: dashboard.geometry.width(),
+        height: dashboard.geometry.height(),
+        game_data_revision: dashboard.game_data_revision,
+        player_record_index_1_based: dashboard.player_record_index_1_based,
+        focus: dashboard.focus,
+        help_return_overlay: dashboard.help_return_overlay,
+        overlay_position: dashboard.overlay_position,
+        popup_position: dashboard.popup_position,
+        help_return_overlay_position: dashboard.help_return_overlay_position,
+        mouse_gesture: dashboard.mouse_gesture,
+        crosshair_x: dashboard.crosshair_x,
+        crosshair_y: dashboard.crosshair_y,
+        map_view_mode: dashboard.map_view_mode,
+        map_zoom_level: dashboard.map_zoom_level,
+        dense_empty_sector_dots: dashboard.client_settings.dense_empty_sector_dots,
+        diplomacy_scroll: dashboard.diplomacy_scroll,
+        command_line_toast_message: dashboard.command_line_toast_message.clone(),
+        report_block_rows_len: dashboard.report_block_rows.len(),
+        queued_mail_len: dashboard.queued_mail.len(),
+        is_terminal_too_small: dashboard.is_terminal_too_small,
+    }
+}
+
+fn hosted_render_is_cacheable(dashboard: &crate::dashboard::DashApp) -> bool {
+    dashboard.overlay == crate::dashboard::app::state::ActiveOverlay::None
+        && dashboard.popup == crate::dashboard::app::state::ActivePopup::None
+        && dashboard.overlay_position.is_none()
+        && dashboard.popup_position.is_none()
+        && dashboard.help_return_overlay == crate::dashboard::app::state::ActiveOverlay::None
+        && dashboard.help_return_overlay_position.is_none()
+        && dashboard.mouse_gesture == crate::dashboard::app::state::ActiveMouseGesture::None
 }
 
 pub fn render(model: &Model) -> PlayfieldBuffer {
@@ -545,6 +930,17 @@ fn render_lobby(
     lobby: &super::LobbyModel,
 ) {
     let reserve_status_row = lobby.status.is_some();
+    render_lobby_shell(buffer, geometry, model, lobby, reserve_status_row);
+    render_lobby_content(buffer, geometry, model, lobby, reserve_status_row);
+}
+
+fn render_lobby_shell(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    lobby: &super::LobbyModel,
+    reserve_status_row: bool,
+) {
     let version = format!("<v{}>", short_version_label(env!("CARGO_PKG_VERSION")));
     let network = format!(
         "NETWORK: {}",
@@ -608,13 +1004,27 @@ fn render_lobby(
 
     draw_tabs(buffer, geometry, lobby);
     match lobby.active_tab {
-        LobbyTab::MyGames => draw_my_games(buffer, geometry, model, reserve_status_row),
-        LobbyTab::OpenGames => draw_open_games(buffer, geometry, model, lobby, reserve_status_row),
-        LobbyTab::Comms => draw_comms(buffer, geometry, model, reserve_status_row),
-        LobbyTab::Settings => draw_settings(buffer, geometry, model, reserve_status_row),
+        LobbyTab::MyGames => draw_my_games_shell(buffer, geometry, model, reserve_status_row),
+        LobbyTab::OpenGames => draw_open_games_shell(buffer, geometry, model, reserve_status_row),
+        LobbyTab::Comms => draw_comms_shell(buffer, geometry, reserve_status_row),
+        LobbyTab::Settings => draw_settings_shell(buffer, geometry, model, reserve_status_row),
     }
     draw_command_panel(buffer, geometry);
+}
 
+fn render_lobby_content(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    lobby: &super::LobbyModel,
+    reserve_status_row: bool,
+) {
+    match lobby.active_tab {
+        LobbyTab::MyGames => draw_my_games_content(buffer, geometry, model, reserve_status_row),
+        LobbyTab::OpenGames => draw_open_games_content(buffer, geometry, model, reserve_status_row),
+        LobbyTab::Comms => draw_comms_content(buffer, geometry, model, reserve_status_row),
+        LobbyTab::Settings => draw_settings_content(buffer, geometry, model, reserve_status_row),
+    }
     if let Some(status) = &lobby.status {
         buffer.write_text(lobby_status_row(geometry), 1, status, status_style(status));
     }
@@ -626,7 +1036,7 @@ fn render_lobby(
     }
 }
 
-fn draw_my_games(
+fn draw_my_games_shell(
     buffer: &mut PlayfieldBuffer,
     geometry: ScreenGeometry,
     model: &Model,
@@ -652,17 +1062,31 @@ fn draw_my_games(
         Some("MY GAMES"),
         None,
     );
-    render_my_games_table(buffer, &layout, model);
 }
 
-fn draw_open_games(
+fn draw_my_games_content(
     buffer: &mut PlayfieldBuffer,
     geometry: ScreenGeometry,
     model: &Model,
-    lobby: &super::LobbyModel,
     reserve_status_row: bool,
 ) {
-    let _ = lobby;
+    let columns = my_games_columns();
+    let layout = lobby_table_panel_layout(
+        geometry,
+        reserve_status_row,
+        "MY GAMES",
+        &columns,
+        model.my_games.len(),
+    );
+    render_my_games_table(buffer, &layout, model);
+}
+
+fn draw_open_games_shell(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    reserve_status_row: bool,
+) {
     let columns = open_games_columns();
     let layout = lobby_table_panel_layout(
         geometry,
@@ -683,13 +1107,28 @@ fn draw_open_games(
         Some("OPEN GAMES AVAILABLE TO JOIN"),
         None,
     );
-    render_open_games_table(buffer, &layout, model);
 }
 
-fn draw_comms(
+fn draw_open_games_content(
     buffer: &mut PlayfieldBuffer,
     geometry: ScreenGeometry,
     model: &Model,
+    reserve_status_row: bool,
+) {
+    let columns = open_games_columns();
+    let layout = lobby_table_panel_layout(
+        geometry,
+        reserve_status_row,
+        "OPEN GAMES AVAILABLE TO JOIN",
+        &columns,
+        model.open_games.len(),
+    );
+    render_open_games_table(buffer, &layout, model);
+}
+
+fn draw_comms_shell(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
     reserve_status_row: bool,
 ) {
     draw_panel(
@@ -716,6 +1155,14 @@ fn draw_comms(
         Some("LOBBY NOTICES"),
         None,
     );
+}
+
+fn draw_comms_content(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    reserve_status_row: bool,
+) {
     if model.notices.is_empty() {
         buffer.write_text(10, 6, "No recent notices from the relay.", panel_dim());
     } else {
@@ -731,7 +1178,7 @@ fn draw_comms(
     );
 }
 
-fn draw_settings(
+fn draw_settings_shell(
     buffer: &mut PlayfieldBuffer,
     geometry: ScreenGeometry,
     model: &Model,
@@ -750,6 +1197,15 @@ fn draw_settings(
         Some("SETTINGS"),
         None,
     );
+}
+
+fn draw_settings_content(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    model: &Model,
+    reserve_status_row: bool,
+) {
+    let layout = settings_panel_layout(geometry, reserve_status_row, model);
     let (relay_draft, editing_relay) = if let Route::Lobby(lobby) = &model.route {
         (lobby.relay_draft.as_str(), lobby.editing_relay)
     } else {
@@ -1017,6 +1473,13 @@ fn settings_panel_layout(
         visible_data_rows,
         scrollbar_col: left + width.saturating_sub(2),
     }
+}
+
+fn settings_content_width(geometry: ScreenGeometry) -> usize {
+    let desired_width = (SETTINGS_FIELD_LABEL_WIDTH + SETTINGS_FIELD_TRACK_WIDTH + 5)
+        .max("SETTINGS".chars().count() + 4);
+    let width = desired_width.min(geometry.width().saturating_sub(2));
+    width.saturating_sub(LOBBY_PANEL_INSET_X * 2 + LOBBY_PANEL_TABLE_WIDTH_GUTTER)
 }
 
 fn render_settings_rows(

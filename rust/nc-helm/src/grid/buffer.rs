@@ -118,6 +118,7 @@ pub(crate) struct OverlayText {
     pub anchor: OverlayAnchor,
 }
 
+#[derive(Debug, Clone)]
 pub struct PlayfieldBuffer {
     width: usize,
     height: usize,
@@ -135,6 +136,16 @@ impl PlayfieldBuffer {
             cursor: None,
             overlay_texts: Vec::new(),
         }
+    }
+
+    pub fn reset(&mut self, width: usize, height: usize, base_style: CellStyle) {
+        self.width = width;
+        self.height = height;
+        self.cells
+            .resize(width * height, Cell::new(' ', base_style));
+        self.cells.fill(Cell::new(' ', base_style));
+        self.cursor = None;
+        self.overlay_texts.clear();
     }
 
     pub fn width(&self) -> usize {

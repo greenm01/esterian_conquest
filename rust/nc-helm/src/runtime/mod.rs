@@ -122,6 +122,8 @@ enum ResizeVerdict {
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct FrameTimingSample {
     view_build: Duration,
+    view_cache_hits: usize,
+    view_cache_misses: usize,
     playfield_prepare: Duration,
     glyph_prepare: Duration,
     gpu_submit_present: Duration,
@@ -499,12 +501,19 @@ impl Runtime {
         }
     }
 
-    fn record_frame_timing(&mut self, view_build: Duration, render: renderer::RenderTimings) {
+    fn record_frame_timing(
+        &mut self,
+        view_build: Duration,
+        view_cache_hit: bool,
+        render: renderer::RenderTimings,
+    ) {
         if !self.options.native.diagnostic_mode {
             return;
         }
         if let Some(message) = self.frame_timings.record(FrameTimingSample {
             view_build,
+            view_cache_hits: usize::from(view_cache_hit),
+            view_cache_misses: usize::from(!view_cache_hit),
             playfield_prepare: render.playfield_prepare,
             glyph_prepare: render.glyph_prepare,
             gpu_submit_present: render.gpu_submit_present,
@@ -944,11 +953,11 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 ));
                 if let Some(renderer) = &mut self.renderer {
                     let view_started = Instant::now();
-                    let buffer = self.app.view();
+                    let (view_cache_hit, buffer) = self.app.view_with_cache_hit();
                     let view_build = view_started.elapsed();
-                    match renderer.render(&buffer) {
+                    match renderer.render(buffer) {
                         Ok(render_timings) => {
-                            self.record_frame_timing(view_build, render_timings);
+                            self.record_frame_timing(view_build, view_cache_hit, render_timings);
                             self.needs_redraw = false;
                         }
                         Err(err) => {
@@ -1032,6 +1041,18 @@ impl FrameTimingSummary {
         let glyph_ms = percentile_duration_ms(&self.samples, |sample| sample.glyph_prepare);
         let gpu_ms = percentile_duration_ms(&self.samples, |sample| sample.gpu_submit_present);
         let total_ms = percentile_duration_ms(&self.samples, |sample| sample.total);
+        let avg_view_cache_hits = self
+            .samples
+            .iter()
+            .map(|sample| sample.view_cache_hits as f64)
+            .sum::<f64>()
+            / frames as f64;
+        let avg_view_cache_misses = self
+            .samples
+            .iter()
+            .map(|sample| sample.view_cache_misses as f64)
+            .sum::<f64>()
+            / frames as f64;
         let avg_dirty_rows = self
             .samples
             .iter()
@@ -1093,7 +1114,7 @@ impl FrameTimingSummary {
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_text_buffer_misses={avg_text_buffer_misses:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_view_cache_hits={avg_view_cache_hits:.1} avg_view_cache_misses={avg_view_cache_misses:.1} avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_text_buffer_misses={avg_text_buffer_misses:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1557,6 +1578,8 @@ mod tests {
         let mut summary = FrameTimingSummary::default();
         let sample = FrameTimingSample {
             view_build: Duration::from_millis(1),
+            view_cache_hits: 1,
+            view_cache_misses: 0,
             playfield_prepare: Duration::from_millis(2),
             glyph_prepare: Duration::from_millis(3),
             gpu_submit_present: Duration::from_millis(4),
@@ -1580,6 +1603,8 @@ mod tests {
 
         let message = message.expect("summary should emit after enough samples");
         assert!(message.contains("frame timings [120 frames]"));
+        assert!(message.contains("avg_view_cache_hits=1.0"));
+        assert!(message.contains("avg_view_cache_misses=0.0"));
         assert!(message.contains("avg_dirty_rows=2.0"));
         assert!(message.contains("avg_raw_spans=3.0"));
         assert!(message.contains("avg_text_rebuild_spans=4.0"));

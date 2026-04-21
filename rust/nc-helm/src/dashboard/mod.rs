@@ -29,7 +29,6 @@ pub use launch::DashLaunchState;
 
 use nc_data::TurnSubmission;
 use nc_nostr::state_sync::GameState;
-use std::io;
 use std::time::Instant;
 
 use self::native::NativeApp;
@@ -92,18 +91,48 @@ pub fn hosted_wants_window_focus(dashboard: &DashApp) -> bool {
 pub fn render_hosted_buffer(
     dashboard: &DashApp,
 ) -> Result<crate::PlayfieldBuffer, Box<dyn std::error::Error>> {
-    let Some(playfield) = NativeApp::render_scene(dashboard)?.into_playfield() else {
-        return Err(Box::new(io::Error::other(
-            "hosted dashboard returned a non-playfield scene",
-        )));
-    };
+    let mut playfield = buffer::PlayfieldBuffer::new(
+        0,
+        0,
+        buffer::CellStyle::new(buffer::GameColor::Black, buffer::GameColor::Black, false),
+    );
+    render_hosted_playfield_into(dashboard, &mut playfield)?;
+    let mut buffer = crate::PlayfieldBuffer::new(
+        playfield.width(),
+        playfield.height(),
+        crate::CellStyle::new(crate::GameColor::Black, crate::GameColor::Black, false),
+    );
+    render_hosted_buffer_into_playfield(&playfield, &mut buffer);
+    Ok(buffer)
+}
 
+pub(crate) fn render_hosted_playfield_into(
+    dashboard: &DashApp,
+    playfield: &mut buffer::PlayfieldBuffer,
+) -> Result<(), Box<dyn std::error::Error>> {
+    app::render::render_into(dashboard, playfield)
+}
+
+pub(crate) fn render_hosted_buffer_into(
+    dashboard: &DashApp,
+    dashboard_playfield: &mut buffer::PlayfieldBuffer,
+    buffer: &mut crate::PlayfieldBuffer,
+) -> Result<(), Box<dyn std::error::Error>> {
+    render_hosted_playfield_into(dashboard, dashboard_playfield)?;
+    render_hosted_buffer_into_playfield(dashboard_playfield, buffer);
+    Ok(())
+}
+
+fn render_hosted_buffer_into_playfield(
+    playfield: &buffer::PlayfieldBuffer,
+    buffer: &mut crate::PlayfieldBuffer,
+) {
     let base_style = if playfield.width() > 0 && playfield.height() > 0 {
         convert_style(playfield.row(0)[0].style)
     } else {
         crate::CellStyle::new(crate::GameColor::Black, crate::GameColor::Black, false)
     };
-    let mut buffer = crate::PlayfieldBuffer::new(playfield.width(), playfield.height(), base_style);
+    buffer.reset(playfield.width(), playfield.height(), base_style);
     for row in 0..playfield.height() {
         for (col, cell) in playfield.row(row).iter().copied().enumerate() {
             buffer.set_cell(row, col, cell.ch, convert_style(cell.style));
@@ -120,7 +149,6 @@ pub fn render_hosted_buffer(
             glyph.center_row,
         );
     }
-    Ok(buffer)
 }
 
 fn convert_style(style: buffer::CellStyle) -> crate::CellStyle {

@@ -12,7 +12,7 @@ fn first_run_cursor_starts_at_handle_origin_and_advances_with_input() {
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
         lock_timeout_minutes: 10,
     })));
-    assert_eq!(view_cursor(&app), Point::from_usize(31, 19));
+    assert_eq!(view_cursor(&mut app), Point::from_usize(31, 19));
 
     for ch in "captain".chars() {
         let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char(ch))));
@@ -34,7 +34,7 @@ fn first_run_tab_moves_cursor_to_password_origin() {
         lock_timeout_minutes: 10,
     })));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Tab)));
-    assert_eq!(view_cursor(&app), Point::from_usize(31, 20));
+    assert_eq!(view_cursor(&mut app), Point::from_usize(31, 20));
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn locked_cursor_starts_at_password_origin() {
         relay_url: Some("ws://127.0.0.1:8080".to_string()),
         lock_timeout_minutes: 10,
     })));
-    assert_eq!(view_cursor(&app), Point::from_usize(33, 21));
+    assert_eq!(view_cursor(&mut app), Point::from_usize(33, 21));
 }
 
 #[test]
@@ -59,5 +59,8 @@ fn settings_relay_edit_cursor_tracks_the_relay_draft() {
     let settings_row = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("┐SETTINGS┌"))
         .expect("settings panel title");
-    assert_eq!(view_cursor(&app), Point::from_usize(55, settings_row + 3));
+    assert_eq!(
+        view_cursor(&mut app),
+        Point::from_usize(55, settings_row + 3)
+    );
 }

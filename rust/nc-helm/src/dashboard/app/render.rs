@@ -24,11 +24,24 @@ use crate::dashboard::theme;
 
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buf = new_dashboard_buffer(app.geometry);
+    render_into(app, &mut buf)?;
+    Ok(buf)
+}
+
+pub fn render_into(
+    app: &DashApp,
+    buf: &mut PlayfieldBuffer,
+) -> Result<(), Box<dyn std::error::Error>> {
+    buf.reset(
+        app.geometry.width(),
+        app.geometry.height(),
+        theme::body_style(),
+    );
 
     let required = required_dashboard_frame(app);
     if app.geometry.width() < required.width() || app.geometry.height() < required.height() {
-        render_too_small_blocker(&mut buf, app.geometry, required);
-        return Ok(buf);
+        render_too_small_blocker(buf, app.geometry, required);
+        return Ok(());
     }
 
     let dashboard = dashboard_layout(app);
@@ -38,15 +51,15 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             required.width().max(layout_required.width()),
             required.height().max(layout_required.height()),
         );
-        render_too_small_blocker(&mut buf, app.geometry, blocker_required);
-        return Ok(buf);
+        render_too_small_blocker(buf, app.geometry, blocker_required);
+        return Ok(());
     }
     let widgets = dashboard.widgets;
 
     // Draw structural borders and header/footer.
-    draw_frame(&mut buf, dashboard.frame, &widgets);
-    draw_header(&mut buf, app, &dashboard);
-    draw_footer(&mut buf, app, &dashboard);
+    draw_frame(buf, dashboard.frame, &widgets);
+    draw_header(buf, app, &dashboard);
+    draw_footer(buf, app, &dashboard);
 
     let rev = app.game_data_revision;
     let player = app.player_record_index_1_based;
@@ -54,28 +67,28 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
 
     // Left column panels.
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.economy,
         panel_hash(rev, player, widgets.left_economy.outer),
         widgets.left_economy.outer,
         |buf| economy::draw(buf, app, widgets.left_economy),
     );
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.planets,
         panel_hash(rev, player, widgets.left_planets.outer),
         widgets.left_planets.outer,
         |buf| planets::draw(buf, app, widgets.left_planets),
     );
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.fleets,
         panel_hash(rev, player, widgets.left_fleets.outer),
         widgets.left_fleets.outer,
         |buf| fleets::draw(buf, app, widgets.left_fleets),
     );
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.war_record,
         panel_hash(rev, player, widgets.left_war_record.outer),
         widgets.left_war_record.outer,
@@ -84,7 +97,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
 
     // Center: starmap (also depends on crosshair, map mode, zoom, settings).
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.starmap,
         starmap_hash(
             rev,
@@ -102,21 +115,21 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
 
     // Right column panels.
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.comms,
         panel_hash(rev, player, widgets.right_comms.outer),
         widgets.right_comms.outer,
         |buf| comms::draw(buf, app, widgets.right_comms),
     );
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.known_galaxy,
         panel_hash(rev, player, widgets.right_galaxy.outer),
         widgets.right_galaxy.outer,
         |buf| known_galaxy::draw(buf, app, widgets.right_galaxy),
     );
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.diplomacy,
         diplomacy_hash(
             rev,
@@ -128,7 +141,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         |buf| diplomacy::draw(buf, app, widgets.right_diplomacy),
     );
     draw_cached(
-        &mut buf,
+        buf,
         &mut cache.sector_detail,
         sector_detail_hash(
             rev,
@@ -144,21 +157,21 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
 
     if underlay != ActiveOverlay::None {
-        draw_non_help_overlay(&mut buf, app, widgets.center_map, underlay);
+        draw_non_help_overlay(buf, app, widgets.center_map, underlay);
     }
 
     if app.overlay == ActiveOverlay::Help {
-        overlays::help::draw(&mut buf, app, widgets.center_map);
+        overlays::help::draw(buf, app, widgets.center_map);
     }
 
     if app.overlay == ActiveOverlay::None {
         match app.popup {
-            ActivePopup::QuitConfirm => render_quit_confirm(&mut buf, app, widgets.center_map),
+            ActivePopup::QuitConfirm => render_quit_confirm(buf, app, widgets.center_map),
             ActivePopup::PlanetDetail {
                 planet_record_index_1_based,
             } => {
                 popups::planet_detail::draw(
-                    &mut buf,
+                    buf,
                     app,
                     widgets.center_map,
                     planet_record_index_1_based,
@@ -168,7 +181,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 planet_record_index_1_based,
             } => {
                 popups::owned_planet::draw(
-                    &mut buf,
+                    buf,
                     app,
                     widgets.center_map,
                     planet_record_index_1_based,
@@ -178,7 +191,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
     }
 
-    Ok(buf)
+    Ok(())
 }
 
 fn render_too_small_blocker(

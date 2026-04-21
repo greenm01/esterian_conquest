@@ -30,6 +30,8 @@ const LOBBY_TAB_GAP: usize = 1;
 #[derive(Debug, Clone)]
 pub struct App {
     model: Model,
+    view_cache: view::ViewCache,
+    last_view_cache_hit: bool,
 }
 
 impl App {
@@ -54,7 +56,14 @@ impl App {
             window_focused: false,
             should_quit: false,
         };
-        (Self { model }, vec![Effect::LoadBoot])
+        (
+            Self {
+                model,
+                view_cache: view::ViewCache::default(),
+                last_view_cache_hit: false,
+            },
+            vec![Effect::LoadBoot],
+        )
     }
 
     pub fn model(&self) -> &Model {
@@ -65,8 +74,18 @@ impl App {
         update::update(&mut self.model, msg)
     }
 
-    pub fn view(&self) -> PlayfieldBuffer {
-        view::render(&self.model)
+    pub fn view(&mut self) -> &PlayfieldBuffer {
+        self.view_with_cache_hit().1
+    }
+
+    pub fn view_with_cache_hit(&mut self) -> (bool, &PlayfieldBuffer) {
+        let (hit, buffer) = self.view_cache.render(&self.model);
+        self.last_view_cache_hit = hit;
+        (hit, buffer)
+    }
+
+    pub fn last_view_cache_hit(&self) -> bool {
+        self.last_view_cache_hit
     }
 
     pub fn hosted_on_idle(&mut self) -> bool {
@@ -133,7 +152,7 @@ pub struct BootModel {
     pub status: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FirstRunField {
     Handle,
     Password,
@@ -178,7 +197,7 @@ pub struct LockedModel {
     pub resume_session: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FirstJoinSetupField {
     Empire,
     Homeworld,
@@ -193,7 +212,7 @@ impl FirstJoinSetupField {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LobbyTab {
     MyGames,
     OpenGames,
@@ -283,7 +302,7 @@ pub struct SessionState {
     pub active_handle: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NetworkState {
     Idle,
     Connecting,
@@ -291,7 +310,7 @@ pub enum NetworkState {
     Error,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct MyGameRow {
     pub game_id: String,
     pub status: String,
@@ -307,7 +326,7 @@ pub struct MyGameRow {
     pub last_hash: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct OpenGameRow {
     pub game_id: String,
     pub status: String,
