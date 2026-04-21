@@ -311,6 +311,10 @@ impl PlayfieldBuffer {
         self.cursor = None;
     }
 
+    pub(crate) fn clear_overlay_texts(&mut self) {
+        self.overlay_texts.clear();
+    }
+
     pub(crate) fn push_overlay_text(
         &mut self,
         text: impl Into<String>,

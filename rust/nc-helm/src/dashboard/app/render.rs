@@ -22,6 +22,38 @@ use crate::dashboard::panels::{
 use crate::dashboard::popups;
 use crate::dashboard::theme;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DirtyRect {
+    pub row: usize,
+    pub col: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RegionHashes {
+    pub frame: u64,
+    pub header: u64,
+    pub footer: u64,
+    pub economy: u64,
+    pub planets: u64,
+    pub fleets: u64,
+    pub war_record: u64,
+    pub starmap: u64,
+    pub comms: u64,
+    pub known_galaxy: u64,
+    pub diplomacy: u64,
+    pub sector_detail: u64,
+    pub dynamic_layer_active: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IncrementalRenderOutcome {
+    pub hashes: RegionHashes,
+    pub dirty_rects: Vec<DirtyRect>,
+    pub full_rebuild: bool,
+}
+
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buf = new_dashboard_buffer(app.geometry);
     render_into(app, &mut buf)?;
@@ -55,143 +87,190 @@ pub fn render_into(
         return Ok(());
     }
     let widgets = dashboard.widgets;
-
-    // Draw structural borders and header/footer.
     draw_frame(buf, dashboard.frame, &widgets);
     draw_header(buf, app, &dashboard);
     draw_footer(buf, app, &dashboard);
-
-    let rev = app.game_data_revision;
-    let player = app.player_record_index_1_based;
+    let hashes = region_hashes(app, &dashboard);
     let mut cache = app.panel_cache.borrow_mut();
-
-    // Left column panels.
-    draw_cached(
-        buf,
-        &mut cache.economy,
-        panel_hash(rev, player, widgets.left_economy.outer),
-        widgets.left_economy.outer,
-        |buf| economy::draw(buf, app, widgets.left_economy),
-    );
-    draw_cached(
-        buf,
-        &mut cache.planets,
-        panel_hash(rev, player, widgets.left_planets.outer),
-        widgets.left_planets.outer,
-        |buf| planets::draw(buf, app, widgets.left_planets),
-    );
-    draw_cached(
-        buf,
-        &mut cache.fleets,
-        panel_hash(rev, player, widgets.left_fleets.outer),
-        widgets.left_fleets.outer,
-        |buf| fleets::draw(buf, app, widgets.left_fleets),
-    );
-    draw_cached(
-        buf,
-        &mut cache.war_record,
-        panel_hash(rev, player, widgets.left_war_record.outer),
-        widgets.left_war_record.outer,
-        |buf| war_record::draw(buf, app, widgets.left_war_record),
-    );
-
-    // Center: starmap (also depends on crosshair, map mode, zoom, settings).
-    draw_cached(
-        buf,
-        &mut cache.starmap,
-        starmap_hash(
-            rev,
-            player,
-            widgets.center_map.outer,
-            app.crosshair_x,
-            app.crosshair_y,
-            app.map_view_mode,
-            app.map_zoom_level,
-            app.client_settings.dense_empty_sector_dots,
-        ),
-        widgets.center_map.outer,
-        |buf| starmap::draw(buf, app, widgets.center_map),
-    );
-
-    // Right column panels.
-    draw_cached(
-        buf,
-        &mut cache.comms,
-        panel_hash(rev, player, widgets.right_comms.outer),
-        widgets.right_comms.outer,
-        |buf| comms::draw(buf, app, widgets.right_comms),
-    );
-    draw_cached(
-        buf,
-        &mut cache.known_galaxy,
-        panel_hash(rev, player, widgets.right_galaxy.outer),
-        widgets.right_galaxy.outer,
-        |buf| known_galaxy::draw(buf, app, widgets.right_galaxy),
-    );
-    draw_cached(
-        buf,
-        &mut cache.diplomacy,
-        diplomacy_hash(
-            rev,
-            player,
-            widgets.right_diplomacy.outer,
-            app.diplomacy_scroll,
-        ),
-        widgets.right_diplomacy.outer,
-        |buf| diplomacy::draw(buf, app, widgets.right_diplomacy),
-    );
-    draw_cached(
-        buf,
-        &mut cache.sector_detail,
-        sector_detail_hash(
-            rev,
-            player,
-            widgets.right_sector_detail.outer,
-            app.crosshair_x,
-            app.crosshair_y,
-        ),
-        widgets.right_sector_detail.outer,
-        |buf| sector_detail::draw(buf, app, widgets.right_sector_detail),
-    );
-
-    let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
-
-    if underlay != ActiveOverlay::None {
-        draw_non_help_overlay(buf, app, widgets.center_map, underlay);
-    }
-
-    if app.overlay == ActiveOverlay::Help {
-        overlays::help::draw(buf, app, widgets.center_map);
-    }
-
-    if app.overlay == ActiveOverlay::None {
-        match app.popup {
-            ActivePopup::QuitConfirm => render_quit_confirm(buf, app, widgets.center_map),
-            ActivePopup::PlanetDetail {
-                planet_record_index_1_based,
-            } => {
-                popups::planet_detail::draw(
-                    buf,
-                    app,
-                    widgets.center_map,
-                    planet_record_index_1_based,
-                );
-            }
-            ActivePopup::OwnedPlanet {
-                planet_record_index_1_based,
-            } => {
-                popups::owned_planet::draw(
-                    buf,
-                    app,
-                    widgets.center_map,
-                    planet_record_index_1_based,
-                );
-            }
-            ActivePopup::None => {}
-        }
-    }
+    draw_all_panels(buf, app, widgets, &hashes, &mut cache);
+    draw_dynamic_layer(buf, app, widgets);
 
     Ok(())
+}
+
+pub(crate) fn render_incremental_into(
+    app: &DashApp,
+    buf: &mut PlayfieldBuffer,
+    previous_hashes: Option<&RegionHashes>,
+) -> Result<IncrementalRenderOutcome, Box<dyn std::error::Error>> {
+    let required = required_dashboard_frame(app);
+    let geometry_changed =
+        buf.width() != app.geometry.width() || buf.height() != app.geometry.height();
+    if app.geometry.width() < required.width() || app.geometry.height() < required.height() {
+        render_into(app, buf)?;
+        return Ok(IncrementalRenderOutcome {
+            hashes: too_small_hashes(app),
+            dirty_rects: vec![DirtyRect {
+                row: 0,
+                col: 0,
+                width: app.geometry.width(),
+                height: app.geometry.height(),
+            }],
+            full_rebuild: true,
+        });
+    }
+
+    let dashboard = dashboard_layout(app);
+    if !dashboard_fits_canvas(app.geometry, &dashboard) {
+        render_into(app, buf)?;
+        return Ok(IncrementalRenderOutcome {
+            hashes: too_small_hashes(app),
+            dirty_rects: vec![DirtyRect {
+                row: 0,
+                col: 0,
+                width: app.geometry.width(),
+                height: app.geometry.height(),
+            }],
+            full_rebuild: true,
+        });
+    }
+
+    let widgets = dashboard.widgets;
+    let hashes = region_hashes(app, &dashboard);
+    let frame_changed = previous_hashes
+        .map(|prev| prev.frame != hashes.frame)
+        .unwrap_or(true);
+    if geometry_changed || frame_changed {
+        render_into(app, buf)?;
+        return Ok(IncrementalRenderOutcome {
+            hashes,
+            dirty_rects: vec![DirtyRect {
+                row: 0,
+                col: 0,
+                width: app.geometry.width(),
+                height: app.geometry.height(),
+            }],
+            full_rebuild: true,
+        });
+    }
+
+    let previous = previous_hashes.expect("previous hashes required after frame check");
+    let mut dirty_rects = Vec::new();
+
+    if previous.header != hashes.header {
+        clear_horizontal_bar(buf, widgets.header_bar_row, &dashboard, app.geometry);
+        draw_header(buf, app, &dashboard);
+        dirty_rects.push(frame_bar_rect(
+            widgets.header_bar_row,
+            &dashboard,
+            app.geometry,
+        ));
+    }
+
+    if previous.footer != hashes.footer {
+        clear_horizontal_bar(buf, widgets.footer_bar_row, &dashboard, app.geometry);
+        draw_footer(buf, app, &dashboard);
+        dirty_rects.push(frame_bar_rect(
+            widgets.footer_bar_row,
+            &dashboard,
+            app.geometry,
+        ));
+    }
+
+    let mut cache = app.panel_cache.borrow_mut();
+    if hashes.dynamic_layer_active || previous.dynamic_layer_active {
+        draw_all_panels(buf, app, widgets, &hashes, &mut cache);
+        draw_dynamic_layer(buf, app, widgets);
+        dirty_rects.push(dashboard_interior_rect(widgets));
+    } else {
+        redraw_panel_if_needed(
+            buf,
+            previous.economy != hashes.economy,
+            widgets.left_economy.outer,
+            &mut cache.economy,
+            hashes.economy,
+            |buf| economy::draw(buf, app, widgets.left_economy),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.planets != hashes.planets,
+            widgets.left_planets.outer,
+            &mut cache.planets,
+            hashes.planets,
+            |buf| planets::draw(buf, app, widgets.left_planets),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.fleets != hashes.fleets,
+            widgets.left_fleets.outer,
+            &mut cache.fleets,
+            hashes.fleets,
+            |buf| fleets::draw(buf, app, widgets.left_fleets),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.war_record != hashes.war_record,
+            widgets.left_war_record.outer,
+            &mut cache.war_record,
+            hashes.war_record,
+            |buf| war_record::draw(buf, app, widgets.left_war_record),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.starmap != hashes.starmap,
+            widgets.center_map.outer,
+            &mut cache.starmap,
+            hashes.starmap,
+            |buf| starmap::draw(buf, app, widgets.center_map),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.comms != hashes.comms,
+            widgets.right_comms.outer,
+            &mut cache.comms,
+            hashes.comms,
+            |buf| comms::draw(buf, app, widgets.right_comms),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.known_galaxy != hashes.known_galaxy,
+            widgets.right_galaxy.outer,
+            &mut cache.known_galaxy,
+            hashes.known_galaxy,
+            |buf| known_galaxy::draw(buf, app, widgets.right_galaxy),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.diplomacy != hashes.diplomacy,
+            widgets.right_diplomacy.outer,
+            &mut cache.diplomacy,
+            hashes.diplomacy,
+            |buf| diplomacy::draw(buf, app, widgets.right_diplomacy),
+            &mut dirty_rects,
+        );
+        redraw_panel_if_needed(
+            buf,
+            previous.sector_detail != hashes.sector_detail,
+            widgets.right_sector_detail.outer,
+            &mut cache.sector_detail,
+            hashes.sector_detail,
+            |buf| sector_detail::draw(buf, app, widgets.right_sector_detail),
+            &mut dirty_rects,
+        );
+    }
+
+    Ok(IncrementalRenderOutcome {
+        hashes,
+        dirty_rects,
+        full_rebuild: false,
+    })
 }
 
 fn render_too_small_blocker(
@@ -296,6 +375,46 @@ fn help_underlay_overlay(
     }
 }
 
+fn draw_dynamic_layer(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    widgets: crate::dashboard::layout::DashboardWidgetFrames,
+) {
+    let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
+    if underlay != ActiveOverlay::None {
+        draw_non_help_overlay(buf, app, widgets.center_map, underlay);
+    }
+    if app.overlay == ActiveOverlay::Help {
+        overlays::help::draw(buf, app, widgets.center_map);
+    }
+    if app.overlay == ActiveOverlay::None {
+        match app.popup {
+            ActivePopup::QuitConfirm => render_quit_confirm(buf, app, widgets.center_map),
+            ActivePopup::PlanetDetail {
+                planet_record_index_1_based,
+            } => {
+                popups::planet_detail::draw(
+                    buf,
+                    app,
+                    widgets.center_map,
+                    planet_record_index_1_based,
+                );
+            }
+            ActivePopup::OwnedPlanet {
+                planet_record_index_1_based,
+            } => {
+                popups::owned_planet::draw(
+                    buf,
+                    app,
+                    widgets.center_map,
+                    planet_record_index_1_based,
+                );
+            }
+            ActivePopup::None => {}
+        }
+    }
+}
+
 fn draw_non_help_overlay(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
@@ -344,6 +463,258 @@ fn draw_cached<F>(
             cells,
             overlay_glyphs,
         });
+    }
+}
+
+fn draw_all_panels(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    widgets: crate::dashboard::layout::DashboardWidgetFrames,
+    hashes: &RegionHashes,
+    cache: &mut crate::dashboard::app::panel_cache::PanelCache,
+) {
+    draw_cached(
+        buf,
+        &mut cache.economy,
+        hashes.economy,
+        widgets.left_economy.outer,
+        |buf| economy::draw(buf, app, widgets.left_economy),
+    );
+    draw_cached(
+        buf,
+        &mut cache.planets,
+        hashes.planets,
+        widgets.left_planets.outer,
+        |buf| planets::draw(buf, app, widgets.left_planets),
+    );
+    draw_cached(
+        buf,
+        &mut cache.fleets,
+        hashes.fleets,
+        widgets.left_fleets.outer,
+        |buf| fleets::draw(buf, app, widgets.left_fleets),
+    );
+    draw_cached(
+        buf,
+        &mut cache.war_record,
+        hashes.war_record,
+        widgets.left_war_record.outer,
+        |buf| war_record::draw(buf, app, widgets.left_war_record),
+    );
+    draw_cached(
+        buf,
+        &mut cache.starmap,
+        hashes.starmap,
+        widgets.center_map.outer,
+        |buf| starmap::draw(buf, app, widgets.center_map),
+    );
+    draw_cached(
+        buf,
+        &mut cache.comms,
+        hashes.comms,
+        widgets.right_comms.outer,
+        |buf| comms::draw(buf, app, widgets.right_comms),
+    );
+    draw_cached(
+        buf,
+        &mut cache.known_galaxy,
+        hashes.known_galaxy,
+        widgets.right_galaxy.outer,
+        |buf| known_galaxy::draw(buf, app, widgets.right_galaxy),
+    );
+    draw_cached(
+        buf,
+        &mut cache.diplomacy,
+        hashes.diplomacy,
+        widgets.right_diplomacy.outer,
+        |buf| diplomacy::draw(buf, app, widgets.right_diplomacy),
+    );
+    draw_cached(
+        buf,
+        &mut cache.sector_detail,
+        hashes.sector_detail,
+        widgets.right_sector_detail.outer,
+        |buf| sector_detail::draw(buf, app, widgets.right_sector_detail),
+    );
+}
+
+fn redraw_panel_if_needed<F>(
+    buf: &mut PlayfieldBuffer,
+    dirty: bool,
+    outer: WidgetRect,
+    entry: &mut Option<CachedPanel>,
+    hash: u64,
+    draw_fn: F,
+    dirty_rects: &mut Vec<DirtyRect>,
+) where
+    F: Fn(&mut PlayfieldBuffer),
+{
+    if !dirty {
+        return;
+    }
+    buf.fill_rect(
+        outer.row,
+        outer.col,
+        outer.width,
+        outer.height,
+        theme::body_style(),
+    );
+    draw_cached(buf, entry, hash, outer, draw_fn);
+    dirty_rects.push(DirtyRect::from_widget(outer));
+}
+
+fn region_hashes(app: &DashApp, dashboard: &layout::DashboardLayout) -> RegionHashes {
+    let widgets = dashboard.widgets;
+    let rev = app.game_data_revision;
+    let player = app.player_record_index_1_based;
+    RegionHashes {
+        frame: frame_hash(app, dashboard),
+        header: header_hash(app),
+        footer: footer_hash(app),
+        economy: panel_hash(rev, player, widgets.left_economy.outer),
+        planets: panel_hash(rev, player, widgets.left_planets.outer),
+        fleets: panel_hash(rev, player, widgets.left_fleets.outer),
+        war_record: panel_hash(rev, player, widgets.left_war_record.outer),
+        starmap: starmap_hash(
+            rev,
+            player,
+            widgets.center_map.outer,
+            app.crosshair_x,
+            app.crosshair_y,
+            app.map_view_mode,
+            app.map_zoom_level,
+            app.client_settings.dense_empty_sector_dots,
+        ),
+        comms: panel_hash(rev, player, widgets.right_comms.outer),
+        known_galaxy: panel_hash(rev, player, widgets.right_galaxy.outer),
+        diplomacy: diplomacy_hash(
+            rev,
+            player,
+            widgets.right_diplomacy.outer,
+            app.diplomacy_scroll,
+        ),
+        sector_detail: sector_detail_hash(
+            rev,
+            player,
+            widgets.right_sector_detail.outer,
+            app.crosshair_x,
+            app.crosshair_y,
+        ),
+        dynamic_layer_active: dynamic_layer_active(app),
+    }
+}
+
+fn too_small_hashes(app: &DashApp) -> RegionHashes {
+    let mut hasher = DefaultHasher::new();
+    app.geometry.width().hash(&mut hasher);
+    app.geometry.height().hash(&mut hasher);
+    app.is_terminal_too_small.hash(&mut hasher);
+    let frame = hasher.finish();
+    RegionHashes {
+        frame,
+        header: 0,
+        footer: 0,
+        economy: 0,
+        planets: 0,
+        fleets: 0,
+        war_record: 0,
+        starmap: 0,
+        comms: 0,
+        known_galaxy: 0,
+        diplomacy: 0,
+        sector_detail: 0,
+        dynamic_layer_active: false,
+    }
+}
+
+fn frame_hash(app: &DashApp, dashboard: &layout::DashboardLayout) -> u64 {
+    let mut h = DefaultHasher::new();
+    let widgets = dashboard.widgets;
+    app.geometry.width().hash(&mut h);
+    app.geometry.height().hash(&mut h);
+    dashboard.frame.width().hash(&mut h);
+    dashboard.frame.height().hash(&mut h);
+    app.map_view_mode.hash(&mut h);
+    widgets.outer_top.hash(&mut h);
+    widgets.outer_bottom.hash(&mut h);
+    widgets.header_bar_row.hash(&mut h);
+    widgets.header_divider_row.hash(&mut h);
+    widgets.footer_divider_row.hash(&mut h);
+    widgets.footer_bar_row.hash(&mut h);
+    widgets.left_divider_col.hash(&mut h);
+    widgets.right_divider_col.hash(&mut h);
+    h.finish()
+}
+
+fn header_hash(app: &DashApp) -> u64 {
+    let mut h = DefaultHasher::new();
+    app.game_data_revision.hash(&mut h);
+    app.player_record_index_1_based.hash(&mut h);
+    app.autopilot_on.hash(&mut h);
+    h.finish()
+}
+
+fn footer_hash(app: &DashApp) -> u64 {
+    let mut h = DefaultHasher::new();
+    app.crosshair_x.hash(&mut h);
+    app.crosshair_y.hash(&mut h);
+    app.map_coord_input.hash(&mut h);
+    h.finish()
+}
+
+fn dynamic_layer_active(app: &DashApp) -> bool {
+    app.overlay != ActiveOverlay::None
+        || app.popup != ActivePopup::None
+        || app.overlay_position.is_some()
+        || app.popup_position.is_some()
+        || app.help_return_overlay_position.is_some()
+        || app.mouse_gesture != crate::dashboard::app::state::ActiveMouseGesture::None
+}
+
+fn clear_horizontal_bar(
+    buf: &mut PlayfieldBuffer,
+    row: usize,
+    dashboard: &layout::DashboardLayout,
+    canvas: crate::dashboard::geometry::ScreenGeometry,
+) {
+    let (ox, _) = layout::frame_offset_for(canvas, dashboard.frame);
+    let start_col = ox.saturating_add(1);
+    let width = dashboard.frame.width().saturating_sub(2);
+    buf.fill_rect(row, start_col, width, 1, theme::body_style());
+}
+
+fn frame_bar_rect(
+    row: usize,
+    dashboard: &layout::DashboardLayout,
+    canvas: crate::dashboard::geometry::ScreenGeometry,
+) -> DirtyRect {
+    let (ox, _) = layout::frame_offset_for(canvas, dashboard.frame);
+    DirtyRect {
+        row,
+        col: ox.saturating_add(1),
+        width: dashboard.frame.width().saturating_sub(2),
+        height: 1,
+    }
+}
+
+fn dashboard_interior_rect(widgets: crate::dashboard::layout::DashboardWidgetFrames) -> DirtyRect {
+    let rect = crate::dashboard::overlays::frame::dashboard_overlay_parent_rect(widgets);
+    DirtyRect {
+        row: rect.y as usize,
+        col: rect.x as usize,
+        width: rect.width as usize,
+        height: rect.height as usize,
+    }
+}
+
+impl DirtyRect {
+    fn from_widget(rect: WidgetRect) -> Self {
+        Self {
+            row: rect.row,
+            col: rect.col,
+            width: rect.width,
+            height: rect.height,
+        }
     }
 }
 

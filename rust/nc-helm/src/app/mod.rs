@@ -5,6 +5,7 @@ mod view;
 use nc_client::cache::ClientCache;
 use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use nc_nostr::state_sync::GameState;
+pub(crate) use view::ViewRenderTimings;
 
 use crate::dashboard;
 use crate::input::{KeyCode, KeyEvent, MouseEvent};
@@ -32,6 +33,7 @@ pub struct App {
     model: Model,
     view_cache: view::ViewCache,
     last_view_cache_hit: bool,
+    last_view_render_timings: view::ViewRenderTimings,
 }
 
 impl App {
@@ -61,6 +63,7 @@ impl App {
                 model,
                 view_cache: view::ViewCache::default(),
                 last_view_cache_hit: false,
+                last_view_render_timings: view::ViewRenderTimings::default(),
             },
             vec![Effect::LoadBoot],
         )
@@ -79,9 +82,17 @@ impl App {
     }
 
     pub fn view_with_cache_hit(&mut self) -> (bool, &PlayfieldBuffer) {
-        let (hit, buffer) = self.view_cache.render(&self.model);
-        self.last_view_cache_hit = hit;
+        let (hit, _timings, buffer) = self.view_with_cache_hit_and_timings();
         (hit, buffer)
+    }
+
+    pub(crate) fn view_with_cache_hit_and_timings(
+        &mut self,
+    ) -> (bool, ViewRenderTimings, &PlayfieldBuffer) {
+        let (hit, timings, buffer) = self.view_cache.render(&self.model);
+        self.last_view_cache_hit = hit;
+        self.last_view_render_timings = timings;
+        (hit, timings, buffer)
     }
 
     pub fn last_view_cache_hit(&self) -> bool {

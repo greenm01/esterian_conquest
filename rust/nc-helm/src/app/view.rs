@@ -15,6 +15,7 @@ use crate::{
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 
 const FORM_FIELD_LABEL_WIDTH: usize = 9;
 const SETTINGS_FIELD_LABEL_WIDTH: usize = 12;
@@ -79,6 +80,14 @@ pub(crate) struct ViewCache {
     last_hit: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ViewRenderTimings {
+    pub hosted_dashboard_render: Duration,
+    pub hosted_convert: Duration,
+    pub hosted_dirty_regions: usize,
+    pub hosted_full_rebuild: bool,
+}
+
 #[derive(Debug, Clone, Default)]
 struct SimpleViewCache {
     key: Option<u64>,
@@ -96,6 +105,7 @@ struct LobbyViewCache {
 #[derive(Debug, Clone)]
 struct HostedGameViewCache {
     key: Option<HostedRenderKey>,
+    region_hashes: Option<crate::dashboard::app::render::RegionHashes>,
     dashboard_buffer: crate::dashboard::buffer::PlayfieldBuffer,
     buffer: Option<PlayfieldBuffer>,
 }
@@ -263,6 +273,7 @@ impl Default for HostedGameViewCache {
     fn default() -> Self {
         Self {
             key: None,
+            region_hashes: None,
             dashboard_buffer: crate::dashboard::buffer::PlayfieldBuffer::new(
                 0,
                 0,
@@ -278,7 +289,10 @@ impl Default for HostedGameViewCache {
 }
 
 impl ViewCache {
-    pub(crate) fn render<'a>(&'a mut self, model: &Model) -> (bool, &'a PlayfieldBuffer) {
+    pub(crate) fn render<'a>(
+        &'a mut self,
+        model: &Model,
+    ) -> (bool, ViewRenderTimings, &'a PlayfieldBuffer) {
         let geometry = normalized_geometry(model);
         if geometry.width() < MIN_SUPPORTED_GEOMETRY.width()
             || geometry.height() < MIN_SUPPORTED_GEOMETRY.height()
@@ -293,7 +307,10 @@ impl ViewCache {
         }
     }
 
-    fn render_simple<'a>(&'a mut self, model: &Model) -> (bool, &'a PlayfieldBuffer) {
+    fn render_simple<'a>(
+        &'a mut self,
+        model: &Model,
+    ) -> (bool, ViewRenderTimings, &'a PlayfieldBuffer) {
         let key = simple_render_key(model);
         if self.simple.key != Some(key) || self.simple.buffer.is_none() {
             self.simple.key = Some(key);
@@ -304,16 +321,21 @@ impl ViewCache {
         }
         (
             self.last_hit,
+            ViewRenderTimings::default(),
             self.simple.buffer.as_ref().expect("simple buffer"),
         )
     }
 
-    fn render_simple_uncached<'a>(&'a mut self, model: &Model) -> (bool, &'a PlayfieldBuffer) {
+    fn render_simple_uncached<'a>(
+        &'a mut self,
+        model: &Model,
+    ) -> (bool, ViewRenderTimings, &'a PlayfieldBuffer) {
         self.simple.key = None;
         self.simple.buffer = Some(render(model));
         self.last_hit = false;
         (
             self.last_hit,
+            ViewRenderTimings::default(),
             self.simple.buffer.as_ref().expect("simple buffer"),
         )
     }
@@ -322,7 +344,7 @@ impl ViewCache {
         &'a mut self,
         model: &Model,
         lobby: &super::LobbyModel,
-    ) -> (bool, &'a PlayfieldBuffer) {
+    ) -> (bool, ViewRenderTimings, &'a PlayfieldBuffer) {
         let geometry = normalized_geometry(model);
         let reserve_status_row = lobby.status.is_some();
         let shell_key = lobby_shell_key(model, lobby, geometry, reserve_status_row);
@@ -367,6 +389,7 @@ impl ViewCache {
 
         (
             self.last_hit,
+            ViewRenderTimings::default(),
             self.lobby.buffer.as_ref().expect("lobby buffer"),
         )
     }
@@ -374,9 +397,10 @@ impl ViewCache {
     fn render_hosted<'a>(
         &'a mut self,
         hosted: &super::HostedGameModel,
-    ) -> (bool, &'a PlayfieldBuffer) {
+    ) -> (bool, ViewRenderTimings, &'a PlayfieldBuffer) {
         let key = hosted_render_key(&hosted.dashboard);
         let can_hit = hosted_render_is_cacheable(&hosted.dashboard);
+        let mut timings = ViewRenderTimings::default();
         if !can_hit || self.hosted.key.as_ref() != Some(&key) || self.hosted.buffer.is_none() {
             let buffer = self.hosted.buffer.get_or_insert_with(|| {
                 PlayfieldBuffer::new(
@@ -385,19 +409,28 @@ impl ViewCache {
                     CellStyle::new(GameColor::Black, GameColor::Black, false),
                 )
             });
-            crate::dashboard::render_hosted_buffer_into(
+            let render_result = crate::dashboard::render_hosted_buffer_incremental_into(
                 &hosted.dashboard,
+                self.hosted.region_hashes.as_ref(),
                 &mut self.hosted.dashboard_buffer,
                 buffer,
             )
             .expect("hosted dashboard should render");
+            self.hosted.region_hashes = Some(render_result.hashes);
             self.hosted.key = can_hit.then_some(key);
+            timings = ViewRenderTimings {
+                hosted_dashboard_render: render_result.stats.dashboard_render,
+                hosted_convert: render_result.stats.convert,
+                hosted_dirty_regions: render_result.stats.dirty_regions,
+                hosted_full_rebuild: render_result.stats.full_rebuild,
+            };
             self.last_hit = false;
         } else {
             self.last_hit = true;
         }
         (
             self.last_hit,
+            timings,
             self.hosted.buffer.as_ref().expect("hosted buffer"),
         )
     }

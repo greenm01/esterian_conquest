@@ -29,12 +29,26 @@ pub use launch::DashLaunchState;
 
 use nc_data::TurnSubmission;
 use nc_nostr::state_sync::GameState;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use self::native::NativeApp;
 
 pub(crate) const QUIT_CONFIRM_TITLE: &str = "QUIT";
 pub(crate) const QUIT_CONFIRM_HEIGHT: usize = 5;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct HostedViewRenderStats {
+    pub dashboard_render: Duration,
+    pub convert: Duration,
+    pub dirty_regions: usize,
+    pub full_rebuild: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HostedBufferRenderResult {
+    pub hashes: app::render::RegionHashes,
+    pub stats: HostedViewRenderStats,
+}
 
 pub(crate) fn quit_confirm_popup_width(message: &str) -> usize {
     (message.chars().count() + 4).max(modal_min_width_for_title(QUIT_CONFIRM_TITLE))
@@ -123,6 +137,42 @@ pub(crate) fn render_hosted_buffer_into(
     Ok(())
 }
 
+pub(crate) fn render_hosted_buffer_incremental_into(
+    dashboard: &DashApp,
+    previous_hashes: Option<&app::render::RegionHashes>,
+    dashboard_playfield: &mut buffer::PlayfieldBuffer,
+    buffer: &mut crate::PlayfieldBuffer,
+) -> Result<HostedBufferRenderResult, Box<dyn std::error::Error>> {
+    let render_started = Instant::now();
+    let outcome =
+        app::render::render_incremental_into(dashboard, dashboard_playfield, previous_hashes)?;
+    let dashboard_render = render_started.elapsed();
+
+    let convert_started = Instant::now();
+    if outcome.full_rebuild
+        || buffer.width() != dashboard_playfield.width()
+        || buffer.height() != dashboard_playfield.height()
+    {
+        render_hosted_buffer_into_playfield(dashboard_playfield, buffer);
+    } else {
+        for rect in &outcome.dirty_rects {
+            convert_dashboard_region_into_playfield(dashboard_playfield, buffer, *rect);
+        }
+        sync_playfield_cursor_and_overlays(dashboard_playfield, buffer);
+    }
+    let convert = convert_started.elapsed();
+
+    Ok(HostedBufferRenderResult {
+        hashes: outcome.hashes,
+        stats: HostedViewRenderStats {
+            dashboard_render,
+            convert,
+            dirty_regions: outcome.dirty_rects.len(),
+            full_rebuild: outcome.full_rebuild,
+        },
+    })
+}
+
 fn render_hosted_buffer_into_playfield(
     playfield: &buffer::PlayfieldBuffer,
     buffer: &mut crate::PlayfieldBuffer,
@@ -138,9 +188,33 @@ fn render_hosted_buffer_into_playfield(
             buffer.set_cell(row, col, cell.ch, convert_style(cell.style));
         }
     }
+    sync_playfield_cursor_and_overlays(playfield, buffer);
+}
+
+fn convert_dashboard_region_into_playfield(
+    playfield: &buffer::PlayfieldBuffer,
+    buffer: &mut crate::PlayfieldBuffer,
+    rect: app::render::DirtyRect,
+) {
+    let row_end = rect.row.saturating_add(rect.height).min(playfield.height());
+    let col_end = rect.col.saturating_add(rect.width).min(playfield.width());
+    for row in rect.row..row_end {
+        for col in rect.col..col_end {
+            let cell = playfield.row(row)[col];
+            buffer.set_cell(row, col, cell.ch, convert_style(cell.style));
+        }
+    }
+}
+
+fn sync_playfield_cursor_and_overlays(
+    playfield: &buffer::PlayfieldBuffer,
+    buffer: &mut crate::PlayfieldBuffer,
+) {
+    buffer.clear_cursor();
     if let Some((column, row)) = playfield.cursor() {
         buffer.set_cursor(crate::Point::from_usize(column as usize, row as usize));
     }
+    buffer.clear_overlay_texts();
     for glyph in playfield.overlay_glyphs() {
         buffer.push_overlay_glyph_at(
             glyph.ch,
@@ -175,5 +249,100 @@ fn convert_color(color: buffer::GameColor) -> crate::GameColor {
         buffer::GameColor::BrightWhite => crate::GameColor::BrightWhite,
         buffer::GameColor::Indexed(value) => crate::GameColor::Indexed(value),
         buffer::GameColor::Rgb(red, green, blue) => crate::GameColor::Rgb(red, green, blue),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        HostedBufferRenderResult, buffer, render_hosted_buffer,
+        render_hosted_buffer_incremental_into,
+    };
+    use crate::dashboard::DashApp;
+    use crate::dashboard::geometry::ScreenGeometry;
+    use nc_data::GameStateBuilder;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    fn test_dash_app() -> DashApp {
+        DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 40),
+            ScreenGeometry::new(108, 26),
+            1,
+        )
+    }
+
+    fn dashboard_buffer() -> buffer::PlayfieldBuffer {
+        buffer::PlayfieldBuffer::new(
+            0,
+            0,
+            buffer::CellStyle::new(buffer::GameColor::Black, buffer::GameColor::Black, false),
+        )
+    }
+
+    fn grid_buffer() -> crate::PlayfieldBuffer {
+        crate::PlayfieldBuffer::new(
+            0,
+            0,
+            crate::CellStyle::new(crate::GameColor::Black, crate::GameColor::Black, false),
+        )
+    }
+
+    fn assert_playfields_match(actual: &crate::PlayfieldBuffer, expected: &crate::PlayfieldBuffer) {
+        assert_eq!(actual.width(), expected.width());
+        assert_eq!(actual.height(), expected.height());
+        assert_eq!(actual.get_all_cells(), expected.get_all_cells());
+        assert_eq!(actual.cursor(), expected.cursor());
+        assert_eq!(actual.overlay_texts(), expected.overlay_texts());
+    }
+
+    fn render_incrementally(
+        app: &DashApp,
+        previous: Option<&crate::dashboard::app::render::RegionHashes>,
+        dashboard_playfield: &mut buffer::PlayfieldBuffer,
+        playfield: &mut crate::PlayfieldBuffer,
+    ) -> HostedBufferRenderResult {
+        render_hosted_buffer_incremental_into(app, previous, dashboard_playfield, playfield)
+            .expect("incremental hosted render")
+    }
+
+    #[test]
+    fn incremental_hosted_crosshair_update_matches_full_render() {
+        let mut app = test_dash_app();
+        app.crosshair_x = 2;
+        app.crosshair_y = 3;
+
+        let mut dashboard_playfield = dashboard_buffer();
+        let mut playfield = grid_buffer();
+        let first = render_incrementally(&app, None, &mut dashboard_playfield, &mut playfield);
+
+        assert!(first.stats.full_rebuild);
+
+        app.crosshair_x = 4;
+        app.crosshair_y = 5;
+
+        let second = render_incrementally(
+            &app,
+            Some(&first.hashes),
+            &mut dashboard_playfield,
+            &mut playfield,
+        );
+        assert!(!second.stats.full_rebuild);
+        assert!(second.stats.dirty_regions > 0);
+        assert_ne!(first.hashes.starmap, second.hashes.starmap);
+        assert_ne!(first.hashes.sector_detail, second.hashes.sector_detail);
+
+        let expected = render_hosted_buffer(&app).expect("full hosted render");
+        assert_playfields_match(&playfield, &expected);
     }
 }

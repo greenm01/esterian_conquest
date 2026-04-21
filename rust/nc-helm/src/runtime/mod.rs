@@ -124,6 +124,10 @@ struct FrameTimingSample {
     view_build: Duration,
     view_cache_hits: usize,
     view_cache_misses: usize,
+    hosted_dashboard_render: Duration,
+    hosted_convert: Duration,
+    hosted_dirty_regions: usize,
+    hosted_full_rebuild: bool,
     playfield_prepare: Duration,
     glyph_prepare: Duration,
     gpu_submit_present: Duration,
@@ -505,6 +509,7 @@ impl Runtime {
         &mut self,
         view_build: Duration,
         view_cache_hit: bool,
+        view_timings: crate::app::ViewRenderTimings,
         render: renderer::RenderTimings,
     ) {
         if !self.options.native.diagnostic_mode {
@@ -514,6 +519,10 @@ impl Runtime {
             view_build,
             view_cache_hits: usize::from(view_cache_hit),
             view_cache_misses: usize::from(!view_cache_hit),
+            hosted_dashboard_render: view_timings.hosted_dashboard_render,
+            hosted_convert: view_timings.hosted_convert,
+            hosted_dirty_regions: view_timings.hosted_dirty_regions,
+            hosted_full_rebuild: view_timings.hosted_full_rebuild,
             playfield_prepare: render.playfield_prepare,
             glyph_prepare: render.glyph_prepare,
             gpu_submit_present: render.gpu_submit_present,
@@ -953,11 +962,17 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 ));
                 if let Some(renderer) = &mut self.renderer {
                     let view_started = Instant::now();
-                    let (view_cache_hit, buffer) = self.app.view_with_cache_hit();
+                    let (view_cache_hit, view_timings, buffer) =
+                        self.app.view_with_cache_hit_and_timings();
                     let view_build = view_started.elapsed();
                     match renderer.render(buffer) {
                         Ok(render_timings) => {
-                            self.record_frame_timing(view_build, view_cache_hit, render_timings);
+                            self.record_frame_timing(
+                                view_build,
+                                view_cache_hit,
+                                view_timings,
+                                render_timings,
+                            );
                             self.needs_redraw = false;
                         }
                         Err(err) => {
@@ -1053,6 +1068,24 @@ impl FrameTimingSummary {
             .map(|sample| sample.view_cache_misses as f64)
             .sum::<f64>()
             / frames as f64;
+        let avg_hosted_dashboard_render_ms = self
+            .samples
+            .iter()
+            .map(|sample| sample.hosted_dashboard_render.as_secs_f64() * 1000.0)
+            .sum::<f64>()
+            / frames as f64;
+        let avg_hosted_convert_ms = self
+            .samples
+            .iter()
+            .map(|sample| sample.hosted_convert.as_secs_f64() * 1000.0)
+            .sum::<f64>()
+            / frames as f64;
+        let avg_hosted_dirty_regions = self
+            .samples
+            .iter()
+            .map(|sample| sample.hosted_dirty_regions as f64)
+            .sum::<f64>()
+            / frames as f64;
         let avg_dirty_rows = self
             .samples
             .iter()
@@ -1106,6 +1139,11 @@ impl FrameTimingSummary {
             .iter()
             .filter(|sample| sample.full_rebuild)
             .count();
+        let hosted_full_rebuilds = self
+            .samples
+            .iter()
+            .filter(|sample| sample.hosted_full_rebuild)
+            .count();
         let row_upload_fallbacks = self
             .samples
             .iter()
@@ -1114,7 +1152,7 @@ impl FrameTimingSummary {
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_view_cache_hits={avg_view_cache_hits:.1} avg_view_cache_misses={avg_view_cache_misses:.1} avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_text_buffer_misses={avg_text_buffer_misses:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_view_cache_hits={avg_view_cache_hits:.1} avg_view_cache_misses={avg_view_cache_misses:.1} avg_hosted_dashboard_render_ms={avg_hosted_dashboard_render_ms:.2} avg_hosted_convert_ms={avg_hosted_convert_ms:.2} avg_hosted_dirty_regions={avg_hosted_dirty_regions:.1} avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_text_buffer_misses={avg_text_buffer_misses:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} hosted_full_rebuilds={hosted_full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1580,6 +1618,10 @@ mod tests {
             view_build: Duration::from_millis(1),
             view_cache_hits: 1,
             view_cache_misses: 0,
+            hosted_dashboard_render: Duration::from_millis(2),
+            hosted_convert: Duration::from_millis(1),
+            hosted_dirty_regions: 3,
+            hosted_full_rebuild: false,
             playfield_prepare: Duration::from_millis(2),
             glyph_prepare: Duration::from_millis(3),
             gpu_submit_present: Duration::from_millis(4),
@@ -1605,6 +1647,9 @@ mod tests {
         assert!(message.contains("frame timings [120 frames]"));
         assert!(message.contains("avg_view_cache_hits=1.0"));
         assert!(message.contains("avg_view_cache_misses=0.0"));
+        assert!(message.contains("avg_hosted_dashboard_render_ms=2.00"));
+        assert!(message.contains("avg_hosted_convert_ms=1.00"));
+        assert!(message.contains("avg_hosted_dirty_regions=3.0"));
         assert!(message.contains("avg_dirty_rows=2.0"));
         assert!(message.contains("avg_raw_spans=3.0"));
         assert!(message.contains("avg_text_rebuild_spans=4.0"));
@@ -1613,6 +1658,7 @@ mod tests {
         assert!(message.contains("avg_compacted_rects=2.0"));
         assert!(message.contains("avg_compacted_upload_area_pct=12.5"));
         assert!(message.contains("avg_upload_rects=1.0"));
+        assert!(message.contains("hosted_full_rebuilds=0"));
         assert!(message.contains("row_upload_fallbacks=120"));
     }
 
