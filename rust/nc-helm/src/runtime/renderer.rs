@@ -1,26 +1,16 @@
 //! wgpu + glyphon GPU renderer for the nc-helm character grid.
 //!
-//! Each frame the renderer paints two layers:
-//!
-//! 1. **Background pixel buffer** (`background_pixels`): a CPU-side RGBA
-//!    image the size of the surface. The playfield's per-cell background
-//!    colour, `BackgroundMode::TextBand` strips, and the caret are written
-//!    into this buffer with `fill_rect_rgba`. Unchanged cells are reused
-//!    across frames; dirty rectangles are uploaded back to the GPU texture
-//!    and drawn first as a fullscreen quad via the [`BACKGROUND_SHADER`]
-//!    pipeline.
-//! 2. **Glyph layer**: text runs are batched per (text, weight) into shaped
-//!    glyphon `Buffer`s, cached in `text_buffers`, and drawn on top by the
-//!    `glyphon::TextRenderer` using pixel-space coordinates from
-//!    `GridMapper::text_origin`.
+//! The rigid playfield grid is rendered by a fullscreen shader fed from a
+//! storage buffer of per-cell glyph/style data plus a boot-time monospace
+//! atlas. glyphon is reserved for overlays and rare grid glyph fallbacks that
+//! are not part of the fixed atlas repertoire.
 //!
 //! Coordinate conventions:
-//! - The CPU background buffer is row-major with row 0 at the top
-//!   (y-down), matching `GridMapper`.
-//! - wgpu NDC has y=+1 at the top of the screen and texture coords have
-//!   v=0 at the top, so the WGSL vertex shader pairs each NDC corner with
-//!   the matching texture corner (see [`BACKGROUND_SHADER`]).
-//! - glyphon takes pixel coordinates in the same y-down space.
+//! - `GridMapper` and glyphon both use pixel-space coordinates with row 0 at
+//!   the top (y-down).
+//! - The fragment shader receives `@builtin(position)` in the same
+//!   framebuffer-space coordinates, so cell-local math can stay in y-down
+//!   pixels without NDC conversions.
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -42,10 +32,10 @@ use wgpu::{
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
-use crate::geometry::{GridMapper, GridMetrics, TextMetrics};
+use crate::geometry::{GridMapper, GridMetrics, PhysicalRect, TextMetrics};
 use crate::grid::{
-    Cell, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily, PlayfieldBuffer, Point,
-    ScreenGeometry,
+    BackgroundMode, Cell, CellStyle, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily,
+    PlayfieldBuffer, Point, ScreenGeometry,
 };
 use crate::theme;
 
@@ -56,7 +46,7 @@ struct GpuCell {
     ch: u32,
     fg: u32,
     bg: u32,
-    // style bits: bit 0: bold, bit 1: dim, bit 2: italic, bit 3: underline
+    // style bits: bit 0 = bold, bit 1 = text-band background
     style: u32,
 }
 
@@ -68,10 +58,37 @@ struct GpuGrid {
     height: u32,
     cell_width_px: u32,
     cell_height_px: u32,
-    origin_x: f32,
-    origin_y: f32,
-    _padding: [u32; 2],
+    origin_x: u32,
+    origin_y: u32,
+    band_top_px: u32,
+    band_height_px: u32,
+    app_bg: u32,
+    cursor_col: u32,
+    cursor_row: u32,
+    cursor_visible: u32,
 }
+
+const GPU_STYLE_BOLD: u32 = 1 << 0;
+const GPU_STYLE_TEXT_BAND: u32 = 1 << 1;
+
+const GRID_ATLAS_ASCII_START: u32 = 32;
+const GRID_ATLAS_ASCII_END: u32 = 127;
+const GRID_ATLAS_ASCII_COUNT: u32 = GRID_ATLAS_ASCII_END - GRID_ATLAS_ASCII_START;
+const GRID_ATLAS_BOX_START: u32 = 0x2500;
+const GRID_ATLAS_BOX_END: u32 = 0x2580;
+const GRID_ATLAS_BOX_COUNT: u32 = GRID_ATLAS_BOX_END - GRID_ATLAS_BOX_START;
+const GRID_ATLAS_GREEK_COUNT: u32 = 24;
+const GRID_ATLAS_MISC_CHARS: [char; 6] = ['△', '⨁', '·', '◊', '—', '●'];
+const GRID_ATLAS_MISC_COUNT: u32 = GRID_ATLAS_MISC_CHARS.len() as u32;
+const GRID_ATLAS_BASE_GLYPH_COUNT: u32 =
+    GRID_ATLAS_ASCII_COUNT + GRID_ATLAS_BOX_COUNT + GRID_ATLAS_GREEK_COUNT + GRID_ATLAS_MISC_COUNT;
+const GRID_ATLAS_COLS: u32 = 32;
+const GRID_ATLAS_ROWS: u32 = 16;
+
+const GRID_GREEK_UPPERCASE: [char; GRID_ATLAS_GREEK_COUNT as usize] = [
+    'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ', 'Τ',
+    'Υ', 'Φ', 'Χ', 'Ψ', 'Ω',
+];
 
 /// Fullscreen-quad shader that uploads the CPU `background_pixels` buffer.
 ///
@@ -110,9 +127,24 @@ struct GridConfig {
     height: u32,
     cell_width_px: u32,
     cell_height_px: u32,
-    origin_x: f32,
-    origin_y: f32,
+    origin_x: u32,
+    origin_y: u32,
+    band_top_px: u32,
+    band_height_px: u32,
+    app_bg: u32,
+    cursor_col: u32,
+    cursor_row: u32,
+    cursor_visible: u32,
 };
+
+const STYLE_BOLD: u32 = 1u;
+const STYLE_TEXT_BAND: u32 = 2u;
+const ATLAS_ASCII_COUNT: u32 = 95u;
+const ATLAS_BOX_COUNT: u32 = 128u;
+const ATLAS_GREEK_COUNT: u32 = 24u;
+const ATLAS_MISC_COUNT: u32 = 6u;
+const ATLAS_GLYPH_COUNT: u32 = ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT + ATLAS_MISC_COUNT;
+const ATLAS_COLS: u32 = 32u;
 
 struct VertexOut {
     @builtin(position) position: vec4<f32>,
@@ -144,66 +176,247 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
     return out;
 }
 
-fn get_atlas_index(char_val: u32) -> i32 {
+fn srgb_channel_to_linear(value: f32) -> f32 {
+    if (value <= 0.04045) {
+        return value / 12.92;
+    }
+    return pow((value + 0.055) / 1.055, 2.4);
+}
+
+fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(
+        srgb_channel_to_linear(color.r),
+        srgb_channel_to_linear(color.g),
+        srgb_channel_to_linear(color.b),
+    );
+}
+
+fn unpack_color_linear(packed: u32) -> vec4<f32> {
+    let srgb = unpack4x8unorm(packed);
+    return vec4<f32>(srgb_to_linear(srgb.rgb), srgb.a);
+}
+
+fn get_atlas_base_index(char_val: u32) -> i32 {
     if (char_val >= 32u && char_val < 127u) {
         return i32(char_val - 32u);
     }
     if (char_val >= 0x2500u && char_val < 0x2580u) {
         return i32(char_val - 0x2500u + 95u);
     }
+    if (char_val >= 0x0391u && char_val <= 0x03A9u && char_val != 0x03A2u) {
+        let offset = select(char_val - 0x0391u, char_val - 0x0392u, char_val > 0x03A1u);
+        return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + offset);
+    }
+    switch char_val {
+        case 0x25B3u: {
+            return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT);
+        }
+        case 0x2A01u: {
+            return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT + 1u);
+        }
+        case 0x00B7u: {
+            return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT + 2u);
+        }
+        case 0x25CAu: {
+            return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT + 3u);
+        }
+        case 0x2014u: {
+            return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT + 4u);
+        }
+        case 0x25CFu: {
+            return i32(ATLAS_ASCII_COUNT + ATLAS_BOX_COUNT + ATLAS_GREEK_COUNT + 5u);
+        }
+        default: {}
+    }
     return -1;
+}
+
+fn primitive_kind(char_val: u32) -> i32 {
+    switch char_val {
+        case 0x2500u: { return 0; }  // ─
+        case 0x2502u: { return 1; }  // │
+        case 0x250Cu: { return 2; }  // ┌
+        case 0x2510u: { return 3; }  // ┐
+        case 0x2514u: { return 4; }  // └
+        case 0x2518u: { return 5; }  // ┘
+        case 0x251Cu: { return 6; }  // ├
+        case 0x2524u: { return 7; }  // ┤
+        case 0x252Cu: { return 8; }  // ┬
+        case 0x2534u: { return 9; }  // ┴
+        case 0x253Cu: { return 10; } // ┼
+        case 0x256Du: { return 11; } // ╭
+        case 0x256Eu: { return 12; } // ╮
+        case 0x256Fu: { return 13; } // ╯
+        case 0x2570u: { return 14; } // ╰
+        default: { return -1; }
+    }
+}
+
+fn square_primitive_alpha(kind: i32, x: u32, y: u32, cell_w: u32, cell_h: u32) -> f32 {
+    let mid_x = cell_w / 2u;
+    let mid_y = cell_h / 2u;
+    var left = false;
+    var right = false;
+    var up = false;
+    var down = false;
+    switch kind {
+        case 0: { left = true; right = true; }
+        case 1: { up = true; down = true; }
+        case 2: { right = true; down = true; }
+        case 3: { left = true; down = true; }
+        case 4: { right = true; up = true; }
+        case 5: { left = true; up = true; }
+        case 6: { right = true; up = true; down = true; }
+        case 7: { left = true; up = true; down = true; }
+        case 8: { left = true; right = true; down = true; }
+        case 9: { left = true; right = true; up = true; }
+        case 10: { left = true; right = true; up = true; down = true; }
+        default: {}
+    }
+    if ((left && y == mid_y && x <= mid_x)
+        || (right && y == mid_y && x >= mid_x)
+        || (up && x == mid_x && y <= mid_y)
+        || (down && x == mid_x && y >= mid_y)) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn rounded_primitive_alpha(kind: i32, x: u32, y: u32, cell_w: u32, cell_h: u32) -> f32 {
+    let sample_x = f32(x);
+    let sample_y = f32(y);
+    let mid_x = f32(cell_w / 2u);
+    let mid_y = f32(cell_h / 2u);
+    let left = 0.0;
+    let top = 0.0;
+    let right = f32(cell_w - 1u);
+    let bottom = f32(cell_h - 1u);
+    let left_rx = max(mid_x - left, 1.0);
+    let right_rx = max(right - mid_x, 1.0);
+    let top_ry = max(mid_y - top, 1.0);
+    let bottom_ry = max(bottom - mid_y, 1.0);
+
+    var center = vec2<f32>(0.0, 0.0);
+    var radius = vec2<f32>(1.0, 1.0);
+    var in_quadrant = false;
+
+    switch kind {
+        case 11: {
+            center = vec2<f32>(right, bottom);
+            radius = vec2<f32>(right_rx, bottom_ry);
+            in_quadrant = sample_x >= mid_x && sample_y >= mid_y;
+        }
+        case 12: {
+            center = vec2<f32>(left, bottom);
+            radius = vec2<f32>(left_rx, bottom_ry);
+            in_quadrant = sample_x <= mid_x && sample_y >= mid_y;
+        }
+        case 13: {
+            center = vec2<f32>(left, top);
+            radius = vec2<f32>(left_rx, top_ry);
+            in_quadrant = sample_x <= mid_x && sample_y <= mid_y;
+        }
+        case 14: {
+            center = vec2<f32>(right, top);
+            radius = vec2<f32>(right_rx, top_ry);
+            in_quadrant = sample_x >= mid_x && sample_y <= mid_y;
+        }
+        default: {}
+    }
+
+    if (!in_quadrant) {
+        return 0.0;
+    }
+
+    let distance = abs(length((vec2<f32>(sample_x, sample_y) - center) / radius) - 1.0);
+    let threshold = 0.75 * max(1.0 / radius.x, 1.0 / radius.y);
+    return select(0.0, 1.0, distance <= threshold);
+}
+
+fn primitive_alpha(kind: i32, x: u32, y: u32, cell_w: u32, cell_h: u32) -> f32 {
+    if (kind <= 10) {
+        return square_primitive_alpha(kind, x, y, cell_w, cell_h);
+    }
+    return rounded_primitive_alpha(kind, x, y, cell_w, cell_h);
 }
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     let screen_px = in.position.xy;
-    
-    let gx_px = screen_px.x - grid_config.origin_x;
-    let gy_px = screen_px.y - grid_config.origin_y;
-    
+    let gx_px = screen_px.x - f32(grid_config.origin_x);
+    let gy_px = screen_px.y - f32(grid_config.origin_y);
+
     if (gx_px < 0.0 || gy_px < 0.0) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    
+
     let grid_x = u32(gx_px) / grid_config.cell_width_px;
     let grid_y = u32(gy_px) / grid_config.cell_height_px;
-    
+
     if (grid_x >= grid_config.width || grid_y >= grid_config.height) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    
+
     let cell_idx = grid_y * grid_config.width + grid_x;
     let cell = grid_data[cell_idx];
-    
-    var color = unpack4x8unorm(cell.bg);
-    
-    let atlas_idx = get_atlas_index(cell.char_val);
+
+    let local_x = u32(gx_px) % grid_config.cell_width_px;
+    let local_y = u32(gy_px) % grid_config.cell_height_px;
+    let app_bg = unpack_color_linear(grid_config.app_bg);
+    let cell_bg = unpack_color_linear(cell.bg);
+    let fg_color = unpack_color_linear(cell.fg);
+    let in_text_band = local_y >= grid_config.band_top_px
+        && local_y < min(
+            grid_config.band_top_px + max(grid_config.band_height_px, 1u),
+            grid_config.cell_height_px,
+        );
+    let use_text_band = (cell.style & STYLE_TEXT_BAND) != 0u;
+
+    var color = app_bg;
+    if (cell.bg != grid_config.app_bg && (!use_text_band || in_text_band)) {
+        color = cell_bg;
+    }
+
+    if (grid_config.cursor_visible != 0u
+        && grid_x == grid_config.cursor_col
+        && grid_y == grid_config.cursor_row) {
+        let beam_width = select(2u, 1u, grid_config.cell_width_px <= 2u);
+        if (local_x < beam_width && in_text_band) {
+            color = unpack_color_linear(0xffffffffu);
+        }
+    }
+
+    let primitive = primitive_kind(cell.char_val);
+    if (primitive >= 0) {
+        let alpha = primitive_alpha(
+            primitive,
+            local_x,
+            local_y,
+            grid_config.cell_width_px,
+            grid_config.cell_height_px,
+        );
+        color = vec4<f32>(mix(color.rgb, fg_color.rgb, alpha), max(color.a, alpha));
+        return color;
+    }
+
+    var atlas_idx = get_atlas_base_index(cell.char_val);
     if (atlas_idx >= 0) {
-        let cols = 1024u / 32u;
-        let col = u32(atlas_idx) % cols;
-        let row = u32(atlas_idx) / cols;
-        
-        let cell_local_x = gx_px % f32(grid_config.cell_width_px);
-        let cell_local_y = gy_px % f32(grid_config.cell_height_px);
-        
-        // Slot is 32x64. Assume glyphs were centered in these slots.
-        let slot_u_offset = (32.0 - f32(grid_config.cell_width_px)) / 2.0;
-        let slot_v_offset = (64.0 - f32(grid_config.cell_height_px)) / 2.0;
-        
-        let atlas_u = (f32(col * 32u) + slot_u_offset + cell_local_x) / 1024.0;
-        let atlas_v = (f32(row * 64u) + slot_v_offset + cell_local_y) / 1024.0;
-        
+        if ((cell.style & STYLE_BOLD) != 0u) {
+            atlas_idx = atlas_idx + i32(ATLAS_GLYPH_COUNT);
+        }
+        let col = u32(atlas_idx) % ATLAS_COLS;
+        let row = u32(atlas_idx) / ATLAS_COLS;
+        let atlas_width_px = f32(ATLAS_COLS * grid_config.cell_width_px);
+        let atlas_height_px = f32(16u * grid_config.cell_height_px);
+        let atlas_u = (f32(col * grid_config.cell_width_px + local_x) + 0.5) / atlas_width_px;
+        let atlas_v = (f32(row * grid_config.cell_height_px + local_y) + 0.5) / atlas_height_px;
         let glyph_alpha = textureSample(grid_atlas, background_sampler, vec2<f32>(atlas_u, atlas_v)).r;
-        let fg_color = unpack4x8unorm(cell.fg);
-        
-        // Simple alpha blending
         color = vec4<f32>(mix(color.rgb, fg_color.rgb, glyph_alpha), max(color.a, glyph_alpha));
     }
-    
+
     return color;
 }
 "#;
-
 
 const PRIMARY_FONT_FAMILY: &str = "JetBrains Mono";
 const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
@@ -368,12 +581,12 @@ pub struct Renderer {
     background_bind_group_layout: BindGroupLayout,
     background_sampler: Sampler,
     background_texture: BackgroundTexture,
-    background_pixels: Vec<u8>,
     grid_buffer: Buffer,
     grid_config_buffer: Buffer,
     grid_bind_group: BindGroup,
     grid_atlas: GridAtlas,
     previous_playfield: Option<CachedPlayfield>,
+    grid_fallback_placements: Vec<TextPlacement>,
     overlay_placements: Vec<TextPlacement>,
     text_buffer_misses: usize,
     grid_metrics: GridMetrics,
@@ -424,14 +637,8 @@ impl Renderer {
             mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             ..SamplerDescriptor::default()
         });
-        let background_texture = BackgroundTexture::new(
-            &device,
-            surface_config.width,
-            surface_config.height,
-        );
-        let background_pixels =
-            vec![0; surface_config.width as usize * surface_config.height as usize * 4];
-
+        let background_texture =
+            BackgroundTexture::new(&device, surface_config.width, surface_config.height);
         let grid_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("nc-helm-grid-buffer"),
             size: (std::mem::size_of::<GpuCell>() * 256 * 128) as u64,
@@ -446,35 +653,23 @@ impl Renderer {
             mapped_at_creation: false,
         });
 
-        let grid_atlas =
-            generate_grid_atlas(&device, &queue, &mut font_system, &mut swash_cache, grid_metrics.text);
+        let grid_atlas = generate_grid_atlas(
+            &device,
+            &queue,
+            &mut font_system,
+            &mut swash_cache,
+            grid_metrics,
+        );
 
-        let grid_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("nc-helm-grid-bind-group"),
-            layout: &background_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&background_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&background_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: grid_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: grid_config_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 4,
-                    resource: wgpu::BindingResource::TextureView(&grid_atlas.view),
-                },
-            ],
-        });
+        let grid_bind_group = create_grid_bind_group(
+            &device,
+            &background_bind_group_layout,
+            &background_texture,
+            &background_sampler,
+            &grid_buffer,
+            &grid_config_buffer,
+            &grid_atlas,
+        );
 
         Ok(Self {
             window,
@@ -492,12 +687,12 @@ impl Renderer {
             background_bind_group_layout,
             background_sampler,
             background_texture,
-            background_pixels,
             grid_buffer,
             grid_config_buffer,
             grid_bind_group,
             grid_atlas,
             previous_playfield: None,
+            grid_fallback_placements: Vec::new(),
             overlay_placements: Vec::new(),
             text_buffer_misses: 0,
             grid_metrics,
@@ -529,7 +724,7 @@ impl Renderer {
                     ch: cell.ch as u32,
                     fg: u32::from_le_bytes(fg_rgba),
                     bg: u32::from_le_bytes(bg_rgba),
-                    style: if cell.style.bold { 1 } else { 0 },
+                    style: pack_gpu_style(cell.style),
                 }
             })
             .collect();
@@ -552,25 +747,40 @@ impl Renderer {
             height: playfield.height() as u32,
             cell_width_px: self.grid_metrics.cell.width_px as u32,
             cell_height_px: self.grid_metrics.cell.height_px as u32,
-            origin_x: mapper.origin_x as f32,
-            origin_y: mapper.origin_y as f32,
-            _padding: [0; 2],
+            origin_x: mapper.origin_x as u32,
+            origin_y: mapper.origin_y as u32,
+            band_top_px: self.grid_metrics.text.band_top_px as u32,
+            band_height_px: self.grid_metrics.text.band_height_px as u32,
+            app_bg: u32::from_le_bytes(primitives::color_to_rgba(theme::app_background())),
+            cursor_col: playfield
+                .cursor()
+                .map_or(0, |point| point.column.as_usize() as u32),
+            cursor_row: playfield
+                .cursor()
+                .map_or(0, |point| point.row.as_usize() as u32),
+            cursor_visible: u32::from(playfield.cursor().is_some()),
         };
         self.queue
             .write_buffer(&self.grid_config_buffer, 0, bytemuck::bytes_of(&config));
     }
 
+    fn rebuild_grid_bind_group(&mut self) {
+        self.grid_bind_group = create_grid_bind_group(
+            &self.device,
+            &self.background_bind_group_layout,
+            &self.background_texture,
+            &self.background_sampler,
+            &self.grid_buffer,
+            &self.grid_config_buffer,
+            &self.grid_atlas,
+        );
+    }
+
     /// Render one frame of `playfield`.
     ///
-    /// Steps, in order:
-    /// 1. Sync DPI metrics and reconfigure the surface if the window resized.
-    /// 2. Diff the playfield against the previous frame, repaint dirty rows
-    ///    into `background_pixels`, and collect text runs as
-    ///    `TextPlacement`s (see `prepare_playfield`).
-    /// 3. Upload the changed background rows to the GPU texture and
-    ///    `prepare` the glyphon `TextRenderer` with the staged runs.
-    /// 4. Acquire the swapchain frame, draw the background quad, then the
-    ///    glyph layer on top, and present.
+    /// The grid itself is drawn by the fullscreen shader. glyphon is prepared
+    /// only for overlays and rare per-cell fallbacks that are outside the
+    /// fixed monospace atlas.
     pub fn render(
         &mut self,
         playfield: &PlayfieldBuffer,
@@ -595,8 +805,9 @@ impl Renderer {
         let playfield_prepare = prepare_start.elapsed();
         let glyph_prepare_start = Instant::now();
         let text_areas = self
-            .overlay_placements
+            .grid_fallback_placements
             .iter()
+            .chain(self.overlay_placements.iter())
             .map(|placement| TextArea {
                 buffer: self
                     .text_buffers
@@ -733,24 +944,24 @@ impl Renderer {
         let updated = GridMetrics::for_scale(scale_factor, &mut self.font_system);
         if updated != self.grid_metrics {
             self.grid_metrics = updated;
+            self.grid_atlas = generate_grid_atlas(
+                &self.device,
+                &self.queue,
+                &mut self.font_system,
+                &mut self.swash_cache,
+                self.grid_metrics,
+            );
+            self.rebuild_grid_bind_group();
             self.text_buffers.clear();
             self.previous_playfield = None;
+            self.grid_fallback_placements.clear();
             self.overlay_placements.clear();
         }
     }
 
-    /// Paint dirty playfield rows into `background_pixels`, batch adjacent
-    /// same-style cells into glyphon text runs, and upload the changed
-    /// background rows to the GPU.
-    ///
-    /// Returns the staged text placements; the caller hands them to
-    /// `glyphon::TextRenderer::prepare`.
-    ///
-    /// Run batching: contiguous non-space cells with identical `CellStyle`
-    /// become one shaped run. Spaces flush the current run because they
-    /// don't need glyph rendering — the background fill alone suffices, and
-    /// breaking on spaces lets adjacent runs differ in style without a
-    /// per-cell shaping cost.
+    /// Refresh the overlay text set and collect any rare grid glyphs that
+    /// need glyphon fallback because they are outside the fixed atlas
+    /// repertoire.
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> PreparedFrame {
         self.text_buffer_misses = 0;
         let frame_width = self.surface_config.width as usize;
@@ -759,9 +970,10 @@ impl Renderer {
         let mapper =
             GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
 
-        let dirty_overlay = self.previous_playfield.as_ref().map_or(true, |prev| {
-            prev.overlay_texts != playfield.overlay_texts()
-        });
+        let dirty_overlay = self
+            .previous_playfield
+            .as_ref()
+            .map_or(true, |prev| prev.overlay_texts != playfield.overlay_texts());
 
         if dirty_overlay {
             let mut overlay_placements = Vec::new();
@@ -773,6 +985,7 @@ impl Renderer {
             );
             self.overlay_placements = overlay_placements;
         }
+        self.grid_fallback_placements = collect_grid_fallback_placements(self, mapper, playfield);
 
         self.previous_playfield = Some(snapshot_playfield(playfield));
 
@@ -813,13 +1026,59 @@ impl Renderer {
             self.surface_config.width,
             self.surface_config.height,
         );
-        self.background_pixels.resize(
-            self.surface_config.width as usize * self.surface_config.height as usize * 4,
-            0,
-        );
+        self.rebuild_grid_bind_group();
         self.previous_playfield = None;
+        self.grid_fallback_placements.clear();
         self.overlay_placements.clear();
     }
+}
+
+fn create_grid_bind_group(
+    device: &Device,
+    bind_group_layout: &BindGroupLayout,
+    background_texture: &BackgroundTexture,
+    background_sampler: &Sampler,
+    grid_buffer: &Buffer,
+    grid_config_buffer: &Buffer,
+    grid_atlas: &GridAtlas,
+) -> BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("nc-helm-grid-bind-group"),
+        layout: bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&background_texture.view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(background_sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: grid_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: grid_config_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::TextureView(&grid_atlas.view),
+            },
+        ],
+    })
+}
+
+fn pack_gpu_style(style: CellStyle) -> u32 {
+    let mut bits = 0;
+    if style.bold {
+        bits |= GPU_STYLE_BOLD;
+    }
+    if style.bg_mode == BackgroundMode::TextBand {
+        bits |= GPU_STYLE_TEXT_BAND;
+    }
+    bits
 }
 
 fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
@@ -954,11 +1213,7 @@ fn create_background_pipeline(
 }
 
 impl BackgroundTexture {
-    fn new(
-        device: &Device,
-        width: u32,
-        height: u32,
-    ) -> Self {
+    fn new(device: &Device, width: u32, height: u32) -> Self {
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("nc-helm-background-texture"),
             size: wgpu::Extent3d {
@@ -974,10 +1229,7 @@ impl BackgroundTexture {
             view_formats: &[],
         });
         let view = texture.create_view(&TextureViewDescriptor::default());
-        Self {
-            texture,
-            view,
-        }
+        Self { texture, view }
     }
 }
 
@@ -989,6 +1241,98 @@ fn fit_grid_to_pixels(
     let cols = (width.max(1) as usize / cell.width_px).max(1);
     let rows = (height.max(1) as usize / cell.height_px).max(1);
     ScreenGeometry::new(cols, rows)
+}
+
+fn collect_grid_fallback_placements(
+    renderer: &mut Renderer,
+    mapper: GridMapper,
+    playfield: &PlayfieldBuffer,
+) -> Vec<TextPlacement> {
+    let mut placements = Vec::new();
+    for row_idx in 0..playfield.height() {
+        for (col_idx, cell) in playfield.row(row_idx).iter().copied().enumerate() {
+            if !needs_grid_glyph_fallback(cell) {
+                continue;
+            }
+            let key = make_text_key(
+                Arc::<str>::from(cell.ch.to_string()),
+                TextFamilyKey::Monospace,
+                renderer.grid_metrics.text.font_size_px,
+                renderer.grid_metrics.text.line_height_px,
+                cell.style.bold,
+            );
+            renderer.ensure_text_buffer(key.clone());
+            let overhang = renderer
+                .text_buffers
+                .get(&key)
+                .map(|cached| cached.overhang)
+                .expect("text buffer exists after shaping");
+            let point = Point::from_usize(col_idx, row_idx);
+            let text_origin = mapper.text_origin(point, renderer.grid_metrics.text);
+            let fill_rect =
+                text_cell_fill_rect(mapper, point, cell.style, renderer.grid_metrics.text);
+            placements.push(TextPlacement {
+                key,
+                start_col: col_idx,
+                end_col: col_idx + 1,
+                left: text_origin.left,
+                top: text_origin.top,
+                bounds: expanded_text_bounds(
+                    text_origin.left.floor().max(0.0) as usize,
+                    fill_rect.x,
+                    fill_rect.y,
+                    fill_rect.x + fill_rect.width,
+                    mapper.cell.height_px,
+                    renderer.surface_config.width as usize,
+                    renderer.surface_config.height as usize,
+                    overhang,
+                ),
+                color: cell.style.fg,
+            });
+        }
+    }
+    placements
+}
+
+fn needs_grid_glyph_fallback(cell: Cell) -> bool {
+    cell.ch != ' '
+        && !primitives::should_draw_as_primitive(cell.ch)
+        && char_atlas_base_index(cell.ch).is_none()
+}
+
+fn text_cell_fill_rect(
+    mapper: GridMapper,
+    point: Point,
+    style: CellStyle,
+    text_metrics: TextMetrics,
+) -> PhysicalRect {
+    if style.bg_mode == BackgroundMode::TextBand {
+        mapper.text_band_rect(point, text_metrics)
+    } else {
+        mapper.cell_rect(point)
+    }
+}
+
+fn char_atlas_base_index(ch: char) -> Option<u32> {
+    let code = ch as u32;
+    if (GRID_ATLAS_ASCII_START..GRID_ATLAS_ASCII_END).contains(&code) {
+        return Some(code - GRID_ATLAS_ASCII_START);
+    }
+    if (GRID_ATLAS_BOX_START..GRID_ATLAS_BOX_END).contains(&code) {
+        return Some(GRID_ATLAS_ASCII_COUNT + code - GRID_ATLAS_BOX_START);
+    }
+    if let Some(index) = GRID_GREEK_UPPERCASE
+        .iter()
+        .position(|candidate| *candidate == ch)
+    {
+        return Some(GRID_ATLAS_ASCII_COUNT + GRID_ATLAS_BOX_COUNT + index as u32);
+    }
+    GRID_ATLAS_MISC_CHARS
+        .iter()
+        .position(|candidate| *candidate == ch)
+        .map(|index| {
+            GRID_ATLAS_ASCII_COUNT + GRID_ATLAS_BOX_COUNT + GRID_ATLAS_GREEK_COUNT + index as u32
+        })
 }
 
 fn prepare_overlay_texts(
@@ -1340,13 +1684,48 @@ fn glyphon_color(color: GameColor) -> Color {
     Color::rgb(r, g, b)
 }
 
+fn linear_channel_from_srgb_u8(value: u8) -> f64 {
+    let srgb = f64::from(value) / 255.0;
+    if srgb <= 0.04045 {
+        srgb / 12.92
+    } else {
+        ((srgb + 0.055) / 1.055).powf(2.4)
+    }
+}
+
 fn clear_color(color: GameColor) -> wgpu::Color {
     let [r, g, b, a] = primitives::color_to_rgba(color);
     wgpu::Color {
-        r: f64::from(r) / 255.0,
-        g: f64::from(g) / 255.0,
-        b: f64::from(b) / 255.0,
+        r: linear_channel_from_srgb_u8(r),
+        g: linear_channel_from_srgb_u8(g),
+        b: linear_channel_from_srgb_u8(b),
         a: f64::from(a) / 255.0,
+    }
+}
+
+fn expanded_text_bounds(
+    text_left_px: usize,
+    left_px: usize,
+    top_px: usize,
+    right_px: usize,
+    cell_height_px: usize,
+    frame_width_px: usize,
+    frame_height_px: usize,
+    overhang: TextOverhang,
+) -> TextBounds {
+    let left = left_px.saturating_sub(overhang.left_px).min(frame_width_px) as i32;
+    let ink_right = text_left_px
+        .saturating_add(overhang.advance_width_px)
+        .saturating_add(overhang.right_px)
+        .min(frame_width_px);
+    let right = right_px.max(ink_right).min(frame_width_px) as i32;
+    let top = top_px.min(frame_height_px) as i32;
+    let bottom = top_px.saturating_add(cell_height_px).min(frame_height_px) as i32;
+    TextBounds {
+        left,
+        top,
+        right,
+        bottom,
     }
 }
 
@@ -1355,10 +1734,12 @@ fn generate_grid_atlas(
     queue: &Queue,
     font_system: &mut FontSystem,
     swash_cache: &mut SwashCache,
-    metrics: TextMetrics,
+    grid_metrics: GridMetrics,
 ) -> GridAtlas {
-    let atlas_width = 1024u32;
-    let atlas_height = 1024u32;
+    let slot_w = grid_metrics.cell.width_px.max(1) as u32;
+    let slot_h = grid_metrics.cell.height_px.max(1) as u32;
+    let atlas_width = slot_w * GRID_ATLAS_COLS;
+    let atlas_height = slot_h * GRID_ATLAS_ROWS;
 
     let texture = device.create_texture(&TextureDescriptor {
         label: Some("nc-helm-grid-atlas"),
@@ -1379,58 +1760,98 @@ fn generate_grid_atlas(
 
     let mut atlas_data = vec![0u8; (atlas_width * atlas_height) as usize];
 
-    // We'll map characters to 32x64 slots in the atlas for simplicity.
-    let slot_w = 32u32;
-    let slot_h = 64u32;
-    let cols = atlas_width / slot_w;
+    for bold in [false, true] {
+        let bold_offset = if bold { GRID_ATLAS_BASE_GLYPH_COUNT } else { 0 };
+        for ch in atlas_repertoire_chars() {
+            let Some(base_index) = char_atlas_base_index(ch) else {
+                continue;
+            };
+            let atlas_index = base_index + bold_offset;
+            let col = atlas_index % GRID_ATLAS_COLS;
+            let row = atlas_index / GRID_ATLAS_COLS;
+            let slot_left = col as i32 * slot_w as i32;
+            let slot_top = row as i32 * slot_h as i32;
+            let slot_right = slot_left + slot_w as i32;
+            let slot_bottom = slot_top + slot_h as i32;
+            let mut buffer = GlyphBuffer::new(
+                font_system,
+                Metrics::new(
+                    grid_metrics.text.font_size_px,
+                    grid_metrics.text.line_height_px,
+                ),
+            );
+            buffer.set_size(
+                font_system,
+                Some(slot_w as f32),
+                Some(grid_metrics.text.line_height_px),
+            );
+            buffer.set_text(
+                font_system,
+                &ch.to_string(),
+                &Attrs::new().family(Family::Monospace).weight(if bold {
+                    Weight::BOLD
+                } else {
+                    Weight::NORMAL
+                }),
+                Shaping::Advanced,
+                None,
+            );
+            buffer.shape_until_scroll(font_system, false);
 
-    // Rasterize ASCII range and Box Drawing range
-    let chars_to_atlas: Vec<u32> = (32..127).chain(0x2500..0x2580).collect();
-
-    for (i, &ch) in chars_to_atlas.iter().enumerate() {
-        let mut buffer = GlyphBuffer::new(
-            font_system,
-            Metrics::new(metrics.font_size_px, metrics.line_height_px),
-        );
-        buffer.set_size(font_system, None, Some(metrics.line_height_px));
-        buffer.set_text(
-            font_system,
-            &char::from_u32(ch).unwrap_or(' ').to_string(),
-            &Attrs::new()
-                .family(Family::Monospace)
-                .weight(Weight::NORMAL),
-            Shaping::Advanced,
-            None,
-        );
-        buffer.shape_until_scroll(font_system, false);
-
-        for run in buffer.layout_runs() {
-            for glyph in run.glyphs.iter() {
-                let physical = glyph.physical((0.0, 0.0), 1.0);
-                let Some(img) = swash_cache.get_image_uncached(font_system, physical.cache_key)
-                else {
-                    continue;
-                };
-
-                // Check if the image is a mask (1 byte per pixel) to avoid
-                // direct swash dependency and potential API version mismatches.
-                if img.data.len() == (img.placement.width * img.placement.height) as usize {
-                    let col = (i as u32) % cols;
-                    let row = (i as u32) / cols;
-
-                    // Center the glyph in the 32x64 slot.
-                    let ox = col * slot_w + (slot_w.saturating_sub(img.placement.width) / 2);
-                    let oy = row * slot_h + (slot_h.saturating_sub(img.placement.height) / 2);
+            for run in buffer.layout_runs() {
+                let baseline = run.line_y.round() as i32;
+                for glyph in run.glyphs.iter() {
+                    let physical = glyph.physical((0.0, 0.0), 1.0);
+                    let Some(img) = swash_cache
+                        .get_image(font_system, physical.cache_key)
+                        .as_ref()
+                    else {
+                        continue;
+                    };
+                    let glyph_left = physical.x + img.placement.left;
+                    let glyph_top = baseline + physical.y - img.placement.top as i32;
 
                     for y in 0..img.placement.height {
                         for x in 0..img.placement.width {
                             let src_idx = (y * img.placement.width + x) as usize;
-                            let dst_x = ox + x;
-                            let dst_y = oy + y;
-                            if dst_x < atlas_width && dst_y < atlas_height {
-                                let dst_idx = (dst_y * atlas_width + dst_x) as usize;
-                                atlas_data[dst_idx] = img.data[src_idx];
+                            let alpha = match img.data.len() {
+                                len if len
+                                    == (img.placement.width * img.placement.height) as usize =>
+                                {
+                                    img.data[src_idx]
+                                }
+                                len if len
+                                    == (img.placement.width * img.placement.height * 4)
+                                        as usize =>
+                                {
+                                    img.data[src_idx * 4 + 3]
+                                }
+                                _ => continue,
+                            };
+                            if alpha == 0 {
+                                continue;
                             }
+                            let dst_x = slot_left + glyph_left + x as i32;
+                            let dst_y = slot_top + glyph_top + y as i32;
+                            if !atlas_slot_contains_pixel(
+                                slot_left,
+                                slot_top,
+                                slot_right,
+                                slot_bottom,
+                                dst_x,
+                                dst_y,
+                            ) {
+                                continue;
+                            }
+                            if dst_x < 0
+                                || dst_y < 0
+                                || dst_x >= atlas_width as i32
+                                || dst_y >= atlas_height as i32
+                            {
+                                continue;
+                            }
+                            let dst_idx = dst_y as usize * atlas_width as usize + dst_x as usize;
+                            atlas_data[dst_idx] = atlas_data[dst_idx].max(alpha);
                         }
                     }
                 }
@@ -1459,4 +1880,139 @@ fn generate_grid_atlas(
     );
 
     GridAtlas { texture, view }
+}
+
+fn atlas_slot_contains_pixel(
+    slot_left: i32,
+    slot_top: i32,
+    slot_right: i32,
+    slot_bottom: i32,
+    dst_x: i32,
+    dst_y: i32,
+) -> bool {
+    dst_x >= slot_left && dst_x < slot_right && dst_y >= slot_top && dst_y < slot_bottom
+}
+
+fn atlas_repertoire_chars() -> Vec<char> {
+    let mut chars = (GRID_ATLAS_ASCII_START..GRID_ATLAS_ASCII_END)
+        .filter_map(char::from_u32)
+        .collect::<Vec<_>>();
+    chars.extend((GRID_ATLAS_BOX_START..GRID_ATLAS_BOX_END).filter_map(char::from_u32));
+    chars.extend(GRID_GREEK_UPPERCASE);
+    chars.extend(GRID_ATLAS_MISC_CHARS);
+    chars
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        GPU_STYLE_BOLD, GPU_STYLE_TEXT_BAND, GRID_ATLAS_BASE_GLYPH_COUNT, GRID_ATLAS_COLS,
+        GRID_ATLAS_MISC_CHARS, GRID_ATLAS_ROWS, atlas_repertoire_chars, atlas_slot_contains_pixel,
+        char_atlas_base_index, clear_color, linear_channel_from_srgb_u8, needs_grid_glyph_fallback,
+        pack_gpu_style,
+    };
+    use crate::grid::{BackgroundMode, Cell, CellStyle, GameColor};
+
+    #[test]
+    fn atlas_repertoire_fits_configured_grid() {
+        let capacity = GRID_ATLAS_COLS * GRID_ATLAS_ROWS;
+        assert!(
+            GRID_ATLAS_BASE_GLYPH_COUNT * 2 <= capacity,
+            "atlas capacity {capacity} must fit both normal and bold glyph sets"
+        );
+    }
+
+    #[test]
+    fn atlas_repertoire_covers_expected_special_glyphs() {
+        for ch in ['Α', 'Ω', '△', '⨁', '·', '◊', '—', '●'] {
+            assert!(
+                char_atlas_base_index(ch).is_some(),
+                "{ch:?} should be part of the GPU atlas repertoire"
+            );
+        }
+        assert!(atlas_repertoire_chars().contains(&GRID_ATLAS_MISC_CHARS[0]));
+    }
+
+    #[test]
+    fn unsupported_grid_glyphs_use_fallback() {
+        let style = CellStyle::new(GameColor::White, GameColor::Black, false);
+        assert!(!needs_grid_glyph_fallback(Cell::new('A', style)));
+        assert!(!needs_grid_glyph_fallback(Cell::new('┌', style)));
+        assert!(needs_grid_glyph_fallback(Cell::new('🙂', style)));
+    }
+
+    #[test]
+    fn pack_gpu_style_sets_bold_and_text_band_bits() {
+        let style = CellStyle::new(GameColor::White, GameColor::Black, true)
+            .with_background_mode(BackgroundMode::TextBand);
+        let bits = pack_gpu_style(style);
+        assert_ne!(bits & GPU_STYLE_BOLD, 0);
+        assert_ne!(bits & GPU_STYLE_TEXT_BAND, 0);
+    }
+
+    #[test]
+    fn clear_color_linearizes_srgb_theme_values() {
+        let clear = clear_color(GameColor::Rgb(128, 128, 128));
+        let expected = linear_channel_from_srgb_u8(128);
+        assert!((clear.r - expected).abs() < 0.000_001);
+        assert!(clear.r < 0.25);
+        assert_eq!(clear.a, 1.0);
+    }
+
+    #[test]
+    fn atlas_slot_clipping_rejects_neighbor_slot_pixels() {
+        let slot_left = 32;
+        let slot_top = 48;
+        let slot_right = 44;
+        let slot_bottom = 72;
+
+        assert!(atlas_slot_contains_pixel(
+            slot_left,
+            slot_top,
+            slot_right,
+            slot_bottom,
+            slot_left,
+            slot_top
+        ));
+        assert!(atlas_slot_contains_pixel(
+            slot_left,
+            slot_top,
+            slot_right,
+            slot_bottom,
+            slot_right - 1,
+            slot_bottom - 1
+        ));
+        assert!(!atlas_slot_contains_pixel(
+            slot_left,
+            slot_top,
+            slot_right,
+            slot_bottom,
+            slot_left - 1,
+            slot_top
+        ));
+        assert!(!atlas_slot_contains_pixel(
+            slot_left,
+            slot_top,
+            slot_right,
+            slot_bottom,
+            slot_right,
+            slot_top
+        ));
+        assert!(!atlas_slot_contains_pixel(
+            slot_left,
+            slot_top,
+            slot_right,
+            slot_bottom,
+            slot_left,
+            slot_top - 1
+        ));
+        assert!(!atlas_slot_contains_pixel(
+            slot_left,
+            slot_top,
+            slot_right,
+            slot_bottom,
+            slot_left,
+            slot_bottom
+        ));
+    }
 }
