@@ -203,6 +203,29 @@ fn locked_view_uses_outer_padding_around_unlock_gate() {
 }
 
 #[test]
+fn locked_view_keeps_password_and_quit_copy_inside_the_taller_gate() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::BootLoaded(Ok(BootSnapshot {
+        has_keychain: true,
+        relay_url: Some("ws://127.0.0.1:8080".to_string()),
+        lock_timeout_minutes: 10,
+    })));
+
+    let buffer = app.view();
+    let (top, left, right, bottom) = modal_bounds(&buffer, "┐UNLOCK KEYCHAIN┌");
+    let password_row = find_line(buffer, "Password:");
+    let quit_row = find_line(buffer, "Press Esc to quit.");
+
+    assert_eq!(password_row, top + 11);
+    assert_eq!(quit_row, password_row + 1);
+    assert_eq!(buffer.row(password_row)[left].ch, '│');
+    assert_eq!(buffer.row(password_row)[right].ch, '│');
+    assert_eq!(buffer.row(quit_row)[left].ch, '│');
+    assert_eq!(buffer.row(quit_row)[right].ch, '│');
+    assert!(quit_row < bottom);
+}
+
+#[test]
 fn lobby_quit_popup_uses_outer_padding() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));

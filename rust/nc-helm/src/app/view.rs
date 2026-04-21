@@ -23,8 +23,8 @@ const SETTINGS_FIELD_TRACK_WIDTH: usize = 44;
 const FIRST_RUN_GATE_WIDTH: usize = 68;
 const FIRST_RUN_GATE_HEIGHT: usize = 22;
 const LOCKED_GATE_WIDTH: usize = 60;
-const LOCKED_GATE_HEIGHT: usize = 13;
-const LOCKED_GATE_HEIGHT_WITH_STATUS: usize = 15;
+const LOCKED_GATE_HEIGHT: usize = 14;
+const LOCKED_GATE_HEIGHT_WITH_STATUS: usize = 16;
 const SANDBOX_JOIN_CONFIRM_WIDTH: usize = 64;
 const SANDBOX_JOIN_CONFIRM_HEIGHT: usize = 11;
 const SANDBOX_JOIN_UNAVAILABLE_WIDTH: usize = 68;
@@ -37,7 +37,7 @@ const GATE_SIDE_PADDING: usize = 3;
 const GATE_LOGO_WIDTH_INSET: usize = 3;
 const GATE_STORMFAZE_MIN_WIDTH: usize = 48;
 const GATE_STORMFAZE_MIN_HEIGHT: usize = 13;
-const GATE_LOGO_BLOCK_ROWS: usize = 7;
+const GATE_LOGO_BLOCK_ROWS: usize = 8;
 const COMMAND_PANEL_HEIGHT: usize = 3;
 const HEADER_WORDMARK_WIDTH: usize = 22;
 const LOBBY_PANEL_TOP: usize = 4;
@@ -2046,7 +2046,7 @@ fn draw_gate_wordmark(
     if use_stormfaze {
         if let Some((nostrian, conquest)) = gate_logo_kinds(logo_width) {
             buffer.push_overlay_logo(nostrian, panel_brand().fg, logo_left, top);
-            buffer.push_overlay_logo(conquest, panel_brand().fg, logo_left, top + 3);
+            buffer.push_overlay_logo(conquest, panel_brand().fg, logo_left, top + 4);
             return;
         }
     }
@@ -2302,4 +2302,27 @@ fn map_size_summary(total_seats: u8) -> String {
         _ => 45,
     };
     format!("{edge}x{edge}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GATE_LOGO_BLOCK_ROWS, body, draw_gate_wordmark};
+    use crate::PlayfieldBuffer;
+    use crate::grid::OverlayLogoKind;
+
+    #[test]
+    fn stormfaze_gate_logos_use_a_full_blank_row_between_words() {
+        let mut buffer = PlayfieldBuffer::new(80, 20, body());
+
+        draw_gate_wordmark(&mut buffer, 10, 5, 60, true);
+
+        let overlays = buffer.overlay_logos();
+        assert_eq!(overlays.len(), 2);
+        assert_eq!(overlays[0].kind, OverlayLogoKind::GateNostrian54x4);
+        assert_eq!(overlays[1].kind, OverlayLogoKind::GateConquest54x4);
+        assert_eq!(overlays[0].top_row, 5);
+        assert_eq!(overlays[1].top_row, 9);
+        assert_eq!(overlays[1].top_row - overlays[0].top_row, 4);
+        assert_eq!(GATE_LOGO_BLOCK_ROWS, 8);
+    }
 }
