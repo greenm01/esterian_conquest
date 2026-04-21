@@ -10,6 +10,8 @@ path = "src/main.rs"
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
+bytemuck = { version = "1.21", features = ["derive"] }
+swash = "0.1.19"
 dirs = "5"
 glyphon = "0.11"
 nc-client = { path = "../nc-client" }

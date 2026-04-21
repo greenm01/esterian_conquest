@@ -27,26 +27,51 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use bytemuck::{Pod, Zeroable};
 use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
     SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Weight, fontdb,
 };
 use wgpu::{
-    self, BindGroup, BindGroupLayout, CommandEncoderDescriptor, CompositeAlphaMode, Device,
+    self, BindGroup, BindGroupLayout, Buffer, CommandEncoderDescriptor, CompositeAlphaMode, Device,
     DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations, Queue,
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
     SamplerDescriptor, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension,
-    TextureFormat, TextureUsages, TextureViewDescriptor,
+    TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
 use winit::event_loop::ActiveEventLoop;
 
 use super::primitives;
-use crate::geometry::{GridMapper, GridMetrics, PhysicalRect, TextMetrics, caret_rect};
+use crate::geometry::{GridMapper, GridMetrics, TextMetrics};
 use crate::grid::{
-    BackgroundMode, Cell, CellStyle, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily,
-    PlayfieldBuffer, Point, ScreenGeometry,
+    Cell, GameColor, OverlayAnchor, OverlayText, OverlayTextFamily, PlayfieldBuffer, Point,
+    ScreenGeometry,
 };
 use crate::theme;
+
+/// A GPU-ready representation of a single grid cell.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+struct GpuCell {
+    ch: u32,
+    fg: u32,
+    bg: u32,
+    // style bits: bit 0: bold, bit 1: dim, bit 2: italic, bit 3: underline
+    style: u32,
+}
+
+/// Metadata about the grid layout passed to the shader.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+struct GpuGrid {
+    width: u32,
+    height: u32,
+    cell_width_px: u32,
+    cell_height_px: u32,
+    origin_x: f32,
+    origin_y: f32,
+    _padding: [u32; 2],
+}
 
 /// Fullscreen-quad shader that uploads the CPU `background_pixels` buffer.
 ///
@@ -69,6 +94,25 @@ use crate::theme;
 const BACKGROUND_SHADER: &str = r#"
 @group(0) @binding(0) var background_tex: texture_2d<f32>;
 @group(0) @binding(1) var background_sampler: sampler;
+@group(0) @binding(2) var<storage, read> grid_data: array<Cell>;
+@group(0) @binding(3) var<uniform> grid_config: GridConfig;
+@group(0) @binding(4) var grid_atlas: texture_2d<f32>;
+
+struct Cell {
+    char_val: u32,
+    fg: u32,
+    bg: u32,
+    style: u32,
+};
+
+struct GridConfig {
+    width: u32,
+    height: u32,
+    cell_width_px: u32,
+    cell_height_px: u32,
+    origin_x: f32,
+    origin_y: f32,
+};
 
 struct VertexOut {
     @builtin(position) position: vec4<f32>,
@@ -85,11 +129,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
         vec2<f32>(1.0, -1.0),
         vec2<f32>(1.0, 1.0),
     );
-    // wgpu NDC: y=+1 is top of screen, y=-1 is bottom.
-    // wgpu texture coords: (0,0) is top-left, (0,1) is bottom-left.
-    // Map screen top vertices (y=+1) to texture top (v=0), and screen bottom
-    // vertices (y=-1) to texture bottom (v=1) so the background_pixels buffer
-    // (row 0 at top) renders right-side-up.
     var uvs = array<vec2<f32>, 6>(
         vec2<f32>(0.0, 1.0),
         vec2<f32>(1.0, 1.0),
@@ -98,17 +137,73 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
         vec2<f32>(1.0, 1.0),
         vec2<f32>(1.0, 0.0),
     );
+
     var out: VertexOut;
     out.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
     out.uv = uvs[vertex_index];
     return out;
 }
 
+fn get_atlas_index(char_val: u32) -> i32 {
+    if (char_val >= 32u && char_val < 127u) {
+        return i32(char_val - 32u);
+    }
+    if (char_val >= 0x2500u && char_val < 0x2580u) {
+        return i32(char_val - 0x2500u + 95u);
+    }
+    return -1;
+}
+
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return textureSample(background_tex, background_sampler, in.uv);
+    let screen_px = in.position.xy;
+    
+    let gx_px = screen_px.x - grid_config.origin_x;
+    let gy_px = screen_px.y - grid_config.origin_y;
+    
+    if (gx_px < 0.0 || gy_px < 0.0) {
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+    
+    let grid_x = u32(gx_px) / grid_config.cell_width_px;
+    let grid_y = u32(gy_px) / grid_config.cell_height_px;
+    
+    if (grid_x >= grid_config.width || grid_y >= grid_config.height) {
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+    
+    let cell_idx = grid_y * grid_config.width + grid_x;
+    let cell = grid_data[cell_idx];
+    
+    var color = unpack4x8unorm(cell.bg);
+    
+    let atlas_idx = get_atlas_index(cell.char_val);
+    if (atlas_idx >= 0) {
+        let cols = 1024u / 32u;
+        let col = u32(atlas_idx) % cols;
+        let row = u32(atlas_idx) / cols;
+        
+        let cell_local_x = gx_px % f32(grid_config.cell_width_px);
+        let cell_local_y = gy_px % f32(grid_config.cell_height_px);
+        
+        // Slot is 32x64. Assume glyphs were centered in these slots.
+        let slot_u_offset = (32.0 - f32(grid_config.cell_width_px)) / 2.0;
+        let slot_v_offset = (64.0 - f32(grid_config.cell_height_px)) / 2.0;
+        
+        let atlas_u = (f32(col * 32u) + slot_u_offset + cell_local_x) / 1024.0;
+        let atlas_v = (f32(row * 64u) + slot_v_offset + cell_local_y) / 1024.0;
+        
+        let glyph_alpha = textureSample(grid_atlas, background_sampler, vec2<f32>(atlas_u, atlas_v)).r;
+        let fg_color = unpack4x8unorm(cell.fg);
+        
+        // Simple alpha blending
+        color = vec4<f32>(mix(color.rgb, fg_color.rgb, glyph_alpha), max(color.a, glyph_alpha));
+    }
+    
+    return color;
 }
 "#;
+
 
 const PRIMARY_FONT_FAMILY: &str = "JetBrains Mono";
 const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
@@ -176,7 +271,12 @@ struct TextPlacement {
 /// surface, plus a pre-built bind group ready to attach during rendering.
 struct BackgroundTexture {
     texture: Texture,
-    bind_group: BindGroup,
+    view: TextureView,
+}
+
+struct GridAtlas {
+    texture: Texture,
+    view: TextureView,
 }
 
 #[derive(Clone, Debug)]
@@ -269,8 +369,11 @@ pub struct Renderer {
     background_sampler: Sampler,
     background_texture: BackgroundTexture,
     background_pixels: Vec<u8>,
+    grid_buffer: Buffer,
+    grid_config_buffer: Buffer,
+    grid_bind_group: BindGroup,
+    grid_atlas: GridAtlas,
     previous_playfield: Option<CachedPlayfield>,
-    row_placements: Vec<Vec<TextPlacement>>,
     overlay_placements: Vec<TextPlacement>,
     text_buffer_misses: usize,
     grid_metrics: GridMetrics,
@@ -306,7 +409,7 @@ impl Renderer {
 
         let mut font_system = build_font_system();
         let grid_metrics = GridMetrics::for_scale(window.scale_factor(), &mut font_system);
-        let swash_cache = SwashCache::new();
+        let mut swash_cache = SwashCache::new();
         let cache = Cache::new(&device);
         let viewport = glyphon::Viewport::new(&device, &cache);
         let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
@@ -323,13 +426,55 @@ impl Renderer {
         });
         let background_texture = BackgroundTexture::new(
             &device,
-            &background_bind_group_layout,
-            &background_sampler,
             surface_config.width,
             surface_config.height,
         );
         let background_pixels =
             vec![0; surface_config.width as usize * surface_config.height as usize * 4];
+
+        let grid_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("nc-helm-grid-buffer"),
+            size: (std::mem::size_of::<GpuCell>() * 256 * 128) as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let grid_config_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("nc-helm-grid-config-buffer"),
+            size: std::mem::size_of::<GpuGrid>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let grid_atlas =
+            generate_grid_atlas(&device, &queue, &mut font_system, &mut swash_cache, grid_metrics.text);
+
+        let grid_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("nc-helm-grid-bind-group"),
+            layout: &background_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&background_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&background_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: grid_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: grid_config_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(&grid_atlas.view),
+                },
+            ],
+        });
 
         Ok(Self {
             window,
@@ -348,8 +493,11 @@ impl Renderer {
             background_sampler,
             background_texture,
             background_pixels,
+            grid_buffer,
+            grid_config_buffer,
+            grid_bind_group,
+            grid_atlas,
             previous_playfield: None,
-            row_placements: Vec::new(),
             overlay_placements: Vec::new(),
             text_buffer_misses: 0,
             grid_metrics,
@@ -368,6 +516,48 @@ impl Renderer {
 
     pub fn grid_metrics(&self) -> GridMetrics {
         self.grid_metrics
+    }
+
+    fn upload_grid_to_gpu(&mut self, playfield: &PlayfieldBuffer) {
+        let cells = playfield.get_all_cells();
+        let gpu_cells: Vec<GpuCell> = cells
+            .iter()
+            .map(|cell| {
+                let fg_rgba = primitives::color_to_rgba(cell.style.fg);
+                let bg_rgba = primitives::color_to_rgba(cell.style.bg);
+                GpuCell {
+                    ch: cell.ch as u32,
+                    fg: u32::from_le_bytes(fg_rgba),
+                    bg: u32::from_le_bytes(bg_rgba),
+                    style: if cell.style.bold { 1 } else { 0 },
+                }
+            })
+            .collect();
+
+        self.queue
+            .write_buffer(&self.grid_buffer, 0, bytemuck::cast_slice(&gpu_cells));
+
+        let frame_width = self.surface_config.width;
+        let frame_height = self.surface_config.height;
+        let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
+        let mapper = GridMapper::centered(
+            frame_width as usize,
+            frame_height as usize,
+            geometry,
+            self.grid_metrics.cell,
+        );
+
+        let config = GpuGrid {
+            width: playfield.width() as u32,
+            height: playfield.height() as u32,
+            cell_width_px: self.grid_metrics.cell.width_px as u32,
+            cell_height_px: self.grid_metrics.cell.height_px as u32,
+            origin_x: mapper.origin_x as f32,
+            origin_y: mapper.origin_y as f32,
+            _padding: [0; 2],
+        };
+        self.queue
+            .write_buffer(&self.grid_config_buffer, 0, bytemuck::bytes_of(&config));
     }
 
     /// Render one frame of `playfield`.
@@ -405,10 +595,8 @@ impl Renderer {
         let playfield_prepare = prepare_start.elapsed();
         let glyph_prepare_start = Instant::now();
         let text_areas = self
-            .row_placements
+            .overlay_placements
             .iter()
-            .flatten()
-            .chain(self.overlay_placements.iter())
             .map(|placement| TextArea {
                 buffer: self
                     .text_buffers
@@ -433,6 +621,8 @@ impl Renderer {
             &mut self.swash_cache,
         )?;
         let glyph_prepare = glyph_prepare_start.elapsed();
+
+        self.upload_grid_to_gpu(playfield);
 
         let gpu_start = Instant::now();
         let frame = match self.surface.get_current_texture() {
@@ -504,7 +694,7 @@ impl Renderer {
                 multiview_mask: None,
             });
             pass.set_pipeline(&self.background_pipeline);
-            pass.set_bind_group(0, &self.background_texture.bind_group, &[]);
+            pass.set_bind_group(0, &self.grid_bind_group, &[]);
             pass.draw(0..6, 0..1);
             self.text_renderer
                 .render(&self.atlas, &self.viewport, &mut pass)?;
@@ -545,7 +735,6 @@ impl Renderer {
             self.grid_metrics = updated;
             self.text_buffers.clear();
             self.previous_playfield = None;
-            self.row_placements.clear();
             self.overlay_placements.clear();
         }
     }
@@ -569,43 +758,12 @@ impl Renderer {
         let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
         let mapper =
             GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
-        let dirty = dirty_cells(
-            self.previous_playfield.as_ref(),
-            playfield,
-            frame_width,
-            frame_height,
-        );
 
-        let dirty_rows = dirty
-            .row_spans
-            .iter()
-            .filter(|spans| !spans.is_empty())
-            .count();
-        let raw_spans = count_dirty_spans(&dirty.row_spans);
+        let dirty_overlay = self.previous_playfield.as_ref().map_or(true, |prev| {
+            prev.overlay_texts != playfield.overlay_texts()
+        });
 
-        if dirty.full_rebuild {
-            self.fill_body_background(frame_width, frame_height);
-            self.row_placements = vec![Vec::new(); playfield.height()];
-            for row_idx in 0..playfield.height() {
-                self.repaint_row_spans(
-                    playfield,
-                    mapper,
-                    row_idx,
-                    &[DirtyColumnSpan {
-                        start_col: 0,
-                        end_col: playfield.width(),
-                    }],
-                );
-                self.row_placements[row_idx] = self.collect_row_placements_in_span(
-                    playfield,
-                    mapper,
-                    row_idx,
-                    DirtyColumnSpan {
-                        start_col: 0,
-                        end_col: playfield.width(),
-                    },
-                );
-            }
+        if dirty_overlay {
             let mut overlay_placements = Vec::new();
             prepare_overlay_texts(
                 self,
@@ -614,107 +772,13 @@ impl Renderer {
                 &mut overlay_placements,
             );
             self.overlay_placements = overlay_placements;
-            if let Some(cursor) = playfield.cursor() {
-                self.paint_cursor(frame_width, mapper, cursor);
-            }
-            self.write_full_background_texture();
-            self.previous_playfield = Some(snapshot_playfield(playfield));
-            return PreparedFrame {
-                full_rebuild: true,
-                dirty_rows,
-                raw_spans,
-                text_rebuild_spans: playfield.height(),
-                text_rebuild_cells: playfield.width().saturating_mul(playfield.height()),
-                text_buffer_misses: self.text_buffer_misses,
-                compacted_rects: 1,
-                compacted_upload_area_pct: 100.0,
-                upload_rects: 1,
-                upload_strategy: UploadStrategy::Rects,
-            };
-        } else {
-            let compacted_row_spans = compact_row_spans(&dirty.row_spans);
-            let dirty_row_spans = full_width_row_spans(&dirty.row_spans, playfield.width());
-            let compacted_rects = dirty_rectangles(&compacted_row_spans, mapper);
-            let compacted_rects_len = compacted_rects.len();
-            let compacted_upload_area_px = dirty_rect_area_px(&compacted_rects);
-            let grid_area_px = grid_area_px(playfield, mapper);
-            let compacted_upload_area_pct = upload_area_pct(compacted_upload_area_px, grid_area_px);
-            let upload_strategy =
-                choose_upload_strategy(compacted_rects_len, compacted_upload_area_px, grid_area_px);
-            let repaint_row_spans = match upload_strategy {
-                UploadStrategy::Rects => &compacted_row_spans,
-                UploadStrategy::DirtyRows => &dirty_row_spans,
-            };
-            for (row_idx, spans) in repaint_row_spans.iter().enumerate() {
-                if spans.is_empty() {
-                    continue;
-                }
-                self.repaint_row_spans(playfield, mapper, row_idx, spans);
-            }
-            let mut text_rebuild_spans = 0usize;
-            let mut text_rebuild_cells = 0usize;
-            for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
-                if spans.is_empty() {
-                    continue;
-                }
-                let rebuild_spans = expanded_text_rebuild_spans_for_row(
-                    playfield.row(row_idx),
-                    &compacted_row_spans[row_idx],
-                );
-                text_rebuild_spans += rebuild_spans.len();
-                text_rebuild_cells += rebuild_spans
-                    .iter()
-                    .map(|span| span.end_col.saturating_sub(span.start_col))
-                    .sum::<usize>();
-                self.rebuild_row_placements(playfield, mapper, row_idx, &rebuild_spans);
-            }
-            if dirty.overlay_changed {
-                let mut overlay_placements = Vec::new();
-                prepare_overlay_texts(
-                    self,
-                    mapper,
-                    playfield.overlay_texts(),
-                    &mut overlay_placements,
-                );
-                self.overlay_placements = overlay_placements;
-            }
-            if let Some(cursor) = playfield.cursor() {
-                if dirty
-                    .row_spans
-                    .get(cursor.row.as_usize())
-                    .is_some_and(|spans| !spans.is_empty())
-                {
-                    self.paint_cursor(frame_width, mapper, cursor);
-                }
-            }
-            let upload_rects = match upload_strategy {
-                UploadStrategy::Rects => {
-                    if !compacted_rects.is_empty() {
-                        self.write_dirty_rects(frame_width, &compacted_rects);
-                    }
-                    compacted_rects.len()
-                }
-                UploadStrategy::DirtyRows => {
-                    let dirty_row_rects = dirty_row_upload_rectangles(&compacted_row_spans, mapper);
-                    if !dirty_row_rects.is_empty() {
-                        self.write_dirty_rects(frame_width, &dirty_row_rects);
-                    }
-                    dirty_row_rects.len()
-                }
-            };
-            self.previous_playfield = Some(snapshot_playfield(playfield));
-            return PreparedFrame {
-                full_rebuild: false,
-                dirty_rows,
-                raw_spans,
-                text_rebuild_spans,
-                text_rebuild_cells,
-                text_buffer_misses: self.text_buffer_misses,
-                compacted_rects: compacted_rects_len,
-                compacted_upload_area_pct,
-                upload_rects,
-                upload_strategy,
-            };
+        }
+
+        self.previous_playfield = Some(snapshot_playfield(playfield));
+
+        PreparedFrame {
+            text_buffer_misses: self.text_buffer_misses,
+            ..Default::default()
         }
     }
 
@@ -746,8 +810,6 @@ impl Renderer {
         self.surface.configure(&self.device, &self.surface_config);
         self.background_texture = BackgroundTexture::new(
             &self.device,
-            &self.background_bind_group_layout,
-            &self.background_sampler,
             self.surface_config.width,
             self.surface_config.height,
         );
@@ -756,204 +818,7 @@ impl Renderer {
             0,
         );
         self.previous_playfield = None;
-        self.row_placements.clear();
         self.overlay_placements.clear();
-    }
-
-    fn fill_body_background(&mut self, frame_width: usize, frame_height: usize) {
-        let body_bg = primitives::color_to_rgba(theme::app_background());
-        self.background_pixels
-            .resize(frame_width * frame_height * 4, 0);
-        for pixel in self.background_pixels.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&body_bg);
-        }
-    }
-
-    fn collect_row_placements_in_span(
-        &mut self,
-        playfield: &PlayfieldBuffer,
-        mapper: GridMapper,
-        row_idx: usize,
-        span: DirtyColumnSpan,
-    ) -> Vec<TextPlacement> {
-        let mut placements = Vec::new();
-        let mut run_start = None;
-        let mut run_style: Option<CellStyle> = None;
-        let mut run_text = String::new();
-        for col_idx in span.start_col..span.end_col {
-            let source = playfield.row(row_idx)[col_idx];
-            let style = source.style;
-            if source.ch == ' ' {
-                flush_run(
-                    self,
-                    mapper,
-                    &mut placements,
-                    &mut run_start,
-                    &mut run_style,
-                    &mut run_text,
-                    row_idx,
-                    col_idx,
-                );
-                continue;
-            }
-            if primitives::should_draw_as_primitive(source.ch) {
-                flush_run(
-                    self,
-                    mapper,
-                    &mut placements,
-                    &mut run_start,
-                    &mut run_style,
-                    &mut run_text,
-                    row_idx,
-                    col_idx,
-                );
-                continue;
-            }
-            if run_style == Some(style) {
-                if run_start.is_none() {
-                    run_start = Some(col_idx);
-                }
-                run_text.push(source.ch);
-            } else {
-                flush_run(
-                    self,
-                    mapper,
-                    &mut placements,
-                    &mut run_start,
-                    &mut run_style,
-                    &mut run_text,
-                    row_idx,
-                    col_idx,
-                );
-                run_start = Some(col_idx);
-                run_style = Some(style);
-                run_text.push(source.ch);
-            }
-        }
-        flush_run(
-            self,
-            mapper,
-            &mut placements,
-            &mut run_start,
-            &mut run_style,
-            &mut run_text,
-            row_idx,
-            span.end_col,
-        );
-        placements
-    }
-
-    fn rebuild_row_placements(
-        &mut self,
-        playfield: &PlayfieldBuffer,
-        mapper: GridMapper,
-        row_idx: usize,
-        rebuild_spans: &[DirtyColumnSpan],
-    ) {
-        if rebuild_spans.is_empty() {
-            return;
-        }
-        let mut placements = std::mem::take(&mut self.row_placements[row_idx]);
-        splice_row_placements(
-            &mut placements,
-            rebuild_spans,
-            rebuild_spans.iter().flat_map(|span| {
-                self.collect_row_placements_in_span(playfield, mapper, row_idx, *span)
-            }),
-        );
-        self.row_placements[row_idx] = placements;
-    }
-
-    fn repaint_row_spans(
-        &mut self,
-        playfield: &PlayfieldBuffer,
-        mapper: GridMapper,
-        row_idx: usize,
-        spans: &[DirtyColumnSpan],
-    ) {
-        let frame_width = self.surface_config.width as usize;
-        repaint_row_spans_into_pixels(
-            &mut self.background_pixels,
-            frame_width,
-            playfield,
-            mapper,
-            self.grid_metrics.text,
-            row_idx,
-            spans,
-            theme::app_background(),
-        );
-    }
-
-    fn paint_cursor(&mut self, frame_width: usize, mapper: GridMapper, point: Point) {
-        let caret = caret_rect(point, mapper, self.grid_metrics.text);
-        primitives::fill_rect_rgba(
-            &mut self.background_pixels,
-            frame_width,
-            caret.x,
-            caret.y,
-            caret.width,
-            caret.height,
-            primitives::color_to_rgba(GameColor::BrightWhite),
-        );
-    }
-
-    fn write_full_background_texture(&self) {
-        self.queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &self.background_texture.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            &self.background_pixels,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(self.surface_config.width * 4),
-                rows_per_image: Some(self.surface_config.height),
-            },
-            wgpu::Extent3d {
-                width: self.surface_config.width,
-                height: self.surface_config.height,
-                depth_or_array_layers: 1,
-            },
-        );
-    }
-
-    fn write_dirty_rects(&self, frame_width: usize, rects: &[DirtyPixelRect]) {
-        for rect in rects {
-            let start = (rect.top_px * frame_width + rect.left_px) * 4;
-            let len = if rect.height_px == 0 {
-                0
-            } else {
-                (rect.height_px - 1) * frame_width * 4 + rect.width_px * 4
-            };
-            if len == 0 {
-                continue;
-            }
-            self.queue.write_texture(
-                wgpu::TexelCopyTextureInfo {
-                    texture: &self.background_texture.texture,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d {
-                        x: rect.left_px as u32,
-                        y: rect.top_px as u32,
-                        z: 0,
-                    },
-                    aspect: wgpu::TextureAspect::All,
-                },
-                &self.background_pixels[start..start + len],
-                wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(self.surface_config.width * 4),
-                    rows_per_image: Some(rect.height_px as u32),
-                },
-                wgpu::Extent3d {
-                    width: rect.width_px as u32,
-                    height: rect.height_px as u32,
-                    depth_or_array_layers: 1,
-                },
-            );
-        }
     }
 }
 
@@ -968,556 +833,6 @@ fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
         rows,
         cursor: playfield.cursor(),
         overlay_texts: playfield.overlay_texts().to_vec(),
-    }
-}
-
-fn dirty_cells(
-    previous: Option<&CachedPlayfield>,
-    playfield: &PlayfieldBuffer,
-    frame_width: usize,
-    frame_height: usize,
-) -> DirtyCells {
-    let Some(previous) = previous else {
-        return DirtyCells {
-            row_spans: vec![
-                vec![DirtyColumnSpan {
-                    start_col: 0,
-                    end_col: playfield.width(),
-                }];
-                playfield.height()
-            ],
-            overlay_changed: true,
-            full_rebuild: true,
-        };
-    };
-    if previous.width != playfield.width()
-        || previous.height != playfield.height()
-        || frame_width == 0
-        || frame_height == 0
-    {
-        return DirtyCells {
-            row_spans: vec![
-                vec![DirtyColumnSpan {
-                    start_col: 0,
-                    end_col: playfield.width(),
-                }];
-                playfield.height()
-            ],
-            overlay_changed: true,
-            full_rebuild: true,
-        };
-    }
-
-    let mut row_spans = vec![Vec::new(); playfield.height()];
-    for row_idx in 0..playfield.height() {
-        record_dirty_spans_for_row(
-            &previous.rows[row_idx],
-            playfield.row(row_idx),
-            &mut row_spans[row_idx],
-        );
-    }
-    if previous.cursor != playfield.cursor() {
-        if let Some(cursor) = previous.cursor {
-            push_dirty_cell(
-                &mut row_spans,
-                cursor.row.as_usize(),
-                cursor.column.as_usize(),
-                playfield.width(),
-            );
-        }
-        if let Some(cursor) = playfield.cursor() {
-            push_dirty_cell(
-                &mut row_spans,
-                cursor.row.as_usize(),
-                cursor.column.as_usize(),
-                playfield.width(),
-            );
-        }
-    }
-    for spans in &mut row_spans {
-        merge_column_spans(spans);
-    }
-    DirtyCells {
-        row_spans,
-        overlay_changed: previous.overlay_texts != playfield.overlay_texts(),
-        full_rebuild: false,
-    }
-}
-
-fn count_dirty_spans(row_spans: &[Vec<DirtyColumnSpan>]) -> usize {
-    row_spans.iter().map(Vec::len).sum()
-}
-
-fn compact_row_spans(row_spans: &[Vec<DirtyColumnSpan>]) -> Vec<Vec<DirtyColumnSpan>> {
-    row_spans
-        .iter()
-        .map(|spans| compact_spans_for_row(spans))
-        .collect()
-}
-
-fn full_width_row_spans(
-    row_spans: &[Vec<DirtyColumnSpan>],
-    width: usize,
-) -> Vec<Vec<DirtyColumnSpan>> {
-    row_spans
-        .iter()
-        .map(|spans| {
-            if spans.is_empty() {
-                Vec::new()
-            } else {
-                vec![DirtyColumnSpan {
-                    start_col: 0,
-                    end_col: width,
-                }]
-            }
-        })
-        .collect()
-}
-
-fn compact_spans_for_row(spans: &[DirtyColumnSpan]) -> Vec<DirtyColumnSpan> {
-    if spans.is_empty() {
-        return Vec::new();
-    }
-    let mut compacted = Vec::with_capacity(spans.len());
-    let mut current = spans[0];
-    for span in spans.iter().copied().skip(1) {
-        if span.start_col <= current.end_col.saturating_add(DIRTY_SPAN_GAP_MERGE_CELLS) {
-            current.end_col = current.end_col.max(span.end_col);
-        } else {
-            compacted.push(current);
-            current = span;
-        }
-    }
-    compacted.push(current);
-    if compacted.len() > DIRTY_SPAN_COLLAPSE_THRESHOLD {
-        return vec![DirtyColumnSpan {
-            start_col: compacted.first().map(|span| span.start_col).unwrap_or(0),
-            end_col: compacted.last().map(|span| span.end_col).unwrap_or(0),
-        }];
-    }
-    compacted
-}
-
-fn expanded_text_rebuild_spans_for_row(
-    row: &[Cell],
-    compacted_spans: &[DirtyColumnSpan],
-) -> Vec<DirtyColumnSpan> {
-    let mut spans = compacted_spans
-        .iter()
-        .copied()
-        .map(|span| expand_text_rebuild_span(row, span))
-        .collect::<Vec<_>>();
-    merge_column_spans(&mut spans);
-    spans
-}
-
-fn expand_text_rebuild_span(row: &[Cell], span: DirtyColumnSpan) -> DirtyColumnSpan {
-    if row.is_empty() {
-        return span;
-    }
-    let mut start_col = span.start_col.min(row.len());
-    while start_col > 0 && !is_text_run_boundary(row, start_col) {
-        start_col -= 1;
-    }
-    let mut end_col = span.end_col.min(row.len());
-    while end_col < row.len() && !is_text_run_boundary(row, end_col) {
-        end_col += 1;
-    }
-    DirtyColumnSpan { start_col, end_col }
-}
-
-fn is_text_run_boundary(row: &[Cell], boundary_col: usize) -> bool {
-    if boundary_col == 0 || boundary_col >= row.len() {
-        return true;
-    }
-    let left = row[boundary_col - 1];
-    let right = row[boundary_col];
-    !is_text_cell(left) || !is_text_cell(right) || left.style != right.style
-}
-
-fn is_text_cell(cell: Cell) -> bool {
-    cell.ch != ' ' && !primitives::should_draw_as_primitive(cell.ch)
-}
-
-fn record_dirty_spans_for_row(previous: &[Cell], next: &[Cell], spans: &mut Vec<DirtyColumnSpan>) {
-    let mut start_col = None;
-    for col_idx in 0..next.len() {
-        if previous[col_idx] != next[col_idx] {
-            start_col.get_or_insert(col_idx);
-        } else if let Some(start_col) = start_col.take() {
-            spans.push(DirtyColumnSpan {
-                start_col,
-                end_col: col_idx,
-            });
-        }
-    }
-    if let Some(start_col) = start_col {
-        spans.push(DirtyColumnSpan {
-            start_col,
-            end_col: next.len(),
-        });
-    }
-}
-
-fn push_dirty_cell(
-    row_spans: &mut [Vec<DirtyColumnSpan>],
-    row_idx: usize,
-    col_idx: usize,
-    width: usize,
-) {
-    if row_idx >= row_spans.len() || col_idx >= width {
-        return;
-    }
-    row_spans[row_idx].push(DirtyColumnSpan {
-        start_col: col_idx,
-        end_col: col_idx + 1,
-    });
-}
-
-fn merge_column_spans(spans: &mut Vec<DirtyColumnSpan>) {
-    if spans.len() <= 1 {
-        return;
-    }
-    spans.sort_unstable_by_key(|span| span.start_col);
-    let mut merged = Vec::with_capacity(spans.len());
-    let mut current = spans[0];
-    for span in spans.iter().copied().skip(1) {
-        if span.start_col <= current.end_col {
-            current.end_col = current.end_col.max(span.end_col);
-        } else {
-            merged.push(current);
-            current = span;
-        }
-    }
-    merged.push(current);
-    *spans = merged;
-}
-
-fn spans_overlap(start_col: usize, end_col: usize, span: DirtyColumnSpan) -> bool {
-    start_col < span.end_col && span.start_col < end_col
-}
-
-fn splice_row_placements(
-    placements: &mut Vec<TextPlacement>,
-    rebuild_spans: &[DirtyColumnSpan],
-    rebuilt: impl IntoIterator<Item = TextPlacement>,
-) {
-    placements.retain(|placement| {
-        !rebuild_spans
-            .iter()
-            .any(|span| spans_overlap(placement.start_col, placement.end_col, *span))
-    });
-    placements.extend(rebuilt);
-    placements.sort_unstable_by_key(|placement| placement.start_col);
-}
-
-fn choose_upload_strategy(
-    compacted_rect_count: usize,
-    compacted_upload_area_px: usize,
-    grid_area_px: usize,
-) -> UploadStrategy {
-    if compacted_rect_count > MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK {
-        return UploadStrategy::DirtyRows;
-    }
-    if grid_area_px != 0 && compacted_upload_area_px.saturating_mul(4) > grid_area_px {
-        return UploadStrategy::DirtyRows;
-    }
-    UploadStrategy::Rects
-}
-
-fn dirty_row_upload_rectangles(
-    row_spans: &[Vec<DirtyColumnSpan>],
-    mapper: GridMapper,
-) -> Vec<DirtyPixelRect> {
-    let mut rects = Vec::new();
-    let mut current_start = None;
-    let grid_width_px = mapper.geometry.width().saturating_mul(mapper.cell.width_px);
-    for (row_idx, spans) in row_spans.iter().enumerate() {
-        if spans.is_empty() {
-            if let Some(start_row) = current_start.take() {
-                rects.push(DirtyPixelRect {
-                    left_px: mapper.origin_x,
-                    top_px: mapper.origin_y + start_row * mapper.cell.height_px,
-                    width_px: grid_width_px,
-                    height_px: (row_idx - start_row) * mapper.cell.height_px,
-                });
-            }
-            continue;
-        }
-        current_start.get_or_insert(row_idx);
-    }
-    if let Some(start_row) = current_start {
-        rects.push(DirtyPixelRect {
-            left_px: mapper.origin_x,
-            top_px: mapper.origin_y + start_row * mapper.cell.height_px,
-            width_px: grid_width_px,
-            height_px: (row_spans.len() - start_row) * mapper.cell.height_px,
-        });
-    }
-    rects
-}
-
-fn dirty_rect_area_px(rects: &[DirtyPixelRect]) -> usize {
-    rects
-        .iter()
-        .map(|rect| rect.width_px.saturating_mul(rect.height_px))
-        .sum()
-}
-
-fn grid_area_px(playfield: &PlayfieldBuffer, mapper: GridMapper) -> usize {
-    playfield
-        .width()
-        .saturating_mul(mapper.cell.width_px)
-        .saturating_mul(playfield.height().saturating_mul(mapper.cell.height_px))
-}
-
-fn upload_area_pct(upload_area_px: usize, grid_area_px: usize) -> f64 {
-    if grid_area_px == 0 {
-        return 0.0;
-    }
-    (upload_area_px as f64 * 100.0) / grid_area_px as f64
-}
-
-fn dirty_rectangles(row_spans: &[Vec<DirtyColumnSpan>], mapper: GridMapper) -> Vec<DirtyPixelRect> {
-    #[derive(Clone, Copy, Debug)]
-    struct GridRect {
-        left_col: usize,
-        right_col: usize,
-        top_row: usize,
-        bottom_row: usize,
-    }
-
-    let mut rects = Vec::new();
-    let mut active: Vec<GridRect> = Vec::new();
-    for (row_idx, spans) in row_spans.iter().enumerate() {
-        let mut next_active: Vec<GridRect> = Vec::new();
-        for span in spans {
-            let mut merged = GridRect {
-                left_col: span.start_col,
-                right_col: span.end_col,
-                top_row: row_idx,
-                bottom_row: row_idx + 1,
-            };
-            let mut carry = Vec::new();
-            for active_rect in active.drain(..) {
-                if merged.left_col <= active_rect.right_col.saturating_add(1)
-                    && active_rect.left_col <= merged.right_col.saturating_add(1)
-                {
-                    merged.left_col = merged.left_col.min(active_rect.left_col);
-                    merged.right_col = merged.right_col.max(active_rect.right_col);
-                    merged.top_row = merged.top_row.min(active_rect.top_row);
-                    merged.bottom_row = merged.bottom_row.max(active_rect.bottom_row);
-                } else {
-                    carry.push(active_rect);
-                }
-            }
-            active = carry;
-            let mut idx = 0;
-            while idx < next_active.len() {
-                let existing = next_active[idx];
-                if merged.left_col <= existing.right_col.saturating_add(1)
-                    && existing.left_col <= merged.right_col.saturating_add(1)
-                {
-                    merged.left_col = merged.left_col.min(existing.left_col);
-                    merged.right_col = merged.right_col.max(existing.right_col);
-                    merged.top_row = merged.top_row.min(existing.top_row);
-                    merged.bottom_row = merged.bottom_row.max(existing.bottom_row);
-                    next_active.swap_remove(idx);
-                } else {
-                    idx += 1;
-                }
-            }
-            next_active.push(merged);
-        }
-        rects.extend(active.drain(..).map(|rect| DirtyPixelRect {
-            left_px: mapper.origin_x + rect.left_col * mapper.cell.width_px,
-            top_px: mapper.origin_y + rect.top_row * mapper.cell.height_px,
-            width_px: (rect.right_col - rect.left_col) * mapper.cell.width_px,
-            height_px: (rect.bottom_row - rect.top_row) * mapper.cell.height_px,
-        }));
-        active = next_active;
-    }
-    rects.extend(active.drain(..).map(|rect| DirtyPixelRect {
-        left_px: mapper.origin_x + rect.left_col * mapper.cell.width_px,
-        top_px: mapper.origin_y + rect.top_row * mapper.cell.height_px,
-        width_px: (rect.right_col - rect.left_col) * mapper.cell.width_px,
-        height_px: (rect.bottom_row - rect.top_row) * mapper.cell.height_px,
-    }));
-    rects
-}
-
-fn background_fill_key(
-    style: CellStyle,
-    body_bg_color: GameColor,
-) -> Option<(GameColor, BackgroundMode)> {
-    if style.bg_mode == BackgroundMode::Cell && style.bg == body_bg_color {
-        return None;
-    }
-    if style.bg == body_bg_color {
-        return None;
-    }
-    Some((style.bg, style.bg_mode))
-}
-
-fn repaint_row_spans_into_pixels(
-    background_pixels: &mut [u8],
-    frame_width: usize,
-    playfield: &PlayfieldBuffer,
-    mapper: GridMapper,
-    text_metrics: TextMetrics,
-    row_idx: usize,
-    spans: &[DirtyColumnSpan],
-    body_bg_color: GameColor,
-) {
-    let body_bg = primitives::color_to_rgba(body_bg_color);
-    for span in spans {
-        if span.start_col >= span.end_col {
-            continue;
-        }
-        let start_rect = mapper.cell_rect(Point::from_usize(span.start_col, row_idx));
-        primitives::fill_rect_rgba(
-            background_pixels,
-            frame_width,
-            start_rect.x,
-            start_rect.y,
-            (span.end_col - span.start_col) * mapper.cell.width_px,
-            mapper.cell.height_px,
-            body_bg,
-        );
-        let mut background_run_start = None;
-        let mut background_run_style = None;
-        for col_idx in span.start_col..span.end_col {
-            let source = playfield.row(row_idx)[col_idx];
-            let style = source.style;
-            if primitives::should_draw_as_primitive(source.ch) {
-                flush_background_run_into_pixels(
-                    background_pixels,
-                    frame_width,
-                    mapper,
-                    text_metrics,
-                    row_idx,
-                    &mut background_run_start,
-                    &mut background_run_style,
-                    col_idx,
-                );
-                if let Some((bg, bg_mode)) = background_fill_key(style, body_bg_color) {
-                    let rect = span_fill_rect(
-                        mapper,
-                        row_idx,
-                        col_idx,
-                        col_idx + 1,
-                        bg_mode,
-                        text_metrics,
-                    );
-                    primitives::fill_rect_rgba(
-                        background_pixels,
-                        frame_width,
-                        rect.x,
-                        rect.y,
-                        rect.width,
-                        rect.height,
-                        primitives::color_to_rgba(bg),
-                    );
-                }
-                let point = Point::from_usize(col_idx, row_idx);
-                let rect = if style.bg_mode == BackgroundMode::TextBand {
-                    mapper.text_band_rect(point, text_metrics)
-                } else {
-                    mapper.cell_rect(point)
-                };
-                primitives::draw_cell_primitive(
-                    background_pixels,
-                    frame_width,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height,
-                    source.ch,
-                    primitives::color_to_rgba(style.fg),
-                );
-                continue;
-            }
-            let background_key = background_fill_key(style, body_bg_color);
-            if background_key != background_run_style {
-                flush_background_run_into_pixels(
-                    background_pixels,
-                    frame_width,
-                    mapper,
-                    text_metrics,
-                    row_idx,
-                    &mut background_run_start,
-                    &mut background_run_style,
-                    col_idx,
-                );
-                if background_key.is_some() {
-                    background_run_start = Some(col_idx);
-                    background_run_style = background_key;
-                }
-            }
-        }
-        flush_background_run_into_pixels(
-            background_pixels,
-            frame_width,
-            mapper,
-            text_metrics,
-            row_idx,
-            &mut background_run_start,
-            &mut background_run_style,
-            span.end_col,
-        );
-    }
-}
-
-fn flush_background_run_into_pixels(
-    background_pixels: &mut [u8],
-    frame_width: usize,
-    mapper: GridMapper,
-    text_metrics: TextMetrics,
-    row_idx: usize,
-    run_start: &mut Option<usize>,
-    run_style: &mut Option<(GameColor, BackgroundMode)>,
-    end_col: usize,
-) {
-    let (Some(start_col), Some((bg, bg_mode))) = (run_start.take(), run_style.take()) else {
-        return;
-    };
-    let rect = span_fill_rect(mapper, row_idx, start_col, end_col, bg_mode, text_metrics);
-    primitives::fill_rect_rgba(
-        background_pixels,
-        frame_width,
-        rect.x,
-        rect.y,
-        rect.width,
-        rect.height,
-        primitives::color_to_rgba(bg),
-    );
-}
-
-fn span_fill_rect(
-    mapper: GridMapper,
-    row_idx: usize,
-    start_col: usize,
-    end_col: usize,
-    bg_mode: BackgroundMode,
-    text_metrics: TextMetrics,
-) -> PhysicalRect {
-    let start = Point::from_usize(start_col, row_idx);
-    let end = Point::from_usize(end_col.saturating_sub(1), row_idx);
-    let start_rect = if bg_mode == BackgroundMode::TextBand {
-        mapper.text_band_rect(start, text_metrics)
-    } else {
-        mapper.cell_rect(start)
-    };
-    let end_rect = if bg_mode == BackgroundMode::TextBand {
-        mapper.text_band_rect(end, text_metrics)
-    } else {
-        mapper.cell_rect(end)
-    };
-    PhysicalRect {
-        x: start_rect.x,
-        y: start_rect.y,
-        width: end_rect.x + end_rect.width - start_rect.x,
-        height: start_rect.height,
     }
 }
 
@@ -1573,6 +888,36 @@ fn create_background_pipeline(
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                 count: None,
             },
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 4,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                },
+                count: None,
+            },
         ],
     });
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -1611,8 +956,6 @@ fn create_background_pipeline(
 impl BackgroundTexture {
     fn new(
         device: &Device,
-        bind_group_layout: &BindGroupLayout,
-        sampler: &Sampler,
         width: u32,
         height: u32,
     ) -> Self {
@@ -1631,23 +974,9 @@ impl BackgroundTexture {
             view_formats: &[],
         });
         let view = texture.create_view(&TextureViewDescriptor::default());
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("nc-helm-background-bind-group"),
-            layout: bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(sampler),
-                },
-            ],
-        });
         Self {
             texture,
-            bind_group,
+            view,
         }
     }
 }
@@ -1660,75 +989,6 @@ fn fit_grid_to_pixels(
     let cols = (width.max(1) as usize / cell.width_px).max(1);
     let rows = (height.max(1) as usize / cell.height_px).max(1);
     ScreenGeometry::new(cols, rows)
-}
-
-/// Finalise an in-progress text run, if any.
-///
-/// Looks up the text origin and bounding box for the run's cell range and
-/// pushes a `TextPlacement` so glyphon can draw it. The bounds clip the run
-/// to its cell range horizontally and to the cell row vertically — this
-/// prevents glyphs that overshoot their cell (wide italics, ligatures) from
-/// painting into a neighbour's strip.
-///
-/// Resets `run_start`, `run_style`, and `run_text` so the caller can begin
-/// the next run.
-fn flush_run(
-    renderer: &mut Renderer,
-    mapper: GridMapper,
-    placements: &mut Vec<TextPlacement>,
-    run_start: &mut Option<usize>,
-    run_style: &mut Option<CellStyle>,
-    run_text: &mut String,
-    row_idx: usize,
-    end_col: usize,
-) {
-    let Some(start_col) = run_start.take() else {
-        return;
-    };
-    let style = run_style.take().expect("run style exists");
-    if run_text.is_empty() {
-        return;
-    }
-    let key = make_text_key(
-        Arc::<str>::from(run_text.as_str()),
-        TextFamilyKey::Monospace,
-        renderer.grid_metrics.text.font_size_px,
-        renderer.grid_metrics.text.line_height_px,
-        style.bold,
-    );
-    renderer.ensure_text_buffer(key.clone());
-    let overhang = renderer
-        .text_buffers
-        .get(&key)
-        .map(|cached| cached.overhang)
-        .expect("text buffer exists after shaping");
-    let start = Point::from_usize(start_col, row_idx);
-    let text_origin = mapper.text_origin(start, renderer.grid_metrics.text);
-    let cell_rect = mapper.cell_rect(start);
-    let start_rect = if style.bg_mode == BackgroundMode::TextBand {
-        mapper.text_band_rect(start, renderer.grid_metrics.text)
-    } else {
-        cell_rect
-    };
-    placements.push(TextPlacement {
-        key,
-        start_col,
-        end_col,
-        left: text_origin.left,
-        top: text_origin.top,
-        bounds: expanded_text_bounds(
-            text_origin.left.floor().max(0.0) as usize,
-            start_rect.x,
-            start_rect.y,
-            mapper.origin_x + end_col * mapper.cell.width_px,
-            mapper.cell.height_px,
-            renderer.surface_config.width as usize,
-            renderer.surface_config.height as usize,
-            overhang,
-        ),
-        color: style.fg,
-    });
-    run_text.clear();
 }
 
 fn prepare_overlay_texts(
@@ -2073,32 +1333,6 @@ fn measure_text_overhang(
     }
 }
 
-fn expanded_text_bounds(
-    text_left_px: usize,
-    left_px: usize,
-    top_px: usize,
-    right_px: usize,
-    cell_height_px: usize,
-    frame_width_px: usize,
-    frame_height_px: usize,
-    overhang: TextOverhang,
-) -> TextBounds {
-    let left = left_px.saturating_sub(overhang.left_px).min(frame_width_px) as i32;
-    let ink_right = text_left_px
-        .saturating_add(overhang.advance_width_px)
-        .saturating_add(overhang.right_px)
-        .min(frame_width_px);
-    let right = right_px.max(ink_right).min(frame_width_px) as i32;
-    let top = top_px.min(frame_height_px) as i32;
-    let bottom = top_px.saturating_add(cell_height_px).min(frame_height_px) as i32;
-    TextBounds {
-        left,
-        top,
-        right,
-        bottom,
-    }
-}
-
 /// Map a `GameColor` to a glyphon `Color` (alpha is dropped — the glyph
 /// renderer uses its own coverage for anti-aliasing).
 fn glyphon_color(color: GameColor) -> Color {
@@ -2116,724 +1350,113 @@ fn clear_color(color: GameColor) -> wgpu::Color {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, TextBounds, fontdb};
-    use std::collections::HashMap;
+fn generate_grid_atlas(
+    device: &Device,
+    queue: &Queue,
+    font_system: &mut FontSystem,
+    swash_cache: &mut SwashCache,
+    metrics: TextMetrics,
+) -> GridAtlas {
+    let atlas_width = 1024u32;
+    let atlas_height = 1024u32;
 
-    use crate::geometry::{GridMapper, GridMetrics, caret_rect};
-    use crate::grid::{
-        CellStyle, GameColor, OverlayTextFamily, PlayfieldBuffer, Point, ScreenGeometry,
-    };
-    use crate::runtime::primitives;
+    let texture = device.create_texture(&TextureDescriptor {
+        label: Some("nc-helm-grid-atlas"),
+        size: wgpu::Extent3d {
+            width: atlas_width,
+            height: atlas_height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::R8Unorm,
+        usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
 
-    use super::{
-        DIRTY_SPAN_COLLAPSE_THRESHOLD, DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY,
-        STORMFAZE_FONT_FAMILY, SwashCache, TextFamilyKey, TextOverhang, TextPlacement,
-        UploadStrategy, build_font_system, choose_upload_strategy, compact_row_spans, dirty_cells,
-        dirty_rect_area_px, dirty_rectangles, dirty_row_upload_rectangles,
-        ensure_text_buffer_cached, expanded_text_bounds, expanded_text_rebuild_spans_for_row,
-        fit_grid_to_pixels, full_width_row_spans, grid_area_px, measure_single_line_width,
-        repaint_row_spans_into_pixels, snapshot_playfield, splice_row_placements,
-    };
+    let view = texture.create_view(&TextureViewDescriptor::default());
 
-    fn base_style() -> CellStyle {
-        CellStyle::new(GameColor::White, GameColor::Black, false)
-    }
+    let mut atlas_data = vec![0u8; (atlas_width * atlas_height) as usize];
 
-    fn mapper() -> (GridMapper, GridMetrics) {
-        let metrics = GridMetrics {
-            cell: crate::geometry::CellMetrics {
-                width_px: 12,
-                height_px: 24,
-            },
-            text: crate::geometry::TextMetrics {
-                font_size_px: 18.0,
-                line_height_px: 24.0,
-                baseline_px: 18,
-                band_top_px: 5,
-                band_height_px: 14,
-            },
-        };
-        (
-            GridMapper::centered(1200, 900, ScreenGeometry::new(100, 36), metrics.cell),
-            metrics,
-        )
-    }
+    // We'll map characters to 32x64 slots in the atlas for simplicity.
+    let slot_w = 32u32;
+    let slot_h = 64u32;
+    let cols = atlas_width / slot_w;
 
-    fn pixel_rgba(frame: &[u8], stride_px: usize, x: usize, y: usize) -> [u8; 4] {
-        let pixel = (y * stride_px + x) * 4;
-        [
-            frame[pixel],
-            frame[pixel + 1],
-            frame[pixel + 2],
-            frame[pixel + 3],
-        ]
-    }
+    // Rasterize ASCII range and Box Drawing range
+    let chars_to_atlas: Vec<u32> = (32..127).chain(0x2500..0x2580).collect();
 
-    fn placement(start_col: usize, end_col: usize) -> TextPlacement {
-        TextPlacement {
-            key: super::make_text_key(
-                std::sync::Arc::<str>::from("TXT"),
-                TextFamilyKey::Monospace,
-                18.0,
-                24.0,
-                false,
-            ),
-            start_col,
-            end_col,
-            left: 0.0,
-            top: 0.0,
-            bounds: TextBounds {
-                left: 0,
-                top: 0,
-                right: 1,
-                bottom: 1,
-            },
-            color: GameColor::White,
-        }
-    }
-
-    #[test]
-    fn caret_rect_tracks_columns_by_cell_width() {
-        let (mapper, metrics) = mapper();
-        let start = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
-        let next = caret_rect(Point::from_usize(32, 16), mapper, metrics.text);
-        assert_eq!(next.x - start.x, metrics.cell.width_px);
-        assert_eq!(start.y, next.y);
-    }
-
-    #[test]
-    fn caret_rect_tracks_rows_by_cell_height() {
-        let (mapper, metrics) = mapper();
-        let handle = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
-        let password = caret_rect(Point::from_usize(31, 18), mapper, metrics.text);
-        assert_eq!(password.x, handle.x);
-        assert_eq!(password.y - handle.y, metrics.cell.height_px * 2);
-    }
-
-    #[test]
-    fn caret_rect_uses_text_origin_from_cell_mapping() {
-        let (mapper, metrics) = mapper();
-        let rect = mapper.text_band_rect(Point::from_usize(31, 16), metrics.text);
-        let caret = caret_rect(Point::from_usize(31, 16), mapper, metrics.text);
-        assert_eq!(caret.x, rect.x);
-        assert_eq!(caret.y, rect.y);
-        assert_eq!(caret.width, 2);
-        assert_eq!(caret.height, rect.height);
-    }
-
-    #[test]
-    fn expanded_text_bounds_include_measured_overhang() {
-        let bounds = expanded_text_bounds(
-            101,
-            100,
-            50,
-            148,
-            24,
-            500,
-            400,
-            TextOverhang {
-                left_px: 1,
-                right_px: 2,
-                advance_width_px: 48,
-            },
+    for (i, &ch) in chars_to_atlas.iter().enumerate() {
+        let mut buffer = GlyphBuffer::new(
+            font_system,
+            Metrics::new(metrics.font_size_px, metrics.line_height_px),
         );
-        assert_eq!(bounds.left, 99);
-        assert_eq!(bounds.right, 151);
-        assert_eq!(bounds.top, 50);
-        assert_eq!(bounds.bottom, 74);
-    }
-
-    #[test]
-    fn expanded_text_bounds_clamp_to_frame_edges() {
-        let bounds = expanded_text_bounds(
-            2,
-            0,
-            0,
-            120,
-            24,
-            120,
-            80,
-            TextOverhang {
-                left_px: 2,
-                right_px: 4,
-                advance_width_px: 120,
-            },
-        );
-        assert_eq!(bounds.left, 0);
-        assert_eq!(bounds.right, 120);
-        assert_eq!(bounds.bottom, 24);
-    }
-
-    #[test]
-    fn stormfaze_wordmark_shapes_with_nonzero_width() {
-        let mut font_system = build_font_system();
-        let width = measure_single_line_width(
-            &mut font_system,
-            "NOSTRIAN",
-            TextFamilyKey::Named(STORMFAZE_FONT_FAMILY),
-            48.0,
-        );
-        assert!(
-            width > 0.0,
-            "Stormfaze wordmark should shape to a visible width"
-        );
-    }
-
-    #[test]
-    fn stormfaze_query_resolves_to_bundled_face() {
-        let font_system = build_font_system();
-        let face_id = font_system.db().query(&fontdb::Query {
-            families: &[fontdb::Family::Name(STORMFAZE_FONT_FAMILY)],
-            weight: fontdb::Weight::NORMAL,
-            stretch: fontdb::Stretch::Normal,
-            style: fontdb::Style::Normal,
-        });
-        let face = face_id
-            .and_then(|id| font_system.db().face(id))
-            .expect("Stormfaze face should be present in the bundled font database");
-        assert!(
-            face.families
-                .iter()
-                .any(|(family, _)| family == STORMFAZE_FONT_FAMILY),
-            "resolved face should belong to the Stormfaze family"
-        );
-    }
-
-    #[test]
-    fn monospace_query_resolves_to_jetbrains_mono() {
-        let font_system = build_font_system();
-        let face_id = font_system.db().query(&fontdb::Query {
-            families: &[fontdb::Family::Monospace],
-            weight: fontdb::Weight::NORMAL,
-            stretch: fontdb::Stretch::Normal,
-            style: fontdb::Style::Normal,
-        });
-        let face = face_id
-            .and_then(|id| font_system.db().face(id))
-            .expect("monospace query should resolve to the bundled primary face");
-        assert!(
-            face.families
-                .iter()
-                .any(|(family, _)| family == PRIMARY_FONT_FAMILY),
-            "monospace query should resolve to JetBrains Mono"
-        );
-    }
-
-    #[test]
-    fn fit_grid_to_pixels_is_stable_for_repeated_inputs() {
-        let cell = crate::geometry::CellMetrics {
-            width_px: 12,
-            height_px: 24,
-        };
-        let first = fit_grid_to_pixels(1200, 900, cell);
-        let second = fit_grid_to_pixels(1200, 900, cell);
-        assert_eq!(first, second);
-        assert_eq!(first, ScreenGeometry::new(100, 37));
-    }
-
-    #[test]
-    fn dirty_cells_track_changed_rows_and_cursor_rows() {
-        let mut previous = PlayfieldBuffer::new(4, 3, base_style());
-        previous.write_text(1, 0, "AB", base_style());
-        previous.set_cursor(Point::from_usize(0, 0));
-        let previous = snapshot_playfield(&previous);
-
-        let mut next = PlayfieldBuffer::new(4, 3, base_style());
-        next.write_text(1, 0, "AX", base_style());
-        next.set_cursor(Point::from_usize(1, 2));
-
-        let dirty = dirty_cells(Some(&previous), &next, 640, 480);
-        assert!(!dirty.full_rebuild);
-        assert_eq!(
-            dirty.row_spans,
-            vec![
-                vec![DirtyColumnSpan {
-                    start_col: 0,
-                    end_col: 1
-                }],
-                vec![DirtyColumnSpan {
-                    start_col: 1,
-                    end_col: 2
-                }],
-                vec![DirtyColumnSpan {
-                    start_col: 1,
-                    end_col: 2
-                }],
-            ]
-        );
-    }
-
-    #[test]
-    fn dirty_cells_keep_background_incremental_when_only_overlay_text_changes() {
-        let mut previous = PlayfieldBuffer::new(4, 3, base_style());
-        previous.push_overlay_text("NC", OverlayTextFamily::Monospace, base_style(), 0, 0, 2, 1);
-        let previous = snapshot_playfield(&previous);
-
-        let next = PlayfieldBuffer::new(4, 3, base_style());
-        let dirty = dirty_cells(Some(&previous), &next, 640, 480);
-        assert!(!dirty.full_rebuild);
-        assert!(dirty.overlay_changed);
-        assert!(dirty.row_spans.iter().all(|spans| spans.is_empty()));
-    }
-
-    #[test]
-    fn compact_row_spans_merge_small_gaps() {
-        let row_spans = vec![vec![
-            DirtyColumnSpan {
-                start_col: 1,
-                end_col: 2,
-            },
-            DirtyColumnSpan {
-                start_col: 4,
-                end_col: 5,
-            },
-            DirtyColumnSpan {
-                start_col: 8,
-                end_col: 9,
-            },
-        ]];
-        assert_eq!(
-            compact_row_spans(&row_spans),
-            vec![vec![
-                DirtyColumnSpan {
-                    start_col: 1,
-                    end_col: 5,
-                },
-                DirtyColumnSpan {
-                    start_col: 8,
-                    end_col: 9,
-                },
-            ]]
-        );
-    }
-
-    #[test]
-    fn compact_row_spans_collapse_busy_rows() {
-        let row_spans = vec![vec![
-            DirtyColumnSpan {
-                start_col: 0,
-                end_col: 1,
-            },
-            DirtyColumnSpan {
-                start_col: 4,
-                end_col: 5,
-            },
-            DirtyColumnSpan {
-                start_col: 8,
-                end_col: 9,
-            },
-            DirtyColumnSpan {
-                start_col: 12,
-                end_col: 13,
-            },
-            DirtyColumnSpan {
-                start_col: 16,
-                end_col: 17,
-            },
-        ]];
-        let compacted = compact_row_spans(&row_spans);
-        assert_eq!(compacted[0].len(), 1);
-        assert!(DIRTY_SPAN_COLLAPSE_THRESHOLD < row_spans[0].len());
-        assert_eq!(
-            compacted[0][0],
-            DirtyColumnSpan {
-                start_col: 0,
-                end_col: 17,
-            }
-        );
-    }
-
-    #[test]
-    fn full_width_row_spans_expand_dirty_rows_to_entire_width() {
-        let row_spans = vec![
-            vec![DirtyColumnSpan {
-                start_col: 2,
-                end_col: 4,
-            }],
-            Vec::new(),
-            vec![DirtyColumnSpan {
-                start_col: 6,
-                end_col: 7,
-            }],
-        ];
-        assert_eq!(
-            full_width_row_spans(&row_spans, 10),
-            vec![
-                vec![DirtyColumnSpan {
-                    start_col: 0,
-                    end_col: 10,
-                }],
-                Vec::new(),
-                vec![DirtyColumnSpan {
-                    start_col: 0,
-                    end_col: 10,
-                }],
-            ]
-        );
-    }
-
-    #[test]
-    fn expanded_text_rebuild_spans_grow_through_same_style_runs_and_stop_at_spaces() {
-        let mut playfield = PlayfieldBuffer::new(7, 1, base_style());
-        playfield.write_text(0, 0, "ABC DE", base_style());
-        assert_eq!(
-            expanded_text_rebuild_spans_for_row(
-                playfield.row(0),
-                &[DirtyColumnSpan {
-                    start_col: 1,
-                    end_col: 2,
-                }],
-            ),
-            vec![DirtyColumnSpan {
-                start_col: 0,
-                end_col: 3,
-            }],
-        );
-    }
-
-    #[test]
-    fn expanded_text_rebuild_spans_stop_at_primitives_and_style_changes() {
-        let mut playfield = PlayfieldBuffer::new(5, 1, base_style());
-        playfield.write_text(0, 0, "AB", base_style());
-        playfield.set_cell(0, 2, '│', base_style());
-        playfield.write_text(0, 3, "D", base_style());
-        playfield.write_text(
-            0,
-            4,
-            "E",
-            CellStyle::new(GameColor::Yellow, GameColor::Black, false),
-        );
-        assert_eq!(
-            expanded_text_rebuild_spans_for_row(
-                playfield.row(0),
-                &[DirtyColumnSpan {
-                    start_col: 3,
-                    end_col: 4,
-                }],
-            ),
-            vec![DirtyColumnSpan {
-                start_col: 3,
-                end_col: 4,
-            }],
-        );
-    }
-
-    #[test]
-    fn expanded_text_rebuild_spans_merge_touching_expanded_ranges() {
-        let mut playfield = PlayfieldBuffer::new(8, 1, base_style());
-        playfield.write_text(0, 0, "ABCDEFGH", base_style());
-        assert_eq!(
-            expanded_text_rebuild_spans_for_row(
-                playfield.row(0),
-                &[
-                    DirtyColumnSpan {
-                        start_col: 1,
-                        end_col: 2,
-                    },
-                    DirtyColumnSpan {
-                        start_col: 4,
-                        end_col: 5,
-                    },
-                ],
-            ),
-            vec![DirtyColumnSpan {
-                start_col: 0,
-                end_col: 8,
-            }],
-        );
-    }
-
-    #[test]
-    fn splice_row_placements_preserves_untouched_segments_in_order() {
-        let mut placements = vec![placement(0, 2), placement(4, 6), placement(8, 10)];
-        splice_row_placements(
-            &mut placements,
-            &[DirtyColumnSpan {
-                start_col: 4,
-                end_col: 6,
-            }],
-            [placement(3, 7)],
-        );
-        let spans = placements
-            .iter()
-            .map(|placement| (placement.start_col, placement.end_col))
-            .collect::<Vec<_>>();
-        assert_eq!(spans, vec![(0, 2), (3, 7), (8, 10)]);
-    }
-
-    #[test]
-    fn ensure_text_buffer_cached_reports_miss_then_hit() {
-        let mut font_system = build_font_system();
-        let mut swash_cache = SwashCache::new();
-        let mut text_buffers = HashMap::new();
-        let key = super::make_text_key(
-            std::sync::Arc::<str>::from("HELLO"),
-            TextFamilyKey::Monospace,
-            18.0,
-            24.0,
-            false,
-        );
-
-        assert!(ensure_text_buffer_cached(
-            &mut font_system,
-            &mut swash_cache,
-            &mut text_buffers,
-            key.clone(),
-        ));
-        assert!(!ensure_text_buffer_cached(
-            &mut font_system,
-            &mut swash_cache,
-            &mut text_buffers,
-            key,
-        ));
-        assert_eq!(text_buffers.len(), 1);
-    }
-
-    #[test]
-    fn repaint_row_spans_keep_primitive_foreground_on_non_body_background() {
-        let (mapper, metrics) = mapper();
-        let body_bg = GameColor::Black;
-        let panel_bg = GameColor::Blue;
-        let primitive_fg = GameColor::BrightWhite;
-        let primitive_style = CellStyle::new(primitive_fg, panel_bg, false);
-        let mut playfield =
-            PlayfieldBuffer::new(3, 1, CellStyle::new(GameColor::White, body_bg, false));
-        playfield.set_cell(0, 1, '│', primitive_style);
-
-        let stride_px = 1200usize;
-        let mut frame = vec![0; stride_px * 900 * 4];
-        let span = [DirtyColumnSpan {
-            start_col: 1,
-            end_col: 2,
-        }];
-        repaint_row_spans_into_pixels(
-            &mut frame,
-            stride_px,
-            &playfield,
-            mapper,
-            metrics.text,
-            0,
-            &span,
-            body_bg,
-        );
-
-        let rect = mapper.cell_rect(Point::from_usize(1, 0));
-        assert_eq!(
-            pixel_rgba(
-                &frame,
-                stride_px,
-                rect.x + metrics.cell.width_px / 2,
-                rect.y + metrics.cell.height_px / 2,
-            ),
-            primitives::color_to_rgba(primitive_fg),
-        );
-    }
-
-    #[test]
-    fn repaint_row_spans_do_not_flush_background_runs_over_primitives() {
-        let (mapper, metrics) = mapper();
-        let body_bg = GameColor::Black;
-        let panel_bg = GameColor::Blue;
-        let text_style = CellStyle::new(GameColor::White, panel_bg, false);
-        let primitive_style = CellStyle::new(GameColor::BrightWhite, panel_bg, false);
-        let mut playfield =
-            PlayfieldBuffer::new(3, 1, CellStyle::new(GameColor::White, body_bg, false));
-        playfield.set_cell(0, 0, 'A', text_style);
-        playfield.set_cell(0, 1, '│', primitive_style);
-        playfield.set_cell(0, 2, 'B', text_style);
-
-        let stride_px = 1200usize;
-        let mut frame = vec![0; stride_px * 900 * 4];
-        let span = [DirtyColumnSpan {
-            start_col: 0,
-            end_col: 3,
-        }];
-        repaint_row_spans_into_pixels(
-            &mut frame,
-            stride_px,
-            &playfield,
-            mapper,
-            metrics.text,
-            0,
-            &span,
-            body_bg,
-        );
-
-        let primitive_rect = mapper.cell_rect(Point::from_usize(1, 0));
-        let text_rect = mapper.cell_rect(Point::from_usize(0, 0));
-        assert_eq!(
-            pixel_rgba(
-                &frame,
-                stride_px,
-                primitive_rect.x + metrics.cell.width_px / 2,
-                primitive_rect.y + metrics.cell.height_px / 2,
-            ),
-            primitives::color_to_rgba(GameColor::BrightWhite),
-        );
-        assert_eq!(
-            pixel_rgba(
-                &frame,
-                stride_px,
-                text_rect.x + metrics.cell.width_px / 2,
-                text_rect.y + metrics.text.band_top_px + metrics.text.band_height_px / 2,
-            ),
-            primitives::color_to_rgba(panel_bg),
-        );
-    }
-
-    #[test]
-    fn dirty_rectangles_merge_adjacent_rows_with_overlapping_columns() {
-        let (mapper, _) = mapper();
-        let mut row_spans = vec![Vec::new(); 6];
-        row_spans[2].push(DirtyColumnSpan {
-            start_col: 0,
-            end_col: 2,
-        });
-        row_spans[3].push(DirtyColumnSpan {
-            start_col: 1,
-            end_col: 3,
-        });
-        row_spans[5].push(DirtyColumnSpan {
-            start_col: 2,
-            end_col: 3,
-        });
-        let rects = dirty_rectangles(&row_spans, mapper);
-        assert_eq!(
-            rects,
-            vec![
-                DirtyPixelRect {
-                    left_px: mapper.origin_x,
-                    top_px: mapper.origin_y + 2 * mapper.cell.height_px,
-                    width_px: 3 * mapper.cell.width_px,
-                    height_px: 2 * mapper.cell.height_px,
-                },
-                DirtyPixelRect {
-                    left_px: mapper.origin_x + 2 * mapper.cell.width_px,
-                    top_px: mapper.origin_y + 5 * mapper.cell.height_px,
-                    width_px: mapper.cell.width_px,
-                    height_px: mapper.cell.height_px,
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn dirty_row_upload_rectangles_merge_contiguous_rows() {
-        let (mapper, _) = mapper();
-        let mut row_spans = vec![Vec::new(); 5];
-        row_spans[1].push(DirtyColumnSpan {
-            start_col: 1,
-            end_col: 2,
-        });
-        row_spans[2].push(DirtyColumnSpan {
-            start_col: 4,
-            end_col: 6,
-        });
-        row_spans[4].push(DirtyColumnSpan {
-            start_col: 2,
-            end_col: 3,
-        });
-        let rects = dirty_row_upload_rectangles(&row_spans, mapper);
-        assert_eq!(
-            rects,
-            vec![
-                DirtyPixelRect {
-                    left_px: mapper.origin_x,
-                    top_px: mapper.origin_y + mapper.cell.height_px,
-                    width_px: mapper.geometry.width() * mapper.cell.width_px,
-                    height_px: 2 * mapper.cell.height_px,
-                },
-                DirtyPixelRect {
-                    left_px: mapper.origin_x,
-                    top_px: mapper.origin_y + 4 * mapper.cell.height_px,
-                    width_px: mapper.geometry.width() * mapper.cell.width_px,
-                    height_px: mapper.cell.height_px,
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn upload_strategy_uses_dirty_rows_when_rects_explode() {
-        assert_eq!(
-            choose_upload_strategy(25, 10, 1000),
-            UploadStrategy::DirtyRows
-        );
-    }
-
-    #[test]
-    fn upload_strategy_uses_dirty_rows_when_upload_area_exceeds_quarter_grid() {
-        assert_eq!(
-            choose_upload_strategy(4, 251, 1000),
-            UploadStrategy::DirtyRows
-        );
-    }
-
-    #[test]
-    fn upload_strategy_keeps_small_sparse_updates_as_rects() {
-        assert_eq!(choose_upload_strategy(4, 250, 1000), UploadStrategy::Rects);
-    }
-
-    #[test]
-    fn dirty_rect_area_px_sums_rectangle_area() {
-        let rects = vec![
-            DirtyPixelRect {
-                left_px: 10,
-                top_px: 20,
-                width_px: 5,
-                height_px: 4,
-            },
-            DirtyPixelRect {
-                left_px: 30,
-                top_px: 40,
-                width_px: 3,
-                height_px: 2,
-            },
-        ];
-        assert_eq!(dirty_rect_area_px(&rects), 26);
-    }
-
-    #[test]
-    fn grid_area_px_matches_grid_dimensions() {
-        let (mapper, _) = mapper();
-        let playfield = PlayfieldBuffer::new(100, 36, base_style());
-        assert_eq!(
-            grid_area_px(&playfield, mapper),
-            100 * mapper.cell.width_px * 36 * mapper.cell.height_px
-        );
-    }
-
-    #[test]
-    fn stormfaze_wordmark_glyphs_use_stormfaze_face() {
-        let mut font_system = build_font_system();
-        let mut buffer = GlyphBuffer::new(&mut font_system, Metrics::new(48.0, 48.0));
-        buffer.set_size(&mut font_system, None, Some(48.0));
+        buffer.set_size(font_system, None, Some(metrics.line_height_px));
         buffer.set_text(
-            &mut font_system,
-            "NOSTRIAN",
-            &Attrs::new().family(Family::Name(STORMFAZE_FONT_FAMILY)),
+            font_system,
+            &char::from_u32(ch).unwrap_or(' ').to_string(),
+            &Attrs::new()
+                .family(Family::Monospace)
+                .weight(Weight::NORMAL),
             Shaping::Advanced,
             None,
         );
-        buffer.shape_until_scroll(&mut font_system, false);
+        buffer.shape_until_scroll(font_system, false);
 
-        let font_id = buffer
-            .layout_runs()
-            .flat_map(|run| run.glyphs.iter())
-            .next()
-            .map(|glyph| glyph.font_id)
-            .expect("Stormfaze wordmark should produce at least one glyph");
-        let face = font_system
-            .db()
-            .face(font_id)
-            .expect("shaped Stormfaze glyph should resolve to a known face");
-        assert!(
-            face.families
-                .iter()
-                .any(|(family, _)| family == STORMFAZE_FONT_FAMILY),
-            "glyphs should resolve to the Stormfaze face instead of a fallback family"
-        );
+        for run in buffer.layout_runs() {
+            for glyph in run.glyphs.iter() {
+                let physical = glyph.physical((0.0, 0.0), 1.0);
+                let Some(img) = swash_cache.get_image_uncached(font_system, physical.cache_key)
+                else {
+                    continue;
+                };
+
+                // Check if the image is a mask (1 byte per pixel) to avoid
+                // direct swash dependency and potential API version mismatches.
+                if img.data.len() == (img.placement.width * img.placement.height) as usize {
+                    let col = (i as u32) % cols;
+                    let row = (i as u32) / cols;
+
+                    // Center the glyph in the 32x64 slot.
+                    let ox = col * slot_w + (slot_w.saturating_sub(img.placement.width) / 2);
+                    let oy = row * slot_h + (slot_h.saturating_sub(img.placement.height) / 2);
+
+                    for y in 0..img.placement.height {
+                        for x in 0..img.placement.width {
+                            let src_idx = (y * img.placement.width + x) as usize;
+                            let dst_x = ox + x;
+                            let dst_y = oy + y;
+                            if dst_x < atlas_width && dst_y < atlas_height {
+                                let dst_idx = (dst_y * atlas_width + dst_x) as usize;
+                                atlas_data[dst_idx] = img.data[src_idx];
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    queue.write_texture(
+        wgpu::TexelCopyTextureInfo {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &atlas_data,
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(atlas_width),
+            rows_per_image: Some(atlas_height),
+        },
+        wgpu::Extent3d {
+            width: atlas_width,
+            height: atlas_height,
+            depth_or_array_layers: 1,
+        },
+    );
+
+    GridAtlas { texture, view }
 }

@@ -149,8 +149,12 @@ impl PlayfieldBuffer {
         self.cursor
     }
 
-    pub(crate) fn overlay_texts(&self) -> &[OverlayText] {
+    pub fn overlay_texts(&self) -> &[OverlayText] {
         &self.overlay_texts
+    }
+
+    pub fn get_all_cells(&self) -> &[Cell] {
+        &self.cells
     }
 
     pub fn has_overlay_text(&self, text: &str) -> bool {
