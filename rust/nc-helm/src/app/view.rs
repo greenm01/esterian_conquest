@@ -288,7 +288,8 @@ impl ViewCache {
         match &model.route {
             Route::Lobby(lobby) => self.render_lobby(model, lobby),
             Route::HostedGame(hosted) => self.render_hosted(hosted),
-            _ => self.render_simple(model),
+            _ if is_simple_route_cacheable(&model.route) => self.render_simple(model),
+            _ => self.render_simple_uncached(model),
         }
     }
 
@@ -301,6 +302,16 @@ impl ViewCache {
         } else {
             self.last_hit = true;
         }
+        (
+            self.last_hit,
+            self.simple.buffer.as_ref().expect("simple buffer"),
+        )
+    }
+
+    fn render_simple_uncached<'a>(&'a mut self, model: &Model) -> (bool, &'a PlayfieldBuffer) {
+        self.simple.key = None;
+        self.simple.buffer = Some(render(model));
+        self.last_hit = false;
         (
             self.last_hit,
             self.simple.buffer.as_ref().expect("simple buffer"),
@@ -398,6 +409,10 @@ fn normalized_geometry(model: &Model) -> ScreenGeometry {
     } else {
         model.geometry
     }
+}
+
+fn is_simple_route_cacheable(route: &Route) -> bool {
+    !matches!(route, Route::MatrixLocked)
 }
 
 fn simple_render_key(model: &Model) -> u64 {

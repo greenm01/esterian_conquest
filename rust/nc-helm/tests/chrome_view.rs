@@ -264,6 +264,47 @@ fn matrix_locked_route_renders_rain_without_lock_panel_copy() {
 }
 
 #[test]
+fn matrix_locked_view_bypasses_the_simple_route_cache() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
+
+    let (first_hit, _) = app.view_with_cache_hit();
+    assert!(!first_hit);
+
+    let _ = app.dispatch(Msg::MatrixFrame);
+    let (second_hit, _) = app.view_with_cache_hit();
+    assert!(!second_hit);
+}
+
+#[test]
+fn matrix_locked_view_changes_after_matrix_frames() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
+
+    let before = {
+        let buffer = app.view();
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .collect::<Vec<_>>()
+    };
+
+    for _ in 0..8 {
+        let _ = app.dispatch(Msg::MatrixFrame);
+    }
+
+    let after = {
+        let buffer = app.view();
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .collect::<Vec<_>>()
+    };
+
+    assert_ne!(before, after);
+}
+
+#[test]
 fn undersized_lobby_view_falls_back_instead_of_panicking() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
