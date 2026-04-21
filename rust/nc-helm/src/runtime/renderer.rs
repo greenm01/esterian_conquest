@@ -216,6 +216,7 @@ struct PreparedFrame {
     raw_spans: usize,
     text_rebuild_spans: usize,
     text_rebuild_cells: usize,
+    text_buffer_misses: usize,
     compacted_rects: usize,
     compacted_upload_area_pct: f64,
     upload_rects: usize,
@@ -239,6 +240,7 @@ pub struct RenderTimings {
     pub raw_spans: usize,
     pub text_rebuild_spans: usize,
     pub text_rebuild_cells: usize,
+    pub text_buffer_misses: usize,
     pub compacted_rects: usize,
     pub compacted_upload_area_pct: f64,
     pub upload_rects: usize,
@@ -270,6 +272,7 @@ pub struct Renderer {
     previous_playfield: Option<CachedPlayfield>,
     row_placements: Vec<Vec<TextPlacement>>,
     overlay_placements: Vec<TextPlacement>,
+    text_buffer_misses: usize,
     grid_metrics: GridMetrics,
 }
 
@@ -348,6 +351,7 @@ impl Renderer {
             previous_playfield: None,
             row_placements: Vec::new(),
             overlay_placements: Vec::new(),
+            text_buffer_misses: 0,
             grid_metrics,
         })
     }
@@ -444,6 +448,7 @@ impl Renderer {
                     raw_spans: prepared.raw_spans,
                     text_rebuild_spans: prepared.text_rebuild_spans,
                     text_rebuild_cells: prepared.text_rebuild_cells,
+                    text_buffer_misses: prepared.text_buffer_misses,
                     compacted_rects: prepared.compacted_rects,
                     compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
@@ -463,6 +468,7 @@ impl Renderer {
                     raw_spans: prepared.raw_spans,
                     text_rebuild_spans: prepared.text_rebuild_spans,
                     text_rebuild_cells: prepared.text_rebuild_cells,
+                    text_buffer_misses: prepared.text_buffer_misses,
                     compacted_rects: prepared.compacted_rects,
                     compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
@@ -517,6 +523,7 @@ impl Renderer {
             raw_spans: prepared.raw_spans,
             text_rebuild_spans: prepared.text_rebuild_spans,
             text_rebuild_cells: prepared.text_rebuild_cells,
+            text_buffer_misses: prepared.text_buffer_misses,
             compacted_rects: prepared.compacted_rects,
             compacted_upload_area_pct: prepared.compacted_upload_area_pct,
             upload_rects: prepared.upload_rects,
@@ -556,6 +563,7 @@ impl Renderer {
     /// breaking on spaces lets adjacent runs differ in style without a
     /// per-cell shaping cost.
     fn prepare_playfield(&mut self, playfield: &PlayfieldBuffer) -> PreparedFrame {
+        self.text_buffer_misses = 0;
         let frame_width = self.surface_config.width as usize;
         let frame_height = self.surface_config.height as usize;
         let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
@@ -617,6 +625,7 @@ impl Renderer {
                 raw_spans,
                 text_rebuild_spans: playfield.height(),
                 text_rebuild_cells: playfield.width().saturating_mul(playfield.height()),
+                text_buffer_misses: self.text_buffer_misses,
                 compacted_rects: 1,
                 compacted_upload_area_pct: 100.0,
                 upload_rects: 1,
@@ -700,6 +709,7 @@ impl Renderer {
                 raw_spans,
                 text_rebuild_spans,
                 text_rebuild_cells,
+                text_buffer_misses: self.text_buffer_misses,
                 compacted_rects: compacted_rects_len,
                 compacted_upload_area_pct,
                 upload_rects,
@@ -711,43 +721,17 @@ impl Renderer {
     /// Shape `key` into a glyphon `Buffer` and cache it. No-op if already
     /// cached. Buffers are sized to one cell row in height; horizontal size
     /// is left unconstrained so wider runs lay out on a single line.
-    fn ensure_text_buffer(&mut self, key: TextBufferKey) {
-        if self.text_buffers.contains_key(&key) {
-            return;
+    fn ensure_text_buffer(&mut self, key: TextBufferKey) -> bool {
+        let inserted = ensure_text_buffer_cached(
+            &mut self.font_system,
+            &mut self.swash_cache,
+            &mut self.text_buffers,
+            key,
+        );
+        if inserted {
+            self.text_buffer_misses += 1;
         }
-        let mut buffer = GlyphBuffer::new(
-            &mut self.font_system,
-            Metrics::new(
-                f32::from_bits(key.font_size_bits),
-                f32::from_bits(key.line_height_bits),
-            ),
-        );
-        buffer.set_size(
-            &mut self.font_system,
-            None,
-            Some(f32::from_bits(key.line_height_bits).max(1.0)),
-        );
-        let attrs = Attrs::new()
-            .family(match key.family {
-                TextFamilyKey::Monospace => Family::Monospace,
-                TextFamilyKey::Named(name) => Family::Name(name),
-            })
-            .weight(if key.bold {
-                Weight::BOLD
-            } else {
-                Weight::NORMAL
-            });
-        buffer.set_text(
-            &mut self.font_system,
-            key.text.as_ref(),
-            &attrs,
-            Shaping::Advanced,
-            None,
-        );
-        buffer.shape_until_scroll(&mut self.font_system, false);
-        let overhang = measure_text_overhang(&mut self.font_system, &mut self.swash_cache, &buffer);
-        self.text_buffers
-            .insert(key, CachedTextCell { buffer, overhang });
+        inserted
     }
 
     /// Resize the swapchain surface and the background texture if the
@@ -2001,6 +1985,50 @@ fn measure_single_line_width(
         .unwrap_or(0.0)
 }
 
+fn ensure_text_buffer_cached(
+    font_system: &mut FontSystem,
+    swash_cache: &mut SwashCache,
+    text_buffers: &mut HashMap<TextBufferKey, CachedTextCell>,
+    key: TextBufferKey,
+) -> bool {
+    if text_buffers.contains_key(&key) {
+        return false;
+    }
+    let mut buffer = GlyphBuffer::new(
+        font_system,
+        Metrics::new(
+            f32::from_bits(key.font_size_bits),
+            f32::from_bits(key.line_height_bits),
+        ),
+    );
+    buffer.set_size(
+        font_system,
+        None,
+        Some(f32::from_bits(key.line_height_bits).max(1.0)),
+    );
+    let attrs = Attrs::new()
+        .family(match key.family {
+            TextFamilyKey::Monospace => Family::Monospace,
+            TextFamilyKey::Named(name) => Family::Name(name),
+        })
+        .weight(if key.bold {
+            Weight::BOLD
+        } else {
+            Weight::NORMAL
+        });
+    buffer.set_text(
+        font_system,
+        key.text.as_ref(),
+        &attrs,
+        Shaping::Advanced,
+        None,
+    );
+    buffer.shape_until_scroll(font_system, false);
+    let overhang = measure_text_overhang(font_system, swash_cache, &buffer);
+    text_buffers.insert(key, CachedTextCell { buffer, overhang });
+    true
+}
+
 fn measure_text_overhang(
     font_system: &mut FontSystem,
     swash_cache: &mut SwashCache,
@@ -2017,7 +2045,9 @@ fn measure_text_overhang(
     for run in buffer.layout_runs() {
         for glyph in run.glyphs.iter() {
             let physical = glyph.physical((0.0, 0.0), 1.0);
-            let Some(image) = swash_cache.get_image_uncached(font_system, physical.cache_key)
+            let Some(image) = swash_cache
+                .get_image(font_system, physical.cache_key)
+                .as_ref()
             else {
                 continue;
             };
@@ -2089,6 +2119,7 @@ fn clear_color(color: GameColor) -> wgpu::Color {
 #[cfg(test)]
 mod tests {
     use glyphon::{Attrs, Buffer as GlyphBuffer, Family, Metrics, Shaping, TextBounds, fontdb};
+    use std::collections::HashMap;
 
     use crate::geometry::{GridMapper, GridMetrics, caret_rect};
     use crate::grid::{
@@ -2098,12 +2129,12 @@ mod tests {
 
     use super::{
         DIRTY_SPAN_COLLAPSE_THRESHOLD, DirtyColumnSpan, DirtyPixelRect, PRIMARY_FONT_FAMILY,
-        STORMFAZE_FONT_FAMILY, TextFamilyKey, TextOverhang, TextPlacement, UploadStrategy,
-        build_font_system, choose_upload_strategy, compact_row_spans, dirty_cells,
-        dirty_rect_area_px, dirty_rectangles, dirty_row_upload_rectangles, expanded_text_bounds,
-        expanded_text_rebuild_spans_for_row, fit_grid_to_pixels, full_width_row_spans,
-        grid_area_px, measure_single_line_width, repaint_row_spans_into_pixels, snapshot_playfield,
-        splice_row_placements,
+        STORMFAZE_FONT_FAMILY, SwashCache, TextFamilyKey, TextOverhang, TextPlacement,
+        UploadStrategy, build_font_system, choose_upload_strategy, compact_row_spans, dirty_cells,
+        dirty_rect_area_px, dirty_rectangles, dirty_row_upload_rectangles,
+        ensure_text_buffer_cached, expanded_text_bounds, expanded_text_rebuild_spans_for_row,
+        fit_grid_to_pixels, full_width_row_spans, grid_area_px, measure_single_line_width,
+        repaint_row_spans_into_pixels, snapshot_playfield, splice_row_placements,
     };
 
     fn base_style() -> CellStyle {
@@ -2530,6 +2561,34 @@ mod tests {
             .map(|placement| (placement.start_col, placement.end_col))
             .collect::<Vec<_>>();
         assert_eq!(spans, vec![(0, 2), (3, 7), (8, 10)]);
+    }
+
+    #[test]
+    fn ensure_text_buffer_cached_reports_miss_then_hit() {
+        let mut font_system = build_font_system();
+        let mut swash_cache = SwashCache::new();
+        let mut text_buffers = HashMap::new();
+        let key = super::make_text_key(
+            std::sync::Arc::<str>::from("HELLO"),
+            TextFamilyKey::Monospace,
+            18.0,
+            24.0,
+            false,
+        );
+
+        assert!(ensure_text_buffer_cached(
+            &mut font_system,
+            &mut swash_cache,
+            &mut text_buffers,
+            key.clone(),
+        ));
+        assert!(!ensure_text_buffer_cached(
+            &mut font_system,
+            &mut swash_cache,
+            &mut text_buffers,
+            key,
+        ));
+        assert_eq!(text_buffers.len(), 1);
     }
 
     #[test]
