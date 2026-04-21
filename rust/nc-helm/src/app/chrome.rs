@@ -1,12 +1,5 @@
 use crate::{CellStyle, PlayfieldBuffer};
 
-const H_LINE: char = '─';
-const V_LINE: char = '│';
-const TOP_LEFT: char = '╭';
-const TOP_RIGHT: char = '╮';
-const BOTTOM_LEFT: char = '╰';
-const BOTTOM_RIGHT: char = '╯';
-
 pub fn fill_rect(
     buffer: &mut PlayfieldBuffer,
     left: usize,
@@ -15,11 +8,16 @@ pub fn fill_rect(
     height: usize,
     style: CellStyle,
 ) {
-    for row in top..top.saturating_add(height).min(buffer.height()) {
-        for col in left..left.saturating_add(width).min(buffer.width()) {
-            buffer.set_cell(row, col, ' ', style);
-        }
-    }
+    crate::chrome_box::fill_rect(
+        buffer.width(),
+        buffer.height(),
+        left,
+        top,
+        width,
+        height,
+        style,
+        |row, col, ch, style| buffer.set_cell(row, col, ch, style),
+    );
 }
 
 pub fn draw_panel(
@@ -42,22 +40,15 @@ pub fn draw_panel(
         fill_rect(buffer, left, top, width, height, style);
     }
 
-    for col in left + 1..left + width - 1 {
-        buffer.set_cell(top, col, H_LINE, border_style);
-        buffer.set_cell(top + height - 1, col, H_LINE, border_style);
-    }
-    for row in top + 1..top + height - 1 {
-        buffer.set_cell(row, left, V_LINE, border_style);
-        buffer.set_cell(row, left + width - 1, V_LINE, border_style);
-    }
-    buffer.set_cell(top, left, TOP_LEFT, border_style);
-    buffer.set_cell(top, left + width - 1, TOP_RIGHT, border_style);
-    buffer.set_cell(top + height - 1, left, BOTTOM_LEFT, border_style);
-    buffer.set_cell(
-        top + height - 1,
-        left + width - 1,
-        BOTTOM_RIGHT,
+    crate::chrome_box::draw_box_outline(
+        buffer.width(),
+        buffer.height(),
+        left,
+        top,
+        width,
+        height,
         border_style,
+        |row, col, ch, style| buffer.set_cell(row, col, ch, style),
     );
 
     if let Some(title) = top_title {
@@ -244,4 +235,23 @@ fn draw_bottom_tag(
             }
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::draw_panel;
+    use crate::{CellStyle, GameColor, PlayfieldBuffer};
+
+    #[test]
+    fn draw_panel_uses_square_corners() {
+        let style = CellStyle::new(GameColor::White, GameColor::Black, false);
+        let mut buffer = PlayfieldBuffer::new(16, 8, style);
+
+        draw_panel(&mut buffer, 2, 1, 8, 4, style, style, None, None, None);
+
+        assert_eq!(buffer.row(1)[2].ch, '┌');
+        assert_eq!(buffer.row(1)[9].ch, '┐');
+        assert_eq!(buffer.row(4)[2].ch, '└');
+        assert_eq!(buffer.row(4)[9].ch, '┘');
+    }
 }

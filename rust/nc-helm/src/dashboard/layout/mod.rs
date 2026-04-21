@@ -41,22 +41,18 @@ pub fn draw_frame(
     let bottom = widgets.outer_bottom;
     let header_div = widgets.header_divider_row;
     let footer_div = widgets.footer_divider_row;
+    let fh = bottom.saturating_sub(top).saturating_add(1);
 
-    // Top and bottom outer edges.
-    for c in ox..ox + fw {
-        buf.set_cell(top, c, '─', bs);
-        buf.set_cell(bottom, c, '─', bs);
-    }
-    // Left and right outer edges.
-    for r in top..=bottom {
-        buf.set_cell(r, ox, '│', bs);
-        buf.set_cell(r, ox + fw.saturating_sub(1), '│', bs);
-    }
-    // Outer corners.
-    buf.set_cell(top, ox, '┌', bs);
-    buf.set_cell(top, ox + fw.saturating_sub(1), '┐', bs);
-    buf.set_cell(bottom, ox, '└', bs);
-    buf.set_cell(bottom, ox + fw.saturating_sub(1), '┘', bs);
+    crate::chrome_box::draw_box_outline(
+        buf.width(),
+        buf.height(),
+        ox,
+        top,
+        fw,
+        fh,
+        bs,
+        |row, col, ch, style| buf.set_cell(row, col, ch, style),
+    );
 
     // Header divider.
     for c in (ox + 1)..(ox + fw.saturating_sub(1)) {
@@ -352,6 +348,28 @@ mod tests {
         assert_eq!(widgets.header_divider_row, widgets.outer_top + 2);
         assert_eq!(widgets.footer_bar_row, widgets.outer_bottom - 1);
         assert_eq!(widgets.footer_divider_row, widgets.outer_bottom - 2);
+    }
+
+    #[test]
+    fn dashboard_frame_uses_shared_square_corners() {
+        let app = dash_app();
+        let layout = dashboard_layout(&app);
+        let frame = layout.frame;
+        let widgets = layout.widgets;
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw_frame(&mut buffer, frame, &widgets);
+
+        let left = frame_offset_for(app.geometry, frame).0;
+        let right = left + frame.width().saturating_sub(1);
+        assert_eq!(line_char(&buffer, widgets.outer_top, left), Some('┌'));
+        assert_eq!(line_char(&buffer, widgets.outer_top, right), Some('┐'));
+        assert_eq!(line_char(&buffer, widgets.outer_bottom, left), Some('└'));
+        assert_eq!(line_char(&buffer, widgets.outer_bottom, right), Some('┘'));
     }
 
     #[test]

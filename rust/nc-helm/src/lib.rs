@@ -1,4 +1,5 @@
 mod app;
+mod chrome_box;
 mod chrome_tags;
 mod dashboard;
 mod geometry;

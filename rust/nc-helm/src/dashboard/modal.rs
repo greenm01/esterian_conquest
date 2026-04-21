@@ -134,20 +134,16 @@ fn draw_box_with_close_button(
     }
     let left = rect.x as usize;
     let top = rect.y as usize;
-    let right = left + rect.width as usize - 1;
-    let bottom = top + rect.height as usize - 1;
-    for x in left + 1..right {
-        buffer.set_cell(top, x, '─', chrome_style);
-        buffer.set_cell(bottom, x, '─', chrome_style);
-    }
-    for y in top + 1..bottom {
-        buffer.set_cell(y, left, '│', chrome_style);
-        buffer.set_cell(y, right, '│', chrome_style);
-    }
-    buffer.set_cell(top, left, '┌', chrome_style);
-    buffer.set_cell(top, right, '┐', chrome_style);
-    buffer.set_cell(bottom, left, '└', chrome_style);
-    buffer.set_cell(bottom, right, '┘', chrome_style);
+    crate::chrome_box::draw_box_outline(
+        buffer.width(),
+        buffer.height(),
+        left,
+        top,
+        rect.width as usize,
+        rect.height as usize,
+        chrome_style,
+        |row, col, ch, style| buffer.set_cell(row, col, ch, style),
+    );
     if !title.is_empty() && rect.width > 4 && top < buffer.height() && left + 2 < buffer.width() {
         let available_width = if show_close_button {
             let close_tag_width = crate::chrome_tags::tag_width(MODAL_CLOSE_BUTTON);
@@ -781,6 +777,11 @@ mod tests {
         assert_eq!(buffer.row(rect.y as usize)[close_col].ch, '─');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 1].ch, '─');
         assert_eq!(buffer.row(rect.y as usize)[close_col + 2].ch, '─');
+        assert_eq!(buffer.row(rect.y as usize)[rect.x as usize].ch, '┌');
+        assert_eq!(
+            buffer.row(rect.y as usize)[rect.x as usize + rect.width as usize - 1].ch,
+            '┐'
+        );
     }
 
     #[test]

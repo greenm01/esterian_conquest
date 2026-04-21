@@ -20,20 +20,18 @@ fn modal_bounds(
     let chars = line.chars().collect::<Vec<_>>();
     let title_byte = line.find(title_needle).expect("modal title");
     let title_col = line[..title_byte].chars().count();
-    let title_width = title_needle.chars().count();
     let left = chars[..=title_col]
         .iter()
-        .rposition(|ch| *ch == '╭')
+        .rposition(|ch| *ch == '┌')
         .expect("modal left border");
-    let right = chars[title_col + title_width..]
+    let right = chars
         .iter()
-        .position(|ch| *ch == '╮')
-        .map(|offset| title_col + title_width + offset)
+        .rposition(|ch| *ch == '┐')
         .expect("modal right border");
     let bottom = (top + 1..buffer.height())
-        .find(|&row| buffer.row(row)[left].ch == '╰' && buffer.row(row)[right].ch == '╯')
+        .find(|&row| buffer.row(row)[left].ch == '└' && buffer.row(row)[right].ch == '┘')
         .expect("modal bottom row");
-    assert_eq!(buffer.row(bottom)[right].ch, '╯');
+    assert_eq!(buffer.row(bottom)[right].ch, '┘');
     (top, left, right, bottom)
 }
 
@@ -63,8 +61,8 @@ fn first_run_view_uses_unicode_centered_box_chrome() {
     })));
 
     let buffer = app.view();
-    assert_eq!(buffer.row(7)[16].ch, '╭');
-    assert_eq!(buffer.row(7)[83].ch, '╮');
+    assert_eq!(buffer.row(7)[16].ch, '┌');
+    assert_eq!(buffer.row(7)[83].ch, '┐');
     assert!(buffer.plain_line(7).contains("┐CREATE IDENTITY┌"));
     assert_modal_has_outer_padding(&buffer, "┐CREATE IDENTITY┌");
 }
@@ -96,7 +94,7 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
     let my_games_row = find_line(&buffer, "┐MY GAMES┌");
     let my_games_border = buffer
         .plain_line(my_games_row)
-        .find('╭')
+        .find('┌')
         .expect("my games border");
     assert!(my_games_border > 1);
     assert!(my_games_row > 4);
@@ -116,7 +114,7 @@ fn comms_panel_still_uses_full_width_shell() {
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('c'))));
 
     let buffer = app.view();
-    assert_eq!(buffer.row(4)[1].ch, '╭');
+    assert_eq!(buffer.row(4)[1].ch, '┌');
     assert!(buffer.plain_line(4).contains("┐COMMS┌"));
 }
 
@@ -146,7 +144,7 @@ fn settings_panel_shrinkwraps_and_wraps_inside_the_box() {
     let right_border = buffer
         .row(settings_row)
         .iter()
-        .rposition(|cell| cell.ch == '╮')
+        .rposition(|cell| cell.ch == '┐')
         .expect("settings panel right border");
     let edit_row = find_line(&buffer, "Edit relay URL");
     let cancel_row = find_line(&buffer, "Cancel edit");
