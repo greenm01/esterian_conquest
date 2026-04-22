@@ -8,12 +8,6 @@ impl DashApp {
         self.persist_client_settings();
     }
 
-    pub(crate) fn toggle_dense_empty_sector_dots_setting(&mut self) {
-        self.client_settings.dense_empty_sector_dots =
-            !self.client_settings.dense_empty_sector_dots;
-        self.persist_client_settings();
-    }
-
     pub(crate) fn clear_settings_status(&mut self) {
         self.settings_overlay.status_message = None;
     }

@@ -2,10 +2,11 @@ use nc_client::password::validate_new_password;
 use nc_nostr::hosted::relay_url_to_invite_host;
 
 use super::{
-    Effect, FirstJoinSetupField, HostedGameModel, LOBBY_TAB_ROW, LOCK_TIMEOUT_OPTIONS, LobbyTab,
-    Model, Msg, NetworkState, Route, active_session_from_stored, append_text, bootstrap_route,
-    field_string_mut, first_join_setup_from_snapshot, handle_help_click, is_printable_key,
-    lobby_route, route_supports_session_lock, trim_first_join_setup_input,
+    DispatchOutcome, Effect, FirstJoinSetupField, HostedGameModel, LOBBY_TAB_ROW,
+    LOCK_TIMEOUT_OPTIONS, LobbyTab, Model, Msg, NetworkState, Route, active_session_from_stored,
+    append_text, bootstrap_route, field_string_mut, first_join_setup_from_snapshot,
+    handle_help_click, is_printable_key, lobby_route, route_supports_session_lock,
+    trim_first_join_setup_input,
 };
 use crate::ScreenGeometry;
 use crate::dashboard;
@@ -14,7 +15,7 @@ use crate::input::{KeyCode, KeyModifiers, MouseButton, MouseEventKind};
 
 const TABLE_DATA_ROW_START: usize = 7;
 
-pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
+pub fn update(model: &mut Model, msg: Msg) -> DispatchOutcome {
     match msg {
         Msg::Resize(geometry) => {
             model.geometry = geometry;
@@ -28,31 +29,41 @@ pub fn update(model: &mut Model, msg: Msg) -> Vec<Effect> {
                     geometry.height(),
                 );
             }
-            Vec::new()
+            DispatchOutcome::redraw(Vec::new())
         }
         Msg::FocusChanged(focused) => {
             model.window_focused = focused;
-            Vec::new()
+            DispatchOutcome::redraw(Vec::new())
         }
         Msg::MatrixFrame => {
             if matches!(model.route, Route::MatrixLocked) {
                 model.matrix_rain.advance();
             }
-            Vec::new()
+            DispatchOutcome::redraw(Vec::new())
         }
-        Msg::IdleLock => handle_idle_lock(model),
-        Msg::BootLoaded(result) => handle_boot_loaded(model, result),
-        Msg::IdentityCreated(result) => handle_identity_created(model, result),
-        Msg::Unlocked(result) => handle_unlocked(model, result),
-        Msg::LobbyUpdated(result) => handle_lobby_updated(model, result),
-        Msg::LobbyRefreshed(result) => handle_lobby_refreshed(model, result),
-        Msg::SandboxJoined(result) => handle_sandbox_joined(model, result),
-        Msg::SandboxReleased(result) => handle_sandbox_released(model, result),
-        Msg::HostedGameOpened(result) => handle_hosted_game_opened(model, result),
-        Msg::FirstJoinSetupCompleted(result) => handle_first_join_setup_completed(model, result),
-        Msg::RelaySaved(result) => handle_relay_saved(model, result),
-        Msg::Key(key) => handle_key(model, key),
-        Msg::TextInput(text) => handle_text_input(model, &text),
+        Msg::IdleLock => DispatchOutcome::redraw(handle_idle_lock(model)),
+        Msg::BootLoaded(result) => DispatchOutcome::redraw(handle_boot_loaded(model, result)),
+        Msg::IdentityCreated(result) => {
+            DispatchOutcome::redraw(handle_identity_created(model, result))
+        }
+        Msg::Unlocked(result) => DispatchOutcome::redraw(handle_unlocked(model, result)),
+        Msg::LobbyUpdated(result) => DispatchOutcome::redraw(handle_lobby_updated(model, result)),
+        Msg::LobbyRefreshed(result) => {
+            DispatchOutcome::redraw(handle_lobby_refreshed(model, result))
+        }
+        Msg::SandboxJoined(result) => DispatchOutcome::redraw(handle_sandbox_joined(model, result)),
+        Msg::SandboxReleased(result) => {
+            DispatchOutcome::redraw(handle_sandbox_released(model, result))
+        }
+        Msg::HostedGameOpened(result) => {
+            DispatchOutcome::redraw(handle_hosted_game_opened(model, result))
+        }
+        Msg::FirstJoinSetupCompleted(result) => {
+            DispatchOutcome::redraw(handle_first_join_setup_completed(model, result))
+        }
+        Msg::RelaySaved(result) => DispatchOutcome::redraw(handle_relay_saved(model, result)),
+        Msg::Key(key) => DispatchOutcome::redraw(handle_key(model, key)),
+        Msg::TextInput(text) => DispatchOutcome::redraw(handle_text_input(model, &text)),
         Msg::Mouse(mouse) => handle_mouse(model, mouse),
     }
 }
@@ -351,17 +362,17 @@ fn handle_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
     }
 }
 
-fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effect> {
+fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> DispatchOutcome {
     if mouse.kind == MouseEventKind::Down(MouseButton::Left)
         && handle_help_click(model, mouse.position)
     {
-        return Vec::new();
+        return DispatchOutcome::redraw(Vec::new());
     }
 
     match &mut model.route {
         Route::Lobby(lobby) => {
             if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
-                return Vec::new();
+                return DispatchOutcome::no_redraw(Vec::new());
             }
 
             let row = mouse.position.row.as_usize();
@@ -369,23 +380,27 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
             if row == LOBBY_TAB_ROW {
                 for (tab, start, end) in super::lobby_tab_bounds(model.geometry) {
                     if column >= start && column < end {
+                        let changed = lobby.active_tab != tab;
                         lobby.active_tab = tab;
-                        return Vec::new();
+                        return DispatchOutcome::new(Vec::new(), changed);
                     }
                 }
             }
 
             if row < TABLE_DATA_ROW_START || row >= model.geometry.height().saturating_sub(4) {
-                return Vec::new();
+                return DispatchOutcome::no_redraw(Vec::new());
             }
 
             let visible_rows = lobby_table_visible_rows(model.geometry, lobby.status.is_some());
             if row >= TABLE_DATA_ROW_START.saturating_add(visible_rows) {
-                return Vec::new();
+                return DispatchOutcome::no_redraw(Vec::new());
             }
 
+            let mut changed = false;
             match lobby.active_tab {
                 LobbyTab::MyGames if !model.my_games.is_empty() => {
+                    let previous_selected = lobby.selected_my_game;
+                    let previous_scroll = lobby.my_games_scroll;
                     let index = lobby.my_games_scroll + row.saturating_sub(TABLE_DATA_ROW_START);
                     lobby.selected_my_game = index.min(model.my_games.len().saturating_sub(1));
                     sync_scroll_to_cursor(
@@ -393,8 +408,12 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
                         lobby.selected_my_game,
                         visible_rows,
                     );
+                    changed = lobby.selected_my_game != previous_selected
+                        || lobby.my_games_scroll != previous_scroll;
                 }
                 LobbyTab::OpenGames if !model.open_games.is_empty() => {
+                    let previous_selected = lobby.selected_open_game;
+                    let previous_scroll = lobby.open_games_scroll;
                     let index = lobby.open_games_scroll + row.saturating_sub(TABLE_DATA_ROW_START);
                     lobby.selected_open_game = index.min(model.open_games.len().saturating_sub(1));
                     sync_scroll_to_cursor(
@@ -402,19 +421,21 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> Vec<Effec
                         lobby.selected_open_game,
                         visible_rows,
                     );
+                    changed = lobby.selected_open_game != previous_selected
+                        || lobby.open_games_scroll != previous_scroll;
                 }
                 _ => {}
             }
-            Vec::new()
+            DispatchOutcome::new(Vec::new(), changed)
         }
         Route::HostedGame(hosted) => {
             let Some(mapped) = dashboard_mouse_event(mouse) else {
-                return Vec::new();
+                return DispatchOutcome::no_redraw(Vec::new());
             };
-            let _ = dashboard::dispatch_hosted_mouse(&mut hosted.dashboard, mapped);
-            Vec::new()
+            let changed = dashboard::dispatch_hosted_mouse(&mut hosted.dashboard, mapped);
+            DispatchOutcome::new(Vec::new(), changed)
         }
-        _ => Vec::new(),
+        _ => DispatchOutcome::no_redraw(Vec::new()),
     }
 }
 
@@ -1088,7 +1109,6 @@ fn open_snapshot_route(
         Ok(dashboard) => {
             model.route = Route::HostedGame(HostedGameModel {
                 row,
-                snapshot,
                 dashboard,
                 status: None,
             });
@@ -1383,11 +1403,11 @@ fn is_lock_shortcut(key: crate::input::KeyEvent) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        dashboard_mouse_event, handle_idle_lock, handle_key, handle_mouse, handle_unlocked,
+        dashboard_mouse_event, handle_idle_lock, handle_key, handle_mouse, handle_unlocked, update,
     };
     use crate::Point;
     use crate::app::{
-        App, Effect, HostedGameModel, LobbyModel, LobbyTab, LockedModel, Model, MyGameRow,
+        App, Effect, HostedGameModel, LobbyModel, LobbyTab, LockedModel, Model, Msg, MyGameRow,
         NetworkState, Route, SessionState, help_close_tag_bounds,
     };
     use crate::dashboard;
@@ -1625,7 +1645,7 @@ mod tests {
         });
         let (row, col, _) = help_close_tag_bounds(model.geometry).expect("help close bounds");
 
-        let effects = handle_mouse(
+        let outcome = handle_mouse(
             &mut model,
             MouseEvent {
                 kind: MouseEventKind::Down(MouseButton::Left),
@@ -1634,11 +1654,63 @@ mod tests {
             },
         );
 
-        assert!(effects.is_empty());
+        assert!(outcome.effects.is_empty());
+        assert!(outcome.needs_redraw);
         match &model.route {
             Route::Lobby(lobby) => assert!(!lobby.help_open),
             other => panic!("expected lobby after click, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn hosted_mouse_noop_skips_redraw() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        hosted.dashboard.client_settings.follow_mouse_on_map = false;
+        let target = [hosted.dashboard.crosshair_x, hosted.dashboard.crosshair_y];
+        let (column, row) = hosted
+            .dashboard
+            .screen_point_for_sector_for_repro(target)
+            .expect("screen point for selected sector");
+
+        let outcome = update(
+            &mut model,
+            Msg::Mouse(MouseEvent {
+                kind: MouseEventKind::Moved,
+                position: Point::from_usize(column as usize, row as usize),
+                modifiers: KeyModifiers::NONE,
+            }),
+        );
+
+        assert!(outcome.effects.is_empty());
+        assert!(!outcome.needs_redraw);
+    }
+
+    #[test]
+    fn hosted_mouse_crosshair_move_requests_redraw() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        let target = [hosted.dashboard.crosshair_x, hosted.dashboard.crosshair_y];
+        let (column, row) = hosted
+            .dashboard
+            .screen_point_for_sector_for_repro(target)
+            .expect("screen point for selected sector");
+
+        let outcome = update(
+            &mut model,
+            Msg::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Right),
+                position: Point::from_usize(column as usize, row as usize),
+                modifiers: KeyModifiers::NONE,
+            }),
+        );
+
+        assert!(outcome.effects.is_empty());
+        assert!(outcome.needs_redraw);
     }
 
     fn hosted_game_model() -> Model {
@@ -1664,7 +1736,6 @@ mod tests {
         dashboard.popup = ActivePopup::None;
         model.route = Route::HostedGame(HostedGameModel {
             row,
-            snapshot,
             dashboard,
             status: None,
         });

@@ -19,8 +19,8 @@ pub use grid::{
 };
 pub use input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 pub use startup::{
-    LaunchCommand, LaunchTarget, NativeBackendPreference, NativeLaunchOptions, NativeWindowMode,
-    parse_launch_command,
+    LaunchCommand, LaunchTarget, LocalLaunchOptions, NativeBackendPreference, NativeLaunchOptions,
+    NativeWindowMode, parse_launch_command,
 };
 pub use storage::{BootSnapshot, StoredSession};
 pub use transport::{LobbySnapshot, SandboxReleaseSuccess};
@@ -32,6 +32,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
             Ok(())
         }
         LaunchCommand::Launch(LaunchTarget::Lobby(options)) => runtime::run(options),
+        LaunchCommand::Launch(LaunchTarget::Local(options)) => runtime::run_local(options),
     }
 }
 

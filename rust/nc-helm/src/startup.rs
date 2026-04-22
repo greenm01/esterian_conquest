@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NativeWindowMode {
     #[default]
@@ -57,8 +59,15 @@ pub struct LaunchTargetOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalLaunchOptions {
+    pub game_dir: PathBuf,
+    pub native: NativeLaunchOptions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LaunchTarget {
     Lobby(LaunchTargetOptions),
+    Local(LocalLaunchOptions),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +85,7 @@ pub fn parse_launch_command(
 
 fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::error::Error>> {
     let mut relay_override = None;
+    let mut game_dir = None;
     let mut native = NativeLaunchOptions::default();
     let mut explicit_windowed = false;
     let mut explicit_fullscreen = false;
@@ -112,7 +122,18 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
             }
             "--relay" => {
                 let value = args.get(i + 1).ok_or("--relay requires a value")?;
+                if game_dir.is_some() {
+                    return Err("cannot combine --relay and --dir".into());
+                }
                 relay_override = Some(value.clone());
+                i += 2;
+            }
+            "--dir" => {
+                let value = args.get(i + 1).ok_or("--dir requires a value")?;
+                if relay_override.is_some() {
+                    return Err("cannot combine --dir and --relay".into());
+                }
+                game_dir = Some(PathBuf::from(value));
                 i += 2;
             }
             other if other.starts_with('-') => {
@@ -122,6 +143,12 @@ fn parse_launch_args(args: &[String]) -> Result<LaunchCommand, Box<dyn std::erro
                 return Err(format!("unexpected positional argument: {other}").into());
             }
         }
+    }
+
+    if let Some(game_dir) = game_dir {
+        return Ok(LaunchCommand::Launch(LaunchTarget::Local(
+            LocalLaunchOptions { game_dir, native },
+        )));
     }
 
     Ok(LaunchCommand::Launch(LaunchTarget::Lobby(
@@ -139,10 +166,14 @@ pub fn print_usage() {
     eprintln!(
         "    nc-helm [--relay <url>] [--windowed | --fullscreen] [--backend <auto|wayland|x11>] [--diagnostic]"
     );
+    eprintln!(
+        "    nc-helm --dir <game_dir> [--windowed | --fullscreen] [--backend <auto|wayland|x11>] [--diagnostic]"
+    );
     eprintln!();
     eprintln!("OPTIONS:");
     eprintln!("    --help, -h       Show this help");
     eprintln!("    --relay <url>    Override the hosted relay for this session");
+    eprintln!("    --dir <path>     Open a local dashboard directly from a runtime directory");
     eprintln!("    --windowed       Open in a normal decorated resizable maximized window");
     eprintln!("    --fullscreen     Force borderless fullscreen for this session");
     eprintln!("    --backend <...>  Select native backend: auto (default), wayland, or x11");

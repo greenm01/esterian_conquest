@@ -26,3 +26,41 @@ fn fullscreen_flag_still_selects_borderless_fullscreen() {
         other => panic!("expected launch command, got {other:?}"),
     }
 }
+
+#[test]
+fn dir_flag_selects_local_launch_mode() {
+    let command = parse_launch_command(vec![
+        "nc-helm".to_string(),
+        "--dir".to_string(),
+        "/tmp/nc-dash-lab/map45-p25".to_string(),
+    ])
+    .expect("local launch should parse");
+    match command {
+        LaunchCommand::Launch(LaunchTarget::Local(options)) => {
+            assert_eq!(
+                options.game_dir.to_string_lossy(),
+                "/tmp/nc-dash-lab/map45-p25"
+            );
+        }
+        other => panic!("expected local launch command, got {other:?}"),
+    }
+}
+
+#[test]
+fn relay_and_dir_flags_conflict() {
+    let result = parse_launch_command(vec![
+        "nc-helm".to_string(),
+        "--relay".to_string(),
+        "ws://127.0.0.1:8080".to_string(),
+        "--dir".to_string(),
+        "/tmp/nc-dash-lab/map45-p25".to_string(),
+    ]);
+
+    assert!(result.is_err());
+    let message = result
+        .expect_err("relay and dir should conflict")
+        .to_string();
+    assert!(message.contains("cannot combine"));
+    assert!(message.contains("--relay"));
+    assert!(message.contains("--dir"));
+}

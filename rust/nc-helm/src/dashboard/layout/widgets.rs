@@ -335,13 +335,15 @@ mod tests {
             widgets.center_map.grid.width,
             widgets.center_map.map_block.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
         );
-        assert!(widgets.center_map.map_block.width >= ROW_LABEL_COLS + 18 * CELL_WIDTH);
-        // bottom_pad_row marks the last row that starmap draws into — which is
-        // the last grid row, not necessarily map_block.last_row() once we leave
-        // symmetric top/bottom gutters inside map_block.
+        assert!(
+            widgets.center_map.map_block.width
+                >= ROW_LABEL_COLS + 18 * CELL_WIDTH + 1 + MAP_RIGHT_PADDING
+        );
+        // bottom_pad_row now holds the mirrored bottom X-axis row, immediately
+        // after the grid's closing border row.
         assert_eq!(
             widgets.center_map.bottom_pad_row,
-            widgets.center_map.grid.last_row()
+            widgets.center_map.grid.last_row() + 1
         );
         assert!(widgets.center_map.bottom_pad_row <= widgets.center_map.map_block.last_row());
         assert_eq!(

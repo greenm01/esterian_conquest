@@ -206,7 +206,7 @@ fn project_theme(theme: &opaline::Theme) -> DashTheme {
         help_header: CellStyle::new(accent, body_bg, true),
         help_panel: CellStyle::new(body_fg, body_bg, false),
         map_dot: CellStyle::new(success, body_bg, false),
-        map_crosshair: CellStyle::new(chrome_focus, body_bg, true),
+        map_crosshair: style_on_body(theme.style("error_style"), error, body_bg),
         map_center: CellStyle::new(accent_alt, body_bg, true),
         quote: CellStyle::new(dim, body_bg, false),
         quote_author: CellStyle::new(label, body_bg, false),

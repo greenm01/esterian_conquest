@@ -12,7 +12,7 @@ use crate::dashboard::app::state::DashApp;
 use crate::dashboard::theme;
 pub use dashboard::{
     DashboardLayout, dashboard_fits_canvas, dashboard_layout, layout_canvas_requirement,
-    required_dashboard_frame,
+    preferred_dashboard_frame, required_dashboard_frame,
 };
 pub use widgets::{
     DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame, format_label_value,

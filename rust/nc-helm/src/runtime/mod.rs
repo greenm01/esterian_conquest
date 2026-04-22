@@ -50,24 +50,42 @@ use crate::geometry;
 use crate::input::{
     MouseButton, MouseEvent, MouseEventKind, key_event_from_winit, key_modifiers_from_winit,
 };
-use crate::startup::{LaunchTargetOptions, NativeBackendPreference, NativeWindowMode};
+use crate::startup::{
+    LaunchTargetOptions, LocalLaunchOptions, NativeBackendPreference, NativeLaunchOptions,
+    NativeWindowMode,
+};
 use crate::storage::{BootSnapshot, StorageActor, StoredSession};
 use crate::transport::{
     HostedGameOpenResult, HostedGameOpenSuccess, LobbySnapshot, SandboxJoinResult,
     SandboxReleaseSuccess, TransportActor,
 };
 
+const FULL_MAP_FIT_SCALE_FLOOR: f64 = 0.65;
+
 pub fn run(options: LaunchTargetOptions) -> Result<(), Box<dyn std::error::Error>> {
     let (app, effects) = App::new(options.relay_override.clone());
+    run_with_app(options.native, app, effects)
+}
+
+pub fn run_local(options: LocalLaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
+    let (app, effects) = App::new_local_dashboard(options.game_dir)?;
+    run_with_app(options.native, app, effects)
+}
+
+fn run_with_app(
+    native_options: NativeLaunchOptions,
+    app: App,
+    effects: Vec<Effect>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = EventLoop::<RuntimeEvent>::with_user_event();
-    apply_backend_preference(&mut builder, options.native.backend_preference);
+    apply_backend_preference(&mut builder, native_options.backend_preference);
     let event_loop = builder.build()?;
-    let session_backend = detect_session_backend(&event_loop, options.native.backend_preference);
+    let session_backend = detect_session_backend(&event_loop, native_options.backend_preference);
     let proxy = event_loop.create_proxy();
     let storage = StorageActor::start().map_err(|err| format!("storage init failed: {err}"))?;
     let transport = TransportActor::start();
     let mut runtime = Runtime::new(
-        options,
+        native_options,
         session_backend,
         proxy,
         app,
@@ -151,7 +169,7 @@ struct FrameTimingSummary {
 }
 
 struct Runtime {
-    options: LaunchTargetOptions,
+    native_options: NativeLaunchOptions,
     session_backend: SessionBackend,
     proxy: EventLoopProxy<RuntimeEvent>,
     app: App,
@@ -177,7 +195,7 @@ struct Runtime {
 
 impl Runtime {
     fn new(
-        options: LaunchTargetOptions,
+        native_options: NativeLaunchOptions,
         session_backend: SessionBackend,
         proxy: EventLoopProxy<RuntimeEvent>,
         app: App,
@@ -186,7 +204,7 @@ impl Runtime {
         pending_effects: Vec<Effect>,
     ) -> Self {
         Self {
-            options,
+            native_options,
             session_backend,
             proxy,
             app,
@@ -237,7 +255,7 @@ impl Runtime {
         {
             attributes = attributes.with_name("nc-helm", "nc-helm");
         }
-        attributes = window_attributes_for_mode(attributes, self.options.native.window_mode);
+        attributes = window_attributes_for_mode(attributes, self.native_options.window_mode);
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -258,7 +276,7 @@ impl Runtime {
     fn dispatch(&mut self, msg: Msg, event_loop: &ActiveEventLoop) {
         let msg_label = msg_label(&msg);
         let sync_window_input_state = !matches!(msg, Msg::Resize(_));
-        let effects = self.app.dispatch(msg);
+        let outcome = self.app.dispatch_with_outcome(msg);
         self.diagnostic_log(&format!(
             "state: msg={} route={} focus={} network={:?}",
             msg_label,
@@ -266,7 +284,7 @@ impl Runtime {
             self.app.model().window_focused,
             self.app.model().network
         ));
-        self.pending_effects.extend(effects);
+        self.pending_effects.extend(outcome.effects);
         self.process_effects(event_loop);
         if self.app.model().session.is_some() && self.last_user_input.is_none() {
             self.last_user_input = Some(Instant::now());
@@ -279,9 +297,10 @@ impl Runtime {
             self.next_matrix_frame_at = None;
         }
         if sync_window_input_state {
+            self.sync_geometry_for_current_window(event_loop);
             self.sync_window_input_state();
         }
-        self.needs_redraw = true;
+        self.needs_redraw |= outcome.needs_redraw;
         if self.app.model().should_quit {
             event_loop.exit();
         }
@@ -500,7 +519,7 @@ impl Runtime {
     }
 
     fn diagnostic_log(&self, message: &str) {
-        if self.options.native.diagnostic_mode {
+        if self.native_options.diagnostic_mode {
             eprintln!("nc-helm diagnostic: {message}");
         }
     }
@@ -512,7 +531,7 @@ impl Runtime {
         view_timings: crate::app::ViewRenderTimings,
         render: renderer::RenderTimings,
     ) {
-        if !self.options.native.diagnostic_mode {
+        if !self.native_options.diagnostic_mode {
             return;
         }
         if let Some(message) = self.frame_timings.record(FrameTimingSample {
@@ -578,7 +597,7 @@ impl Runtime {
         event_height: u32,
         scale_factor: f64,
     ) {
-        if !self.options.native.diagnostic_mode {
+        if !self.native_options.diagnostic_mode {
             return;
         }
         let backend = session_backend_label(self.session_backend);
@@ -609,17 +628,56 @@ impl Runtime {
         scale_factor: f64,
         event_loop: &ActiveEventLoop,
     ) {
+        self.window_pixel_width = pixel_width;
+        self.window_pixel_height = pixel_height;
+        let ui_scale_multiplier =
+            self.desired_ui_scale_multiplier(pixel_width, pixel_height, scale_factor);
         let Some(renderer) = &mut self.renderer else {
             return;
         };
-        self.window_pixel_width = pixel_width;
-        self.window_pixel_height = pixel_height;
-        let geometry = renderer.grid_geometry_for_pixels(pixel_width, pixel_height, scale_factor);
+        renderer.set_ui_scale_multiplier(scale_factor, ui_scale_multiplier);
+        let geometry = geometry_for_pixels(
+            pixel_width,
+            pixel_height,
+            scale_factor * ui_scale_multiplier,
+        );
         self.grid_metrics = Some(renderer.grid_metrics());
         if self.app.model().geometry == geometry {
             return;
         }
         self.dispatch(Msg::Resize(geometry), event_loop);
+    }
+
+    fn sync_geometry_for_current_window(&mut self, event_loop: &ActiveEventLoop) {
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        let size = window.inner_size();
+        self.sync_geometry_from_size(size.width, size.height, window.scale_factor(), event_loop);
+    }
+
+    fn desired_ui_scale_multiplier(
+        &self,
+        pixel_width: u32,
+        pixel_height: u32,
+        scale_factor: f64,
+    ) -> f64 {
+        let Some(window) = self.window.as_ref() else {
+            return 1.0;
+        };
+        let Route::HostedGame(hosted) = &self.app.model().route else {
+            return 1.0;
+        };
+        let fit_eligible = window.is_maximized() || window.fullscreen().is_some();
+        let preferred = crate::dashboard::layout::preferred_dashboard_frame(&hosted.dashboard);
+        full_map_fit_scale_multiplier(
+            fit_eligible,
+            pixel_width,
+            pixel_height,
+            scale_factor,
+            preferred.width(),
+            preferred.height(),
+        )
     }
 
     fn update_pointer_cell(&mut self, position: winit::dpi::PhysicalPosition<f64>) {
@@ -669,6 +727,41 @@ impl Runtime {
             hosted_route_next_wakeup(&self.app.model().route),
         )
     }
+}
+
+fn geometry_for_pixels(
+    pixel_width: u32,
+    pixel_height: u32,
+    scale_factor: f64,
+) -> crate::ScreenGeometry {
+    let metrics = geometry::GridMetrics::for_scale(scale_factor);
+    crate::ScreenGeometry::new(
+        (pixel_width.max(1) as usize / metrics.cell.width_px).max(1),
+        (pixel_height.max(1) as usize / metrics.cell.height_px).max(1),
+    )
+}
+
+fn full_map_fit_scale_multiplier(
+    fit_eligible: bool,
+    pixel_width: u32,
+    pixel_height: u32,
+    scale_factor: f64,
+    preferred_width: usize,
+    preferred_height: usize,
+) -> f64 {
+    if !fit_eligible {
+        return 1.0;
+    }
+
+    for step in ((FULL_MAP_FIT_SCALE_FLOOR * 100.0) as u32..=100).rev() {
+        let candidate = f64::from(step) / 100.0;
+        let geometry = geometry_for_pixels(pixel_width, pixel_height, scale_factor * candidate);
+        if geometry.width() >= preferred_width && geometry.height() >= preferred_height {
+            return candidate.max(FULL_MAP_FIT_SCALE_FLOOR);
+        }
+    }
+
+    1.0
 }
 
 impl ApplicationHandler<RuntimeEvent> for Runtime {
@@ -806,7 +899,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             WindowEvent::CursorMoved { position, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
                 let previous_pointer = self.pointer_cell;
-                if self.options.native.diagnostic_mode {
+                if self.native_options.diagnostic_mode {
                     self.diagnostic_log(&format!(
                         "event: CursorMoved route={} x={:.1} y={:.1} mouse_enabled={mouse_enabled}",
                         route_label(&self.app.model().route),
@@ -837,7 +930,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 }
             }
             WindowEvent::CursorLeft { .. } => {
-                if self.options.native.diagnostic_mode {
+                if self.native_options.diagnostic_mode {
                     self.diagnostic_log(&format!(
                         "event: CursorLeft route={}",
                         route_label(&self.app.model().route)
@@ -860,7 +953,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     WinitMouseButton::Middle => Some(MouseButton::Middle),
                     _ => None,
                 };
-                if self.options.native.diagnostic_mode {
+                if self.native_options.diagnostic_mode {
                     self.diagnostic_log(&format!(
                         "event: MouseInput route={} pressed={} mouse_enabled={mouse_enabled}",
                         route_label(&self.app.model().route),
@@ -901,7 +994,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 let verdict = self.observe_resize(observation);
                 match verdict {
                     ResizeVerdict::SpuriousShrink { restore_to } => {
-                        if self.options.native.diagnostic_mode {
+                        if self.native_options.diagnostic_mode {
                             self.diagnostic_log(&format!(
                                 "event: Resized backend={} spurious=true event={}x{} baseline={}x{}",
                                 session_backend_label(self.session_backend),
@@ -1478,6 +1571,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use nc_data::GameStateBuilder;
+    use nc_engine::build_seeded_initialized_game;
     use nc_nostr::state_sync::{
         GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedReportBlock,
         HostedStarmapState, HostedStatePayload, HostedWorldState,
@@ -1486,10 +1580,10 @@ mod tests {
     use super::{
         FrameTimingSample, FrameTimingSummary, ResizeObservation, ResizeShrinkTracker,
         ResizeVerdict, SessionBackend, backend_supports_programmatic_focus, classify_resize,
-        combine_deadlines, hosted_route_next_wakeup, map_pointer_cell, minimum_window_size,
-        pointer_move_event_kind, route_uses_mouse, session_backend_label,
-        should_dispatch_pointer_move, store_pending_pointer_motion, window_attributes_for_mode,
-        window_decorations_for_session,
+        combine_deadlines, full_map_fit_scale_multiplier, hosted_route_next_wakeup,
+        map_pointer_cell, minimum_window_size, pointer_move_event_kind, route_uses_mouse,
+        session_backend_label, should_dispatch_pointer_move, store_pending_pointer_motion,
+        window_attributes_for_mode, window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{
@@ -1694,7 +1788,6 @@ mod tests {
         dashboard.command_line_toast_deadline = Some(now + Duration::from_secs(1));
         let route = Route::HostedGame(HostedGameModel {
             row: hosted_game_row(),
-            snapshot: sample_snapshot(),
             dashboard,
             status: None,
         });
@@ -1744,6 +1837,73 @@ mod tests {
 
         assert!(!attributes.maximized);
         assert!(attributes.fullscreen.is_some());
+    }
+
+    #[test]
+    fn full_map_fit_scale_requires_maximized_or_fullscreen() {
+        assert_eq!(
+            full_map_fit_scale_multiplier(false, 4000, 3000, 1.0, 236, 99),
+            1.0
+        );
+    }
+
+    #[test]
+    fn full_map_fit_scale_picks_largest_readable_uniform_scale() {
+        let dashboard = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            crate::dashboard::geometry::ScreenGeometry::new(300, 140),
+            crate::dashboard::geometry::ScreenGeometry::new(0, 0),
+            1,
+        );
+        let preferred = crate::dashboard::layout::preferred_dashboard_frame(&dashboard);
+        let fit_metrics = geometry::GridMetrics::for_scale(0.80);
+        let scale = full_map_fit_scale_multiplier(
+            true,
+            (preferred.width() * fit_metrics.cell.width_px) as u32,
+            (preferred.height() * fit_metrics.cell.height_px) as u32,
+            1.0,
+            preferred.width(),
+            preferred.height(),
+        );
+
+        assert!(scale >= 0.80);
+        assert!(scale < 1.0);
+    }
+
+    #[test]
+    fn full_map_fit_scale_falls_back_when_only_sub_floor_scale_would_fit() {
+        let dashboard = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            crate::dashboard::geometry::ScreenGeometry::new(300, 140),
+            crate::dashboard::geometry::ScreenGeometry::new(0, 0),
+            1,
+        );
+        let preferred = crate::dashboard::layout::preferred_dashboard_frame(&dashboard);
+        let too_small_metrics = geometry::GridMetrics::for_scale(0.64);
+
+        assert_eq!(
+            full_map_fit_scale_multiplier(
+                true,
+                (preferred.width() * too_small_metrics.cell.width_px) as u32,
+                (preferred.height() * too_small_metrics.cell.height_px) as u32,
+                1.0,
+                preferred.width(),
+                preferred.height(),
+            ),
+            1.0
+        );
     }
 
     #[test]

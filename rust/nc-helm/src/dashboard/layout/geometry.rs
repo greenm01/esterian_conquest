@@ -16,30 +16,36 @@ pub const MAP_VERTICAL_PADDING: usize = 0;
 /// Row label width: "18 " = 3 chars.
 pub const ROW_LABEL_COLS: usize = 3;
 
-/// Characters per grid sector.
-pub const CELL_WIDTH: usize = 3;
+/// Characters per grid sector pitch.
+pub const CELL_WIDTH: usize = 4;
+
+/// Rows per grid sector pitch (separator + content).
+pub const CELL_HEIGHT: usize = 2;
 
 const MINIMUM_REQUIRED_VIEWPORT_SECTORS: usize = 12;
 
 pub const fn minimum_projected_map_height(map_size: usize) -> usize {
-    1 + map_size
+    2 + (map_size * CELL_HEIGHT + 1)
 }
 
 pub const fn minimum_required_map_width(map_size: usize) -> usize {
     ROW_LABEL_COLS
+        + 1
         + if map_size < MINIMUM_REQUIRED_VIEWPORT_SECTORS {
-            map_size
+            map_size * CELL_WIDTH
         } else {
-            MINIMUM_REQUIRED_VIEWPORT_SECTORS
+            MINIMUM_REQUIRED_VIEWPORT_SECTORS * CELL_WIDTH
         }
+        + MAP_RIGHT_PADDING
 }
 
 pub const fn minimum_required_map_height(map_size: usize) -> usize {
-    1 + if map_size < MINIMUM_REQUIRED_VIEWPORT_SECTORS {
-        map_size
-    } else {
-        MINIMUM_REQUIRED_VIEWPORT_SECTORS
-    }
+    2 + 1
+        + if map_size < MINIMUM_REQUIRED_VIEWPORT_SECTORS {
+            map_size * CELL_HEIGHT
+        } else {
+            MINIMUM_REQUIRED_VIEWPORT_SECTORS * CELL_HEIGHT
+        }
 }
 
 pub const fn dashboard_frame_geometry(

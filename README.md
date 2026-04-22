@@ -145,6 +145,13 @@ cd rust
 cargo run -q -p nc-helm -- --windowed
 ```
 
+Or open a seeded local dashboard directly:
+
+```bash
+cd rust
+cargo run -q -p nc-helm -- --dir /tmp/nc-dash-lab/map45-p25 --windowed
+```
+
 ## Operator Docs
 
 - [NC Sysop Manual (PDF)](docs/manuals/nc_sysop_manual.pdf)

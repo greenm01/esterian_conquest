@@ -2,6 +2,8 @@ mod chrome;
 mod update;
 mod view;
 
+use std::path::Path;
+
 use nc_client::cache::ClientCache;
 use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use nc_nostr::state_sync::GameState;
@@ -34,6 +36,29 @@ pub struct App {
     view_cache: view::ViewCache,
     last_view_cache_hit: bool,
     last_view_render_timings: view::ViewRenderTimings,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct DispatchOutcome {
+    pub effects: Vec<Effect>,
+    pub needs_redraw: bool,
+}
+
+impl DispatchOutcome {
+    pub(crate) fn new(effects: Vec<Effect>, needs_redraw: bool) -> Self {
+        Self {
+            effects,
+            needs_redraw,
+        }
+    }
+
+    pub(crate) fn redraw(effects: Vec<Effect>) -> Self {
+        Self::new(effects, true)
+    }
+
+    pub(crate) fn no_redraw(effects: Vec<Effect>) -> Self {
+        Self::new(effects, false)
+    }
 }
 
 impl App {
@@ -69,11 +94,54 @@ impl App {
         )
     }
 
+    pub fn new_local_dashboard(
+        game_dir: impl AsRef<Path>,
+    ) -> Result<(Self, Vec<Effect>), Box<dyn std::error::Error>> {
+        let game_dir = game_dir.as_ref().to_path_buf();
+        let dashboard = dashboard::DashLaunchState::from_local_dir(game_dir.clone())?.into_app(
+            dashboard::ScreenGeometry::new(DEFAULT_GEOMETRY.width(), DEFAULT_GEOMETRY.height()),
+        )?;
+        let model = Model {
+            geometry: DEFAULT_GEOMETRY,
+            relay_url: DEFAULT_RELAY_URL.to_string(),
+            relay_overridden: false,
+            route: Route::HostedGame(HostedGameModel {
+                row: local_dashboard_row(&game_dir),
+                dashboard,
+                status: None,
+            }),
+            lock_resume_route: None,
+            session: None,
+            network: NetworkState::Idle,
+            cache: ClientCache::empty(),
+            my_games: Vec::new(),
+            open_games: Vec::new(),
+            notices: Vec::new(),
+            lock_timeout_minutes: DEFAULT_LOCK_TIMEOUT_MINUTES,
+            matrix_rain: MatrixRain::new(DEFAULT_GEOMETRY.width(), DEFAULT_GEOMETRY.height()),
+            window_focused: false,
+            should_quit: false,
+        };
+        Ok((
+            Self {
+                model,
+                view_cache: view::ViewCache::default(),
+                last_view_cache_hit: false,
+                last_view_render_timings: view::ViewRenderTimings::default(),
+            },
+            Vec::new(),
+        ))
+    }
+
     pub fn model(&self) -> &Model {
         &self.model
     }
 
     pub fn dispatch(&mut self, msg: Msg) -> Vec<Effect> {
+        self.dispatch_with_outcome(msg).effects
+    }
+
+    pub(crate) fn dispatch_with_outcome(&mut self, msg: Msg) -> DispatchOutcome {
         update::update(&mut self.model, msg)
     }
 
@@ -280,7 +348,6 @@ pub struct FirstJoinSetupModel {
 
 pub struct HostedGameModel {
     pub row: MyGameRow,
-    pub snapshot: GameState,
     pub dashboard: dashboard::DashApp,
     pub status: Option<String>,
 }
@@ -289,7 +356,6 @@ impl Clone for HostedGameModel {
     fn clone(&self) -> Self {
         Self {
             row: self.row.clone(),
-            snapshot: self.snapshot.clone(),
             dashboard: self.dashboard.clone(),
             status: self.status.clone(),
         }
@@ -478,6 +544,28 @@ fn active_session_from_stored(stored: StoredSession, password: String) -> Sessio
         active_npub: stored.active_npub,
         active_nsec: stored.active_nsec,
         active_handle: stored.active_handle,
+    }
+}
+
+fn local_dashboard_row(game_dir: &Path) -> MyGameRow {
+    let game = game_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("Local Dashboard");
+    MyGameRow {
+        game_id: game_dir.display().to_string(),
+        status: "Local".to_string(),
+        game_tier: "Local".to_string(),
+        game: game.to_string(),
+        host: "local".to_string(),
+        host_contact_npub: None,
+        relay_url: String::new(),
+        daemon_pubkey: String::new(),
+        seat: Some(1),
+        turn_summary: "Local".to_string(),
+        last_turn: None,
+        last_hash: None,
     }
 }
 

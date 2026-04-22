@@ -88,11 +88,8 @@ fn settings_lines(app: &DashApp) -> Vec<(String, String)> {
             ),
         ),
         (
-            String::from("Grid Dots"),
-            format!(
-                "{} (G toggles full dense map-grid dots)",
-                on_off(app.client_settings.dense_empty_sector_dots)
-            ),
+            String::from("Starmap"),
+            String::from("Classic EC boxed coordinate grid"),
         ),
         (
             String::from("Map Clicks"),
@@ -133,7 +130,6 @@ mod tests {
             1,
         );
         app.client_settings.follow_mouse_on_map = false;
-        app.client_settings.dense_empty_sector_dots = true;
 
         let lines = settings_lines(&app);
 
@@ -141,7 +137,7 @@ mod tests {
             key == "Mouse Follow" && value.contains("OFF") && value.contains("M toggles")
         }));
         assert!(lines.iter().any(|(key, value)| {
-            key == "Grid Dots" && value.contains("ON") && value.contains("G toggles")
+            key == "Starmap" && value.contains("Classic EC boxed coordinate grid")
         }));
     }
 }

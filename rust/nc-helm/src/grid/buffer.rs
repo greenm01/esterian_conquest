@@ -118,6 +118,17 @@ pub(crate) struct OverlayLogo {
     pub top_row: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OverlayCrosshair {
+    pub fg: GameColor,
+    pub center_col: usize,
+    pub center_row: usize,
+    pub left_col: usize,
+    pub right_col: usize,
+    pub top_row: usize,
+    pub bottom_row: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct PlayfieldBuffer {
     width: usize,
@@ -125,6 +136,7 @@ pub struct PlayfieldBuffer {
     cells: Vec<Cell>,
     cursor: Option<Point>,
     overlay_logos: Vec<OverlayLogo>,
+    overlay_crosshair: Option<OverlayCrosshair>,
 }
 
 impl PlayfieldBuffer {
@@ -135,6 +147,7 @@ impl PlayfieldBuffer {
             cells: vec![Cell::new(' ', base_style); width * height],
             cursor: None,
             overlay_logos: Vec::new(),
+            overlay_crosshair: None,
         }
     }
 
@@ -146,6 +159,7 @@ impl PlayfieldBuffer {
         self.cells.fill(Cell::new(' ', base_style));
         self.cursor = None;
         self.overlay_logos.clear();
+        self.overlay_crosshair = None;
     }
 
     pub fn width(&self) -> usize {
@@ -166,6 +180,10 @@ impl PlayfieldBuffer {
 
     pub(crate) fn overlay_logos(&self) -> &[OverlayLogo] {
         &self.overlay_logos
+    }
+
+    pub(crate) fn overlay_crosshair(&self) -> Option<OverlayCrosshair> {
+        self.overlay_crosshair
     }
 
     pub fn row(&self, row: usize) -> &[Cell] {
@@ -309,6 +327,10 @@ impl PlayfieldBuffer {
         self.overlay_logos.clear();
     }
 
+    pub(crate) fn clear_overlay_crosshair(&mut self) {
+        self.overlay_crosshair = None;
+    }
+
     pub(crate) fn push_overlay_logo(
         &mut self,
         kind: OverlayLogoKind,
@@ -322,6 +344,10 @@ impl PlayfieldBuffer {
             left_col,
             top_row,
         });
+    }
+
+    pub(crate) fn set_overlay_crosshair(&mut self, overlay: OverlayCrosshair) {
+        self.overlay_crosshair = Some(overlay);
     }
 
     pub fn plain_line(&self, row: usize) -> String {

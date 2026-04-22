@@ -31,10 +31,10 @@ use super::primitives;
 use crate::fonts::{ResolvedGlyph, render_alpha_glyph, resolve_mono_glyph, shape_stormfaze_text};
 use crate::geometry::{GridMapper, GridMetrics, PhysicalRect};
 use crate::grid::{
-    BackgroundMode, Cell, CellStyle, GameColor, OverlayLogo, OverlayLogoKind, PlayfieldBuffer,
-    Point, ScreenGeometry,
+    BackgroundMode, Cell, CellStyle, GameColor, OverlayCrosshair, OverlayLogo, OverlayLogoKind,
+    PlayfieldBuffer, Point, ScreenGeometry,
 };
-use crate::theme;
+use crate::theme as chrome_theme;
 
 /// A GPU-ready representation of a single grid cell.
 #[repr(C)]
@@ -63,6 +63,14 @@ struct GpuGrid {
     cursor_col: u32,
     cursor_row: u32,
     cursor_visible: u32,
+    crosshair_col: u32,
+    crosshair_row: u32,
+    crosshair_left_col: u32,
+    crosshair_right_col: u32,
+    crosshair_top_row: u32,
+    crosshair_bottom_row: u32,
+    crosshair_visible: u32,
+    crosshair_color: u32,
 }
 
 const GPU_STYLE_BOLD: u32 = 1 << 0;
@@ -132,6 +140,14 @@ struct GridConfig {
     cursor_col: u32,
     cursor_row: u32,
     cursor_visible: u32,
+    crosshair_col: u32,
+    crosshair_row: u32,
+    crosshair_left_col: u32,
+    crosshair_right_col: u32,
+    crosshair_top_row: u32,
+    crosshair_bottom_row: u32,
+    crosshair_visible: u32,
+    crosshair_color: u32,
 };
 
 const STYLE_BOLD: u32 = 1u;
@@ -337,6 +353,47 @@ fn primitive_alpha(kind: i32, x: u32, y: u32, cell_w: u32, cell_h: u32) -> f32 {
     return rounded_primitive_alpha(kind, x, y, cell_w, cell_h);
 }
 
+fn crosshair_alpha(
+    grid_x: u32,
+    grid_y: u32,
+    local_x: u32,
+    local_y: u32,
+    config: GridConfig,
+) -> f32 {
+    if (config.crosshair_visible == 0u) {
+        return 0.0;
+    }
+
+    let center_x = config.cell_width_px / 2u;
+    let center_y = config.cell_height_px / 2u;
+    let thickness_x = select(2u, 1u, config.cell_width_px <= 8u);
+    let thickness_y = select(2u, 1u, config.cell_height_px <= 8u);
+
+    var alpha = 0.0;
+    if (grid_y == config.crosshair_row
+        && grid_x >= config.crosshair_left_col
+        && grid_x <= config.crosshair_right_col
+        && abs(i32(local_y) - i32(center_y)) <= i32(thickness_y))
+    {
+        alpha = max(alpha, 0.78);
+    }
+    if (grid_x == config.crosshair_col
+        && grid_y >= config.crosshair_top_row
+        && grid_y <= config.crosshair_bottom_row
+        && abs(i32(local_x) - i32(center_x)) <= i32(thickness_x))
+    {
+        alpha = max(alpha, 0.78);
+    }
+    if (grid_x == config.crosshair_col
+        && grid_y == config.crosshair_row
+        && abs(i32(local_x) - i32(center_x)) <= i32(thickness_x * 2u)
+        && abs(i32(local_y) - i32(center_y)) <= i32(thickness_y * 2u))
+    {
+        alpha = max(alpha, 1.0);
+    }
+    return alpha;
+}
+
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     let screen_px = in.position.xy;
@@ -381,6 +438,15 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         if (local_x < beam_width && in_text_band) {
             color = unpack_color_linear(0xffffffffu);
         }
+    }
+
+    let crosshair = unpack_color_linear(grid_config.crosshair_color);
+    let crosshair_mix = crosshair_alpha(grid_x, grid_y, local_x, local_y, grid_config);
+    if (crosshair_mix > 0.0) {
+        color = vec4<f32>(
+            mix(color.rgb, crosshair.rgb, crosshair_mix),
+            max(color.a, crosshair_mix),
+        );
     }
 
     let primitive = primitive_kind(cell.char_val);
@@ -499,6 +565,7 @@ struct CachedPlayfield {
     rows: Vec<Vec<Cell>>,
     cursor: Option<Point>,
     overlay_logos: Vec<OverlayLogo>,
+    overlay_crosshair: Option<OverlayCrosshair>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -524,6 +591,7 @@ pub enum UploadStrategy {
 
 #[derive(Clone, Debug, Default)]
 struct PreparedFrame {
+    dirty_cells: DirtyCells,
     full_rebuild: bool,
     dirty_rows: usize,
     raw_spans: usize,
@@ -541,6 +609,7 @@ struct DirtyCells {
     row_spans: Vec<Vec<DirtyColumnSpan>>,
     overlay_changed: bool,
     full_rebuild: bool,
+    crosshair_changed: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -590,6 +659,7 @@ pub struct Renderer {
     logo_placements: Vec<LogoPlacement>,
     reported_unsupported_grid_chars: HashSet<char>,
     grid_metrics: GridMetrics,
+    ui_scale_multiplier: f64,
 }
 
 impl Renderer {
@@ -702,41 +772,50 @@ impl Renderer {
             logo_placements: Vec::new(),
             reported_unsupported_grid_chars: HashSet::new(),
             grid_metrics,
+            ui_scale_multiplier: 1.0,
         })
     }
 
-    pub fn grid_geometry_for_pixels(
-        &mut self,
-        width: u32,
-        height: u32,
-        scale_factor: f64,
-    ) -> ScreenGeometry {
-        self.sync_scale_metrics_for_scale(scale_factor);
-        fit_grid_to_pixels(width, height, self.grid_metrics.cell)
+    pub fn set_ui_scale_multiplier(&mut self, scale_factor: f64, ui_scale_multiplier: f64) {
+        self.ui_scale_multiplier = ui_scale_multiplier.max(0.1);
+        self.sync_scale_metrics_for_scale(scale_factor * self.ui_scale_multiplier);
     }
 
     pub fn grid_metrics(&self) -> GridMetrics {
         self.grid_metrics
     }
 
-    fn upload_grid_to_gpu(&mut self, playfield: &PlayfieldBuffer) {
-        let cells = playfield.get_all_cells();
-        let gpu_cells: Vec<GpuCell> = cells
-            .iter()
-            .map(|cell| {
-                let fg_rgba = primitives::color_to_rgba(cell.style.fg);
-                let bg_rgba = primitives::color_to_rgba(cell.style.bg);
-                GpuCell {
-                    ch: self.canonical_grid_char(cell.ch).unwrap_or('?') as u32,
-                    fg: u32::from_le_bytes(fg_rgba),
-                    bg: u32::from_le_bytes(bg_rgba),
-                    style: pack_gpu_style(cell.style),
+    fn upload_grid_to_gpu(&mut self, playfield: &PlayfieldBuffer, dirty: &DirtyCells) {
+        if dirty.full_rebuild {
+            let gpu_cells: Vec<GpuCell> = playfield
+                .get_all_cells()
+                .iter()
+                .map(|cell| self.encode_gpu_cell(*cell))
+                .collect();
+            self.queue
+                .write_buffer(&self.grid_buffer, 0, bytemuck::cast_slice(&gpu_cells));
+        } else {
+            for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
+                if spans.is_empty() {
+                    continue;
                 }
-            })
-            .collect();
-
-        self.queue
-            .write_buffer(&self.grid_buffer, 0, bytemuck::cast_slice(&gpu_cells));
+                let row = playfield.row(row_idx);
+                for span in spans {
+                    let gpu_cells = row[span.start_col..=span.end_col]
+                        .iter()
+                        .copied()
+                        .map(|cell| self.encode_gpu_cell(cell))
+                        .collect::<Vec<_>>();
+                    let offset = ((row_idx * playfield.width()) + span.start_col)
+                        * std::mem::size_of::<GpuCell>();
+                    self.queue.write_buffer(
+                        &self.grid_buffer,
+                        offset as u64,
+                        bytemuck::cast_slice(&gpu_cells),
+                    );
+                }
+            }
+        }
 
         let frame_width = self.surface_config.width;
         let frame_height = self.surface_config.height;
@@ -757,7 +836,7 @@ impl Renderer {
             origin_y: mapper.origin_y as u32,
             band_top_px: self.grid_metrics.text.band_top_px as u32,
             band_height_px: self.grid_metrics.text.band_height_px as u32,
-            app_bg: u32::from_le_bytes(primitives::color_to_rgba(theme::app_background())),
+            app_bg: u32::from_le_bytes(primitives::color_to_rgba(chrome_theme::app_background())),
             cursor_col: playfield
                 .cursor()
                 .map_or(0, |point| point.column.as_usize() as u32),
@@ -765,9 +844,44 @@ impl Renderer {
                 .cursor()
                 .map_or(0, |point| point.row.as_usize() as u32),
             cursor_visible: u32::from(playfield.cursor().is_some()),
+            crosshair_col: playfield
+                .overlay_crosshair()
+                .map_or(0, |overlay| overlay.center_col as u32),
+            crosshair_row: playfield
+                .overlay_crosshair()
+                .map_or(0, |overlay| overlay.center_row as u32),
+            crosshair_left_col: playfield
+                .overlay_crosshair()
+                .map_or(0, |overlay| overlay.left_col as u32),
+            crosshair_right_col: playfield
+                .overlay_crosshair()
+                .map_or(0, |overlay| overlay.right_col as u32),
+            crosshair_top_row: playfield
+                .overlay_crosshair()
+                .map_or(0, |overlay| overlay.top_row as u32),
+            crosshair_bottom_row: playfield
+                .overlay_crosshair()
+                .map_or(0, |overlay| overlay.bottom_row as u32),
+            crosshair_visible: u32::from(playfield.overlay_crosshair().is_some()),
+            crosshair_color: u32::from_le_bytes(primitives::color_to_rgba(
+                playfield
+                    .overlay_crosshair()
+                    .map_or(GameColor::BrightRed, |overlay| overlay.fg),
+            )),
         };
         self.queue
             .write_buffer(&self.grid_config_buffer, 0, bytemuck::bytes_of(&config));
+    }
+
+    fn encode_gpu_cell(&mut self, cell: Cell) -> GpuCell {
+        let fg_rgba = primitives::color_to_rgba(cell.style.fg);
+        let bg_rgba = primitives::color_to_rgba(cell.style.bg);
+        GpuCell {
+            ch: self.canonical_grid_char(cell.ch).unwrap_or('?') as u32,
+            fg: u32::from_le_bytes(fg_rgba),
+            bg: u32::from_le_bytes(bg_rgba),
+            style: pack_gpu_style(cell.style),
+        }
     }
 
     fn rebuild_grid_bind_group(&mut self) {
@@ -809,7 +923,7 @@ impl Renderer {
         let playfield_prepare = prepare_start.elapsed();
         let glyph_prepare = Duration::ZERO;
 
-        self.upload_grid_to_gpu(playfield);
+        self.upload_grid_to_gpu(playfield, &prepared.dirty_cells);
         let logo_vertices = self.build_logo_vertices();
         self.ensure_logo_vertex_capacity(logo_vertices.len());
         if !logo_vertices.is_empty() {
@@ -880,7 +994,7 @@ impl Renderer {
                     depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
-                        load: LoadOp::Clear(clear_color(theme::app_background())),
+                        load: LoadOp::Clear(clear_color(chrome_theme::app_background())),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -922,7 +1036,7 @@ impl Renderer {
     }
 
     fn sync_scale_metrics(&mut self) {
-        self.sync_scale_metrics_for_scale(self.window.scale_factor());
+        self.sync_scale_metrics_for_scale(self.window.scale_factor() * self.ui_scale_multiplier);
     }
 
     fn sync_scale_metrics_for_scale(&mut self, scale_factor: f64) {
@@ -944,13 +1058,9 @@ impl Renderer {
         let geometry = ScreenGeometry::new(playfield.width(), playfield.height());
         let mapper =
             GridMapper::centered(frame_width, frame_height, geometry, self.grid_metrics.cell);
+        let dirty_cells = compute_dirty_cells(self.previous_playfield.as_ref(), playfield);
 
-        let dirty_overlay = self
-            .previous_playfield
-            .as_ref()
-            .map_or(true, |prev| prev.overlay_logos != playfield.overlay_logos());
-
-        if dirty_overlay {
+        if dirty_cells.overlay_changed {
             self.logo_placements = playfield
                 .overlay_logos()
                 .iter()
@@ -963,7 +1073,29 @@ impl Renderer {
         }
 
         self.previous_playfield = Some(snapshot_playfield(playfield));
-        PreparedFrame::default()
+        let raw_spans = dirty_cells
+            .row_spans
+            .iter()
+            .map(|row| row.len())
+            .sum::<usize>();
+        let dirty_rows = dirty_cells
+            .row_spans
+            .iter()
+            .filter(|row| !row.is_empty())
+            .count();
+        PreparedFrame {
+            full_rebuild: dirty_cells.full_rebuild,
+            dirty_rows,
+            raw_spans,
+            upload_rects: raw_spans,
+            upload_strategy: if dirty_cells.full_rebuild {
+                UploadStrategy::Rects
+            } else {
+                UploadStrategy::DirtyRows
+            },
+            dirty_cells,
+            ..PreparedFrame::default()
+        }
     }
 
     fn build_logo_vertices(&self) -> Vec<LogoVertex> {
@@ -1154,6 +1286,97 @@ fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
         rows,
         cursor: playfield.cursor(),
         overlay_logos: playfield.overlay_logos().to_vec(),
+        overlay_crosshair: playfield.overlay_crosshair(),
+    }
+}
+
+fn compute_dirty_cells(
+    previous: Option<&CachedPlayfield>,
+    playfield: &PlayfieldBuffer,
+) -> DirtyCells {
+    let height = playfield.height();
+    let width = playfield.width();
+    let Some(previous) = previous else {
+        return DirtyCells {
+            row_spans: full_rebuild_row_spans(height, width),
+            overlay_changed: true,
+            full_rebuild: true,
+            crosshair_changed: playfield.overlay_crosshair().is_some(),
+        };
+    };
+
+    if previous.width != width || previous.height != height {
+        return DirtyCells {
+            row_spans: full_rebuild_row_spans(height, width),
+            overlay_changed: true,
+            full_rebuild: true,
+            crosshair_changed: previous.overlay_crosshair != playfield.overlay_crosshair(),
+        };
+    }
+
+    let mut row_spans = Vec::with_capacity(height);
+    for row_idx in 0..height {
+        row_spans.push(diff_row_spans(
+            &previous.rows[row_idx],
+            playfield.row(row_idx),
+        ));
+    }
+
+    DirtyCells {
+        row_spans,
+        overlay_changed: previous.overlay_logos != playfield.overlay_logos(),
+        full_rebuild: false,
+        crosshair_changed: previous.overlay_crosshair != playfield.overlay_crosshair(),
+    }
+}
+
+fn full_rebuild_row_spans(height: usize, width: usize) -> Vec<Vec<DirtyColumnSpan>> {
+    if width == 0 {
+        return vec![Vec::new(); height];
+    }
+    vec![
+        vec![DirtyColumnSpan {
+            start_col: 0,
+            end_col: width - 1,
+        }];
+        height
+    ]
+}
+
+fn diff_row_spans(previous: &[Cell], current: &[Cell]) -> Vec<DirtyColumnSpan> {
+    let changed_cols = previous
+        .iter()
+        .zip(current.iter())
+        .enumerate()
+        .filter_map(|(col, (left, right))| (*left != *right).then_some(col))
+        .collect::<Vec<_>>();
+    if changed_cols.is_empty() {
+        return Vec::new();
+    }
+
+    let mut spans = Vec::new();
+    let mut start_col = changed_cols[0];
+    let mut end_col = changed_cols[0];
+    for &col in &changed_cols[1..] {
+        if col <= end_col + DIRTY_SPAN_GAP_MERGE_CELLS + 1 {
+            end_col = col;
+            continue;
+        }
+        spans.push(DirtyColumnSpan { start_col, end_col });
+        start_col = col;
+        end_col = col;
+    }
+    spans.push(DirtyColumnSpan { start_col, end_col });
+
+    if spans.len() > DIRTY_SPAN_COLLAPSE_THRESHOLD {
+        vec![DirtyColumnSpan {
+            start_col: changed_cols[0],
+            end_col: *changed_cols
+                .last()
+                .expect("changed cols should not be empty"),
+        }]
+    } else {
+        spans
     }
 }
 
@@ -1355,16 +1578,6 @@ impl BackgroundTexture {
         let view = texture.create_view(&TextureViewDescriptor::default());
         Self { texture, view }
     }
-}
-
-fn fit_grid_to_pixels(
-    width: u32,
-    height: u32,
-    cell: crate::geometry::CellMetrics,
-) -> ScreenGeometry {
-    let cols = (width.max(1) as usize / cell.width_px).max(1);
-    let rows = (height.max(1) as usize / cell.height_px).max(1);
-    ScreenGeometry::new(cols, rows)
 }
 
 fn char_atlas_base_index(ch: char) -> Option<u32> {

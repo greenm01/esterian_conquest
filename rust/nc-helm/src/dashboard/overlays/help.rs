@@ -266,7 +266,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::Diplomacy => vec![("?", "Open this helper")],
         HelpContext::Settings => vec![
             ("M", "Toggle hover-follow crosshair on the map"),
-            ("G", "Toggle full dense map-grid dots"),
+            ("Grid", "Classic EC boxed coordinate grid"),
             ("Clicks", "Always move the crosshair and run sector actions"),
             ("?", "Open this helper"),
         ],

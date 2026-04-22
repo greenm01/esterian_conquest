@@ -57,12 +57,24 @@ impl<'a> StyledSpan<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OverlayCrosshair {
+    pub fg: GameColor,
+    pub center_col: usize,
+    pub center_row: usize,
+    pub left_col: usize,
+    pub right_col: usize,
+    pub top_row: usize,
+    pub bottom_row: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct PlayfieldBuffer {
     width: usize,
     height: usize,
     cells: Vec<Cell>,
     cursor: Option<(u16, u16)>,
+    overlay_crosshair: Option<OverlayCrosshair>,
 }
 
 impl PlayfieldBuffer {
@@ -72,6 +84,7 @@ impl PlayfieldBuffer {
             height,
             cells: vec![Cell::new(' ', base_style); width * height],
             cursor: None,
+            overlay_crosshair: None,
         }
     }
 
@@ -82,6 +95,7 @@ impl PlayfieldBuffer {
             .resize(width * height, Cell::new(' ', base_style));
         self.cells.fill(Cell::new(' ', base_style));
         self.cursor = None;
+        self.overlay_crosshair = None;
     }
 
     pub fn width(&self) -> usize {
@@ -94,6 +108,10 @@ impl PlayfieldBuffer {
 
     pub fn cursor(&self) -> Option<(u16, u16)> {
         self.cursor
+    }
+
+    pub(crate) fn overlay_crosshair(&self) -> Option<OverlayCrosshair> {
+        self.overlay_crosshair
     }
 
     pub fn row(&self, row: usize) -> &[Cell] {
@@ -231,6 +249,14 @@ impl PlayfieldBuffer {
 
     pub fn clear_cursor(&mut self) {
         self.cursor = None;
+    }
+
+    pub(crate) fn clear_overlay_crosshair(&mut self) {
+        self.overlay_crosshair = None;
+    }
+
+    pub(crate) fn set_overlay_crosshair(&mut self, overlay: OverlayCrosshair) {
+        self.overlay_crosshair = Some(overlay);
     }
 
     pub fn plain_line(&self, row: usize) -> String {

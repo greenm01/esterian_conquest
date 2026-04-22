@@ -88,6 +88,16 @@ pub fn required_dashboard_frame(app: &DashApp) -> ScreenGeometry {
     )
 }
 
+pub fn preferred_dashboard_frame(app: &DashApp) -> ScreenGeometry {
+    let measurements = measure_dashboard(app);
+    dashboard_frame_geometry(
+        measurements.preferred_center_width,
+        measurements.left_width,
+        measurements.right_width,
+        measurements.preferred_content_height,
+    )
+}
+
 pub fn layout_canvas_requirement(layout: &DashboardLayout) -> ScreenGeometry {
     let widgets = layout.widgets;
     let max_col = [
@@ -218,10 +228,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
         .max(stack_height_4(right_preferred_rows));
 
     // Dynamic snapping logic for "Readable" mode that fills well without uneven gaps.
-    let side_widths = left_width + right_width;
-    let available_width = app.geometry.width().saturating_sub(side_widths + 4);
-    let tile_width = (available_width.saturating_sub(ROW_LABEL_COLS) / map_size).clamp(2, 6);
-    let preferred_center_width = tile_width * map_size + ROW_LABEL_COLS;
+    let preferred_center_width = ROW_LABEL_COLS + map_size * CELL_WIDTH + 1 + MAP_RIGHT_PADDING;
 
     DashboardMeasurements {
         left_width,
@@ -269,40 +276,39 @@ fn stack_height_4(body_rows: [usize; 4]) -> usize {
     body_rows.into_iter().map(panel_outer_height).sum::<usize>() + 3
 }
 
-/// Snap the map block's width and derive a grid height that divides evenly
-/// into `map_size` sectors along both axes.
+/// Snap the map block to the fixed ASCII lattice pitch used by the live map.
 ///
 /// Returns `(snapped_block_width, snapped_grid_height)`.  The block width
-/// accounts for the row-label gutter on the left (`ROW_LABEL_COLS`) and the
-/// matching blank gutter on the right (`MAP_RIGHT_PADDING`); the remaining
-/// cell area is trimmed down to `map_size * K` cells so each sector occupies
-/// exactly K columns.  The grid height is trimmed to `map_size * M` rows so
-/// each sector occupies M rows; the caller absorbs leftover rows as top and
-/// bottom gutters inside the map block.
+/// accounts for the row-label gutter on the left, the trailing right-label
+/// gutter, and a lattice body whose visible sector count is `N * CELL_WIDTH`
+/// columns plus one closing wall. The grid height is trimmed to the largest
+/// odd number that fits after reserving the top and bottom axis rows so the
+/// lattice rows can alternate separator/content and end with a closing border.
 fn snap_map_block_to_map_size(
     raw_width: usize,
     raw_height: usize,
-    map_size: usize,
+    _map_size: usize,
 ) -> (usize, usize) {
     debug_assert_eq!(MAP_LEFT_PADDING, 0);
     debug_assert_eq!(MAP_VERTICAL_PADDING, 0);
-    if map_size == 0 {
-        return (raw_width, raw_height.saturating_sub(1));
+    if raw_width == 0 || raw_height == 0 {
+        return (raw_width, raw_height);
     }
     let gutters = ROW_LABEL_COLS + MAP_RIGHT_PADDING;
-    let cell_area = raw_width.saturating_sub(gutters);
-    let snapped_cell_area = (cell_area / map_size) * map_size;
-    let snapped_width = if snapped_cell_area == 0 {
-        raw_width
+    let lattice_width_budget = raw_width.saturating_sub(gutters);
+    let snapped_lattice_width = if lattice_width_budget == 0 {
+        0
     } else {
-        gutters + snapped_cell_area
+        1 + lattice_width_budget.saturating_sub(1) / CELL_WIDTH * CELL_WIDTH
     };
-    let grid_height_budget = raw_height.saturating_sub(1); // minus axis row
-    let snapped_grid_height = (grid_height_budget / map_size) * map_size;
-    let snapped_grid_height = if snapped_grid_height == 0 {
-        grid_height_budget
+    let snapped_width = ROW_LABEL_COLS + snapped_lattice_width + MAP_RIGHT_PADDING;
+    let grid_height_budget = raw_height.saturating_sub(2); // top + bottom axis rows
+    let snapped_grid_height = if grid_height_budget == 0 {
+        0
+    } else if grid_height_budget % 2 == 0 {
+        grid_height_budget.saturating_sub(1)
     } else {
-        snapped_grid_height
+        grid_height_budget
     };
     (snapped_width, snapped_grid_height)
 }
@@ -404,10 +410,10 @@ fn build_widget_frames(
         height: map_block_height,
     };
     // Vertical layout inside map_block:
-    //   [top_gutter][axis_row][grid (snapped_grid_height rows)][bottom_gutter]
+    //   [top_gutter][top_axis][grid (odd lattice rows)][bottom_axis][bottom_gutter]
     // where top_gutter and bottom_gutter together absorb any leftover rows
     // split as evenly as possible.
-    let axis_and_grid = 1 + snapped_grid_height;
+    let axis_and_grid = 2 + snapped_grid_height;
     let vertical_slack = map_block.height.saturating_sub(axis_and_grid);
     let top_gutter = vertical_slack / 2;
     let axis_row = map_block.row + MAP_VERTICAL_PADDING + top_gutter;
@@ -424,7 +430,7 @@ fn build_widget_frames(
         map_block,
         axis_row,
         grid,
-        bottom_pad_row: grid.last_row(),
+        bottom_pad_row: grid.last_row().saturating_add(1),
         row_label_cols: ROW_LABEL_COLS,
         cell_width: CELL_WIDTH,
     };
@@ -494,7 +500,7 @@ fn build_widget_frames(
 mod tests {
     use super::{
         dashboard_fits_canvas, dashboard_layout, layout_canvas_requirement,
-        required_dashboard_frame,
+        preferred_dashboard_frame, required_dashboard_frame,
     };
     use crate::dashboard::app::state::{DashApp, MapViewMode};
     use crate::dashboard::geometry::ScreenGeometry;
@@ -640,8 +646,13 @@ mod tests {
 
         assert!(dashboard_fits_canvas(app.geometry, &layout));
 
-        layout.widgets.right_sector_detail.outer.width += 5;
-        layout.widgets.right_sector_detail.body.width += 5;
+        let overflow = app
+            .geometry
+            .width()
+            .saturating_sub(layout_canvas_requirement(&layout).width())
+            + 1;
+        layout.widgets.right_sector_detail.outer.width += overflow;
+        layout.widgets.right_sector_detail.body.width += overflow;
 
         assert!(!dashboard_fits_canvas(app.geometry, &layout));
         assert!(layout_canvas_requirement(&layout).width() > app.geometry.width());
@@ -668,5 +679,29 @@ mod tests {
         assert!(required.height() <= 45);
         assert!(dashboard_fits_canvas(app.geometry, &layout));
         assert!(layout_canvas_requirement(&layout).height() <= app.geometry.height());
+    }
+
+    #[test]
+    fn preferred_frame_expands_to_full_large_map_dashboard() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(300, 140),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let required = required_dashboard_frame(&app);
+        let preferred = preferred_dashboard_frame(&app);
+
+        assert!(preferred.width() > required.width());
+        assert!(preferred.height() > required.height());
+
+        app.geometry = preferred;
+        assert_eq!(dashboard_layout(&app).frame, preferred);
     }
 }

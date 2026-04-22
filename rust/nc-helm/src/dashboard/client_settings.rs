@@ -14,7 +14,6 @@ pub struct PersistedWindowState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DashClientSettings {
     pub follow_mouse_on_map: bool,
-    pub dense_empty_sector_dots: bool,
     pub theme_key: String,
     pub window_width: Option<u16>,
     pub window_height: Option<u16>,
@@ -25,7 +24,6 @@ impl Default for DashClientSettings {
     fn default() -> Self {
         Self {
             follow_mouse_on_map: true,
-            dense_empty_sector_dots: false,
             theme_key: "tokyo-night".to_string(),
             window_width: None,
             window_height: None,
@@ -74,7 +72,6 @@ pub fn load_client_settings_from(
         };
         match key.trim() {
             "follow_mouse_on_map" => settings.follow_mouse_on_map = value.trim() == "true",
-            "dense_empty_sector_dots" => settings.dense_empty_sector_dots = value.trim() == "true",
             "theme_key" => settings.theme_key = value.trim().to_string(),
             "window_width" => settings.window_width = value.trim().parse::<u16>().ok(),
             "window_height" => settings.window_height = value.trim().parse::<u16>().ok(),
@@ -95,11 +92,6 @@ pub fn save_client_settings_to(
     let tmp = path.with_extension("tmp");
     let mut file = fs::File::create(&tmp)?;
     writeln!(file, "follow_mouse_on_map={}", settings.follow_mouse_on_map)?;
-    writeln!(
-        file,
-        "dense_empty_sector_dots={}",
-        settings.dense_empty_sector_dots
-    )?;
     writeln!(file, "theme_key={}", settings.theme_key)?;
     if let Some(width) = settings.window_width {
         writeln!(file, "window_width={width}")?;

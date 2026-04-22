@@ -574,7 +574,6 @@ fn region_hashes(app: &DashApp, dashboard: &layout::DashboardLayout) -> RegionHa
             app.crosshair_y,
             app.map_view_mode,
             app.map_zoom_level,
-            app.client_settings.dense_empty_sector_dots,
         ),
         comms: panel_hash(rev, player, widgets.right_comms.outer),
         known_galaxy: panel_hash(rev, player, widgets.right_galaxy.outer),
@@ -728,7 +727,6 @@ fn starmap_hash(
     cy: u8,
     mode: MapViewMode,
     zoom: u8,
-    dense_dots: bool,
 ) -> u64 {
     let mut h = DefaultHasher::new();
     revision.hash(&mut h);
@@ -741,7 +739,6 @@ fn starmap_hash(
     cy.hash(&mut h);
     mode.hash(&mut h);
     zoom.hash(&mut h);
-    dense_dots.hash(&mut h);
     h.finish()
 }
 

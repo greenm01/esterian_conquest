@@ -852,6 +852,13 @@ impl DashApp {
     }
 
     fn set_crosshair_coords(&mut self, [x, y]: [u8; 2]) {
+        if self.crosshair_x == x
+            && self.crosshair_y == y
+            && self.focus == state::PanelFocus::Map
+            && self.map_coord_input.is_empty()
+        {
+            return;
+        }
         self.crosshair_x = x;
         self.crosshair_y = y;
         self.focus = state::PanelFocus::Map;
@@ -861,6 +868,13 @@ impl DashApp {
     fn reset_crosshair_to_homeworld(&mut self) {
         let coords =
             state::initial_crosshair_coords(&self.game_data, self.player_record_index_1_based);
+        if self.crosshair_x == coords[0]
+            && self.crosshair_y == coords[1]
+            && self.focus == state::PanelFocus::Map
+            && self.map_coord_input.is_empty()
+        {
+            return;
+        }
         self.set_crosshair_coords(coords);
     }
 
@@ -1117,9 +1131,6 @@ impl DashApp {
                 match key.code {
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         self.toggle_follow_mouse_on_map_setting();
-                    }
-                    KeyCode::Char('g') | KeyCode::Char('G') => {
-                        self.toggle_dense_empty_sector_dots_setting();
                     }
                     _ => {}
                 }
@@ -5001,7 +5012,7 @@ mod tests {
     #[test]
     fn clicking_map_sector_moves_crosshair() {
         let mut app = dash_app();
-        let target = [5, 5];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
 
         app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), column, row));
@@ -5012,7 +5023,7 @@ mod tests {
     #[test]
     fn hovering_visible_sector_moves_crosshair() {
         let mut app = dash_app();
-        let target = [4, 7];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
 
         app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
@@ -5024,7 +5035,7 @@ mod tests {
     fn dispatch_mouse_move_without_visible_change_reports_no_redraw() {
         let mut app = dash_app();
         app.client_settings.follow_mouse_on_map = false;
-        let target = [4, 7];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
 
         assert!(!app.dispatch_mouse_event(mouse(MouseEventKind::Moved, column, row)));
@@ -5033,7 +5044,7 @@ mod tests {
     #[test]
     fn dispatch_mouse_move_with_crosshair_change_reports_redraw() {
         let mut app = dash_app();
-        let target = [4, 7];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
 
         assert!(app.dispatch_mouse_event(mouse(MouseEventKind::Moved, column, row)));
@@ -5043,7 +5054,7 @@ mod tests {
     fn hovering_visible_sector_does_not_move_crosshair_when_hover_follow_is_disabled() {
         let mut app = dash_app();
         let starting = [app.crosshair_x, app.crosshair_y];
-        let target = [4, 7];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
         app.client_settings.follow_mouse_on_map = false;
 
@@ -5056,7 +5067,7 @@ mod tests {
     fn moving_mouse_outside_map_widget_resets_crosshair_to_homeworld() {
         let mut app = dash_app();
         let homeworld = [app.crosshair_x, app.crosshair_y];
-        let target = [4, 7];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
         let outside = outside_map_point(&app);
 
@@ -5074,10 +5085,8 @@ mod tests {
         app.overlay = ActiveOverlay::Settings;
 
         app.handle_key(key(KeyCode::Char('m')));
-        app.handle_key(key(KeyCode::Char('g')));
 
         assert!(!app.client_settings.follow_mouse_on_map);
-        assert!(app.client_settings.dense_empty_sector_dots);
         assert_eq!(app.overlay, ActiveOverlay::Settings);
     }
 
@@ -5496,7 +5505,7 @@ mod tests {
         app.popup = ActivePopup::PlanetDetail {
             planet_record_index_1_based: 1,
         };
-        let target = [5, 5];
+        let target = first_empty_sector_coords(&app);
         let (column, row) = screen_point_for_sector(&app, target);
 
         app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
@@ -5855,22 +5864,9 @@ mod tests {
     }
 
     fn first_empty_sector_coords(app: &DashApp) -> [u8; 2] {
-        let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
-        for x in 1..=map_size {
-            for y in 1..=map_size {
-                let coords = [x, y];
-                if app
-                    .game_data
-                    .planets
-                    .records
-                    .iter()
-                    .all(|planet| planet.coords_raw() != coords)
-                {
-                    return coords;
-                }
-            }
-        }
-        panic!("expected empty sector");
+        first_visible_sector_matching(app, |coords| {
+            !sector_has_planet(app, coords) && !sector_has_player_fleet(app, coords)
+        })
     }
 
     fn first_visible_foreign_planet_coords(app: &mut DashApp) -> [u8; 2] {
@@ -5887,6 +5883,42 @@ mod tests {
             }
         }
         panic!("visible foreign planet");
+    }
+
+    fn first_visible_sector_matching<F>(app: &DashApp, predicate: F) -> [u8; 2]
+    where
+        F: Fn([u8; 2]) -> bool,
+    {
+        let map_frame = dashboard_layout(app).widgets.center_map;
+        for row in map_frame.grid.row..map_frame.grid.row + map_frame.grid.height {
+            for col in map_frame.grid.col..map_frame.grid.col + map_frame.grid.width {
+                let Some(coords) = crate::dashboard::panels::starmap::screen_sector_at_point(
+                    app, map_frame, col, row,
+                ) else {
+                    continue;
+                };
+                if predicate(coords) {
+                    return coords;
+                }
+            }
+        }
+        panic!("expected visible sector");
+    }
+
+    fn sector_has_planet(app: &DashApp, coords: [u8; 2]) -> bool {
+        app.game_data
+            .planets
+            .records
+            .iter()
+            .any(|planet| planet.coords_raw() == coords)
+    }
+
+    fn sector_has_player_fleet(app: &DashApp, coords: [u8; 2]) -> bool {
+        app.game_data.fleets.records.iter().any(|fleet| {
+            fleet.owner_empire_raw() == app.player_record_index_1_based as u8
+                && fleet.has_any_force()
+                && fleet.current_location_coords_raw() == coords
+        })
     }
 
     fn select_first_fleet_row(app: &mut DashApp) {
