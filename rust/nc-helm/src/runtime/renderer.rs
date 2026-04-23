@@ -360,29 +360,25 @@ fn selection_alpha(
         return 0.0;
     }
 
-    // Only cells on the perimeter of the selection rect draw the border.
     let on_left   = grid_x == config.selection_left_col;
     let on_right  = grid_x == config.selection_right_col;
     let on_top    = grid_y == config.selection_top_row;
     let on_bottom = grid_y == config.selection_bottom_row;
 
-    let in_x_span = grid_x >= config.selection_left_col && grid_x <= config.selection_right_col;
-    let in_y_span = grid_y >= config.selection_top_row  && grid_y <= config.selection_bottom_row;
-
-    if (!in_x_span || !in_y_span) {
+    // Only the four corner cells (top-left, top-right, bottom-left, bottom-right)
+    // get painted. All other cells are transparent.
+    let is_corner_cell = (on_left || on_right) && (on_top || on_bottom);
+    if (!is_corner_cell) {
         return 0.0;
     }
 
-    // Edge pixel thickness: 1px, clamped to at least 0 on tiny cells.
-    let thick_x = select(1u, 0u, config.cell_width_px  <= 2u);
+    // Within a corner cell, paint only a horizontal tick: the top edge pixel(s)
+    // for top corners, the bottom edge pixel(s) for bottom corners.
     let thick_y = select(1u, 0u, config.cell_height_px <= 2u);
 
-    // For each perimeter cell, paint only the outermost edge pixels.
     var hit = false;
-    if (on_top    && local_y <= thick_y)                              { hit = true; }
+    if (on_top    && local_y <= thick_y)                               { hit = true; }
     if (on_bottom && local_y >= config.cell_height_px - 1u - thick_y) { hit = true; }
-    if (on_left   && local_x <= thick_x)                              { hit = true; }
-    if (on_right  && local_x >= config.cell_width_px  - 1u - thick_x) { hit = true; }
 
     return select(0.0, 1.0, hit);
 }
