@@ -155,11 +155,8 @@ struct FrameTimingSample {
     text_rebuild_spans: usize,
     text_rebuild_cells: usize,
     text_buffer_misses: usize,
-    compacted_rects: usize,
-    compacted_upload_area_pct: f64,
     upload_rects: usize,
     full_rebuild: bool,
-    row_upload_fallback: bool,
 }
 
 #[derive(Debug, Default)]
@@ -554,11 +551,8 @@ impl Runtime {
             text_rebuild_spans: render.text_rebuild_spans,
             text_rebuild_cells: render.text_rebuild_cells,
             text_buffer_misses: render.text_buffer_misses,
-            compacted_rects: render.compacted_rects,
-            compacted_upload_area_pct: render.compacted_upload_area_pct,
             upload_rects: render.upload_rects,
             full_rebuild: render.full_rebuild,
-            row_upload_fallback: render.upload_strategy == renderer::UploadStrategy::DirtyRows,
         }) {
             self.diagnostic_log(&message);
         }
@@ -1229,18 +1223,6 @@ impl FrameTimingSummary {
             .map(|sample| sample.text_buffer_misses as f64)
             .sum::<f64>()
             / frames as f64;
-        let avg_compacted_rects = self
-            .samples
-            .iter()
-            .map(|sample| sample.compacted_rects as f64)
-            .sum::<f64>()
-            / frames as f64;
-        let avg_compacted_upload_area_pct = self
-            .samples
-            .iter()
-            .map(|sample| sample.compacted_upload_area_pct)
-            .sum::<f64>()
-            / frames as f64;
         let avg_upload_rects = self
             .samples
             .iter()
@@ -1257,15 +1239,10 @@ impl FrameTimingSummary {
             .iter()
             .filter(|sample| sample.hosted_full_rebuild)
             .count();
-        let row_upload_fallbacks = self
-            .samples
-            .iter()
-            .filter(|sample| sample.row_upload_fallback)
-            .count();
         self.samples.clear();
         self.started_at = Some(now);
         Some(format!(
-            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_view_cache_hits={avg_view_cache_hits:.1} avg_view_cache_misses={avg_view_cache_misses:.1} avg_hosted_dashboard_render_ms={avg_hosted_dashboard_render_ms:.2} avg_hosted_convert_ms={avg_hosted_convert_ms:.2} avg_hosted_dirty_regions={avg_hosted_dirty_regions:.1} avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_text_buffer_misses={avg_text_buffer_misses:.1} avg_compacted_rects={avg_compacted_rects:.1} avg_compacted_upload_area_pct={avg_compacted_upload_area_pct:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} hosted_full_rebuilds={hosted_full_rebuilds} row_upload_fallbacks={row_upload_fallbacks}",
+            "frame timings [{} frames] total p50={:.2}ms p95={:.2}ms view p50={:.2}ms p95={:.2}ms prepare p50={:.2}ms p95={:.2}ms glyph p50={:.2}ms p95={:.2}ms gpu p50={:.2}ms p95={:.2}ms avg_view_cache_hits={avg_view_cache_hits:.1} avg_view_cache_misses={avg_view_cache_misses:.1} avg_hosted_dashboard_render_ms={avg_hosted_dashboard_render_ms:.2} avg_hosted_convert_ms={avg_hosted_convert_ms:.2} avg_hosted_dirty_regions={avg_hosted_dirty_regions:.1} avg_dirty_rows={avg_dirty_rows:.1} avg_raw_spans={avg_raw_spans:.1} avg_text_rebuild_spans={avg_text_rebuild_spans:.1} avg_text_rebuild_cells={avg_text_rebuild_cells:.1} avg_text_buffer_misses={avg_text_buffer_misses:.1} avg_upload_rects={avg_upload_rects:.1} full_rebuilds={full_rebuilds} hosted_full_rebuilds={hosted_full_rebuilds}",
             frames,
             total_ms.0,
             total_ms.1,
@@ -1745,11 +1722,8 @@ mod tests {
             text_rebuild_spans: 4,
             text_rebuild_cells: 8,
             text_buffer_misses: 6,
-            compacted_rects: 2,
-            compacted_upload_area_pct: 12.5,
             upload_rects: 1,
             full_rebuild: false,
-            row_upload_fallback: true,
         };
 
         let mut message = None;
@@ -1769,11 +1743,8 @@ mod tests {
         assert!(message.contains("avg_text_rebuild_spans=4.0"));
         assert!(message.contains("avg_text_rebuild_cells=8.0"));
         assert!(message.contains("avg_text_buffer_misses=6.0"));
-        assert!(message.contains("avg_compacted_rects=2.0"));
-        assert!(message.contains("avg_compacted_upload_area_pct=12.5"));
         assert!(message.contains("avg_upload_rects=1.0"));
         assert!(message.contains("hosted_full_rebuilds=0"));
-        assert!(message.contains("row_upload_fallbacks=120"));
     }
 
     #[test]

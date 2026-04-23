@@ -623,13 +623,6 @@ struct DirtyPixelRect {
     height_px: usize,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum UploadStrategy {
-    #[default]
-    Rects,
-    DirtyRows,
-}
-
 #[derive(Clone, Debug, Default)]
 struct PreparedFrame {
     dirty_cells: DirtyCells,
@@ -639,10 +632,7 @@ struct PreparedFrame {
     text_rebuild_spans: usize,
     text_rebuild_cells: usize,
     text_buffer_misses: usize,
-    compacted_rects: usize,
-    compacted_upload_area_pct: f64,
     upload_rects: usize,
-    upload_strategy: UploadStrategy,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -664,16 +654,12 @@ pub struct RenderTimings {
     pub text_rebuild_spans: usize,
     pub text_rebuild_cells: usize,
     pub text_buffer_misses: usize,
-    pub compacted_rects: usize,
-    pub compacted_upload_area_pct: f64,
     pub upload_rects: usize,
     pub full_rebuild: bool,
-    pub upload_strategy: UploadStrategy,
 }
 
 const DIRTY_SPAN_GAP_MERGE_CELLS: usize = 2;
 const DIRTY_SPAN_COLLAPSE_THRESHOLD: usize = 4;
-const MAX_UPLOAD_RECTS_BEFORE_ROW_FALLBACK: usize = 24;
 
 pub struct Renderer {
     window: Arc<winit::window::Window>,
@@ -984,11 +970,8 @@ impl Renderer {
                     text_rebuild_spans: prepared.text_rebuild_spans,
                     text_rebuild_cells: prepared.text_rebuild_cells,
                     text_buffer_misses: prepared.text_buffer_misses,
-                    compacted_rects: prepared.compacted_rects,
-                    compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
-                    upload_strategy: prepared.upload_strategy,
                     ..RenderTimings::default()
                 });
             }
@@ -1004,11 +987,8 @@ impl Renderer {
                     text_rebuild_spans: prepared.text_rebuild_spans,
                     text_rebuild_cells: prepared.text_rebuild_cells,
                     text_buffer_misses: prepared.text_buffer_misses,
-                    compacted_rects: prepared.compacted_rects,
-                    compacted_upload_area_pct: prepared.compacted_upload_area_pct,
                     upload_rects: prepared.upload_rects,
                     full_rebuild: prepared.full_rebuild,
-                    upload_strategy: prepared.upload_strategy,
                     ..RenderTimings::default()
                 });
             }
@@ -1062,11 +1042,8 @@ impl Renderer {
             text_rebuild_spans: prepared.text_rebuild_spans,
             text_rebuild_cells: prepared.text_rebuild_cells,
             text_buffer_misses: prepared.text_buffer_misses,
-            compacted_rects: prepared.compacted_rects,
-            compacted_upload_area_pct: prepared.compacted_upload_area_pct,
             upload_rects: prepared.upload_rects,
             full_rebuild: prepared.full_rebuild,
-            upload_strategy: prepared.upload_strategy,
         })
     }
 
@@ -1123,11 +1100,6 @@ impl Renderer {
             dirty_rows,
             raw_spans,
             upload_rects: raw_spans,
-            upload_strategy: if dirty_cells.full_rebuild {
-                UploadStrategy::Rects
-            } else {
-                UploadStrategy::DirtyRows
-            },
             dirty_cells,
             ..PreparedFrame::default()
         }
