@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use nc_data::{
     CampaignState, CompactUnitSummaryStyle, IntelTier, OwnedPlanetStatus, PlanetIntelSnapshot,
     PlanetRecord, PlayerStarmapWorld, active_starbase_count_at,
-    build_player_starmap_projection_from_snapshots,
     format_build_queue_summary as shared_build_queue_summary,
     format_owned_orbit_summary as shared_owned_orbit_summary,
     format_stardock_summary as shared_stardock_summary, owned_orbit_presence, owned_planet_status,
@@ -11,6 +10,7 @@ use nc_data::{
 };
 
 use crate::dashboard::app::state::DashApp;
+use crate::dashboard::panels::starmap::cached_projection_for_app;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DetailLine {
@@ -33,17 +33,13 @@ pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDeta
 
 pub(crate) fn projected_sector_details(app: &DashApp) -> Vec<SelectedPlanetDetail> {
     let viewer_empire_id = app.player_record_index_1_based as u8;
+    let projection = cached_projection_for_app(app);
     let snapshot_map = app
         .planet_intel_snapshots
         .iter()
         .cloned()
         .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
         .collect::<BTreeMap<_, _>>();
-    let projection = build_player_starmap_projection_from_snapshots(
-        &app.game_data,
-        &snapshot_map,
-        viewer_empire_id,
-    );
     projection
         .worlds
         .iter()
@@ -324,18 +320,7 @@ fn coords_label(coords: [u8; 2]) -> String {
 }
 
 fn selected_planet_record_index(app: &DashApp) -> usize {
-    let viewer_empire_id = app.player_record_index_1_based as u8;
-    let snapshot_map = app
-        .planet_intel_snapshots
-        .iter()
-        .cloned()
-        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-        .collect::<BTreeMap<_, _>>();
-    let projection = build_player_starmap_projection_from_snapshots(
-        &app.game_data,
-        &snapshot_map,
-        viewer_empire_id,
-    );
+    let projection = cached_projection_for_app(app);
     projection
         .worlds
         .iter()

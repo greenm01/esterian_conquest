@@ -7,9 +7,10 @@ use crate::dashboard::buffer::{CellStyle, OverlayCrosshair, PlayfieldBuffer};
 use nc_data::CoreGameData;
 use nc_data::{
     DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
-    build_player_starmap_projection_from_snapshots, owned_orbit_presence,
+    build_player_starmap_projection_from_snapshots,
 };
 
+use crate::dashboard::app::panel_cache::CachedStarmapProjection;
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::layout::{self, MapWidgetFrame};
 use crate::dashboard::theme;
@@ -70,13 +71,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
 
     let player_empire = app.player_record_index_1_based as u8;
-    let snapshot_map = snapshot_map_for_app(app);
-    let projection = projection_for_snapshot_map(app, &snapshot_map);
+    let projection = cached_projection_for_app(app);
+    let world_index = world_index_for_projection(&projection);
     let projected = projected_map_geometry(app, frame, map_size);
-    let viewer_fleet_sectors = viewer_fleet_sector_coords(app, player_empire, &projected);
-    if let Some(overlay) = projected.crosshair_overlay(app) {
-        buf.set_overlay_crosshair(overlay);
-    }
+    let viewer_fleet_sectors = viewer_fleet_sector_coords_fast(app, player_empire);
+    apply_crosshair_overlay_from_projected(buf, app, &projected);
 
     for world_x in projected.x_min..=projected.x_max {
         let label_col = projected.sector_label_col(world_x);
@@ -127,7 +126,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
         );
         for col_x in projected.x_min..=projected.x_max {
             let has_viewer_fleet = viewer_fleet_sectors.contains(&[col_x, row_y]);
-            let planet = projection_world_at(&projection, [col_x, row_y]);
+            let planet = world_index
+                .get(&[col_x, row_y])
+                .map(|&i| &projection.worlds[i]);
             let is_selected = col_x == app.crosshair_x && row_y == app.crosshair_y;
             if !is_selected && planet.is_none() && !has_viewer_fleet {
                 continue;
@@ -155,6 +156,30 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     }
 
     draw_separator_row(buf, &projected, projected.grid_bottom_row, true);
+}
+
+/// Set the crosshair overlay on `buf` based on the current app crosshair
+/// position and the projected map geometry. Called by `draw` and also by the
+/// render loop after a panel-cache hit restores cell content without re-running
+/// `draw`, so the overlay is always consistent.
+pub(crate) fn apply_crosshair_overlay(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    frame: MapWidgetFrame,
+) {
+    let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
+    let projected = projected_map_geometry(app, frame, map_size);
+    apply_crosshair_overlay_from_projected(buf, app, &projected);
+}
+
+fn apply_crosshair_overlay_from_projected(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    projected: &ProjectedMapGeometry,
+) {
+    if let Some(overlay) = projected.crosshair_overlay(app) {
+        buf.set_overlay_crosshair(overlay);
+    }
 }
 
 fn projected_map_geometry(
@@ -468,10 +493,11 @@ pub(crate) fn jump_planet_target_for_app(
     current: [u8; 2],
     direction: PlanetJumpDirection,
 ) -> Option<[u8; 2]> {
-    let projection = projection_for_snapshot_map(app, &snapshot_map_for_app(app));
+    let projection = cached_projection_for_app(app);
     jump_planet_target_coords(projection.map_width, &projection.worlds, current, direction)
 }
 
+#[cfg(test)]
 fn projection_world_at(
     projection: &PlayerStarmapProjection,
     coords: [u8; 2],
@@ -480,6 +506,37 @@ fn projection_world_at(
         .worlds
         .iter()
         .find(|world| world.coords == coords)
+}
+
+/// Build a `[x, y] → world index` lookup from a projection's world list.
+/// Used by `draw` to turn the per-sector O(N) linear search into O(log N).
+fn world_index_for_projection(
+    projection: &PlayerStarmapProjection,
+) -> BTreeMap<[u8; 2], usize> {
+    projection
+        .worlds
+        .iter()
+        .enumerate()
+        .map(|(i, world)| (world.coords, i))
+        .collect()
+}
+
+/// Build the set of sector coords that contain at least one viewer fleet
+/// in a single O(F) pass over all fleet records, avoiding the previous
+/// O(visible_sectors × fleets) nested scan.
+fn viewer_fleet_sector_coords_fast(
+    app: &DashApp,
+    viewer_empire_id: u8,
+) -> BTreeSet<[u8; 2]> {
+    app.game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| {
+            fleet.owner_empire_raw() == viewer_empire_id && fleet.has_any_force()
+        })
+        .map(|fleet| fleet.current_location_coords_raw())
+        .collect()
 }
 
 fn snapshot_map_for_app(app: &DashApp) -> BTreeMap<usize, PlanetIntelSnapshot> {
@@ -501,21 +558,29 @@ fn projection_for_snapshot_map(
     )
 }
 
-fn viewer_fleet_sector_coords(
-    app: &DashApp,
-    viewer_empire_id: u8,
-    projected: &ProjectedMapGeometry,
-) -> BTreeSet<[u8; 2]> {
-    let mut coords = BTreeSet::new();
-    for row_y in projected.y_min..=projected.y_max {
-        for col_x in projected.x_min..=projected.x_max {
-            if owned_orbit_presence(&app.game_data, viewer_empire_id, [col_x, row_y]).fleets > 0 {
-                coords.insert([col_x, row_y]);
-            }
-        }
+/// Return a `PlayerStarmapProjection` for the current app state, reusing the
+/// cached value from the previous frame when `game_data_revision` and
+/// `player_record_index_1_based` have not changed.
+pub(crate) fn cached_projection_for_app(app: &DashApp) -> PlayerStarmapProjection {
+    let revision = app.game_data_revision;
+    let player = app.player_record_index_1_based;
+    let mut cache = app.starmap_projection_cache.borrow_mut();
+    if cache
+        .as_ref()
+        .is_some_and(|c| c.revision == revision && c.player == player)
+    {
+        return cache.as_ref().unwrap().projection.clone();
     }
-    coords
+    let snapshot_map = snapshot_map_for_app(app);
+    let projection = projection_for_snapshot_map(app, &snapshot_map);
+    *cache = Some(CachedStarmapProjection {
+        revision,
+        player,
+        projection: projection.clone(),
+    });
+    projection
 }
+
 
 fn fleet_marker_for_sector(
     app: &DashApp,

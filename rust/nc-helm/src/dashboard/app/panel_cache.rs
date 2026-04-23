@@ -5,6 +5,14 @@ pub(crate) struct CachedPanel {
     pub(crate) cells: Vec<Cell>,
 }
 
+/// Cached `PlayerStarmapProjection` for a specific (game_data_revision, player).
+/// Reused across every `draw` call until the game state changes.
+pub(crate) struct CachedStarmapProjection {
+    pub(crate) revision: u64,
+    pub(crate) player: usize,
+    pub(crate) projection: nc_data::PlayerStarmapProjection,
+}
+
 #[derive(Default)]
 pub(crate) struct PanelCache {
     pub(crate) economy: Option<CachedPanel>,

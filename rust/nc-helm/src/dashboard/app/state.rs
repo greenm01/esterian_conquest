@@ -854,6 +854,7 @@ pub struct DashApp {
 
     pub(crate) game_data_revision: u64,
     pub(crate) panel_cache: std::cell::RefCell<PanelCache>,
+    pub(crate) starmap_projection_cache: std::cell::RefCell<Option<super::panel_cache::CachedStarmapProjection>>,
 }
 
 impl Clone for DashApp {
@@ -911,6 +912,7 @@ impl Clone for DashApp {
             command_line_toast_deadline: self.command_line_toast_deadline,
             game_data_revision: self.game_data_revision,
             panel_cache: std::cell::RefCell::new(PanelCache::default()),
+            starmap_projection_cache: std::cell::RefCell::new(None),
         }
     }
 }
@@ -996,6 +998,7 @@ impl DashApp {
             command_line_toast_deadline: None,
             game_data_revision: 0,
             panel_cache: std::cell::RefCell::new(PanelCache::default()),
+            starmap_projection_cache: std::cell::RefCell::new(None),
         }
     }
 

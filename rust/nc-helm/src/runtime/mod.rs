@@ -276,6 +276,7 @@ impl Runtime {
     fn dispatch(&mut self, msg: Msg, event_loop: &ActiveEventLoop) {
         let msg_label = msg_label(&msg);
         let sync_window_input_state = !matches!(msg, Msg::Resize(_));
+        let should_sync_geometry = msg_could_change_desired_geometry(&msg);
         let outcome = self.app.dispatch_with_outcome(msg);
         self.diagnostic_log(&format!(
             "state: msg={} route={} focus={} network={:?}",
@@ -297,7 +298,9 @@ impl Runtime {
             self.next_matrix_frame_at = None;
         }
         if sync_window_input_state {
-            self.sync_geometry_for_current_window(event_loop);
+            if should_sync_geometry {
+                self.sync_geometry_for_current_window(event_loop);
+            }
             self.sync_window_input_state();
         }
         self.needs_redraw |= outcome.needs_redraw;
@@ -1124,6 +1127,23 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             _event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
         }
     }
+}
+
+/// Returns `true` for messages that may change the desired window geometry or
+/// UI scale multiplier (e.g. route transitions into/out of `HostedGame`).
+/// High-frequency input events (`Mouse`, `Key`, `MatrixFrame`, etc.) return
+/// `false` so the main thread skips the per-dispatch Wayland round-trips in
+/// `sync_geometry_for_current_window`.
+fn msg_could_change_desired_geometry(msg: &Msg) -> bool {
+    matches!(
+        msg,
+        Msg::HostedGameOpened(_)
+            | Msg::FirstJoinSetupCompleted(_)
+            | Msg::SandboxJoined(_)
+            | Msg::SandboxReleased(_)
+            | Msg::BootLoaded(_)
+            | Msg::Unlocked(_)
+    )
 }
 
 fn combine_deadlines(left: Option<Instant>, right: Option<Instant>) -> Option<Instant> {

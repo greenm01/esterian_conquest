@@ -1,13 +1,10 @@
 //! Right panel: world counts by category.
 
-use std::collections::BTreeMap;
-
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::buffer::{CellStyle, PlayfieldBuffer};
 use crate::dashboard::layout::{self, PanelWidgetFrame};
-use crate::dashboard::panels::starmap::{StarmapMarkerKind, marker_kind_for_world};
+use crate::dashboard::panels::starmap::{StarmapMarkerKind, cached_projection_for_app, marker_kind_for_world};
 use crate::dashboard::theme;
-use nc_data::build_player_starmap_projection_from_snapshots;
 
 pub(crate) const TITLE: &str = "KNOWN GALAXY";
 pub(crate) const MIN_BODY_ROWS: usize = 5;
@@ -25,17 +22,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
 
 pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let viewer_empire_id = app.player_record_index_1_based as u8;
-    let snapshot_map = app
-        .planet_intel_snapshots
-        .iter()
-        .cloned()
-        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-        .collect::<BTreeMap<_, _>>();
-    let projection = build_player_starmap_projection_from_snapshots(
-        &app.game_data,
-        &snapshot_map,
-        viewer_empire_id,
-    );
+    let projection = cached_projection_for_app(app);
     let (mut owned, mut unowned, mut neutral, mut enemy, mut icd, mut partial, mut unknown) =
         (0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32);
 
