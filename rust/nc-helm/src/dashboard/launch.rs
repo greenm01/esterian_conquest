@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::dashboard::geometry::ScreenGeometry;
 use nc_data::{
@@ -14,6 +14,7 @@ use crate::dashboard::app::state::DashApp;
 use crate::dashboard::client_settings;
 use crate::dashboard::layout;
 use crate::dashboard::theme;
+use nc_data::DEFAULT_CAMPAIGN_DB_NAME;
 
 pub struct DashLaunchState {
     pub game_dir: PathBuf,
@@ -33,6 +34,7 @@ pub struct DashLaunchState {
 
 impl DashLaunchState {
     pub fn from_local_dir(game_dir: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        validate_local_runtime_dir(&game_dir)?;
         let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
         let state = campaign_store
             .load_latest_runtime_state()?
@@ -163,6 +165,26 @@ impl DashLaunchState {
         app.resize_canvas(geometry.width() as u16, geometry.height() as u16);
         Ok(app)
     }
+}
+
+fn validate_local_runtime_dir(game_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    if !game_dir.exists() {
+        return Err(format!("game directory not found: {}", game_dir.display()).into());
+    }
+    if !game_dir.is_dir() {
+        return Err(format!("game path is not a directory: {}", game_dir.display()).into());
+    }
+
+    let db_path = game_dir.join(DEFAULT_CAMPAIGN_DB_NAME);
+    if !db_path.is_file() {
+        return Err(format!(
+            "missing runtime database: {}. Use a game directory that contains ncgame.db.",
+            db_path.display()
+        )
+        .into());
+    }
+
+    Ok(())
 }
 
 fn infer_player_count(snapshot: &GameState) -> u8 {
