@@ -319,12 +319,22 @@ impl ProjectedMapGeometry {
         let rect = self.sector_rect([app.crosshair_x, app.crosshair_y])?;
         let marker_col = rect.marker_col();
         let marker_row = rect.marker_row();
+        // 3 cols x 3 rows centered on the marker glyph. Left/right sit on the
+        // sector's vertical walls; top sits on this sector's separator row;
+        // bottom sits on the next sector's separator row. At the bottom edge of
+        // the map there is no next separator -- clamp to the marker row to
+        // avoid painting into the bottom axis-label row.
+        let bottom_row = if marker_row + 1 <= self.grid_bottom_row {
+            marker_row + 1
+        } else {
+            marker_row
+        };
         Some(OverlaySelection {
             fg: theme::map_selection_style().fg,
             left_col: marker_col.saturating_sub(1),
             right_col: marker_col + 1,
             top_row: marker_row.saturating_sub(1),
-            bottom_row: marker_row,
+            bottom_row,
         })
     }
 
