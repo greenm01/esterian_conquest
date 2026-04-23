@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use tracing::debug;
 use winit::application::ApplicationHandler;
 use winit::event::{Ime, MouseButton as WinitMouseButton, WindowEvent};
 use winit::event_loop::{
@@ -940,6 +941,10 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             }
             WindowEvent::MouseInput { button, state, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
+                debug!(
+                    "MouseInput button={:?} pressed={} mouse_enabled={} pointer={:?}",
+                    button, state.is_pressed(), mouse_enabled, self.pointer_cell
+                );
                 if state.is_pressed() && mouse_enabled {
                     self.last_user_input = Some(Instant::now());
                 }
@@ -981,15 +986,29 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
+                debug!(
+                    "MouseWheel delta={:?} mouse_enabled={} pointer={:?}",
+                    delta, mouse_enabled, self.pointer_cell
+                );
                 if self.native_options.diagnostic_mode {
                     self.diagnostic_log(&format!(
-                        "event: MouseWheel route={} mouse_enabled={mouse_enabled}",
+                        "event: MouseWheel route={} mouse_enabled={mouse_enabled} delta={delta:?}",
                         route_label(&self.app.model().route)
                     ));
                 }
                 if mouse_enabled {
                     if let Some(position) = self.pointer_cell {
                         let lines = mouse_wheel_delta_to_lines(delta, &mut self.pending_wheel_residual);
+                        debug!(
+                            "MouseWheel lines={} residual={}",
+                            lines, self.pending_wheel_residual
+                        );
+                        if self.native_options.diagnostic_mode {
+                            self.diagnostic_log(&format!(
+                                "event: MouseWheel lines={lines} residual={}",
+                                self.pending_wheel_residual
+                            ));
+                        }
                         if lines != 0 {
                             self.dispatch(
                                 Msg::Mouse(MouseEvent {
@@ -1000,6 +1019,8 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                                 event_loop,
                             );
                         }
+                    } else if self.native_options.diagnostic_mode {
+                        self.diagnostic_log("event: MouseWheel no pointer_cell");
                     }
                 }
             }

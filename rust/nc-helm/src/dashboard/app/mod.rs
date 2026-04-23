@@ -11,6 +11,8 @@ pub mod render;
 mod settings;
 pub mod state;
 
+use tracing::debug;
+
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::geometry::ScreenGeometry;
 use crate::dashboard::input::{
@@ -57,6 +59,18 @@ struct MouseRenderState {
     focus: state::PanelFocus,
     crosshair_x: u8,
     crosshair_y: u8,
+    starmap_viewport_x_min: u8,
+    starmap_viewport_y_min: u8,
+    diplomacy_scroll: usize,
+    inbox_selected: usize,
+    inbox_scroll: usize,
+    inbox_preview_scroll: usize,
+    planet_selected: usize,
+    planet_scroll: usize,
+    fleet_selected: usize,
+    fleet_scroll: usize,
+    intel_selected: usize,
+    intel_scroll: usize,
 }
 
 const fn planet_sort_code(sort: PlanetOverlaySort) -> &'static str {
@@ -188,6 +202,18 @@ impl DashApp {
             focus: self.focus,
             crosshair_x: self.crosshair_x,
             crosshair_y: self.crosshair_y,
+            starmap_viewport_x_min: self.starmap_viewport_x_min,
+            starmap_viewport_y_min: self.starmap_viewport_y_min,
+            diplomacy_scroll: self.diplomacy_scroll,
+            inbox_selected: self.inbox_overlay.selected,
+            inbox_scroll: self.inbox_overlay.scroll,
+            inbox_preview_scroll: self.inbox_overlay.preview_scroll,
+            planet_selected: self.planet_overlay.selected,
+            planet_scroll: self.planet_overlay.scroll,
+            fleet_selected: self.fleet_overlay.selected,
+            fleet_scroll: self.fleet_overlay.scroll,
+            intel_selected: self.intel_overlay.selected,
+            intel_scroll: self.intel_overlay.scroll,
         }
     }
 
@@ -779,7 +805,12 @@ impl DashApp {
                 self.mouse_gesture = ActiveMouseGesture::None;
             }
             MouseEventKind::Scroll { lines } => {
+                debug!(
+                    "DashApp::handle_mouse Scroll lines={} popup={:?} overlay={:?} pos=({},{})",
+                    lines, self.popup, self.overlay, mouse.column, mouse.row
+                );
                 if self.popup != ActivePopup::None {
+                    debug!("Scroll ignored: popup open");
                     return;
                 }
                 if self.overlay != ActiveOverlay::None {
@@ -788,6 +819,8 @@ impl DashApp {
                 }
                 if map_frame.outer.contains_point(mouse.column as usize, mouse.row as usize) {
                     self.pan_starmap_viewport(0, -lines);
+                } else {
+                    debug!("Scroll ignored: outside map_frame");
                 }
             }
             _ => {}
@@ -800,6 +833,10 @@ impl DashApp {
         lines: i32,
         map_frame: crate::dashboard::layout::MapWidgetFrame,
     ) {
+        debug!(
+            "handle_overlay_scroll overlay={:?} lines={} pos=({},{})",
+            self.overlay, lines, mouse.column, mouse.row
+        );
         match self.overlay {
             ActiveOverlay::Diplomacy => {
                 let total = self.game_data.player.records.len();
@@ -834,11 +871,14 @@ impl DashApp {
                             max_preview as i32,
                         );
                     }
-                    None => {}
+                    None => {
+                        debug!("handle_overlay_scroll Inbox: no pane hit");
+                    }
                 }
             }
             ActiveOverlay::PlanetList => {
                 if self.planet_overlay.prompt_mode != PlanetOverlayPromptMode::None {
+                    debug!("handle_overlay_scroll PlanetList: prompt_mode open");
                     return;
                 }
                 let total = planet_list::selection_rows(self).len();
@@ -849,6 +889,7 @@ impl DashApp {
             }
             ActiveOverlay::FleetList => {
                 if self.fleet_overlay.prompt_mode != FleetOverlayPromptMode::None {
+                    debug!("handle_overlay_scroll FleetList: prompt_mode open");
                     return;
                 }
                 let total = fleet_list::selection_rows(self).len();
@@ -859,16 +900,26 @@ impl DashApp {
             }
             ActiveOverlay::IntelDatabase => {
                 if self.intel_overlay.prompt_mode != IntelOverlayPromptMode::None {
+                    debug!("handle_overlay_scroll IntelDatabase: prompt_mode open");
                     return;
                 }
                 let total = intel_database::selection_rows(self).len();
+                let old_selected = self.intel_overlay.selected;
                 self.intel_overlay.selected = scroll_selected(self.intel_overlay.selected, lines, total);
+                debug!(
+                    "IntelDatabase wheel: old_selected={} new_selected={} total={} lines={}",
+                    old_selected, self.intel_overlay.selected, total, lines
+                );
                 if lines > 0 {
                     self.intel_overlay.scroll = self.intel_overlay.scroll.min(self.intel_overlay.selected);
                 }
             }
-            ActiveOverlay::Settings | ActiveOverlay::Help => {}
-            ActiveOverlay::None => {}
+            ActiveOverlay::Settings | ActiveOverlay::Help => {
+                debug!("handle_overlay_scroll: Settings/Help no-op");
+            }
+            ActiveOverlay::None => {
+                debug!("handle_overlay_scroll: overlay=None");
+            }
         }
     }
 
@@ -6850,5 +6901,160 @@ mod tests {
         });
 
         assert_eq!(app.intel_overlay.selected, 2);
+    }
+
+    #[test]
+    fn mouse_wheel_intel_overlay_requests_redraw() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::IntelDatabase;
+        app.intel_overlay.selected = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        let changed = app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert!(changed, "wheel scroll in Intel overlay should request redraw");
+    }
+
+    #[test]
+    fn mouse_wheel_planet_overlay_requests_redraw() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.planet_overlay.selected = 3;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        let changed = app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: 2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert!(changed, "wheel scroll in Planet overlay should request redraw");
+    }
+
+    #[test]
+    fn mouse_wheel_inbox_list_requests_redraw() {
+        let mut app = dash_app();
+        app.queued_mail = vec![
+            QueuedPlayerMail {
+                sender_empire_id: 2,
+                recipient_empire_id: 1,
+                year: 3012,
+                subject: "Test A".to_string(),
+                body: "Body A".to_string(),
+                recipient_deleted: false,
+            },
+            QueuedPlayerMail {
+                sender_empire_id: 2,
+                recipient_empire_id: 1,
+                year: 3012,
+                subject: "Test B".to_string(),
+                body: "Body B".to_string(),
+                recipient_deleted: false,
+            },
+        ];
+        app.overlay = ActiveOverlay::Inbox;
+        app.inbox_overlay.selected = 0;
+        app.inbox_overlay.focus = crate::dashboard::app::state::InboxFocus::List;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        let changed = app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert!(changed, "wheel scroll in Inbox list should request redraw");
+    }
+
+    #[test]
+    fn mouse_wheel_inbox_preview_requests_redraw() {
+        let mut app = dash_app();
+        app.queued_mail = vec![QueuedPlayerMail {
+            sender_empire_id: 2,
+            recipient_empire_id: 1,
+            year: 3012,
+            subject: "Test subject".to_string(),
+            body: "Test body with enough length to create a preview.".to_string(),
+            recipient_deleted: false,
+        }];
+        app.overlay = ActiveOverlay::Inbox;
+        app.inbox_overlay.selected = 0;
+        app.inbox_overlay.focus = crate::dashboard::app::state::InboxFocus::List;
+        app.inbox_overlay.preview_scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        // Preview pane is on the right side of the body.
+        let col = popup.x + popup.width as u16 / 2 + 2;
+        let row = popup.y + 3;
+
+        let changed = app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert!(changed, "wheel scroll in Inbox preview should request redraw");
+    }
+
+    #[test]
+    fn mouse_wheel_diplomacy_requests_redraw() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Diplomacy;
+        app.diplomacy_scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        let changed = app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert!(changed, "wheel scroll in Diplomacy overlay should request redraw");
+    }
+
+    #[test]
+    fn mouse_wheel_starmap_pan_requests_redraw() {
+        let mut app = dash_app();
+        app.starmap_viewport_x_min = 0;
+        app.starmap_viewport_y_min = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let col = map_frame.outer.col as u16 + 3;
+        let row = map_frame.outer.row as u16 + 3;
+
+        let changed = app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert!(changed, "wheel pan on starmap should request redraw");
     }
 }

@@ -37,5 +37,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 }
 
 pub fn main_entry() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .try_init();
     run(std::env::args())
 }
