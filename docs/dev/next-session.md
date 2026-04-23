@@ -5,64 +5,11 @@ Keep this file short. Historical detail belongs in
 
 ## Completed This Session
 
-**nc-helm starmap rendering regressions (from `037784a5`)** — all fixed and
-committed (`69005f7e`), all 379 nc-helm tests green.
-
-Perf/fix bundle committed in one shot:
-
-- `world_index_for_projection`: replaces O(V×W) per-sector linear scan with a
-  `BTreeMap` built once per draw.
-- `viewer_fleet_sector_coords_fast`: replaces O(V×F) nested scan with a single
-  O(F) pass into a `BTreeSet`.
-- `cached_projection_for_app` (`pub(crate)`): `PlayerStarmapProjection` now
-  cached on `DashApp.starmap_projection_cache` keyed by
-  `(game_data_revision, player)`. Used by `starmap::draw`,
-  `jump_planet_target_for_app`, `known_galaxy::body_rows`,
-  `planet_view::projected_sector_details`, and
-  `planet_view::selected_planet_record_index`.
-- `apply_crosshair_overlay` applied after every panel-cache hit/miss.
-- `msg_could_change_desired_geometry`: gates `sync_geometry_for_current_window`
-  in `Runtime::dispatch` so Wayland compositor round-trips
-  (`window.is_maximized()`, `window.fullscreen()`) are skipped on high-frequency
-  `Mouse`/`Key` events. Eliminates the ~270ms stall and `Broken pipe` crash on
-  `map45-p25`.
-
-
-- Public gameplay is now centered on `nc-game`, `nc-door`, and `nc-sysop`.
-- The old SSH/Nostr hosted path has been cut out of the active gameplay and
-  sysop surfaces.
-- `nc-sysop` now exposes only `new-game`, `maint`, and `settings`.
-- `nc-sysop new-game` no longer seeds hosted seats in `ncgame.db`.
-- `nc-game` no longer accepts hosted-only launch flags such as
-  `--session-token` or `--hosted-invite-code`.
-- `ncgame.db` has dropped the retired hosted/session tables entirely.
-- `nc-gate` is no longer part of the active Rust workspace build.
-- `nc-client` now exists as the shared hosted client core.
-- `nc-dash` now has a partial hosted lobby/client path in the same binary.
-- That hosted lobby path now covers public `30500` discovery, hosted join
-  request/decision, runtime-backed `30520` state refresh,
-  turn submit/receipt, public `30516` notices, encrypted `30518` direct
-  contact threads, and encrypted `30523` anonymous per-game diplomacy.
-- `nc-dash` lobby now keeps a live hosted observer session instead of doing
-  full reconnect/fetch cycles for catalog, notices, direct threads, and
-  game-inbox updates.
-- `30520 GameState` now uses typed hosted snapshot payloads instead of opaque
-  JSON blobs on the Rust side.
-- `nc-dash` hosted-game route now builds and renders a real `DashApp` from
-  typed hosted snapshots instead of using the old separate mini summary view.
-- The old hosted mini-view path has been removed; hosted play now enters the
-  real dashboard shell through the shared launch path.
-- Hosted dashboard edits now stage a generated `turn.kdl` draft for supported
-  fleet-order and planet-build actions, and `T` reviews/sends that staged
-  `30522` payload instead of starting from an empty raw-text box.
-- `nc-host` now exists as the relay-native hosted server name and localhost dev lab target.
-- `nc-host` now exposes `notices` and `threads` operator commands for the
-  hosted lobby communication surfaces.
-- The BBS door client is verified on Mystic and ENiGMA½.
-- Latest local baselines after the hosted-path cut:
-  - `cargo test -q -p nc-session`
-  - `cargo test -q -p nc-game`
-  - `cargo test -q -p nc-sysop`
+**nc-helm starmap UX overhaul** — zoom removed (unused, no gameplay value);
+center-follow viewport replaced with 2-sector dead-zone margin scrolling;
+middle-click drag-to-pan ("grab the map") with middle-click re-center on
+crosshair; crosshair overlay hidden when outside viewport. All nc-helm tests
+green.
 
 ## Current Goal
 

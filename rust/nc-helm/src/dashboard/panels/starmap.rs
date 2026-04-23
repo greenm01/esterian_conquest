@@ -22,6 +22,7 @@ const FLEET_MARKER_WORLD: char = '⨁';
 const FLEET_MARKER_OWNED_WORLD: char = '@';
 const MIN_SECTOR_WIDTH: usize = 4;
 const MIN_SECTOR_HEIGHT: usize = 2;
+const STARMAP_SCROLL_MARGIN: u8 = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StarmapMarkerKind {
@@ -195,7 +196,7 @@ fn apply_selection_overlay_from_projected(
     buf.set_overlay_selection(overlay);
 }
 
-fn projected_map_geometry(
+pub(crate) fn projected_map_geometry(
     app: &DashApp,
     frame: MapWidgetFrame,
     map_size: u8,
@@ -247,21 +248,51 @@ struct ProjectionBounds {
     visible_y: u8,
 }
 
+/// Advance the starmap viewport so the crosshair stays within the dead-zone
+/// margin of the viewport edges.  Called after every crosshair move.
+pub fn advance_starmap_viewport(app: &mut DashApp) {
+    let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
+    let frame = crate::dashboard::layout::dashboard_layout(app).widgets.center_map;
+    let lattice_width = frame
+        .grid
+        .width
+        .saturating_sub(frame.row_label_cols)
+        .saturating_sub(1);
+    let visible_x = max_visible_sector_count(
+        lattice_width,
+        map_size,
+        frame.cell_width.max(1),
+    );
+    let visible_y = max_visible_sector_rows(frame.grid.height, map_size);
+    app.starmap_viewport_x_min = viewport_start(
+        app.starmap_viewport_x_min,
+        app.crosshair_x,
+        visible_x,
+        map_size,
+    );
+    app.starmap_viewport_y_min = viewport_start(
+        app.starmap_viewport_y_min,
+        app.crosshair_y,
+        visible_y,
+        map_size,
+    );
+    app.last_starmap_cell_dims = Some((frame.cell_width as u16, MIN_SECTOR_HEIGHT as u16));
+}
+
 fn projected_display_bounds(
     app: &DashApp,
     frame: MapWidgetFrame,
     map_size: u8,
     lattice_width: usize,
 ) -> ProjectionBounds {
-    let zoom_visible = visible_sector_count(map_size, app.map_zoom_level);
-    let visible_x = zoom_visible.min(max_visible_sector_count(
+    let visible_x = max_visible_sector_count(
         lattice_width,
         map_size,
         frame.cell_width.max(1),
-    ));
-    let visible_y = zoom_visible.min(max_visible_sector_rows(frame.grid.height, map_size));
-    let x_min = viewport_start(app.crosshair_x, visible_x, map_size);
-    let y_min = viewport_start(app.crosshair_y, visible_y, map_size);
+    );
+    let visible_y = max_visible_sector_rows(frame.grid.height, map_size);
+    let x_min = viewport_start(app.starmap_viewport_x_min, app.crosshair_x, visible_x, map_size);
+    let y_min = viewport_start(app.starmap_viewport_y_min, app.crosshair_y, visible_y, map_size);
     let x_max = x_min + visible_x.saturating_sub(1);
     let y_max = y_min + visible_y.saturating_sub(1);
     ProjectionBounds {
@@ -274,20 +305,14 @@ fn projected_display_bounds(
     }
 }
 
-fn visible_sector_count(map_size: u8, zoom_level: u8) -> u8 {
-    let divisor = 1u16 << zoom_level.min(5);
-    let visible = u16::from(map_size).div_ceil(divisor).max(1);
-    visible.min(u16::from(map_size)) as u8
-}
-
-fn max_visible_sector_count(extent: usize, map_size: u8, min_extent_per_sector: usize) -> u8 {
+pub(crate) fn max_visible_sector_count(extent: usize, map_size: u8, min_extent_per_sector: usize) -> u8 {
     extent
         .saturating_div(min_extent_per_sector.max(1))
         .max(1)
         .min(usize::from(map_size)) as u8
 }
 
-fn max_visible_sector_rows(grid_height: usize, map_size: u8) -> u8 {
+pub(crate) fn max_visible_sector_rows(grid_height: usize, map_size: u8) -> u8 {
     grid_height
         .saturating_sub(1)
         .saturating_div(MIN_SECTOR_HEIGHT)
@@ -307,10 +332,41 @@ fn rendered_map_block_width(row_label_width: usize, visible_x: u8, cell_width: u
     row_label_width * 2 + 1 + usize::from(visible_x) * cell_width
 }
 
-fn viewport_start(center: u8, visible: u8, map_size: u8) -> u8 {
-    let half = visible / 2;
-    let max_start = map_size.saturating_sub(visible).saturating_add(1);
-    center.saturating_sub(half).clamp(1, max_start)
+fn viewport_start(prev_start: u8, center: u8, visible: u8, map_size: u8) -> u8 {
+    if visible >= map_size {
+        return 1;
+    }
+    let max_start = map_size.saturating_sub(visible).saturating_add(1).max(1);
+
+    // If the viewport nearly fills the map, disable the margin and fall back
+    // to clamp-only behaviour so the user is not locked to the centre.
+    let effective_margin = if u16::from(visible) + 2 * u16::from(STARMAP_SCROLL_MARGIN)
+        >= u16::from(map_size)
+    {
+        0
+    } else {
+        STARMAP_SCROLL_MARGIN
+    };
+
+    // Sentinel 0 means "not yet initialised — centre on crosshair".
+    if prev_start == 0 {
+        let half = visible / 2;
+        return center.saturating_sub(half).clamp(1, max_start);
+    }
+
+    let prev_start = prev_start.clamp(1, max_start);
+    let prev_end = prev_start + visible - 1;
+    let left_trigger = prev_start + effective_margin;
+    let right_trigger = prev_end.saturating_sub(effective_margin);
+
+    let new_start = if center < left_trigger {
+        center.saturating_sub(effective_margin).max(1)
+    } else if center > right_trigger {
+        (center + effective_margin + 1).saturating_sub(visible).max(1)
+    } else {
+        prev_start
+    };
+    new_start.clamp(1, max_start)
 }
 
 impl ProjectedMapGeometry {
@@ -953,7 +1009,7 @@ mod tests {
     }
 
     #[test]
-    fn projected_geometry_fills_grid_and_follows_zoomed_cursor() {
+    fn projected_geometry_is_correctly_aligned() {
         let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -971,7 +1027,6 @@ mod tests {
         );
         app.crosshair_x = 10;
         app.crosshair_y = 11;
-        app.map_zoom_level = 1;
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
 
@@ -999,11 +1054,6 @@ mod tests {
             projected.bottom_axis_row,
             projected.axis_row + rendered_map_block_height(projected.visible_y) - 1
         );
-        assert!(projected.grid_bottom_row < frame.grid.last_row());
-        assert!(projected.grid_right_col < frame.grid.last_col());
-        assert!(projected.row_label_col > frame.grid.col);
-        assert_eq!(projected.visible_x, 9);
-        assert_eq!(projected.visible_y, 9);
         assert_eq!(
             projected.grid_right_col,
             projected.cell_area_col + usize::from(projected.visible_x) * MIN_SECTOR_WIDTH
@@ -1601,7 +1651,7 @@ mod tests {
     }
 
     #[test]
-    fn map_hit_test_ignores_slack_outside_zoomed_lattice() {
+    fn map_hit_test_returns_none_outside_lattice() {
         let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -1617,12 +1667,11 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        app.map_zoom_level = 1;
+        app.crosshair_x = 10;
+        app.crosshair_y = 11;
         let frame = dashboard_layout(&app).widgets.center_map;
         let projected = projected_map_geometry(&app, frame, 18);
 
-        assert!(projected.grid_bottom_row < frame.grid.last_row());
-        assert!(projected.grid_right_col < frame.grid.last_col());
         assert_eq!(
             screen_sector_at_point(
                 &app,
@@ -1698,6 +1747,184 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn initial_sentinel_centers_viewport_on_crosshair() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        assert_eq!(app.starmap_viewport_x_min, 0);
+        assert_eq!(app.starmap_viewport_y_min, 0);
+
+        advance_starmap_viewport(&mut app);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 45);
+
+        assert!(projected.x_min <= app.crosshair_x && projected.x_max >= app.crosshair_x);
+        assert!(projected.y_min <= app.crosshair_y && projected.y_max >= app.crosshair_y);
+
+        // With the sentinel the viewport should be centred on the crosshair.
+        let expected_x_min = app
+            .crosshair_x
+            .saturating_sub(projected.visible_x / 2)
+            .max(1);
+        let expected_y_min = app
+            .crosshair_y
+            .saturating_sub(projected.visible_y / 2)
+            .max(1);
+        assert_eq!(projected.x_min, expected_x_min);
+        assert_eq!(projected.y_min, expected_y_min);
+    }
+
+    #[test]
+    fn crosshair_move_inside_dead_zone_does_not_pan() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        advance_starmap_viewport(&mut app);
+        let initial_x_min = app.starmap_viewport_x_min;
+        let initial_y_min = app.starmap_viewport_y_min;
+        // Pick a target well inside the dead-zone interior.
+        let x_dead = app.starmap_viewport_x_min + STARMAP_SCROLL_MARGIN + 1;
+        let y_dead = app.starmap_viewport_y_min + STARMAP_SCROLL_MARGIN + 1;
+
+        // Move crosshair to the dead-zone interior — viewport should stay put.
+        app.crosshair_x = x_dead;
+        advance_starmap_viewport(&mut app);
+        assert_eq!(app.starmap_viewport_x_min, initial_x_min);
+
+        app.crosshair_y = y_dead;
+        advance_starmap_viewport(&mut app);
+        assert_eq!(app.starmap_viewport_y_min, initial_y_min);
+    }
+
+    #[test]
+    fn crosshair_crossing_margin_trigger_pans_one_sector() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        advance_starmap_viewport(&mut app);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 45);
+        let visible_x = projected.visible_x;
+        let visible_y = projected.visible_y;
+
+        // Move crosshair to just past the right margin boundary.
+        let right_boundary = app.starmap_viewport_x_min + visible_x - 1 - STARMAP_SCROLL_MARGIN;
+        app.crosshair_x = right_boundary + 1;
+        let old_x_min = app.starmap_viewport_x_min;
+        advance_starmap_viewport(&mut app);
+        assert_eq!(app.starmap_viewport_x_min, old_x_min + 1);
+
+        // Same for bottom margin.
+        let bottom_boundary = app.starmap_viewport_y_min + visible_y - 1 - STARMAP_SCROLL_MARGIN;
+        app.crosshair_y = bottom_boundary + 1;
+        let old_y_min = app.starmap_viewport_y_min;
+        advance_starmap_viewport(&mut app);
+        assert_eq!(app.starmap_viewport_y_min, old_y_min + 1);
+    }
+
+    #[test]
+    fn small_map_falls_back_to_clamp_only_behavior() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        // 18-map on 160x45: full map fits (visible == map_size), so the
+        // margin fallback disables dead-zone scrolling.
+        app.crosshair_x = 5;
+        app.crosshair_y = 5;
+        advance_starmap_viewport(&mut app);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+
+        if projected.visible_x >= 18 {
+            assert_eq!(app.starmap_viewport_x_min, 1);
+        }
+        if projected.visible_y >= 18 {
+            assert_eq!(app.starmap_viewport_y_min, 1);
+        }
+    }
+
+    #[test]
+    fn jump_outside_viewport_pans_until_crosshair_within_margin() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        advance_starmap_viewport(&mut app);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 45);
+        let visible_x = projected.visible_x;
+        let visible_y = projected.visible_y;
+
+        // Jump far to the bottom-right corner of the map.
+        app.crosshair_x = 43;
+        app.crosshair_y = 43;
+        advance_starmap_viewport(&mut app);
+
+        // The viewport should pan so the crosshair is inside the margin.
+        let x_max = app.starmap_viewport_x_min + visible_x - 1;
+        let y_max = app.starmap_viewport_y_min + visible_y - 1;
+        assert!(app.crosshair_x <= x_max);
+        assert!(app.crosshair_x >= app.starmap_viewport_x_min + STARMAP_SCROLL_MARGIN);
+        assert!(app.crosshair_y <= y_max);
+        assert!(app.crosshair_y >= app.starmap_viewport_y_min + STARMAP_SCROLL_MARGIN);
     }
 
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {

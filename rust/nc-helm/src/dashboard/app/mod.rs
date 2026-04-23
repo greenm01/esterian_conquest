@@ -490,17 +490,20 @@ impl DashApp {
                     nc_data::map_size_for_player_count(self.game_data.conquest.player_count());
                 if self.crosshair_y < map_size {
                     self.crosshair_y += 1;
+                    starmap::advance_starmap_viewport(self);
                 }
             }
             Action::MoveCrosshairDown => {
                 // Down arrow → lower Y (row 1 at bottom of screen).
                 if self.crosshair_y > 1 {
                     self.crosshair_y -= 1;
+                    starmap::advance_starmap_viewport(self);
                 }
             }
             Action::MoveCrosshairLeft => {
                 if self.crosshair_x > 1 {
                     self.crosshair_x -= 1;
+                    starmap::advance_starmap_viewport(self);
                 }
             }
             Action::MoveCrosshairRight => {
@@ -508,6 +511,7 @@ impl DashApp {
                     nc_data::map_size_for_player_count(self.game_data.conquest.player_count());
                 if self.crosshair_x < map_size {
                     self.crosshair_x += 1;
+                    starmap::advance_starmap_viewport(self);
                 }
             }
             Action::JumpPlanetBackward => {
@@ -523,13 +527,6 @@ impl DashApp {
                 };
                 self.refresh_terminal_fit_state();
             }
-            Action::ZoomMapIn => {
-                self.map_zoom_level = self.map_zoom_level.saturating_add(1).min(5);
-            }
-            Action::ZoomMapOut => {
-                self.map_zoom_level = self.map_zoom_level.saturating_sub(1);
-            }
-            Action::ResetMapZoom => self.map_zoom_level = 0,
             Action::OpenPlanetDetailPopup => self.open_planet_detail_popup_at_cursor(),
             Action::ScrollUp => self.scroll_up(),
             Action::ScrollDown => self.scroll_down(),
@@ -711,6 +708,25 @@ impl DashApp {
                 self.mouse_gesture = ActiveMouseGesture::None;
                 self.handle_map_right_click(mouse, map_frame);
             }
+            MouseEventKind::Down(MouseButton::Middle) => {
+                if self.popup != ActivePopup::None || self.overlay != ActiveOverlay::None {
+                    self.mouse_gesture = ActiveMouseGesture::None;
+                    return;
+                }
+                if let Some((cell_width, cell_height)) = self.last_starmap_cell_dims {
+                    if map_frame.outer.contains_point(mouse.column as usize, mouse.row as usize) {
+                        self.mouse_gesture = ActiveMouseGesture::DraggingStarmap {
+                            anchor_col: mouse.column,
+                            anchor_row: mouse.row,
+                            start_x_min: self.starmap_viewport_x_min,
+                            start_y_min: self.starmap_viewport_y_min,
+                            cell_width,
+                            cell_height,
+                            drag_occurred: false,
+                        };
+                    }
+                }
+            }
             MouseEventKind::Drag(MouseButton::Left) => {
                 if self.popup != ActivePopup::None || self.overlay != ActiveOverlay::None {
                     self.handle_mouse_move(mouse, modal_parent);
@@ -726,6 +742,38 @@ impl DashApp {
                 if self.client_settings.follow_mouse_on_map {
                     self.handle_map_hover(mouse, map_frame);
                 }
+            }
+            MouseEventKind::Drag(MouseButton::Middle) => {
+                if let ActiveMouseGesture::DraggingStarmap {
+                    anchor_col,
+                    anchor_row,
+                    start_x_min,
+                    start_y_min,
+                    cell_width,
+                    cell_height,
+                    ref mut drag_occurred,
+                } = self.mouse_gesture
+                {
+                    *drag_occurred = true;
+                    let dx_cells =
+                        (anchor_col as i32 - mouse.column as i32) / cell_width.max(1) as i32;
+                    let dy_cells =
+                        (anchor_row as i32 - mouse.row as i32) / cell_height.max(1) as i32;
+                    self.pan_starmap_viewport(dx_cells, dy_cells);
+                }
+            }
+            MouseEventKind::Up(MouseButton::Middle) => {
+                if let ActiveMouseGesture::DraggingStarmap { drag_occurred, .. } =
+                    self.mouse_gesture
+                {
+                    if !drag_occurred {
+                        // Click-without-drag: re-centre viewport on crosshair.
+                        self.starmap_viewport_x_min = 0;
+                        self.starmap_viewport_y_min = 0;
+                        starmap::advance_starmap_viewport(self);
+                    }
+                }
+                self.mouse_gesture = ActiveMouseGesture::None;
             }
             MouseEventKind::Up(MouseButton::Left) => {
                 self.mouse_gesture = ActiveMouseGesture::None;
@@ -863,6 +911,7 @@ impl DashApp {
         self.crosshair_y = y;
         self.focus = state::PanelFocus::Map;
         self.map_coord_input.clear();
+        starmap::advance_starmap_viewport(self);
     }
 
     fn reset_crosshair_to_homeworld(&mut self) {
@@ -876,6 +925,29 @@ impl DashApp {
             return;
         }
         self.set_crosshair_coords(coords);
+    }
+
+    fn pan_starmap_viewport(&mut self, dx_cells: i32, dy_cells: i32) {
+        let map_size =
+            nc_data::map_size_for_player_count(self.game_data.conquest.player_count());
+        let frame = crate::dashboard::layout::dashboard_layout(self).widgets.center_map;
+        let lattice_width = frame
+            .grid
+            .width
+            .saturating_sub(frame.row_label_cols)
+            .saturating_sub(1);
+        let visible_x = starmap::max_visible_sector_count(
+            lattice_width,
+            map_size,
+            frame.cell_width.max(1),
+        );
+        let visible_y = starmap::max_visible_sector_rows(frame.grid.height, map_size);
+        let max_start_x = map_size.saturating_sub(visible_x).saturating_add(1).max(1);
+        let max_start_y = map_size.saturating_sub(visible_y).saturating_add(1).max(1);
+        self.starmap_viewport_x_min = (self.starmap_viewport_x_min as i32 + dx_cells)
+            .clamp(1, max_start_x as i32) as u8;
+        self.starmap_viewport_y_min = (self.starmap_viewport_y_min as i32 + dy_cells)
+            .clamp(1, max_start_y as i32) as u8;
     }
 
     fn player_has_fleets_at(&self, coords: [u8; 2]) -> bool {
@@ -946,6 +1018,22 @@ impl DashApp {
                         col_offset: target_x.saturating_sub(parent.x) as usize,
                         row_offset: target_y.saturating_sub(parent.y) as usize,
                     });
+            }
+            ActiveMouseGesture::DraggingStarmap {
+                anchor_col,
+                anchor_row,
+                start_x_min,
+                start_y_min,
+                cell_width,
+                cell_height,
+                ref mut drag_occurred,
+            } => {
+                *drag_occurred = true;
+                let dx_cells =
+                    (anchor_col as i32 - mouse.column as i32) / cell_width.max(1) as i32;
+                let dy_cells =
+                    (anchor_row as i32 - mouse.row as i32) / cell_height.max(1) as i32;
+                self.pan_starmap_viewport(dx_cells, dy_cells);
             }
             ActiveMouseGesture::None => {}
         }
@@ -1033,8 +1121,7 @@ impl DashApp {
             [self.crosshair_x, self.crosshair_y],
             direction,
         ) {
-            self.crosshair_x = target[0];
-            self.crosshair_y = target[1];
+            self.set_crosshair_coords(target);
         }
     }
 
@@ -1064,6 +1151,7 @@ impl DashApp {
         };
         self.crosshair_x = coords[0];
         self.crosshair_y = coords[1];
+        starmap::advance_starmap_viewport(self);
         matched.is_terminal_exact_match
     }
 
@@ -2177,13 +2265,12 @@ impl NativeApp for DashApp {
 
     fn debug_render_signature(&self) -> Option<String> {
         Some(format!(
-            "focus={:?} overlay={:?} popup={:?} crosshair={},{} zoom={} map_view={:?} popup_pos={} overlay_pos={} gesture={:?} toast={} report_blocks={} mail={} too_small={}",
+            "focus={:?} overlay={:?} popup={:?} crosshair={},{} map_view={:?} popup_pos={} overlay_pos={} gesture={:?} toast={} report_blocks={} mail={} too_small={}",
             self.focus,
             self.overlay,
             self.popup,
             self.crosshair_x,
             self.crosshair_y,
-            self.map_zoom_level,
             self.map_view_mode,
             self.popup_position.is_some(),
             self.overlay_position.is_some(),
@@ -2206,7 +2293,9 @@ impl NativeApp for DashApp {
     fn is_dragging_surface(&self) -> bool {
         matches!(
             self.mouse_gesture,
-            ActiveMouseGesture::DraggingOverlay { .. } | ActiveMouseGesture::DraggingPopup { .. }
+            ActiveMouseGesture::DraggingOverlay { .. }
+                | ActiveMouseGesture::DraggingPopup { .. }
+                | ActiveMouseGesture::DraggingStarmap { .. }
         )
     }
 
@@ -2666,12 +2755,13 @@ mod tests {
     };
     use crate::dashboard::layout::dashboard::dashboard_layout;
     use crate::dashboard::native::NativeApp;
+    use crate::dashboard::panels::starmap;
     use crate::dashboard::overlays::{fleet_list, intel_database, planet_list};
     use crate::dashboard::planet_view;
     use crate::dashboard::table_selection::{wrap_next_index, wrap_prev_index};
     use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot};
     use nc_engine::{
-        fleet_target_input_kind, recommended_coordinate_target,
+        build_seeded_initialized_game, fleet_target_input_kind, recommended_coordinate_target,
         recommended_coordinate_target_y_for_entered_x,
     };
     use std::collections::{BTreeMap, BTreeSet};
@@ -2805,30 +2895,8 @@ mod tests {
     }
 
     #[test]
-    fn zoom_keys_adjust_map_zoom_level() {
+    fn map_view_mode_key_toggles_readable_and_fill() {
         let mut app = dash_app();
-
-        app.handle_key(KeyEvent::new(
-            KeyCode::Char('='),
-            crate::dashboard::input::KeyModifiers::NONE,
-        ));
-        app.handle_key(KeyEvent::new(
-            KeyCode::Char('='),
-            crate::dashboard::input::KeyModifiers::NONE,
-        ));
-        assert_eq!(app.map_zoom_level, 2);
-
-        app.handle_key(KeyEvent::new(
-            KeyCode::Char('-'),
-            crate::dashboard::input::KeyModifiers::NONE,
-        ));
-        assert_eq!(app.map_zoom_level, 1);
-
-        app.handle_key(KeyEvent::new(
-            KeyCode::Char('z'),
-            crate::dashboard::input::KeyModifiers::NONE,
-        ));
-        assert_eq!(app.map_zoom_level, 0);
 
         assert_eq!(app.map_view_mode, MapViewMode::Readable);
         app.handle_key(KeyEvent::new(
@@ -6254,5 +6322,124 @@ mod tests {
             app.take_exit_request(),
             Some(DashboardExitRequest::QuitClient)
         );
+    }
+
+    #[test]
+    fn middle_drag_on_starmap_pans_viewport_without_moving_crosshair() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        starmap::advance_starmap_viewport(&mut app);
+        let initial_x_min = app.starmap_viewport_x_min;
+        let initial_y_min = app.starmap_viewport_y_min;
+        let initial_crosshair = [app.crosshair_x, app.crosshair_y];
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let col = map_frame.outer.col as u16 + 1;
+        let row = map_frame.outer.row as u16 + 1;
+
+        // Middle-down inside the map widget.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Middle),
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        // Drag 8 columns right → viewport should pan 2 sectors left.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Middle),
+            column: col + 8,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Middle),
+            column: col + 8,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], initial_crosshair);
+        assert_eq!(app.starmap_viewport_x_min, initial_x_min.saturating_sub(2));
+        assert_eq!(app.starmap_viewport_y_min, initial_y_min);
+    }
+
+    #[test]
+    fn middle_click_without_drag_recenters_viewport() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        starmap::advance_starmap_viewport(&mut app);
+        let centered_x_min = app.starmap_viewport_x_min;
+        let centered_y_min = app.starmap_viewport_y_min;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let col = map_frame.outer.col as u16 + 1;
+        let row = map_frame.outer.row as u16 + 1;
+
+        // Pan the viewport away from centre with a drag.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Middle),
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Middle),
+            column: col + 8,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Middle),
+            column: col + 8,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        let dragged_x_min = app.starmap_viewport_x_min;
+        let dragged_y_min = app.starmap_viewport_y_min;
+        // Sanity: drag actually moved the viewport.
+        assert_ne!(dragged_x_min, centered_x_min);
+
+        // Middle-click without drag resets the viewport to centre on crosshair.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Middle),
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Middle),
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.starmap_viewport_x_min, centered_x_min);
+        assert_eq!(app.starmap_viewport_y_min, centered_y_min);
     }
 }
