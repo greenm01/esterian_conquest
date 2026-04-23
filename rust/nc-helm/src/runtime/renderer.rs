@@ -2104,9 +2104,10 @@ fn atlas_repertoire_chars() -> Vec<char> {
 #[cfg(test)]
 mod tests {
     use super::{
-        GPU_STYLE_BOLD, GPU_STYLE_TEXT_BAND, GRID_ATLAS_BASE_GLYPH_COUNT, GRID_ATLAS_COLS,
-        GRID_ATLAS_MISC_CHARS, GRID_ATLAS_ROWS, atlas_repertoire_chars, atlas_slot_contains_pixel,
-        char_atlas_base_index, clear_color, linear_channel_from_srgb_u8, pack_gpu_style,
+        BACKGROUND_SHADER, GPU_STYLE_BOLD, GPU_STYLE_TEXT_BAND, GRID_ATLAS_BASE_GLYPH_COUNT,
+        GRID_ATLAS_COLS, GRID_ATLAS_MISC_CHARS, GRID_ATLAS_ROWS, atlas_repertoire_chars,
+        atlas_slot_contains_pixel, char_atlas_base_index, clear_color, linear_channel_from_srgb_u8,
+        pack_gpu_style,
     };
     use crate::grid::{BackgroundMode, CellStyle, GameColor};
 
@@ -2209,6 +2210,25 @@ mod tests {
             slot_bottom,
             slot_left,
             slot_bottom
+        ));
+    }
+
+    #[test]
+    fn selection_shader_uses_directional_half_cell_vertical_stems() {
+        assert!(BACKGROUND_SHADER.contains("var vertical_arm = false;"));
+        assert_eq!(
+            BACKGROUND_SHADER.matches("vertical_arm = local_y >= mid_y;").count(),
+            2
+        );
+        assert_eq!(
+            BACKGROUND_SHADER.matches("vertical_arm = local_y <= mid_y;").count(),
+            2
+        );
+        assert!(BACKGROUND_SHADER.contains(
+            "(on_horizontal && horizontal_arm) || (on_vertical && vertical_arm)"
+        ));
+        assert!(!BACKGROUND_SHADER.contains(
+            "return select(0.0, 1.0, on_vertical || (on_horizontal && horizontal_arm));"
         ));
     }
 }
