@@ -174,6 +174,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
     let diplomacy_rows = diplomacy::body_rows(app);
     let diplomacy_body_rows = diplomacy_rows.len().saturating_mul(2).max(1);
     let sector_detail_rows = sector_detail::preferred_body_rows(app);
+    let sector_detail_width = sector_detail::preferred_body_width(app);
 
     let left_width = cap_panel_width(
         panel_outer_width(economy::TITLE, styled_row_width(&economy_rows)),
@@ -186,10 +187,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
         panel_outer_width(comms::TITLE, styled_row_width(&comms_rows)),
         panel_outer_width(known_galaxy::TITLE, styled_row_width(&galaxy_rows)),
         panel_outer_width(diplomacy::TITLE, diplomacy::preferred_body_width(app)),
-        panel_outer_width(
-            sector_detail::TITLE,
-            sector_detail::preferred_body_width(app),
-        ),
+        panel_outer_width(sector_detail::TITLE, sector_detail_width),
         RIGHT_PANEL_WIDTH_CAP,
     );
     let left_preferred_rows = [

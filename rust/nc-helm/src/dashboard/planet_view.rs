@@ -1,3 +1,4 @@
+use std::cell::Ref;
 use std::collections::BTreeMap;
 
 use nc_data::{
@@ -10,6 +11,7 @@ use nc_data::{
 };
 
 use crate::dashboard::app::state::DashApp;
+use crate::dashboard::app::panel_cache::CachedSectorDetails;
 use crate::dashboard::panels::starmap::cached_projection_for_app;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,54 +27,35 @@ pub(crate) struct SelectedPlanetDetail {
     pub popup_lines: Vec<DetailLine>,
 }
 
-pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDetail> {
-    projected_sector_details(app)
-        .into_iter()
-        .find(|detail| detail.planet_record_index_1_based == selected_planet_record_index(app))
-}
+pub(crate) const EMPTY_SECTOR_LABEL: &str = "empty sector";
+pub(crate) const PREFERRED_BODY_WIDTH_CAP: usize = 24;
+pub(crate) const MAX_BODY_ROWS: usize = 16;
+pub(crate) const MIN_BODY_ROWS: usize = 8;
 
-pub(crate) fn projected_sector_details(app: &DashApp) -> Vec<SelectedPlanetDetail> {
-    let viewer_empire_id = app.player_record_index_1_based as u8;
-    let cache = cached_projection_for_app(app);
-    let snapshot_map = app
-        .planet_intel_snapshots
-        .iter()
+pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDetail> {
+    let planet_record_index_1_based = selected_planet_record_index(app);
+    if planet_record_index_1_based == 0 {
+        return None;
+    }
+    cached_sector_details_for_app(app)
+        .details_by_planet_index
+        .get(&planet_record_index_1_based)
         .cloned()
-        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-        .collect::<BTreeMap<_, _>>();
-    cache
-        .projection
-        .worlds
-        .iter()
-        .filter_map(|world| {
-            let planet_index_0_based = world.planet_record_index_1_based.checked_sub(1)?;
-            let planet = app.game_data.planets.records.get(planet_index_0_based)?;
-            Some(if planet.owner_empire_slot_raw() == viewer_empire_id {
-                owned_planet_detail(app, planet_index_0_based, planet)
-            } else {
-                intel_planet_detail(
-                    app,
-                    world,
-                    snapshot_map.get(&world.planet_record_index_1_based),
-                )
-            })
-        })
-        .collect()
 }
 
 pub(crate) fn preferred_sector_detail_body_width(app: &DashApp) -> usize {
-    projected_sector_details(app)
-        .into_iter()
-        .flat_map(|detail| detail.widget_fields.into_iter())
-        .map(|field| preferred_widget_field_width(&field))
-        .max()
-        .unwrap_or_else(|| "empty sector".chars().count())
+    cached_sector_details_for_app(app).preferred_body_width
+}
+
+pub(crate) fn preferred_sector_detail_body_rows(app: &DashApp) -> usize {
+    cached_sector_details_for_app(app).preferred_body_rows
 }
 
 fn owned_planet_detail(
     app: &DashApp,
     planet_index_0_based: usize,
     planet: &PlanetRecord,
+    budget: u32,
 ) -> SelectedPlanetDetail {
     let viewer_empire_id = app.player_record_index_1_based as u8;
     let coords = planet.coords_raw();
@@ -90,13 +73,6 @@ fn owned_planet_detail(
         .get(&(planet_index_0_based + 1))
         .map(|year| format!("Y{year}"))
         .unwrap_or_else(|| String::from("?"));
-    let budget = app
-        .game_data
-        .empire_planet_economy_rows(app.player_record_index_1_based)
-        .into_iter()
-        .find(|row| row.planet_record_index_1_based == planet_index_0_based + 1)
-        .map(|row| u32::from(row.build_capacity).min(row.stored_production_points))
-        .unwrap_or_else(|| planet.stored_production_points().min(u32::from(present)));
     let popup_lines = vec![
         detail_line("Coordinates", coords_label(coords)),
         detail_line("Planet", planet.status_or_name_summary()),
@@ -303,6 +279,130 @@ fn preferred_widget_field_width(field: &DetailLine) -> usize {
         + field.value.chars().count()
 }
 
+pub(crate) fn rendered_widget_lines(
+    rows: &[DetailLine],
+    body_width: usize,
+    max_rows: usize,
+) -> Vec<String> {
+    if max_rows == 0 {
+        return Vec::new();
+    }
+
+    let mut indexed = rows
+        .iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            (
+                row_priority(row.label),
+                idx,
+                render_widget_field_lines(row, body_width),
+            )
+        })
+        .collect::<Vec<_>>();
+    indexed.sort_by_key(|(priority, idx, _)| (*priority, *idx));
+
+    let mut used_rows = 0usize;
+    let mut kept = indexed
+        .into_iter()
+        .filter_map(|(_, idx, lines)| {
+            if used_rows + lines.len() > max_rows {
+                return None;
+            }
+            used_rows += lines.len();
+            Some((idx, lines))
+        })
+        .collect::<Vec<_>>();
+    kept.sort_by_key(|(idx, _)| *idx);
+    kept.into_iter().flat_map(|(_, lines)| lines).collect()
+}
+
+fn render_widget_field_lines(field: &DetailLine, body_width: usize) -> Vec<String> {
+    let label = widget_label_for_width(field, body_width);
+    let prefix = format!("{label}: ");
+
+    if !field_is_wrappable(field.label) {
+        return vec![format!("{prefix}{}", field.value)];
+    }
+
+    wrap_field_value_lines(&prefix, &field.value, body_width)
+}
+
+fn wrap_field_value_lines(prefix: &str, value: &str, body_width: usize) -> Vec<String> {
+    let prefix_width = prefix.chars().count();
+    let available = body_width.saturating_sub(prefix_width);
+    if available == 0 {
+        return vec![prefix.trim_end().to_string()];
+    }
+
+    let wrapped = wrap_tokens(value, available);
+    let continuation = " ".repeat(prefix_width);
+
+    wrapped
+        .into_iter()
+        .enumerate()
+        .map(|(idx, line)| {
+            if idx == 0 {
+                format!("{prefix}{line}")
+            } else {
+                format!("{continuation}{line}")
+            }
+        })
+        .collect()
+}
+
+fn wrap_tokens(value: &str, max_width: usize) -> Vec<String> {
+    let tokens = value.split_whitespace().collect::<Vec<_>>();
+    if tokens.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for token in tokens {
+        let token_width = token.chars().count();
+        if current.is_empty() {
+            current.push_str(token);
+            continue;
+        }
+
+        let next_width = current.chars().count() + 1 + token_width;
+        if next_width <= max_width {
+            current.push(' ');
+            current.push_str(token);
+        } else {
+            lines.push(current);
+            current = token.to_string();
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+fn field_is_wrappable(label: &str) -> bool {
+    matches!(label, "Building" | "Docked")
+}
+
+fn row_priority(label: &str) -> usize {
+    match label {
+        "Planet" => 0,
+        "Owner" => 1,
+        "State" => 2,
+        "Intel" => 3,
+        "Production" => 4,
+        "Potential Production" => 5,
+        "Treasury" => 6,
+        "Armies" => 7,
+        "Ground Batteries" => 8,
+        "Starbases" => 9,
+        "Building" => 10,
+        "Docked" => 11,
+        "Orbit" => 12,
+        _ => 13,
+    }
+}
+
 fn widget_label_variants(label: &'static str) -> Option<&'static [&'static str]> {
     Some(match label {
         "Potential Production" => &["Pot Prod"],
@@ -318,6 +418,98 @@ fn widget_label_variants(label: &'static str) -> Option<&'static [&'static str]>
 
 fn coords_label(coords: [u8; 2]) -> String {
     format!("({:02},{:02})", coords[0], coords[1])
+}
+
+fn cached_sector_details_for_app(app: &DashApp) -> Ref<'_, CachedSectorDetails> {
+    let revision = app.game_data_revision;
+    let player = app.player_record_index_1_based;
+    let needs_update = !app
+        .sector_detail_cache
+        .borrow()
+        .as_ref()
+        .is_some_and(|cache| cache.revision == revision && cache.player == player);
+
+    if needs_update {
+        *app.sector_detail_cache.borrow_mut() = Some(build_cached_sector_details(app));
+    }
+
+    Ref::map(app.sector_detail_cache.borrow(), |opt| {
+        opt.as_ref().expect("sector detail cache should be populated")
+    })
+}
+
+fn build_cached_sector_details(app: &DashApp) -> CachedSectorDetails {
+    let viewer_empire_id = app.player_record_index_1_based as u8;
+    let budget_by_planet_index = owned_planet_budget_map(app);
+    let snapshot_map = app
+        .planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>();
+    let projection = cached_projection_for_app(app);
+    let details_by_planet_index = projection
+        .projection
+        .worlds
+        .iter()
+        .filter_map(|world| {
+            let planet_index_0_based = world.planet_record_index_1_based.checked_sub(1)?;
+            let planet = app.game_data.planets.records.get(planet_index_0_based)?;
+            let detail = if planet.owner_empire_slot_raw() == viewer_empire_id {
+                let budget = budget_by_planet_index
+                    .get(&world.planet_record_index_1_based)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        planet
+                            .stored_production_points()
+                            .min(u32::from(planet.present_production_points().unwrap_or(0)))
+                    });
+                owned_planet_detail(app, planet_index_0_based, planet, budget)
+            } else {
+                intel_planet_detail(
+                    app,
+                    world,
+                    snapshot_map.get(&world.planet_record_index_1_based),
+                )
+            };
+            Some((detail.planet_record_index_1_based, detail))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let preferred_body_width = details_by_planet_index
+        .values()
+        .flat_map(|detail| detail.widget_fields.iter())
+        .map(preferred_widget_field_width)
+        .max()
+        .unwrap_or_else(|| EMPTY_SECTOR_LABEL.chars().count())
+        .max(EMPTY_SECTOR_LABEL.chars().count())
+        .min(PREFERRED_BODY_WIDTH_CAP);
+    let preferred_body_rows = details_by_planet_index
+        .values()
+        .map(|detail| rendered_widget_lines(&detail.widget_fields, preferred_body_width, MAX_BODY_ROWS).len())
+        .max()
+        .unwrap_or(1)
+        .clamp(MIN_BODY_ROWS, MAX_BODY_ROWS);
+
+    CachedSectorDetails {
+        revision: app.game_data_revision,
+        player: app.player_record_index_1_based,
+        details_by_planet_index,
+        preferred_body_width,
+        preferred_body_rows,
+    }
+}
+
+fn owned_planet_budget_map(app: &DashApp) -> BTreeMap<usize, u32> {
+    app.game_data
+        .empire_planet_economy_rows(app.player_record_index_1_based)
+        .into_iter()
+        .map(|row| {
+            (
+                row.planet_record_index_1_based,
+                u32::from(row.build_capacity).min(row.stored_production_points),
+            )
+        })
+        .collect()
 }
 
 fn selected_planet_record_index(app: &DashApp) -> usize {
@@ -620,5 +812,64 @@ mod tests {
 
         assert_eq!(format_build_queue_summary(&planet), "2BB");
         assert_eq!(format_stardock_summary(&planet), "5CA");
+    }
+
+    #[test]
+    fn preferred_sector_detail_metrics_are_cached() {
+        let app = crate::dashboard::app::state::DashApp::new_for_tests(
+            std::path::PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            std::collections::BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            crate::dashboard::geometry::ScreenGeometry::new(160, 40),
+            crate::dashboard::geometry::ScreenGeometry::new(108, 26),
+            1,
+        );
+
+        let width = preferred_sector_detail_body_width(&app);
+        let rows = preferred_sector_detail_body_rows(&app);
+        let cache = cached_sector_details_for_app(&app);
+
+        assert_eq!(cache.preferred_body_width, width);
+        assert_eq!(cache.preferred_body_rows, rows);
+        assert!(!cache.details_by_planet_index.is_empty());
+    }
+
+    #[test]
+    fn sector_detail_cache_invalidates_when_game_revision_changes() {
+        let mut app = crate::dashboard::app::state::DashApp::new_for_tests(
+            std::path::PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            std::collections::BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            crate::dashboard::geometry::ScreenGeometry::new(160, 40),
+            crate::dashboard::geometry::ScreenGeometry::new(108, 26),
+            1,
+        );
+        let before = preferred_sector_detail_body_width(&app);
+
+        app.game_data.planets.records[0]
+            .set_planet_name("Frontier Bastion Prime");
+        app.game_data_revision += 1;
+
+        let after = preferred_sector_detail_body_width(&app);
+
+        assert!(after >= before);
+        assert_eq!(
+            cached_sector_details_for_app(&app).revision,
+            app.game_data_revision
+        );
     }
 }

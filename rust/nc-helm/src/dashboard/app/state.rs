@@ -856,6 +856,8 @@ pub struct DashApp {
     pub(crate) panel_cache: std::cell::RefCell<PanelCache>,
     pub(crate) starmap_projection_cache:
         std::cell::RefCell<Option<super::panel_cache::CachedStarmapProjection>>,
+    pub(crate) sector_detail_cache:
+        std::cell::RefCell<Option<super::panel_cache::CachedSectorDetails>>,
 }
 
 impl Clone for DashApp {
@@ -914,6 +916,7 @@ impl Clone for DashApp {
             game_data_revision: self.game_data_revision,
             panel_cache: std::cell::RefCell::new(PanelCache::default()),
             starmap_projection_cache: std::cell::RefCell::new(None),
+            sector_detail_cache: std::cell::RefCell::new(None),
         }
     }
 }
@@ -1000,6 +1003,7 @@ impl DashApp {
             game_data_revision: 0,
             panel_cache: std::cell::RefCell::new(PanelCache::default()),
             starmap_projection_cache: std::cell::RefCell::new(None),
+            sector_detail_cache: std::cell::RefCell::new(None),
         }
     }
 

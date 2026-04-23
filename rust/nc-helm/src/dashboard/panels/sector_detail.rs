@@ -5,21 +5,20 @@ use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::layout::{self, PanelWidgetFrame};
 use crate::dashboard::planet_view::{
-    DetailLine, preferred_sector_detail_body_width, projected_sector_details,
-    selected_planet_detail, widget_label_for_width,
+    EMPTY_SECTOR_LABEL, MIN_BODY_ROWS as PLANET_VIEW_MIN_BODY_ROWS,
+    preferred_sector_detail_body_rows, preferred_sector_detail_body_width, rendered_widget_lines,
+    selected_planet_detail,
 };
 use crate::dashboard::theme;
 
 pub(crate) const TITLE: &str = "SECTOR DETAIL";
-const PREFERRED_BODY_WIDTH_CAP: usize = 24;
-pub(crate) const MAX_BODY_ROWS: usize = 16;
-pub(crate) const MIN_BODY_ROWS: usize = 8;
+pub(crate) const MIN_BODY_ROWS: usize = PLANET_VIEW_MIN_BODY_ROWS;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());
 
     let Some(detail) = selected_planet_detail(app) else {
-        layout::write_panel_body_line(buf, frame, 0, "empty sector", theme::dim_style());
+        layout::write_panel_body_line(buf, frame, 0, EMPTY_SECTOR_LABEL, theme::dim_style());
         return;
     };
 
@@ -34,157 +33,22 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
 
 pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
     preferred_sector_detail_body_width(app)
-        .max("empty sector".chars().count())
-        .min(PREFERRED_BODY_WIDTH_CAP)
+        .max(EMPTY_SECTOR_LABEL.chars().count())
+        .min(crate::dashboard::planet_view::PREFERRED_BODY_WIDTH_CAP)
 }
 
 pub(crate) fn preferred_body_rows(app: &DashApp) -> usize {
-    projected_sector_details(app)
-        .into_iter()
-        .map(|detail| {
-            rendered_widget_lines(
-                &detail.widget_fields,
-                preferred_body_width(app),
-                MAX_BODY_ROWS,
-            )
-            .len()
-        })
-        .max()
-        .unwrap_or(1)
-        .clamp(MIN_BODY_ROWS, MAX_BODY_ROWS)
-}
-
-fn rendered_widget_lines(rows: &[DetailLine], body_width: usize, max_rows: usize) -> Vec<String> {
-    if max_rows == 0 {
-        return Vec::new();
-    }
-
-    let mut indexed = rows
-        .iter()
-        .enumerate()
-        .map(|(idx, row)| {
-            (
-                row_priority(row.label),
-                idx,
-                render_widget_field_lines(row, body_width),
-            )
-        })
-        .collect::<Vec<_>>();
-    indexed.sort_by_key(|(priority, idx, _)| (*priority, *idx));
-
-    let mut used_rows = 0usize;
-    let mut kept = indexed
-        .into_iter()
-        .filter_map(|(_, idx, lines)| {
-            if used_rows + lines.len() > max_rows {
-                return None;
-            }
-            used_rows += lines.len();
-            Some((idx, lines))
-        })
-        .collect::<Vec<_>>();
-    kept.sort_by_key(|(idx, _)| *idx);
-    kept.into_iter().flat_map(|(_, lines)| lines).collect()
-}
-
-fn render_widget_field_lines(field: &DetailLine, body_width: usize) -> Vec<String> {
-    let label = widget_label_for_width(field, body_width);
-    let prefix = format!("{label}: ");
-
-    if !field_is_wrappable(field.label) {
-        return vec![format!("{prefix}{}", field.value)];
-    }
-
-    wrap_field_value_lines(&prefix, &field.value, body_width)
-}
-
-fn wrap_field_value_lines(prefix: &str, value: &str, body_width: usize) -> Vec<String> {
-    let prefix_width = prefix.chars().count();
-    let available = body_width.saturating_sub(prefix_width);
-    if available == 0 {
-        return vec![prefix.trim_end().to_string()];
-    }
-
-    let wrapped = wrap_tokens(value, available);
-    let continuation = " ".repeat(prefix_width);
-
-    wrapped
-        .into_iter()
-        .enumerate()
-        .map(|(idx, line)| {
-            if idx == 0 {
-                format!("{prefix}{line}")
-            } else {
-                format!("{continuation}{line}")
-            }
-        })
-        .collect()
-}
-
-fn wrap_tokens(value: &str, max_width: usize) -> Vec<String> {
-    let tokens = value.split_whitespace().collect::<Vec<_>>();
-    if tokens.is_empty() {
-        return vec![String::new()];
-    }
-
-    let mut lines = Vec::new();
-    let mut current = String::new();
-    for token in tokens {
-        let token_width = token.chars().count();
-        if current.is_empty() {
-            current.push_str(token);
-            continue;
-        }
-
-        let next_width = current.chars().count() + 1 + token_width;
-        if next_width <= max_width {
-            current.push(' ');
-            current.push_str(token);
-        } else {
-            lines.push(current);
-            current = token.to_string();
-        }
-    }
-    if !current.is_empty() {
-        lines.push(current);
-    }
-    lines
-}
-
-fn field_is_wrappable(label: &str) -> bool {
-    matches!(label, "Building" | "Docked")
-}
-
-fn row_priority(label: &str) -> usize {
-    match label {
-        "Planet" => 0,
-        "Owner" => 1,
-        "State" => 2,
-        "Intel" => 3,
-        "Production" => 4,
-        "Potential Production" => 5,
-        "Treasury" => 6,
-        "Armies" => 7,
-        "Ground Batteries" => 8,
-        "Starbases" => 9,
-        "Building" => 10,
-        "Docked" => 11,
-        "Orbit" => 12,
-        _ => 13,
-    }
+    preferred_sector_detail_body_rows(app)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        MAX_BODY_ROWS, preferred_body_rows, preferred_body_width, rendered_widget_lines,
-        wrap_field_value_lines,
-    };
+    use super::{preferred_body_rows, preferred_body_width, rendered_widget_lines};
     use crate::dashboard::app::state::DashApp;
     use crate::dashboard::buffer::PlayfieldBuffer;
     use crate::dashboard::geometry::ScreenGeometry;
     use crate::dashboard::layout::dashboard_layout;
-    use crate::dashboard::planet_view::DetailLine;
+    use crate::dashboard::planet_view::{DetailLine, MAX_BODY_ROWS};
     use crate::dashboard::theme;
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
@@ -357,7 +221,14 @@ mod tests {
 
     #[test]
     fn building_and_docked_wrap_on_token_boundaries() {
-        let lines = wrap_field_value_lines("Building: ", "5BB 10CA 4DD 6TT 3ET 2SB", 24);
+        let lines = rendered_widget_lines(
+            &[DetailLine {
+                label: "Building",
+                value: String::from("5BB 10CA 4DD 6TT 3ET 2SB"),
+            }],
+            24,
+            MAX_BODY_ROWS,
+        );
 
         assert_eq!(
             lines,

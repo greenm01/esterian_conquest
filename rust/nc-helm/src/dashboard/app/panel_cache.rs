@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::dashboard::buffer::Cell;
 
 pub(crate) struct CachedPanel {
@@ -14,9 +16,21 @@ pub(crate) struct CachedStarmapProjection {
     pub(crate) player: usize,
     pub(crate) projection: nc_data::PlayerStarmapProjection,
     /// `[x, y] → index into projection.worlds`, built once per revision.
-    pub(crate) world_index: std::collections::BTreeMap<[u8; 2], usize>,
+    pub(crate) world_index: BTreeMap<[u8; 2], usize>,
     /// Sector coords that contain at least one viewer fleet, built once per revision.
-    pub(crate) viewer_fleet_sectors: std::collections::BTreeSet<[u8; 2]>,
+    pub(crate) viewer_fleet_sectors: BTreeSet<[u8; 2]>,
+}
+
+/// Cached sector-detail data for a specific `(game_data_revision, player)`.
+/// Reused across layout measurement, sector-detail panel draws, and planet
+/// popups so crosshair-only redraws do not rebuild every projected world.
+pub(crate) struct CachedSectorDetails {
+    pub(crate) revision: u64,
+    pub(crate) player: usize,
+    pub(crate) details_by_planet_index:
+        BTreeMap<usize, crate::dashboard::planet_view::SelectedPlanetDetail>,
+    pub(crate) preferred_body_width: usize,
+    pub(crate) preferred_body_rows: usize,
 }
 
 #[derive(Default)]
