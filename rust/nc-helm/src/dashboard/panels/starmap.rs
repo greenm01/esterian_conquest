@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::dashboard::buffer::{CellStyle, OverlayCrosshair, PlayfieldBuffer};
+use crate::dashboard::buffer::{CellStyle, OverlaySelection, PlayfieldBuffer};
 #[cfg(test)]
 use nc_data::CoreGameData;
 use nc_data::{
@@ -75,7 +75,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let world_index = world_index_for_projection(&projection);
     let projected = projected_map_geometry(app, frame, map_size);
     let viewer_fleet_sectors = viewer_fleet_sector_coords_fast(app, player_empire);
-    apply_crosshair_overlay_from_projected(buf, app, &projected);
+    apply_selection_overlay_from_projected(buf, app, &projected);
 
     for world_x in projected.x_min..=projected.x_max {
         let label_col = projected.sector_label_col(world_x);
@@ -102,7 +102,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
         );
         draw_content_row(buf, &projected, row_rect.content_row());
         let row_label_style = if row_y == app.crosshair_y {
-            theme::map_crosshair_style()
+            theme::map_selection_style()
         } else {
             theme::dim_style()
         };
@@ -158,27 +158,27 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     draw_separator_row(buf, &projected, projected.grid_bottom_row, true);
 }
 
-/// Set the crosshair overlay on `buf` based on the current app crosshair
+/// Set the selection overlay on `buf` based on the current app crosshair
 /// position and the projected map geometry. Called by `draw` and also by the
 /// render loop after a panel-cache hit restores cell content without re-running
 /// `draw`, so the overlay is always consistent.
-pub(crate) fn apply_crosshair_overlay(
+pub(crate) fn apply_selection_overlay(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
     frame: MapWidgetFrame,
 ) {
     let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
     let projected = projected_map_geometry(app, frame, map_size);
-    apply_crosshair_overlay_from_projected(buf, app, &projected);
+    apply_selection_overlay_from_projected(buf, app, &projected);
 }
 
-fn apply_crosshair_overlay_from_projected(
+fn apply_selection_overlay_from_projected(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
     projected: &ProjectedMapGeometry,
 ) {
-    if let Some(overlay) = projected.crosshair_overlay(app) {
-        buf.set_overlay_crosshair(overlay);
+    if let Some(overlay) = projected.selection_overlay(app) {
+        buf.set_overlay_selection(overlay);
     }
 }
 
@@ -301,16 +301,14 @@ fn viewport_start(center: u8, visible: u8, map_size: u8) -> u8 {
 }
 
 impl ProjectedMapGeometry {
-    fn crosshair_overlay(&self, app: &DashApp) -> Option<OverlayCrosshair> {
-        self.sector_rect([app.crosshair_x, app.crosshair_y])?;
-        Some(OverlayCrosshair {
-            fg: theme::map_crosshair_style().fg,
-            center_col: self.sector_marker_col(app.crosshair_x),
-            center_row: self.sector_marker_row(app.crosshair_y),
-            left_col: self.sector_marker_col(self.x_min),
-            right_col: self.sector_marker_col(self.x_max),
-            top_row: self.sector_marker_row(self.y_max),
-            bottom_row: self.sector_marker_row(self.y_min),
+    fn selection_overlay(&self, app: &DashApp) -> Option<OverlaySelection> {
+        let rect = self.sector_rect([app.crosshair_x, app.crosshair_y])?;
+        Some(OverlaySelection {
+            fg: theme::map_selection_style().fg,
+            left_col: rect.col,
+            right_col: rect.col + rect.width - 1,
+            top_row: rect.separator_row(),
+            bottom_row: rect.content_row(),
         })
     }
 
@@ -413,7 +411,7 @@ fn draw_column_axis_label(
 ) {
     let label = format!("{world_x:02}");
     let style = if highlighted {
-        theme::map_crosshair_style()
+        theme::map_selection_style()
     } else {
         theme::dim_style()
     };
@@ -1107,8 +1105,8 @@ mod tests {
         );
         assert_eq!(buffer.row(marker_row)[marker_col].ch, ' ');
         assert_eq!(
-            buffer.overlay_crosshair(),
-            projected.crosshair_overlay(&app)
+            buffer.overlay_selection(),
+            projected.selection_overlay(&app)
         );
         assert_eq!(buffer.row(marker_row)[projected.row_label_col].ch, '0');
         assert_eq!(buffer.row(marker_row)[projected.row_label_col + 1].ch, '5');
@@ -1210,8 +1208,8 @@ mod tests {
         let xh_col = projected.sector_marker_col(app.crosshair_x);
         assert_eq!(buffer.row(xh_row)[xh_col].ch, ' ');
         assert_eq!(
-            buffer.overlay_crosshair(),
-            projected.crosshair_overlay(&app)
+            buffer.overlay_selection(),
+            projected.selection_overlay(&app)
         );
     }
 

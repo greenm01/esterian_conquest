@@ -228,7 +228,7 @@ pub(crate) fn render_incremental_into(
             |buf| starmap::draw(buf, app, widgets.center_map),
             &mut dirty_rects,
         );
-        starmap::apply_crosshair_overlay(buf, app, widgets.center_map);
+        starmap::apply_selection_overlay(buf, app, widgets.center_map);
         redraw_panel_if_needed(
             buf,
             previous.comms != hashes.comms,
@@ -500,7 +500,7 @@ fn draw_all_panels(
         widgets.center_map.outer,
         |buf| starmap::draw(buf, app, widgets.center_map),
     );
-    starmap::apply_crosshair_overlay(buf, app, widgets.center_map);
+    starmap::apply_selection_overlay(buf, app, widgets.center_map);
     draw_cached(
         buf,
         &mut cache.comms,

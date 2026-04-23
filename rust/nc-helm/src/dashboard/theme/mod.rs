@@ -482,7 +482,7 @@ pub fn icd_style() -> CellStyle {
     on_body(active_cell_theme().alert)
 }
 
-pub fn map_crosshair_style() -> CellStyle {
+pub fn map_selection_style() -> CellStyle {
     active_cell_theme().map_crosshair
 }
 
@@ -675,7 +675,7 @@ pub mod classic {
         active_cell_theme().map_dot
     }
 
-    pub fn map_crosshair_style() -> CellStyle {
+    pub fn map_selection_style() -> CellStyle {
         active_cell_theme().map_crosshair
     }
 

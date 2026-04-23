@@ -58,10 +58,8 @@ impl<'a> StyledSpan<'a> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct OverlayCrosshair {
+pub(crate) struct OverlaySelection {
     pub fg: GameColor,
-    pub center_col: usize,
-    pub center_row: usize,
     pub left_col: usize,
     pub right_col: usize,
     pub top_row: usize,
@@ -74,7 +72,7 @@ pub struct PlayfieldBuffer {
     height: usize,
     cells: Vec<Cell>,
     cursor: Option<(u16, u16)>,
-    overlay_crosshair: Option<OverlayCrosshair>,
+    overlay_selection: Option<OverlaySelection>,
 }
 
 impl PlayfieldBuffer {
@@ -84,7 +82,7 @@ impl PlayfieldBuffer {
             height,
             cells: vec![Cell::new(' ', base_style); width * height],
             cursor: None,
-            overlay_crosshair: None,
+            overlay_selection: None,
         }
     }
 
@@ -95,7 +93,7 @@ impl PlayfieldBuffer {
             .resize(width * height, Cell::new(' ', base_style));
         self.cells.fill(Cell::new(' ', base_style));
         self.cursor = None;
-        self.overlay_crosshair = None;
+        self.overlay_selection = None;
     }
 
     pub fn width(&self) -> usize {
@@ -110,8 +108,8 @@ impl PlayfieldBuffer {
         self.cursor
     }
 
-    pub(crate) fn overlay_crosshair(&self) -> Option<OverlayCrosshair> {
-        self.overlay_crosshair
+    pub(crate) fn overlay_selection(&self) -> Option<OverlaySelection> {
+        self.overlay_selection
     }
 
     pub fn row(&self, row: usize) -> &[Cell] {
@@ -251,12 +249,12 @@ impl PlayfieldBuffer {
         self.cursor = None;
     }
 
-    pub(crate) fn clear_overlay_crosshair(&mut self) {
-        self.overlay_crosshair = None;
+    pub(crate) fn clear_overlay_selection(&mut self) {
+        self.overlay_selection = None;
     }
 
-    pub(crate) fn set_overlay_crosshair(&mut self, overlay: OverlayCrosshair) {
-        self.overlay_crosshair = Some(overlay);
+    pub(crate) fn set_overlay_selection(&mut self, overlay: OverlaySelection) {
+        self.overlay_selection = Some(overlay);
     }
 
     pub fn plain_line(&self, row: usize) -> String {

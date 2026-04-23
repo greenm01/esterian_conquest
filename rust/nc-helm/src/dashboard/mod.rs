@@ -215,12 +215,10 @@ fn sync_playfield_cursor_and_overlays(
         buffer.set_cursor(crate::Point::from_usize(column as usize, row as usize));
     }
     buffer.clear_overlay_logos();
-    buffer.clear_overlay_crosshair();
-    if let Some(overlay) = playfield.overlay_crosshair() {
-        buffer.set_overlay_crosshair(crate::grid::OverlayCrosshair {
+    buffer.clear_overlay_selection();
+    if let Some(overlay) = playfield.overlay_selection() {
+        buffer.set_overlay_selection(crate::grid::OverlaySelection {
             fg: convert_color(overlay.fg),
-            center_col: overlay.center_col,
-            center_row: overlay.center_row,
             left_col: overlay.left_col,
             right_col: overlay.right_col,
             top_row: overlay.top_row,

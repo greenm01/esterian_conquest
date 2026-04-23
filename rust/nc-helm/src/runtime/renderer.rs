@@ -31,7 +31,7 @@ use super::primitives;
 use crate::fonts::{ResolvedGlyph, render_alpha_glyph, resolve_mono_glyph, shape_stormfaze_text};
 use crate::geometry::{GridMapper, GridMetrics, PhysicalRect};
 use crate::grid::{
-    BackgroundMode, Cell, CellStyle, GameColor, OverlayCrosshair, OverlayLogo, OverlayLogoKind,
+    BackgroundMode, Cell, CellStyle, GameColor, OverlayLogo, OverlayLogoKind, OverlaySelection,
     PlayfieldBuffer, Point, ScreenGeometry,
 };
 use crate::theme as chrome_theme;
@@ -63,14 +63,12 @@ struct GpuGrid {
     cursor_col: u32,
     cursor_row: u32,
     cursor_visible: u32,
-    crosshair_col: u32,
-    crosshair_row: u32,
-    crosshair_left_col: u32,
-    crosshair_right_col: u32,
-    crosshair_top_row: u32,
-    crosshair_bottom_row: u32,
-    crosshair_visible: u32,
-    crosshair_color: u32,
+    selection_left_col: u32,
+    selection_right_col: u32,
+    selection_top_row: u32,
+    selection_bottom_row: u32,
+    selection_visible: u32,
+    selection_color: u32,
 }
 
 const GPU_STYLE_BOLD: u32 = 1 << 0;
@@ -140,14 +138,12 @@ struct GridConfig {
     cursor_col: u32,
     cursor_row: u32,
     cursor_visible: u32,
-    crosshair_col: u32,
-    crosshair_row: u32,
-    crosshair_left_col: u32,
-    crosshair_right_col: u32,
-    crosshair_top_row: u32,
-    crosshair_bottom_row: u32,
-    crosshair_visible: u32,
-    crosshair_color: u32,
+    selection_left_col: u32,
+    selection_right_col: u32,
+    selection_top_row: u32,
+    selection_bottom_row: u32,
+    selection_visible: u32,
+    selection_color: u32,
 };
 
 const STYLE_BOLD: u32 = 1u;
@@ -353,45 +349,42 @@ fn primitive_alpha(kind: i32, x: u32, y: u32, cell_w: u32, cell_h: u32) -> f32 {
     return rounded_primitive_alpha(kind, x, y, cell_w, cell_h);
 }
 
-fn crosshair_alpha(
+fn selection_alpha(
     grid_x: u32,
     grid_y: u32,
     local_x: u32,
     local_y: u32,
     config: GridConfig,
 ) -> f32 {
-    if (config.crosshair_visible == 0u) {
+    if (config.selection_visible == 0u) {
         return 0.0;
     }
 
-    let center_x = config.cell_width_px / 2u;
-    let center_y = config.cell_height_px / 2u;
-    let thickness_x = select(2u, 1u, config.cell_width_px <= 8u);
-    let thickness_y = select(2u, 1u, config.cell_height_px <= 8u);
+    // Only cells on the perimeter of the selection rect draw the border.
+    let on_left   = grid_x == config.selection_left_col;
+    let on_right  = grid_x == config.selection_right_col;
+    let on_top    = grid_y == config.selection_top_row;
+    let on_bottom = grid_y == config.selection_bottom_row;
 
-    var alpha = 0.0;
-    if (grid_y == config.crosshair_row
-        && grid_x >= config.crosshair_left_col
-        && grid_x <= config.crosshair_right_col
-        && abs(i32(local_y) - i32(center_y)) <= i32(thickness_y))
-    {
-        alpha = max(alpha, 0.78);
+    let in_x_span = grid_x >= config.selection_left_col && grid_x <= config.selection_right_col;
+    let in_y_span = grid_y >= config.selection_top_row  && grid_y <= config.selection_bottom_row;
+
+    if (!in_x_span || !in_y_span) {
+        return 0.0;
     }
-    if (grid_x == config.crosshair_col
-        && grid_y >= config.crosshair_top_row
-        && grid_y <= config.crosshair_bottom_row
-        && abs(i32(local_x) - i32(center_x)) <= i32(thickness_x))
-    {
-        alpha = max(alpha, 0.78);
-    }
-    if (grid_x == config.crosshair_col
-        && grid_y == config.crosshair_row
-        && abs(i32(local_x) - i32(center_x)) <= i32(thickness_x * 2u)
-        && abs(i32(local_y) - i32(center_y)) <= i32(thickness_y * 2u))
-    {
-        alpha = max(alpha, 1.0);
-    }
-    return alpha;
+
+    // Edge pixel thickness: 1px, clamped to at least 0 on tiny cells.
+    let thick_x = select(1u, 0u, config.cell_width_px  <= 2u);
+    let thick_y = select(1u, 0u, config.cell_height_px <= 2u);
+
+    // For each perimeter cell, paint only the outermost edge pixels.
+    var hit = false;
+    if (on_top    && local_y <= thick_y)                              { hit = true; }
+    if (on_bottom && local_y >= config.cell_height_px - 1u - thick_y) { hit = true; }
+    if (on_left   && local_x <= thick_x)                              { hit = true; }
+    if (on_right  && local_x >= config.cell_width_px  - 1u - thick_x) { hit = true; }
+
+    return select(0.0, 1.0, hit);
 }
 
 @fragment
@@ -440,12 +433,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         }
     }
 
-    let crosshair = unpack_color_linear(grid_config.crosshair_color);
-    let crosshair_mix = crosshair_alpha(grid_x, grid_y, local_x, local_y, grid_config);
-    if (crosshair_mix > 0.0) {
+    let selection = unpack_color_linear(grid_config.selection_color);
+    let selection_mix = selection_alpha(grid_x, grid_y, local_x, local_y, grid_config);
+    if (selection_mix > 0.0) {
         color = vec4<f32>(
-            mix(color.rgb, crosshair.rgb, crosshair_mix),
-            max(color.a, crosshair_mix),
+            mix(color.rgb, selection.rgb, selection_mix),
+            max(color.a, selection_mix),
         );
     }
 
@@ -565,7 +558,7 @@ struct CachedPlayfield {
     rows: Vec<Vec<Cell>>,
     cursor: Option<Point>,
     overlay_logos: Vec<OverlayLogo>,
-    overlay_crosshair: Option<OverlayCrosshair>,
+    overlay_selection: Option<OverlaySelection>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -609,7 +602,7 @@ struct DirtyCells {
     row_spans: Vec<Vec<DirtyColumnSpan>>,
     overlay_changed: bool,
     full_rebuild: bool,
-    crosshair_changed: bool,
+    selection_changed: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -844,28 +837,22 @@ impl Renderer {
                 .cursor()
                 .map_or(0, |point| point.row.as_usize() as u32),
             cursor_visible: u32::from(playfield.cursor().is_some()),
-            crosshair_col: playfield
-                .overlay_crosshair()
-                .map_or(0, |overlay| overlay.center_col as u32),
-            crosshair_row: playfield
-                .overlay_crosshair()
-                .map_or(0, |overlay| overlay.center_row as u32),
-            crosshair_left_col: playfield
-                .overlay_crosshair()
+            selection_left_col: playfield
+                .overlay_selection()
                 .map_or(0, |overlay| overlay.left_col as u32),
-            crosshair_right_col: playfield
-                .overlay_crosshair()
+            selection_right_col: playfield
+                .overlay_selection()
                 .map_or(0, |overlay| overlay.right_col as u32),
-            crosshair_top_row: playfield
-                .overlay_crosshair()
+            selection_top_row: playfield
+                .overlay_selection()
                 .map_or(0, |overlay| overlay.top_row as u32),
-            crosshair_bottom_row: playfield
-                .overlay_crosshair()
+            selection_bottom_row: playfield
+                .overlay_selection()
                 .map_or(0, |overlay| overlay.bottom_row as u32),
-            crosshair_visible: u32::from(playfield.overlay_crosshair().is_some()),
-            crosshair_color: u32::from_le_bytes(primitives::color_to_rgba(
+            selection_visible: u32::from(playfield.overlay_selection().is_some()),
+            selection_color: u32::from_le_bytes(primitives::color_to_rgba(
                 playfield
-                    .overlay_crosshair()
+                    .overlay_selection()
                     .map_or(GameColor::BrightRed, |overlay| overlay.fg),
             )),
         };
@@ -1286,7 +1273,7 @@ fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
         rows,
         cursor: playfield.cursor(),
         overlay_logos: playfield.overlay_logos().to_vec(),
-        overlay_crosshair: playfield.overlay_crosshair(),
+        overlay_selection: playfield.overlay_selection(),
     }
 }
 
@@ -1301,7 +1288,7 @@ fn compute_dirty_cells(
             row_spans: full_rebuild_row_spans(height, width),
             overlay_changed: true,
             full_rebuild: true,
-            crosshair_changed: playfield.overlay_crosshair().is_some(),
+            selection_changed: playfield.overlay_selection().is_some(),
         };
     };
 
@@ -1310,7 +1297,7 @@ fn compute_dirty_cells(
             row_spans: full_rebuild_row_spans(height, width),
             overlay_changed: true,
             full_rebuild: true,
-            crosshair_changed: previous.overlay_crosshair != playfield.overlay_crosshair(),
+            selection_changed: previous.overlay_selection != playfield.overlay_selection(),
         };
     }
 
@@ -1326,7 +1313,7 @@ fn compute_dirty_cells(
         row_spans,
         overlay_changed: previous.overlay_logos != playfield.overlay_logos(),
         full_rebuild: false,
-        crosshair_changed: previous.overlay_crosshair != playfield.overlay_crosshair(),
+        selection_changed: previous.overlay_selection != playfield.overlay_selection(),
     }
 }
 
