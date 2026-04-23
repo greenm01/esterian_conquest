@@ -11,7 +11,8 @@ use crate::dashboard::modal::Rect;
 use crate::dashboard::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect, draw_hline,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, draw_vline,
-    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, write_clipped,
+    max_overlay_body_width, overlay_chrome_height, overlay_popup_rect_for_body_in_parent,
+    write_clipped,
 };
 use crate::dashboard::theme;
 
@@ -19,6 +20,12 @@ pub(crate) const HOTKEYS: &str = "? M R A Y D <ESC>";
 const LIST_WIDTH: usize = 28;
 const SPLIT_GAP_WIDTH: usize = 2;
 const TARGET_PREVIEW_WIDTH: usize = 72;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InboxPane {
+    List,
+    Preview,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct InboxPaneLayout {
@@ -282,6 +289,77 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
     )
+}
+
+pub(crate) fn hit_test_inbox_pane(
+    app: &DashApp,
+    map_frame: MapWidgetFrame,
+    col: usize,
+    row: usize,
+) -> Option<InboxPane> {
+    let items = inbox_items(app);
+    let selected = app
+        .inbox_overlay
+        .selected
+        .min(items.len().saturating_sub(1));
+    let selected_default = items.get(selected).map(|_| format!("{:02}", selected + 1));
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default.as_deref(),
+        input: &app.inbox_overlay.jump_input,
+    };
+    let filter_line = format!(
+        "Filter:{}  Year:{}  Focus:{}{}",
+        app.inbox_overlay.filter.label(),
+        if app.inbox_overlay.current_year_only {
+            "Current"
+        } else {
+            "All"
+        },
+        match app.inbox_overlay.focus {
+            InboxFocus::List => "List",
+            InboxFocus::Preview => "Preview",
+        },
+        if app.inbox_overlay.delete_confirm {
+            "  Delete this item? Y/[N]"
+        } else {
+            ""
+        }
+    );
+    let target_body_width = filter_line
+        .chars()
+        .count()
+        .max(LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH);
+    let body_width = target_body_width.min(max_overlay_body_width(map_frame));
+    let natural_content_rows = items.len().max(1).max(
+        items
+            .get(selected)
+            .map(|item| item.body_lines.len().max(1))
+            .unwrap_or(1),
+    );
+    let popup = overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        "INBOX",
+        body_width,
+        4 + natural_content_rows,
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::Inbox),
+    );
+    let body_col = popup.x as usize + 2;
+    let body_row = popup.y as usize + 1;
+    let body_height = popup
+        .height
+        .saturating_sub(overlay_chrome_height(footer) as u16) as usize;
+    if row < body_row || row >= body_row + body_height || col < body_col {
+        return None;
+    }
+    let pane = inbox_pane_layout(body_width);
+    if col < body_col + pane.divider_offset {
+        Some(InboxPane::List)
+    } else {
+        Some(InboxPane::Preview)
+    }
 }
 
 pub(crate) fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {

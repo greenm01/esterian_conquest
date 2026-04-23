@@ -185,6 +185,7 @@ struct Runtime {
     needs_redraw: bool,
     last_user_input: Option<Instant>,
     left_mouse_down: bool,
+    pending_wheel_residual: f32,
     shrink_tracker: Option<ResizeShrinkTracker>,
     next_matrix_frame_at: Option<Instant>,
     frame_timings: FrameTimingSummary,
@@ -220,6 +221,7 @@ impl Runtime {
             needs_redraw: true,
             last_user_input: None,
             left_mouse_down: false,
+            pending_wheel_residual: 0.0,
             shrink_tracker: None,
             next_matrix_frame_at: None,
             frame_timings: FrameTimingSummary::default(),
@@ -977,6 +979,30 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     self.pointer_cell = None;
                 }
             }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let mouse_enabled = route_uses_mouse(&self.app.model().route);
+                if self.native_options.diagnostic_mode {
+                    self.diagnostic_log(&format!(
+                        "event: MouseWheel route={} mouse_enabled={mouse_enabled}",
+                        route_label(&self.app.model().route)
+                    ));
+                }
+                if mouse_enabled {
+                    if let Some(position) = self.pointer_cell {
+                        let lines = mouse_wheel_delta_to_lines(delta, &mut self.pending_wheel_residual);
+                        if lines != 0 {
+                            self.dispatch(
+                                Msg::Mouse(MouseEvent {
+                                    kind: MouseEventKind::Scroll { lines },
+                                    position,
+                                    modifiers: key_modifiers_from_winit(self.modifiers),
+                                }),
+                                event_loop,
+                            );
+                        }
+                    }
+                }
+            }
             WindowEvent::Resized(size) => {
                 let scale_factor = self
                     .window
@@ -1279,6 +1305,20 @@ fn percentile_sorted(values: &[f64], percentile: f64) -> f64 {
     }
     let index = ((values.len() - 1) as f64 * percentile).round() as usize;
     values[index.min(values.len() - 1)]
+}
+
+fn mouse_wheel_delta_to_lines(delta: winit::event::MouseScrollDelta, residual: &mut f32) -> i32 {
+    const PIXELS_PER_LINE: f32 = 16.0;
+    let raw = match delta {
+        winit::event::MouseScrollDelta::LineDelta(_, y) => y,
+        winit::event::MouseScrollDelta::PixelDelta(physical_position) => {
+            *residual += physical_position.y as f32;
+            let whole = (*residual / PIXELS_PER_LINE).trunc();
+            *residual -= whole * PIXELS_PER_LINE;
+            return whole as i32;
+        }
+    };
+    raw as i32
 }
 
 fn pointer_move_event_kind(left_mouse_down: bool) -> MouseEventKind {

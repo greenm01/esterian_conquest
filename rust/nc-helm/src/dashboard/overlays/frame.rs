@@ -498,7 +498,7 @@ fn resolve_requested_axis(natural: usize, policy: OverlayAxisSize) -> usize {
     }
 }
 
-fn overlay_chrome_height(footer: TableFooter<'_>) -> usize {
+pub(crate) fn overlay_chrome_height(footer: TableFooter<'_>) -> usize {
     2 + match table_footer_row_count(footer) {
         0 => 0,
         rows => rows + 1,

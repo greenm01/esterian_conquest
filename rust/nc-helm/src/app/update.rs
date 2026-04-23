@@ -1300,6 +1300,9 @@ fn dashboard_mouse_event(
                     crate::dashboard::input::MouseButton::Middle,
                 )
             }
+            MouseEventKind::Scroll { lines } => {
+                crate::dashboard::input::MouseEventKind::Scroll { lines }
+            }
             MouseEventKind::Moved => crate::dashboard::input::MouseEventKind::Moved,
         },
         column: mouse.position.column.as_usize().min(u16::MAX as usize) as u16,

@@ -68,6 +68,7 @@ pub enum MouseEventKind {
     Down(MouseButton),
     Up(MouseButton),
     Drag(MouseButton),
+    Scroll { lines: i32 },
     Moved,
 }
 

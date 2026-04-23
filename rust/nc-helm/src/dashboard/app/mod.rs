@@ -778,7 +778,97 @@ impl DashApp {
             MouseEventKind::Up(MouseButton::Left) => {
                 self.mouse_gesture = ActiveMouseGesture::None;
             }
+            MouseEventKind::Scroll { lines } => {
+                if self.popup != ActivePopup::None {
+                    return;
+                }
+                if self.overlay != ActiveOverlay::None {
+                    self.handle_overlay_scroll(mouse, lines, map_frame);
+                    return;
+                }
+                if map_frame.outer.contains_point(mouse.column as usize, mouse.row as usize) {
+                    self.pan_starmap_viewport(0, -lines);
+                }
+            }
             _ => {}
+        }
+    }
+
+    fn handle_overlay_scroll(
+        &mut self,
+        mouse: MouseEvent,
+        lines: i32,
+        map_frame: crate::dashboard::layout::MapWidgetFrame,
+    ) {
+        match self.overlay {
+            ActiveOverlay::Diplomacy => {
+                let total = self.game_data.player.records.len();
+                self.diplomacy_scroll = scroll_clamp(
+                    self.diplomacy_scroll as i32 - lines,
+                    total.saturating_sub(1) as i32,
+                );
+            }
+            ActiveOverlay::Inbox => {
+                match inbox::hit_test_inbox_pane(self, map_frame, mouse.column as usize, mouse.row as usize) {
+                    Some(inbox::InboxPane::List) => {
+                        let total = inbox::inbox_items(self).len();
+                        self.inbox_overlay.selected = scroll_selected(
+                            self.inbox_overlay.selected,
+                            lines,
+                            total,
+                        );
+                        if lines > 0 {
+                            self.inbox_overlay.scroll =
+                                self.inbox_overlay.scroll.min(self.inbox_overlay.selected);
+                        }
+                    }
+                    Some(inbox::InboxPane::Preview) => {
+                        let selected = self.inbox_overlay.selected;
+                        let items = inbox::inbox_items(self);
+                        let max_preview = items
+                            .get(selected)
+                            .map(|item| item.body_lines.len().saturating_sub(1))
+                            .unwrap_or(0);
+                        self.inbox_overlay.preview_scroll = scroll_clamp(
+                            self.inbox_overlay.preview_scroll as i32 - lines,
+                            max_preview as i32,
+                        );
+                    }
+                    None => {}
+                }
+            }
+            ActiveOverlay::PlanetList => {
+                if self.planet_overlay.prompt_mode != PlanetOverlayPromptMode::None {
+                    return;
+                }
+                let total = planet_list::selection_rows(self).len();
+                self.planet_overlay.selected = scroll_selected(self.planet_overlay.selected, lines, total);
+                if lines > 0 {
+                    self.planet_overlay.scroll = self.planet_overlay.scroll.min(self.planet_overlay.selected);
+                }
+            }
+            ActiveOverlay::FleetList => {
+                if self.fleet_overlay.prompt_mode != FleetOverlayPromptMode::None {
+                    return;
+                }
+                let total = fleet_list::selection_rows(self).len();
+                self.fleet_overlay.selected = scroll_selected(self.fleet_overlay.selected, lines, total);
+                if lines > 0 {
+                    self.fleet_overlay.scroll = self.fleet_overlay.scroll.min(self.fleet_overlay.selected);
+                }
+            }
+            ActiveOverlay::IntelDatabase => {
+                if self.intel_overlay.prompt_mode != IntelOverlayPromptMode::None {
+                    return;
+                }
+                let total = intel_database::selection_rows(self).len();
+                self.intel_overlay.selected = scroll_selected(self.intel_overlay.selected, lines, total);
+                if lines > 0 {
+                    self.intel_overlay.scroll = self.intel_overlay.scroll.min(self.intel_overlay.selected);
+                }
+            }
+            ActiveOverlay::Settings | ActiveOverlay::Help => {}
+            ActiveOverlay::None => {}
         }
     }
 
@@ -2672,6 +2762,19 @@ fn handle_list_overlay_key(
     }
 }
 
+fn scroll_clamp(value: i32, max: i32) -> usize {
+    value.clamp(0, max.max(0)) as usize
+}
+
+fn scroll_selected(selected: usize, lines: i32, total: usize) -> usize {
+    let last = total.saturating_sub(1);
+    if lines < 0 {
+        selected.saturating_add((-lines) as usize).min(last)
+    } else {
+        selected.saturating_sub(lines as usize)
+    }
+}
+
 fn map_coord_rows(app: &DashApp) -> Vec<Vec<String>> {
     let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
     let mut rows = Vec::with_capacity(usize::from(map_size) * usize::from(map_size));
@@ -2759,7 +2862,7 @@ mod tests {
     use crate::dashboard::overlays::{fleet_list, intel_database, planet_list};
     use crate::dashboard::planet_view;
     use crate::dashboard::table_selection::{wrap_next_index, wrap_prev_index};
-    use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot};
+    use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
     use nc_engine::{
         build_seeded_initialized_game, fleet_target_input_kind, recommended_coordinate_target,
         recommended_coordinate_target_y_for_entered_x,
@@ -6441,5 +6544,311 @@ mod tests {
 
         assert_eq!(app.starmap_viewport_x_min, centered_x_min);
         assert_eq!(app.starmap_viewport_y_min, centered_y_min);
+    }
+
+    #[test]
+    fn mouse_wheel_on_starmap_pans_viewport_without_moving_crosshair() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 23;
+        app.crosshair_y = 23;
+        starmap::advance_starmap_viewport(&mut app);
+        let initial_x_min = app.starmap_viewport_x_min;
+        let initial_y_min = app.starmap_viewport_y_min;
+        let initial_crosshair = [app.crosshair_x, app.crosshair_y];
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let col = map_frame.outer.col as u16 + 1;
+        let row = map_frame.outer.row as u16 + 1;
+
+        // Scroll up (positive lines) → viewport origin moves up (decrease y).
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: 2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], initial_crosshair);
+        assert_eq!(app.starmap_viewport_y_min, initial_y_min.saturating_sub(2));
+        assert_eq!(app.starmap_viewport_x_min, initial_x_min);
+
+        // Scroll down (negative lines) → viewport origin moves down (increase y).
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -3 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.starmap_viewport_y_min, initial_y_min.saturating_add(1));
+    }
+
+    #[test]
+    fn mouse_wheel_on_fitting_starmap_does_nothing() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(10, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 5;
+        app.crosshair_y = 5;
+        starmap::advance_starmap_viewport(&mut app);
+        let initial_x_min = app.starmap_viewport_x_min;
+        let initial_y_min = app.starmap_viewport_y_min;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let col = map_frame.outer.col as u16 + 1;
+        let row = map_frame.outer.row as u16 + 1;
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: 5 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.starmap_viewport_x_min, initial_x_min);
+        assert_eq!(app.starmap_viewport_y_min, initial_y_min);
+    }
+
+    #[test]
+    fn mouse_wheel_in_diplomacy_overlay_scrolls_list() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Diplomacy;
+        app.diplomacy_scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 2;
+        let row = popup.y + 2;
+
+        // Scroll down (negative lines) → diplomacy_scroll increases.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -3 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.diplomacy_scroll, 3);
+
+        // Scroll up (positive lines) → diplomacy_scroll decreases.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: 2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.diplomacy_scroll, 1);
+    }
+
+    #[test]
+    fn mouse_wheel_in_inbox_list_moves_selection() {
+        let mut app = dash_app();
+        app.report_block_rows = vec![
+            ReportBlockRow {
+                viewer_empire_id: 0,
+                block_index: 0,
+                decoded_text: "Stardate: 03/3012\nLine one.".to_string(),
+                raw_bytes: None,
+                recipient_deleted: false,
+            },
+            ReportBlockRow {
+                viewer_empire_id: 0,
+                block_index: 1,
+                decoded_text: "Stardate: 04/3012\nLine two.".to_string(),
+                raw_bytes: None,
+                recipient_deleted: false,
+            },
+        ];
+        app.queued_mail = vec![QueuedPlayerMail {
+            sender_empire_id: 2,
+            recipient_empire_id: 1,
+            year: 3012,
+            subject: "Test subject".to_string(),
+            body: "Test body".to_string(),
+            recipient_deleted: false,
+        }];
+        app.overlay = ActiveOverlay::Inbox;
+        app.inbox_overlay.selected = 2;
+        app.inbox_overlay.scroll = 0;
+        app.inbox_overlay.preview_scroll = 5;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        // List pane is on the left side of the body.
+        let col = popup.x + 3;
+        let row = popup.y + 5;
+
+        // Scroll up (positive lines) → selected decreases.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: 2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.inbox_overlay.selected, 0);
+        assert_eq!(app.inbox_overlay.scroll, 0);
+        assert_eq!(app.inbox_overlay.preview_scroll, 5); // unchanged
+
+        // Scroll down (negative lines) → selected increases.
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.inbox_overlay.selected, 1);
+    }
+
+    #[test]
+    fn mouse_wheel_in_inbox_preview_scrolls_preview() {
+        let mut app = dash_app();
+        app.report_block_rows = vec![
+            ReportBlockRow {
+                viewer_empire_id: 0,
+                block_index: 0,
+                decoded_text: "Stardate: 03/3012\nLine one.".to_string(),
+                raw_bytes: None,
+                recipient_deleted: false,
+            },
+        ];
+        app.queued_mail = vec![QueuedPlayerMail {
+            sender_empire_id: 2,
+            recipient_empire_id: 1,
+            year: 3012,
+            subject: "Test subject".to_string(),
+            body: "Test body with enough length to create a preview.".to_string(),
+            recipient_deleted: false,
+        }];
+        app.overlay = ActiveOverlay::Inbox;
+        app.inbox_overlay.selected = 0;
+        app.inbox_overlay.scroll = 0;
+        app.inbox_overlay.preview_scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        // Preview pane is on the right side of the body.
+        let col = popup.x + popup.width - 3;
+        let row = popup.y + 5;
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        // First item has 2-line body; max preview scroll is 1.
+        assert_eq!(app.inbox_overlay.preview_scroll, 1);
+        assert_eq!(app.inbox_overlay.selected, 0); // unchanged
+    }
+
+    #[test]
+    fn mouse_wheel_in_planet_list_overlay_moves_selection() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.planet_overlay.selected = 3;
+        app.planet_overlay.scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: 2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.planet_overlay.selected, 1);
+        assert_eq!(app.planet_overlay.scroll, 0);
+    }
+
+    #[test]
+    fn mouse_wheel_ignored_when_planet_prompt_open() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.planet_overlay.selected = 3;
+        app.planet_overlay.scroll = 0;
+        app.planet_overlay.open_prompt(PlanetOverlayPromptMode::SortMenu);
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -2 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.planet_overlay.selected, 3);
+        assert_eq!(app.planet_overlay.scroll, 0);
+    }
+
+    #[test]
+    fn mouse_wheel_in_fleet_list_overlay_moves_selection() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.fleet_overlay.selected = 2;
+        app.fleet_overlay.scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.fleet_overlay.selected, 3);
+    }
+
+    #[test]
+    fn mouse_wheel_in_intel_overlay_moves_selection() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::IntelDatabase;
+        app.intel_overlay.selected = 1;
+        app.intel_overlay.scroll = 0;
+
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app.current_overlay_popup_rect(map_frame).unwrap();
+        let col = popup.x + 3;
+        let row = popup.y + 3;
+
+        app.dispatch_mouse_event_for_repro(MouseEvent {
+            kind: MouseEventKind::Scroll { lines: -1 },
+            column: col,
+            row,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.intel_overlay.selected, 2);
     }
 }
