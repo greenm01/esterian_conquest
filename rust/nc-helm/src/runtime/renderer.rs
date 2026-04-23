@@ -1107,7 +1107,7 @@ impl Renderer {
                 .collect();
         }
 
-        self.previous_playfield = Some(snapshot_playfield(playfield));
+        update_snapshot_in_place(&mut self.previous_playfield, playfield, &dirty_cells);
         let raw_spans = dirty_cells
             .row_spans
             .iter()
@@ -1308,6 +1308,49 @@ fn pack_gpu_style(style: CellStyle) -> u32 {
         bits |= GPU_STYLE_TEXT_BAND;
     }
     bits
+}
+
+/// Update the cached playfield snapshot in-place, reusing existing row `Vec`s.
+///
+/// On a normal incremental frame this avoids re-allocating `height` `Vec<Cell>`
+/// objects and only copies the cells that actually changed.  The full-clone
+/// path (`snapshot_playfield`) is only needed on the very first frame or when
+/// the playfield dimensions change.
+fn update_snapshot_in_place(
+    previous: &mut Option<CachedPlayfield>,
+    playfield: &PlayfieldBuffer,
+    dirty: &DirtyCells,
+) {
+    let reusable = previous
+        .as_ref()
+        .map(|prev| prev.width == playfield.width() && prev.height == playfield.height())
+        .unwrap_or(false);
+
+    if !reusable {
+        *previous = Some(snapshot_playfield(playfield));
+        return;
+    }
+
+    let prev = previous.as_mut().expect("checked above");
+    if dirty.full_rebuild {
+        for row_idx in 0..playfield.height() {
+            prev.rows[row_idx].copy_from_slice(playfield.row(row_idx));
+        }
+    } else {
+        for (row_idx, spans) in dirty.row_spans.iter().enumerate() {
+            if spans.is_empty() {
+                continue;
+            }
+            let curr = playfield.row(row_idx);
+            for span in spans {
+                prev.rows[row_idx][span.start_col..=span.end_col]
+                    .copy_from_slice(&curr[span.start_col..=span.end_col]);
+            }
+        }
+    }
+    prev.cursor = playfield.cursor();
+    prev.overlay_logos = playfield.overlay_logos().to_vec();
+    prev.overlay_selection = playfield.overlay_selection();
 }
 
 fn snapshot_playfield(playfield: &PlayfieldBuffer) -> CachedPlayfield {
