@@ -404,15 +404,32 @@ fn selection_alpha(
     let on_horizontal = abs(i32(local_y) - i32(mid_y)) <= i32(thick_y);
 
     var horizontal_arm = false;
+    var vertical_arm = false;
     switch corner_kind {
-        case 0: { horizontal_arm = local_x >= mid_x; } // top-left
-        case 1: { horizontal_arm = local_x <= mid_x; } // top-right
-        case 2: { horizontal_arm = local_x >= mid_x; } // bottom-left
-        case 3: { horizontal_arm = local_x <= mid_x; } // bottom-right
+        case 0: { // top-left
+            horizontal_arm = local_x >= mid_x;
+            vertical_arm = local_y >= mid_y;
+        }
+        case 1: { // top-right
+            horizontal_arm = local_x <= mid_x;
+            vertical_arm = local_y >= mid_y;
+        }
+        case 2: { // bottom-left
+            horizontal_arm = local_x >= mid_x;
+            vertical_arm = local_y <= mid_y;
+        }
+        case 3: { // bottom-right
+            horizontal_arm = local_x <= mid_x;
+            vertical_arm = local_y <= mid_y;
+        }
         default: {}
     }
 
-    return select(0.0, 1.0, on_vertical || (on_horizontal && horizontal_arm));
+    return select(
+        0.0,
+        1.0,
+        (on_horizontal && horizontal_arm) || (on_vertical && vertical_arm),
+    );
 }
 
 @fragment
