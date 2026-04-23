@@ -349,15 +349,13 @@ fn primitive_alpha(kind: i32, x: u32, y: u32, cell_w: u32, cell_h: u32) -> f32 {
     return rounded_primitive_alpha(kind, x, y, cell_w, cell_h);
 }
 
-fn selection_alpha(
+fn selection_corner_kind(
     grid_x: u32,
     grid_y: u32,
-    local_x: u32,
-    local_y: u32,
     config: GridConfig,
-) -> f32 {
+) -> i32 {
     if (config.selection_visible == 0u) {
-        return 0.0;
+        return -1;
     }
 
     let on_left   = grid_x == config.selection_left_col;
@@ -365,45 +363,56 @@ fn selection_alpha(
     let on_top    = grid_y == config.selection_top_row;
     let on_bottom = grid_y == config.selection_bottom_row;
 
-    let is_corner_cell = (on_left || on_right) && (on_top || on_bottom);
-    if (!is_corner_cell) {
+    if (!(on_left || on_right) || !(on_top || on_bottom)) {
+        return -1;
+    }
+
+    if (on_left && on_top) {
+        return 0;
+    }
+    if (on_right && on_top) {
+        return 1;
+    }
+    if (on_left && on_bottom) {
+        return 2;
+    }
+    if (on_right && on_bottom) {
+        return 3;
+    }
+
+    return -1;
+}
+
+fn selection_alpha(
+    corner_kind: i32,
+    local_x: u32,
+    local_y: u32,
+    config: GridConfig,
+) -> f32 {
+    if (corner_kind < 0) {
         return 0.0;
     }
 
-    // Draw inward-facing corner brackets within the four corner cells of the
-    // selected sector bounds. The grid glyphs still render on top, so walls
-    // and separator dashes remain legible while the bracket sits around them.
-    let cell_last_x = config.cell_width_px - 1u;
-    let cell_last_y = config.cell_height_px - 1u;
-    let bracket_len_x = max(config.cell_width_px / 2u, 1u);
-    let bracket_len_y = max(config.cell_height_px / 2u, 1u);
+    // Replace each selected corner lattice cell with a red square bracket.
+    // The bracket sits on the same centerlines as the ASCII `|`/`-` lattice
+    // it replaces so the highlight is visually anchored to the sector bounds.
+    let mid_x = config.cell_width_px / 2u;
+    let mid_y = config.cell_height_px / 2u;
     let thick_x = select(1u, 0u, config.cell_width_px <= 2u);
     let thick_y = select(1u, 0u, config.cell_height_px <= 2u);
+    let on_vertical = abs(i32(local_x) - i32(mid_x)) <= i32(thick_x);
+    let on_horizontal = abs(i32(local_y) - i32(mid_y)) <= i32(thick_y);
 
-    var hit = false;
-
-    if (on_top) {
-        let top_edge = local_y <= thick_y;
-        if (on_left && top_edge && local_x <= bracket_len_x) { hit = true; }
-        if (on_right && top_edge && local_x + bracket_len_x >= cell_last_x) { hit = true; }
-    }
-    if (on_bottom) {
-        let bottom_edge = local_y + thick_y >= cell_last_y;
-        if (on_left && bottom_edge && local_x <= bracket_len_x) { hit = true; }
-        if (on_right && bottom_edge && local_x + bracket_len_x >= cell_last_x) { hit = true; }
-    }
-    if (on_left) {
-        let left_edge = local_x <= thick_x;
-        if (on_top && left_edge && local_y <= bracket_len_y) { hit = true; }
-        if (on_bottom && left_edge && local_y + bracket_len_y >= cell_last_y) { hit = true; }
-    }
-    if (on_right) {
-        let right_edge = local_x + thick_x >= cell_last_x;
-        if (on_top && right_edge && local_y <= bracket_len_y) { hit = true; }
-        if (on_bottom && right_edge && local_y + bracket_len_y >= cell_last_y) { hit = true; }
+    var horizontal_arm = false;
+    switch corner_kind {
+        case 0: { horizontal_arm = local_x >= mid_x; } // top-left
+        case 1: { horizontal_arm = local_x <= mid_x; } // top-right
+        case 2: { horizontal_arm = local_x >= mid_x; } // bottom-left
+        case 3: { horizontal_arm = local_x <= mid_x; } // bottom-right
+        default: {}
     }
 
-    return select(0.0, 1.0, hit);
+    return select(0.0, 1.0, on_vertical || (on_horizontal && horizontal_arm));
 }
 
 @fragment
@@ -452,8 +461,9 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         }
     }
 
+    let selection_corner = selection_corner_kind(grid_x, grid_y, grid_config);
     let selection = unpack_color_linear(grid_config.selection_color);
-    let selection_mix = selection_alpha(grid_x, grid_y, local_x, local_y, grid_config);
+    let selection_mix = selection_alpha(selection_corner, local_x, local_y, grid_config);
     if (selection_mix > 0.0) {
         color = vec4<f32>(
             mix(color.rgb, selection.rgb, selection_mix),
@@ -461,32 +471,34 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         );
     }
 
-    let primitive = primitive_kind(cell.char_val);
-    if (primitive >= 0) {
-        let alpha = primitive_alpha(
-            primitive,
-            local_x,
-            local_y,
-            grid_config.cell_width_px,
-            grid_config.cell_height_px,
-        );
-        color = vec4<f32>(mix(color.rgb, fg_color.rgb, alpha), max(color.a, alpha));
-        return color;
-    }
-
-    var atlas_idx = get_atlas_base_index(cell.char_val);
-    if (atlas_idx >= 0) {
-        if ((cell.style & STYLE_BOLD) != 0u) {
-            atlas_idx = atlas_idx + i32(ATLAS_GLYPH_COUNT);
+    if (selection_corner < 0) {
+        let primitive = primitive_kind(cell.char_val);
+        if (primitive >= 0) {
+            let alpha = primitive_alpha(
+                primitive,
+                local_x,
+                local_y,
+                grid_config.cell_width_px,
+                grid_config.cell_height_px,
+            );
+            color = vec4<f32>(mix(color.rgb, fg_color.rgb, alpha), max(color.a, alpha));
+            return color;
         }
-        let col = u32(atlas_idx) % ATLAS_COLS;
-        let row = u32(atlas_idx) / ATLAS_COLS;
-        let atlas_width_px = f32(ATLAS_COLS * grid_config.cell_width_px);
-        let atlas_height_px = f32(16u * grid_config.cell_height_px);
-        let atlas_u = (f32(col * grid_config.cell_width_px + local_x) + 0.5) / atlas_width_px;
-        let atlas_v = (f32(row * grid_config.cell_height_px + local_y) + 0.5) / atlas_height_px;
-        let glyph_alpha = textureSample(grid_atlas, background_sampler, vec2<f32>(atlas_u, atlas_v)).r;
-        color = vec4<f32>(mix(color.rgb, fg_color.rgb, glyph_alpha), max(color.a, glyph_alpha));
+
+        var atlas_idx = get_atlas_base_index(cell.char_val);
+        if (atlas_idx >= 0) {
+            if ((cell.style & STYLE_BOLD) != 0u) {
+                atlas_idx = atlas_idx + i32(ATLAS_GLYPH_COUNT);
+            }
+            let col = u32(atlas_idx) % ATLAS_COLS;
+            let row = u32(atlas_idx) / ATLAS_COLS;
+            let atlas_width_px = f32(ATLAS_COLS * grid_config.cell_width_px);
+            let atlas_height_px = f32(16u * grid_config.cell_height_px);
+            let atlas_u = (f32(col * grid_config.cell_width_px + local_x) + 0.5) / atlas_width_px;
+            let atlas_v = (f32(row * grid_config.cell_height_px + local_y) + 0.5) / atlas_height_px;
+            let glyph_alpha = textureSample(grid_atlas, background_sampler, vec2<f32>(atlas_u, atlas_v)).r;
+            color = vec4<f32>(mix(color.rgb, fg_color.rgb, glyph_alpha), max(color.a, glyph_alpha));
+        }
     }
 
     return color;
