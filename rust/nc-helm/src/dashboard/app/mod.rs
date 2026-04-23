@@ -968,7 +968,8 @@ impl DashApp {
             let r_bottom = r_top + r.height.saturating_sub(1) as usize;
             left <= r_right && right >= r_left && top <= r_bottom && bottom >= r_top
         };
-        self.current_overlay_popup_rect(map_frame).is_some_and(covers)
+        self.current_overlay_popup_rect(map_frame)
+            .is_some_and(covers)
             || self.current_popup_rect(map_frame).is_some_and(covers)
     }
 

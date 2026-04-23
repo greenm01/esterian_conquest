@@ -3,7 +3,9 @@
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::buffer::{CellStyle, PlayfieldBuffer};
 use crate::dashboard::layout::{self, PanelWidgetFrame};
-use crate::dashboard::panels::starmap::{StarmapMarkerKind, cached_projection_for_app, marker_kind_for_world};
+use crate::dashboard::panels::starmap::{
+    StarmapMarkerKind, cached_projection_for_app, marker_kind_for_world,
+};
 use crate::dashboard::theme;
 
 pub(crate) const TITLE: &str = "KNOWN GALAXY";

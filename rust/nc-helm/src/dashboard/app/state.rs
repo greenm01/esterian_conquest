@@ -854,7 +854,8 @@ pub struct DashApp {
 
     pub(crate) game_data_revision: u64,
     pub(crate) panel_cache: std::cell::RefCell<PanelCache>,
-    pub(crate) starmap_projection_cache: std::cell::RefCell<Option<super::panel_cache::CachedStarmapProjection>>,
+    pub(crate) starmap_projection_cache:
+        std::cell::RefCell<Option<super::panel_cache::CachedStarmapProjection>>,
 }
 
 impl Clone for DashApp {
