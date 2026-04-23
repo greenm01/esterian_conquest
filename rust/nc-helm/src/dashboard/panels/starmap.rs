@@ -75,7 +75,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let world_index = world_index_for_projection(&projection);
     let projected = projected_map_geometry(app, frame, map_size);
     let viewer_fleet_sectors = viewer_fleet_sector_coords_fast(app, player_empire);
-    apply_selection_overlay_from_projected(buf, app, &projected);
+    apply_selection_overlay_from_projected(buf, app, &projected, frame);
 
     for world_x in projected.x_min..=projected.x_max {
         let label_col = projected.sector_label_col(world_x);
@@ -169,17 +169,31 @@ pub(crate) fn apply_selection_overlay(
 ) {
     let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
     let projected = projected_map_geometry(app, frame, map_size);
-    apply_selection_overlay_from_projected(buf, app, &projected);
+    apply_selection_overlay_from_projected(buf, app, &projected, frame);
 }
 
 fn apply_selection_overlay_from_projected(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
     projected: &ProjectedMapGeometry,
+    frame: MapWidgetFrame,
 ) {
-    if let Some(overlay) = projected.selection_overlay(app) {
-        buf.set_overlay_selection(overlay);
+    let Some(overlay) = projected.selection_overlay(app) else {
+        return;
+    };
+
+    if app.popup_covers_cell_rect(
+        frame,
+        overlay.left_col,
+        overlay.right_col,
+        overlay.top_row,
+        overlay.bottom_row,
+    ) {
+        buf.clear_overlay_selection();
+        return;
     }
+
+    buf.set_overlay_selection(overlay);
 }
 
 fn projected_map_geometry(
@@ -303,12 +317,14 @@ fn viewport_start(center: u8, visible: u8, map_size: u8) -> u8 {
 impl ProjectedMapGeometry {
     fn selection_overlay(&self, app: &DashApp) -> Option<OverlaySelection> {
         let rect = self.sector_rect([app.crosshair_x, app.crosshair_y])?;
+        let marker_col = rect.marker_col();
+        let marker_row = rect.marker_row();
         Some(OverlaySelection {
             fg: theme::map_selection_style().fg,
-            left_col: rect.col,
-            right_col: rect.col + rect.width - 1,
-            top_row: rect.separator_row(),
-            bottom_row: rect.content_row(),
+            left_col: marker_col.saturating_sub(1),
+            right_col: marker_col + 1,
+            top_row: marker_row.saturating_sub(1),
+            bottom_row: marker_row,
         })
     }
 

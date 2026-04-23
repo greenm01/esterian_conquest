@@ -951,6 +951,27 @@ impl DashApp {
         }
     }
 
+    /// Returns true if any active overlay or popup covers the given cell rect
+    /// (inclusive, screen cell coordinates). Keeps ratatui confined to this module.
+    pub(crate) fn popup_covers_cell_rect(
+        &self,
+        map_frame: crate::dashboard::layout::MapWidgetFrame,
+        left: usize,
+        right: usize,
+        top: usize,
+        bottom: usize,
+    ) -> bool {
+        let covers = |r: Rect| {
+            let r_left = r.x as usize;
+            let r_top = r.y as usize;
+            let r_right = r_left + r.width.saturating_sub(1) as usize;
+            let r_bottom = r_top + r.height.saturating_sub(1) as usize;
+            left <= r_right && right >= r_left && top <= r_bottom && bottom >= r_top
+        };
+        self.current_overlay_popup_rect(map_frame).is_some_and(covers)
+            || self.current_popup_rect(map_frame).is_some_and(covers)
+    }
+
     fn current_overlay_popup_rect(
         &self,
         map_frame: crate::dashboard::layout::MapWidgetFrame,
