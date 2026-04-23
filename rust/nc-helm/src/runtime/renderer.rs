@@ -365,20 +365,43 @@ fn selection_alpha(
     let on_top    = grid_y == config.selection_top_row;
     let on_bottom = grid_y == config.selection_bottom_row;
 
-    // Only the four corner cells (top-left, top-right, bottom-left, bottom-right)
-    // get painted. All other cells are transparent.
     let is_corner_cell = (on_left || on_right) && (on_top || on_bottom);
     if (!is_corner_cell) {
         return 0.0;
     }
 
-    // Within a corner cell, paint only a horizontal tick: the top edge pixel(s)
-    // for top corners, the bottom edge pixel(s) for bottom corners.
+    // Draw inward-facing corner brackets within the four corner cells of the
+    // selected sector bounds. The grid glyphs still render on top, so walls
+    // and separator dashes remain legible while the bracket sits around them.
+    let cell_last_x = config.cell_width_px - 1u;
+    let cell_last_y = config.cell_height_px - 1u;
+    let bracket_len_x = max(config.cell_width_px / 2u, 1u);
+    let bracket_len_y = max(config.cell_height_px / 2u, 1u);
+    let thick_x = select(1u, 0u, config.cell_width_px <= 2u);
     let thick_y = select(1u, 0u, config.cell_height_px <= 2u);
 
     var hit = false;
-    if (on_top    && local_y <= thick_y)                               { hit = true; }
-    if (on_bottom && local_y >= config.cell_height_px - 1u - thick_y) { hit = true; }
+
+    if (on_top) {
+        let top_edge = local_y <= thick_y;
+        if (on_left && top_edge && local_x <= bracket_len_x) { hit = true; }
+        if (on_right && top_edge && local_x + bracket_len_x >= cell_last_x) { hit = true; }
+    }
+    if (on_bottom) {
+        let bottom_edge = local_y + thick_y >= cell_last_y;
+        if (on_left && bottom_edge && local_x <= bracket_len_x) { hit = true; }
+        if (on_right && bottom_edge && local_x + bracket_len_x >= cell_last_x) { hit = true; }
+    }
+    if (on_left) {
+        let left_edge = local_x <= thick_x;
+        if (on_top && left_edge && local_y <= bracket_len_y) { hit = true; }
+        if (on_bottom && left_edge && local_y + bracket_len_y >= cell_last_y) { hit = true; }
+    }
+    if (on_right) {
+        let right_edge = local_x + thick_x >= cell_last_x;
+        if (on_top && right_edge && local_y <= bracket_len_y) { hit = true; }
+        if (on_bottom && right_edge && local_y + bracket_len_y >= cell_last_y) { hit = true; }
+    }
 
     return select(0.0, 1.0, hit);
 }

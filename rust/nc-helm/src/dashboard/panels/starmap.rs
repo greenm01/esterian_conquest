@@ -317,24 +317,16 @@ fn viewport_start(center: u8, visible: u8, map_size: u8) -> u8 {
 impl ProjectedMapGeometry {
     fn selection_overlay(&self, app: &DashApp) -> Option<OverlaySelection> {
         let rect = self.sector_rect([app.crosshair_x, app.crosshair_y])?;
-        let marker_col = rect.marker_col();
-        let marker_row = rect.marker_row();
-        // 3 cols x 3 rows centered on the marker glyph. Left/right sit on the
-        // sector's vertical walls; top sits on this sector's separator row;
-        // bottom sits on the next sector's separator row. At the bottom edge of
-        // the map there is no next separator -- clamp to the marker row to
-        // avoid painting into the bottom axis-label row.
-        let bottom_row = if marker_row + 1 <= self.grid_bottom_row {
-            marker_row + 1
-        } else {
-            marker_row
-        };
+        // Anchor the selection to the sector's true lattice bounds rather than
+        // the centered marker cell. The right and bottom bounds land on the
+        // next separator wall/row, or the closing border for the last visible
+        // sector on that axis.
         Some(OverlaySelection {
             fg: theme::map_selection_style().fg,
-            left_col: marker_col.saturating_sub(1),
-            right_col: marker_col + 1,
-            top_row: marker_row.saturating_sub(1),
-            bottom_row,
+            left_col: rect.col,
+            right_col: rect.right_boundary_col().min(self.grid_right_col),
+            top_row: rect.row,
+            bottom_row: rect.bottom_boundary_row().min(self.grid_bottom_row),
         })
     }
 
@@ -394,6 +386,14 @@ impl SectorRect {
 
     fn marker_col(self) -> usize {
         self.col + 2
+    }
+
+    fn right_boundary_col(self) -> usize {
+        self.col + self.width
+    }
+
+    fn bottom_boundary_row(self) -> usize {
+        self.row + self.height
     }
 }
 
@@ -534,9 +534,7 @@ fn projection_world_at(
 
 /// Build a `[x, y] → world index` lookup from a projection's world list.
 /// Used by `draw` to turn the per-sector O(N) linear search into O(log N).
-fn world_index_for_projection(
-    projection: &PlayerStarmapProjection,
-) -> BTreeMap<[u8; 2], usize> {
+fn world_index_for_projection(projection: &PlayerStarmapProjection) -> BTreeMap<[u8; 2], usize> {
     projection
         .worlds
         .iter()
@@ -548,17 +546,12 @@ fn world_index_for_projection(
 /// Build the set of sector coords that contain at least one viewer fleet
 /// in a single O(F) pass over all fleet records, avoiding the previous
 /// O(visible_sectors × fleets) nested scan.
-fn viewer_fleet_sector_coords_fast(
-    app: &DashApp,
-    viewer_empire_id: u8,
-) -> BTreeSet<[u8; 2]> {
+fn viewer_fleet_sector_coords_fast(app: &DashApp, viewer_empire_id: u8) -> BTreeSet<[u8; 2]> {
     app.game_data
         .fleets
         .records
         .iter()
-        .filter(|fleet| {
-            fleet.owner_empire_raw() == viewer_empire_id && fleet.has_any_force()
-        })
+        .filter(|fleet| fleet.owner_empire_raw() == viewer_empire_id && fleet.has_any_force())
         .map(|fleet| fleet.current_location_coords_raw())
         .collect()
 }
@@ -604,7 +597,6 @@ pub(crate) fn cached_projection_for_app(app: &DashApp) -> PlayerStarmapProjectio
     });
     projection
 }
-
 
 fn fleet_marker_for_sector(
     app: &DashApp,
@@ -1131,6 +1123,16 @@ mod tests {
         );
         assert_eq!(buffer.row(marker_row)[marker_col].ch, ' ');
         assert_eq!(
+            projected.selection_overlay(&app),
+            Some(OverlaySelection {
+                fg: theme::map_selection_style().fg,
+                left_col: rect.col,
+                right_col: rect.right_boundary_col(),
+                top_row: rect.row,
+                bottom_row: rect.bottom_boundary_row(),
+            })
+        );
+        assert_eq!(
             buffer.overlay_selection(),
             projected.selection_overlay(&app)
         );
@@ -1148,6 +1150,44 @@ mod tests {
         assert_eq!(buffer.row(projected.axis_row)[label_col + 1].ch, '4');
         assert_eq!(buffer.row(projected.bottom_axis_row)[label_col].ch, '0');
         assert_eq!(buffer.row(projected.bottom_axis_row)[label_col + 1].ch, '4');
+    }
+
+    #[test]
+    fn bottom_row_selection_overlay_uses_closing_border_not_axis_row() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 4;
+        app.crosshair_y = 1;
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let rect = projected
+            .sector_rect([app.crosshair_x, app.crosshair_y])
+            .expect("crosshair rect");
+
+        assert_eq!(
+            projected.selection_overlay(&app),
+            Some(OverlaySelection {
+                fg: theme::map_selection_style().fg,
+                left_col: rect.col,
+                right_col: rect.right_boundary_col(),
+                top_row: rect.row,
+                bottom_row: projected.grid_bottom_row,
+            })
+        );
+        assert_eq!(projected.grid_bottom_row + 1, projected.bottom_axis_row);
     }
 
     #[test]
