@@ -5,12 +5,18 @@ pub(crate) struct CachedPanel {
     pub(crate) cells: Vec<Cell>,
 }
 
-/// Cached `PlayerStarmapProjection` for a specific (game_data_revision, player).
+/// Cached starmap data for a specific (game_data_revision, player).
 /// Reused across every `draw` call until the game state changes.
+/// Stores the projection, its world-index lookup, and the viewer's
+/// fleet sector set so none of those are rebuilt on each frame.
 pub(crate) struct CachedStarmapProjection {
     pub(crate) revision: u64,
     pub(crate) player: usize,
     pub(crate) projection: nc_data::PlayerStarmapProjection,
+    /// `[x, y] → index into projection.worlds`, built once per revision.
+    pub(crate) world_index: std::collections::BTreeMap<[u8; 2], usize>,
+    /// Sector coords that contain at least one viewer fleet, built once per revision.
+    pub(crate) viewer_fleet_sectors: std::collections::BTreeSet<[u8; 2]>,
 }
 
 #[derive(Default)]

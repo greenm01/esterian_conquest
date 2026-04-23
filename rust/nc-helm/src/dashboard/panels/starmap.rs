@@ -71,10 +71,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
 
     let player_empire = app.player_record_index_1_based as u8;
-    let projection = cached_projection_for_app(app);
-    let world_index = world_index_for_projection(&projection);
+    // Cache hit: no projection clone, no BTreeMap/BTreeSet rebuild.
+    let cache = cached_projection_for_app(app);
     let projected = projected_map_geometry(app, frame, map_size);
-    let viewer_fleet_sectors = viewer_fleet_sector_coords_fast(app, player_empire);
     apply_selection_overlay_from_projected(buf, app, &projected, frame);
 
     for world_x in projected.x_min..=projected.x_max {
@@ -125,10 +124,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             row_label_style,
         );
         for col_x in projected.x_min..=projected.x_max {
-            let has_viewer_fleet = viewer_fleet_sectors.contains(&[col_x, row_y]);
-            let planet = world_index
+            let has_viewer_fleet = cache.viewer_fleet_sectors.contains(&[col_x, row_y]);
+            let planet = cache.world_index
                 .get(&[col_x, row_y])
-                .map(|&i| &projection.worlds[i]);
+                .map(|&i| &cache.projection.worlds[i]);
             let is_selected = col_x == app.crosshair_x && row_y == app.crosshair_y;
             if !is_selected && planet.is_none() && !has_viewer_fleet {
                 continue;
@@ -517,8 +516,8 @@ pub(crate) fn jump_planet_target_for_app(
     current: [u8; 2],
     direction: PlanetJumpDirection,
 ) -> Option<[u8; 2]> {
-    let projection = cached_projection_for_app(app);
-    jump_planet_target_coords(projection.map_width, &projection.worlds, current, direction)
+    let cache = cached_projection_for_app(app);
+    jump_planet_target_coords(cache.projection.map_width, &cache.projection.worlds, current, direction)
 }
 
 #[cfg(test)]
@@ -575,27 +574,42 @@ fn projection_for_snapshot_map(
     )
 }
 
-/// Return a `PlayerStarmapProjection` for the current app state, reusing the
-/// cached value from the previous frame when `game_data_revision` and
-/// `player_record_index_1_based` have not changed.
-pub(crate) fn cached_projection_for_app(app: &DashApp) -> PlayerStarmapProjection {
+/// Return a shared reference to the cached `CachedStarmapProjection` for the
+/// current app state. The cache (projection, world index, and viewer fleet
+/// sectors) is rebuilt only when `game_data_revision` or
+/// `player_record_index_1_based` changes; on a cache hit nothing is cloned or
+/// allocated.
+pub(crate) fn cached_projection_for_app(
+    app: &DashApp,
+) -> std::cell::Ref<'_, CachedStarmapProjection> {
     let revision = app.game_data_revision;
     let player = app.player_record_index_1_based;
-    let mut cache = app.starmap_projection_cache.borrow_mut();
-    if cache
+
+    // Check whether the cache is still valid (drop the borrow immediately).
+    let needs_update = !app
+        .starmap_projection_cache
+        .borrow()
         .as_ref()
-        .is_some_and(|c| c.revision == revision && c.player == player)
-    {
-        return cache.as_ref().unwrap().projection.clone();
+        .is_some_and(|c| c.revision == revision && c.player == player);
+
+    if needs_update {
+        let player_empire = player as u8;
+        let snapshot_map = snapshot_map_for_app(app);
+        let projection = projection_for_snapshot_map(app, &snapshot_map);
+        let world_index = world_index_for_projection(&projection);
+        let viewer_fleet_sectors = viewer_fleet_sector_coords_fast(app, player_empire);
+        *app.starmap_projection_cache.borrow_mut() = Some(CachedStarmapProjection {
+            revision,
+            player,
+            projection,
+            world_index,
+            viewer_fleet_sectors,
+        });
     }
-    let snapshot_map = snapshot_map_for_app(app);
-    let projection = projection_for_snapshot_map(app, &snapshot_map);
-    *cache = Some(CachedStarmapProjection {
-        revision,
-        player,
-        projection: projection.clone(),
-    });
-    projection
+
+    std::cell::Ref::map(app.starmap_projection_cache.borrow(), |opt| {
+        opt.as_ref().expect("starmap projection cache should be populated")
+    })
 }
 
 fn fleet_marker_for_sector(
@@ -1723,6 +1737,7 @@ mod tests {
         fleet.set_owner_empire_raw(app.player_record_index_1_based as u8);
         fleet.set_current_location_coords_raw(coords);
         fleet.set_destroyer_count(1);
+        app.game_data_revision += 1;
     }
 
     fn visible_empty_sector(app: &DashApp, frame: MapWidgetFrame) -> [u8; 2] {

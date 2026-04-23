@@ -33,14 +33,15 @@ pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDeta
 
 pub(crate) fn projected_sector_details(app: &DashApp) -> Vec<SelectedPlanetDetail> {
     let viewer_empire_id = app.player_record_index_1_based as u8;
-    let projection = cached_projection_for_app(app);
+    let cache = cached_projection_for_app(app);
     let snapshot_map = app
         .planet_intel_snapshots
         .iter()
         .cloned()
         .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
         .collect::<BTreeMap<_, _>>();
-    projection
+    cache
+        .projection
         .worlds
         .iter()
         .filter_map(|world| {
@@ -320,12 +321,11 @@ fn coords_label(coords: [u8; 2]) -> String {
 }
 
 fn selected_planet_record_index(app: &DashApp) -> usize {
-    let projection = cached_projection_for_app(app);
-    projection
-        .worlds
-        .iter()
-        .find(|world| world.coords == [app.crosshair_x, app.crosshair_y])
-        .map(|world| world.planet_record_index_1_based)
+    let cache = cached_projection_for_app(app);
+    cache
+        .world_index
+        .get(&[app.crosshair_x, app.crosshair_y])
+        .map(|&i| cache.projection.worlds[i].planet_record_index_1_based)
         .unwrap_or(0)
 }
 

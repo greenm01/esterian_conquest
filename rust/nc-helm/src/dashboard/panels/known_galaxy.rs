@@ -24,11 +24,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
 
 pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let viewer_empire_id = app.player_record_index_1_based as u8;
-    let projection = cached_projection_for_app(app);
+    let cache = cached_projection_for_app(app);
     let (mut owned, mut unowned, mut neutral, mut enemy, mut icd, mut partial, mut unknown) =
         (0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32);
 
-    for world in &projection.worlds {
+    for world in &cache.projection.worlds {
         match marker_kind_for_world(app, viewer_empire_id, world) {
             StarmapMarkerKind::Owned => owned += 1,
             StarmapMarkerKind::Unowned => unowned += 1,
