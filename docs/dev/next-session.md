@@ -3,7 +3,30 @@
 Keep this file short. Historical detail belongs in
 [archive/next-session-archive.md](archive/next-session-archive.md), not here.
 
-## Current State
+## Completed This Session
+
+**nc-helm starmap rendering regressions (from `037784a5`)** — all fixed and
+committed (`69005f7e`), all 379 nc-helm tests green.
+
+Perf/fix bundle committed in one shot:
+
+- `world_index_for_projection`: replaces O(V×W) per-sector linear scan with a
+  `BTreeMap` built once per draw.
+- `viewer_fleet_sector_coords_fast`: replaces O(V×F) nested scan with a single
+  O(F) pass into a `BTreeSet`.
+- `cached_projection_for_app` (`pub(crate)`): `PlayerStarmapProjection` now
+  cached on `DashApp.starmap_projection_cache` keyed by
+  `(game_data_revision, player)`. Used by `starmap::draw`,
+  `jump_planet_target_for_app`, `known_galaxy::body_rows`,
+  `planet_view::projected_sector_details`, and
+  `planet_view::selected_planet_record_index`.
+- `apply_crosshair_overlay` applied after every panel-cache hit/miss.
+- `msg_could_change_desired_geometry`: gates `sync_geometry_for_current_window`
+  in `Runtime::dispatch` so Wayland compositor round-trips
+  (`window.is_maximized()`, `window.fullscreen()`) are skipped on high-frequency
+  `Mouse`/`Key` events. Eliminates the ~270ms stall and `Broken pipe` crash on
+  `map45-p25`.
+
 
 - Public gameplay is now centered on `nc-game`, `nc-door`, and `nc-sysop`.
 - The old SSH/Nostr hosted path has been cut out of the active gameplay and
