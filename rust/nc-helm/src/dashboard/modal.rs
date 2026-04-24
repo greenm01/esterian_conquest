@@ -302,13 +302,16 @@ fn draw_modal_frame_in_parent_with_placement_and_close_button(
         parent,
         placement,
     );
-    let pad_x = popup.x.saturating_sub(1).max(parent.x);
+    // Horizontal pad is 2 cells to compensate for terminal cells being
+    // roughly twice as tall as they are wide, so the dim border band
+    // reads as visually uniform on all sides.
+    let pad_x = popup.x.saturating_sub(2).max(parent.x);
     let pad_y = popup.y.saturating_sub(1).max(parent.y);
     let popup_right = popup.x + popup.width.saturating_sub(1);
     let popup_bottom = popup.y + popup.height.saturating_sub(1);
     let parent_right = parent.x + parent.width.saturating_sub(1);
     let parent_bottom = parent.y + parent.height.saturating_sub(1);
-    let pad_right = popup_right.saturating_add(1).min(parent_right);
+    let pad_right = popup_right.saturating_add(2).min(parent_right);
     let pad_bottom = popup_bottom.saturating_add(1).min(parent_bottom);
     let pad = Rect::new(
         pad_x,
