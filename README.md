@@ -205,6 +205,20 @@ Normal player and sysop workflows should prefer `nc-game`, `nc-door`, and
 - Python 3
 - `sccache` (recommended)
 
+### NixOS
+
+For NixOS, enter the repo dev shell before building:
+
+```bash
+nix develop
+cd rust
+cargo build
+```
+
+The flake shell provides the Linux desktop/system libraries used by the native
+clients (`winit`/`wgpu`, X11, Wayland, clipboard support) plus the normal Rust
+tooling.
+
 For DOSBox-X, Ghidra, and other compatibility tooling, see the contributor
 docs under `docs/dev/`.
 
