@@ -286,17 +286,17 @@ fn harness_seed_player1_tui_stress_populates_player1_runtime_backlog_and_intel()
 }
 
 #[test]
-fn harness_seed_nc_dash_lab_creates_one_seeded_campaign_per_map_size_tier() {
-    let root = unique_temp_dir("nc-cli-harness-dash-lab");
+fn harness_seed_nc_helm_lab_creates_one_seeded_campaign_per_map_size_tier() {
+    let root = unique_temp_dir("nc-cli-harness-helm-lab");
     let stdout = run_nc_cli(&[
         "harness",
-        "seed-nc-dash-lab",
+        "seed-nc-helm-lab",
         "--root",
         root.to_str().unwrap(),
         "--seed-base",
         "4000",
     ]);
-    assert!(stdout.contains("Seeded nc-dash lab"));
+    assert!(stdout.contains("Seeded nc-helm lab"));
     let mut saw_active_player1_starbase = false;
 
     for (dir_name, player_count, map_size) in [
@@ -350,7 +350,7 @@ fn harness_seed_nc_dash_lab_creates_one_seeded_campaign_per_map_size_tier() {
 
     let manifest = fs::read_to_string(root.join("README.txt")).unwrap();
     assert!(manifest.contains("map45-p25"));
-    assert!(manifest.contains("launch=cargo run -q -p nc-dash --"));
+    assert!(manifest.contains("launch=cargo run -q -p nc-helm -- --dir"));
     assert!(
         saw_active_player1_starbase,
         "expected at least one lab campaign to include an active player-1 starbase"

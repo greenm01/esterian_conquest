@@ -31,7 +31,6 @@ Keep the binaries straight:
 - `nc-door`: BBS door entrypoint
 - `nc-sysop`: sysop and BBS/local campaign administration tool
 - `nc-helm`: experimental TEA-based hosted player client for the Nostr path
-- `nc-dash`: legacy native prototype for the hosted path
 - `nc-cli`: internal developer, oracle, and compatibility tool
 
 A normal non-BBS game directory contains `ncgame.db` and nothing else. BBS
@@ -132,11 +131,9 @@ the player client. That stack is still under construction, but it is the
 intended long-term way to host and join NC over the network without direct BBS
 or localhost access.
 
-`nc-helm` is the new library-first hosted client architecture. Today it
-implements the local bootstrap, encrypted SQLite keychain flow, lobby shell,
-and background catalog/notices sync on a fresh `winit`/`wgpu`/`glyphon`
-runtime. `nc-dash` remains in the repo only as the older prototype reference
-while `nc-helm` takes over feature work.
+`nc-helm` is the hosted client architecture. Today it implements the local
+bootstrap, encrypted SQLite keychain flow, lobby shell, and background
+catalog/notices sync on a fresh `winit`/`wgpu`/`glyphon` runtime.
 
 Try the new client with:
 
@@ -149,7 +146,7 @@ Or open a seeded local dashboard directly:
 
 ```bash
 cd rust
-cargo run -q -p nc-helm -- --dir /tmp/nc-dash-lab/map45-p25 --windowed
+cargo run -q -p nc-helm -- --dir /tmp/nc-helm-lab/map45-p25 --windowed
 ```
 
 ## Operator Docs
@@ -175,17 +172,17 @@ cd rust
 cargo run -q -p nc-cli -- inspect-messages /tmp/nc-game
 ```
 
-Seed one `nc-dash` stress lab with all four map-size tiers:
+Seed one `nc-helm` stress lab with all four map-size tiers:
 
 ```bash
 cd rust
-cargo run -q -p nc-cli -- harness seed-nc-dash-lab --root /tmp/nc-dash-lab
+cargo run -q -p nc-cli -- harness seed-nc-helm-lab --root /tmp/nc-helm-lab
 ```
 
 Or use the repo wrapper from the root:
 
 ```bash
-python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force
+python3 scripts/setup_nc_helm_lab.py --root /tmp/nc-helm-lab --force
 ```
 
 Submit a turn file without opening the TUI:

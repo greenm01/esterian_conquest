@@ -1,6 +1,6 @@
 # Hosted Nostr Protocol
 
-> Status: future `nc-host` / `nc-dash` draft.
+> Status: future `nc-host` / `nc-helm` draft.
 >
 > This document supersedes the older SSH session handshake as the target hosted
 > direction. The retired `nc-connect` / `nc-gate` protocol remains historical
@@ -46,21 +46,21 @@ deduplication key unless a later implementation constraint proves otherwise.
 | Kind | Name | Publisher | Encryption | Purpose |
 |------|------|-----------|------------|---------|
 | `30500` | `GameDefinition` | `nc-host` | None | Public recruiting-game catalog row |
-| `30507` | `StateRequest` | `nc-dash` | NIP-44 | Request a fresh snapshot or delta decision |
+| `30507` | `StateRequest` | `nc-helm` | NIP-44 | Request a fresh snapshot or delta decision |
 | `30510` | `SeatClaimRequest` | Reserve/manual client | NIP-44 | Redeem a reserved invite code |
 | `30511` | `SeatClaimResult` | `nc-host` | NIP-44 | Reserve/manual first-join success or failure |
-| `30513` | `InviteRequest` | `nc-dash` | NIP-44 | Ask to join a recruiting game |
+| `30513` | `InviteRequest` | `nc-helm` | NIP-44 | Ask to join a recruiting game |
 | `30514` | `InviteRequestReceipt` | `nc-host` | NIP-44 | Request accepted or immediately rejected |
 | `30515` | `InviteDecision` | `nc-host` | NIP-44 | Final sysop approval or rejection |
 | `30516` | `LobbyNotice` | `nc-host` | None | Public host-wide notice board item |
-| `30517` | `SysopThreadMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted legacy/operator thread surface |
-| `30518` | `ContactMessage` | `nc-dash` | NIP-44 | Encrypted direct contact chat by known `npub` |
+| `30517` | `SysopThreadMessage` | `nc-host` / `nc-helm` | NIP-44 | Encrypted legacy/operator thread surface |
+| `30518` | `ContactMessage` | `nc-helm` | NIP-44 | Encrypted direct contact chat by known `npub` |
 | `30520` | `GameState` | `nc-host` | NIP-44 | Full fog-of-war-filtered state snapshot |
 | `30521` | `StateDelta` | `nc-host` | NIP-44 | Incremental state update |
-| `30522` | `TurnCommands` | `nc-dash` | NIP-44 | Submitted player turn orders |
-| `30523` | `PlayerMessage` | `nc-host` / `nc-dash` | NIP-44 | Encrypted anonymous player-to-player game mail |
+| `30522` | `TurnCommands` | `nc-helm` | NIP-44 | Submitted player turn orders |
+| `30523` | `PlayerMessage` | `nc-host` / `nc-helm` | NIP-44 | Encrypted anonymous player-to-player game mail |
 | `30524` | `TurnReceipt` | `nc-host` | NIP-44 | Turn submission accepted or rejected |
-| `30525` | `HandleCheck` | `nc-dash` | NIP-44 | Check whether a handle is available on one `nc-host` |
+| `30525` | `HandleCheck` | `nc-helm` | NIP-44 | Check whether a handle is available on one `nc-host` |
 | `30526` | `HandleCheckResult` | `nc-host` | NIP-44 | Immediate handle-ownership result |
 
 Legacy SSH-oriented kinds `30501`/`30502`/`30503` and related map/session
@@ -248,7 +248,7 @@ Rejected example:
 Rules:
 
 - `seat` is present only on approval
-- in the normal `nc-dash` lobby flow, approval immediately binds that seat to
+- in the normal `nc-helm` lobby flow, approval immediately binds that seat to
   the requesting player identity as part of the same game-level transaction
   that records the decision
 - rejection never leaks seat or roster internals
@@ -304,7 +304,7 @@ Rules:
 ## 7C. 30518 `ContactMessage`
 
 `ContactMessage` is the encrypted direct-contact event used by the `THREADS`
-surface in `nc-dash`.
+surface in `nc-helm`.
 
 Required tags:
 
@@ -381,7 +381,7 @@ Rules:
 ## 8. 30510 `SeatClaimRequest`
 
 `30510` remains the reserve/manual claim path for operator-issued invite codes.
-It is no longer part of the normal `nc-dash` controlled-lobby join flow.
+It is no longer part of the normal `nc-helm` controlled-lobby join flow.
 
 Required tags:
 
@@ -581,7 +581,7 @@ Status values:
 
 ## 13. 30525 `HandleCheck`
 
-`HandleCheck` lets `nc-dash` validate a handle immediately against one daemon
+`HandleCheck` lets `nc-helm` validate a handle immediately against one daemon
 before saving it as the active hosted handle.
 
 Required tags:
@@ -647,7 +647,7 @@ The daemon side must:
 
 ## 16. Client Expectations
 
-`nc-dash --lobby` should:
+`nc-helm --lobby` should:
 
 - subscribe to `30500` for public recruiting games
 - collapse `30500` rows by `(daemon pubkey, game id)` and honor the latest

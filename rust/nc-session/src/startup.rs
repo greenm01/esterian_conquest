@@ -1,10 +1,10 @@
-//! Startup phase state machine shared between nc-game and nc-dash.
+//! Startup phase state machine shared between nc-game and nc-helm.
 //!
 //! `StartupPhase` is the canonical flow:
 //!   Splash → Intro → LoginSummary → Results → Messages → Complete
 //!
 //! Each frontend drives the rendering of each phase independently.
-//! nc-game renders at 80×25; nc-dash renders at fullscreen.
+//! nc-game renders at 80×25; nc-helm renders at fullscreen.
 
 /// Phase in the startup intro flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

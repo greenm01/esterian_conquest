@@ -4,7 +4,7 @@ This is the dev-only localhost hosted lab for the relay-native stack:
 
 - `nostr-relay.service` is the relay
 - `nc-host.service` is the hosted game server
-- `nc-dash` is the hosted client
+- `nc-helm` is the hosted client
 
 This is not the current public release path. Public play is still centered on
 `nc-game`, `nc-door`, and `nc-sysop`.
@@ -68,7 +68,7 @@ Run the hosted client against the local relay:
 
 ```bash
 cd rust
-cargo run -q -p nc-dash -- --relay ws://localhost:8080
+cargo run -q -p nc-helm -- --relay ws://localhost:8080
 ```
 
 ## Validation

@@ -48,11 +48,9 @@ These docs explain how to work in the repo and how to structure the Rust side.
 - [fixtures.md](fixtures.md)
   - fixture layout and intended usage
 - [localhost-nc-host.md](localhost-nc-host.md)
-  - dev-only localhost hosted lab for `nc-host` + `nc-dash`
-- [nc-dash-native-state-event-model.md](nc-dash-native-state-event-model.md)
-  - native shell/event-loop architecture for `nc-dash`
-- [nc-dash-glyphon-renderer.md](nc-dash-glyphon-renderer.md)
-  - renderer problem statement and planned `nc-dash`-private glyphon path
+  - dev-only localhost hosted lab for `nc-host` + `nc-helm`
+- [../helm/lobby-architecture.md](../helm/lobby-architecture.md)
+  - hosted lobby and client-state architecture for `nc-helm`
 - [harness/README.md](harness/README.md)
   - typed KDL and CLI workflow for campaign play, runtime scenarios, combat scenarios, and combat sweeps
 - [harness/campaign-play.md](harness/campaign-play.md)

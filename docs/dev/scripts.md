@@ -6,7 +6,7 @@ Rust-native TUI test flow and the dev-only localhost hosted lab.
 ## Localhost Hosted Lab
 
 Use [scripts/install_nc_host_user_service.sh](../../scripts/install_nc_host_user_service.sh)
-when you want a stable localhost `nc-host` + `nc-dash` user-service setup.
+when you want a stable localhost `nc-host` + `nc-helm` user-service setup.
 
 It installs and refreshes:
 
@@ -219,20 +219,20 @@ That flow:
 - It uses Rust runtime state as the source of truth.
 - Player 1 gets the rich seeded backlog and foreign intel; the other empires mainly exist to make tables, rankings, diplomacy, and database screens busy.
 
-## nc-dash Map Lab
+## nc-helm Map Lab
 
-Use [scripts/setup_nc_dash_lab.py](../../scripts/setup_nc_dash_lab.py) when you
-want a quick `nc-dash` pass across all four map-size tiers instead of a
+Use [scripts/setup_nc_helm_lab.py](../../scripts/setup_nc_helm_lab.py) when you
+want a quick `nc-helm` pass across all four map-size tiers instead of a
 single-player stress fixture.
 
-It wraps `nc-cli harness seed-nc-dash-lab` and creates:
+It wraps `nc-cli harness seed-nc-helm-lab` and creates:
 
 - `map18-p4`
 - `map27-p9`
 - `map36-p16`
 - `map45-p25`
 
-Each seeded campaign is ready to open directly in `nc-dash`, and the script
+Each seeded campaign is ready to open directly in `nc-helm`, and the script
 writes a `README.txt` manifest under the chosen lab root.
 
 ## Usage
@@ -240,18 +240,18 @@ writes a `README.txt` manifest under the chosen lab root.
 Run from the repo root:
 
 ```bash
-python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force
+python3 scripts/setup_nc_helm_lab.py --root /tmp/nc-helm-lab --force
 ```
 
 Then launch whichever map tier you want to inspect:
 
 ```bash
 cd rust
-cargo run -q -p nc-dash -- /tmp/nc-dash-lab/map45-p25
+cargo run -q -p nc-helm -- --dir /tmp/nc-helm-lab/map45-p25
 ```
 
 To seed and jump directly into one tier in one step:
 
 ```bash
-python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force --launch map36-p16
+python3 scripts/setup_nc_helm_lab.py --root /tmp/nc-helm-lab --force --launch map36-p16
 ```

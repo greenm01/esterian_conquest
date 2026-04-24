@@ -1,4 +1,4 @@
-//! Dashboard and lobby theme runtime local to `nc-dash`.
+//! Dashboard and lobby theme runtime local to `nc-helm`.
 
 use std::cell::RefCell;
 
@@ -152,7 +152,7 @@ fn load_theme(key: &str) -> DashTheme {
 
 fn load_theme_by_key(key: &str) -> Result<DashTheme, String> {
     let theme = opaline::builtins::load_by_name(key)
-        .ok_or_else(|| format!("unknown nc-dash theme {key:?}"))?;
+        .ok_or_else(|| format!("unknown nc-helm theme {key:?}"))?;
     Ok(project_theme(&theme))
 }
 

@@ -32,14 +32,14 @@ fn dir_flag_selects_local_launch_mode() {
     let command = parse_launch_command(vec![
         "nc-helm".to_string(),
         "--dir".to_string(),
-        "/tmp/nc-dash-lab/map45-p25".to_string(),
+        "/tmp/nc-helm-lab/map45-p25".to_string(),
     ])
     .expect("local launch should parse");
     match command {
         LaunchCommand::Launch(LaunchTarget::Local(options)) => {
             assert_eq!(
                 options.game_dir.to_string_lossy(),
-                "/tmp/nc-dash-lab/map45-p25"
+                "/tmp/nc-helm-lab/map45-p25"
             );
         }
         other => panic!("expected local launch command, got {other:?}"),
@@ -53,7 +53,7 @@ fn relay_and_dir_flags_conflict() {
         "--relay".to_string(),
         "ws://127.0.0.1:8080".to_string(),
         "--dir".to_string(),
-        "/tmp/nc-dash-lab/map45-p25".to_string(),
+        "/tmp/nc-helm-lab/map45-p25".to_string(),
     ]);
 
     assert!(result.is_err());

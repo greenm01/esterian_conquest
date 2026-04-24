@@ -1,4 +1,4 @@
-//! Shared CLI argument parsing infrastructure for nc-game and nc-dash.
+//! Shared CLI argument parsing infrastructure for nc-game and nc-helm.
 
 use std::path::PathBuf;
 
@@ -24,10 +24,10 @@ pub enum ColorMode {
     TrueColor,
 }
 
-/// Common launch arguments shared between nc-game and nc-dash.
+/// Common launch arguments shared between nc-game and nc-helm.
 ///
 /// Frontends add their own additional fields (e.g. ScreenGeometry for
-/// nc-game, dashboard-specific options for nc-dash) on top of these.
+/// nc-game, dashboard-specific options for nc-helm) on top of these.
 #[derive(Debug, Clone)]
 pub struct CommonLaunchArgs {
     pub game_dir: PathBuf,

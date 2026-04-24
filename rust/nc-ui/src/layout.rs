@@ -1,7 +1,7 @@
 //! Screen geometry — terminal dimensions abstracted from fixed 80×25.
 //!
 //! `ScreenGeometry` is the single source of truth for screen dimensions
-//! used by both nc-game (80×25) and nc-dash (fullscreen). Helper functions
+//! used by both nc-game (80×25) and nc-helm (fullscreen). Helper functions
 //! that compute row positions from geometry live here so both frontends
 //! can use them.
 
@@ -15,7 +15,7 @@ pub const DOOR_FALLBACK_HEIGHT: usize = 24;
 /// Screen dimensions used by the terminal renderer.
 ///
 /// nc-game always uses 80×25 (or 80×24 for BBS doors).
-/// nc-dash uses the actual terminal size detected at startup.
+/// nc-helm uses the actual terminal size detected at startup.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScreenGeometry {
     width: usize,

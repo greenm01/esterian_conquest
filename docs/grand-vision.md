@@ -14,13 +14,13 @@ Our immediate goal is to build the definitive, modern-host-friendly drop-in repl
 
 The current shipped gameplay stack is localhost plus BBS door play. The old
 SSH/Nostr path is no longer the live product direction. The next hosted step is
-instead a cleaner relay-native design built around `nc-host` and `nc-dash`:
+instead a cleaner relay-native design built around `nc-host` and `nc-helm`:
 
 - **Nostr as the Full Transport Layer:** The asynchronous, daily-turn nature of EC maps perfectly to the Nostr protocol. Instead of bridging a remote PTY over SSH, players submit encrypted turn orders directly to relays, and `ec-maint` publishes per-player results back as encrypted events, preserving the "fog of war."
 - **Headless Server:** the engine runs on a schedule, collects daily orders from
   the relay, processes maintenance, and broadcasts new game state to each
   player's key.
-- **Local Native Client:** `nc-dash` grows a lobby and hosted-play mode that
+- **Local Native Client:** `nc-helm` grows a lobby and hosted-play mode that
   renders game state locally instead of bridging a remote PTY over SSH.
 
 ## Beyond Classic: EC4X

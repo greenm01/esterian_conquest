@@ -9,7 +9,7 @@ use crate::commands::harness_player1_tui_stress::seed_player1_tui_stress;
 use crate::commands::runtime::with_runtime_game_mut;
 use crate::support::paths::resolve_repo_path;
 
-const DEFAULT_ROOT: &str = "/tmp/nc-dash-lab";
+const DEFAULT_ROOT: &str = "/tmp/nc-helm-lab";
 const DEFAULT_SEED_BASE: u64 = 1515;
 const MAP_SIZE_PLAYER_COUNTS: [u8; 4] = [4, 9, 16, 25];
 const EMPIRE_NAMES: [&str; 25] = [
@@ -41,19 +41,19 @@ const EMPIRE_NAMES: [&str; 25] = [
 ];
 
 #[derive(Debug, Clone, Copy)]
-struct DashLabProfile {
+struct HelmLabProfile {
     slug: &'static str,
     player_count: u8,
 }
 
-impl DashLabProfile {
+impl HelmLabProfile {
     fn map_size(self) -> u8 {
         map_size_for_player_count(self.player_count)
     }
 
     fn game_name(self) -> String {
         format!(
-            "NC Dash Lab {}x{} ({} players)",
+            "NC Helm Lab {}x{} ({} players)",
             self.map_size(),
             self.map_size(),
             self.player_count
@@ -62,7 +62,7 @@ impl DashLabProfile {
 }
 
 #[derive(Debug, Clone)]
-struct DashLabCampaignReport {
+struct HelmLabCampaignReport {
     dir: PathBuf,
     player_count: u8,
     map_size: u8,
@@ -76,14 +76,14 @@ struct DashLabCampaignReport {
     commissioned_starbases: usize,
 }
 
-pub(crate) fn run_seed_nc_dash_lab_args(
+pub(crate) fn run_seed_nc_helm_lab_args(
     args: Vec<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let parsed = parse_args(args)?;
-    let reports = seed_nc_dash_lab(&parsed.root, parsed.seed_base)?;
+    let reports = seed_nc_helm_lab(&parsed.root, parsed.seed_base)?;
     write_manifest(&parsed.root, &reports)?;
 
-    println!("Seeded nc-dash lab at {}.", parsed.root.display());
+    println!("Seeded nc-helm lab at {}.", parsed.root.display());
     for report in reports {
         println!(
             "  {}: players={} map={}x{} seed={} planets={} fleets={} reports={} mail={} full_intel={} partial_intel={} starbases={}",
@@ -104,7 +104,7 @@ pub(crate) fn run_seed_nc_dash_lab_args(
             report.player1_partial_intel,
             report.commissioned_starbases
         );
-        println!("    cargo run -q -p nc-dash -- {}", report.dir.display());
+        println!("    cargo run -q -p nc-helm -- --dir {}", report.dir.display());
     }
     println!("  manifest={}", parsed.root.join("README.txt").display());
     Ok(())
@@ -140,26 +140,26 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs, Box<dyn std::error::Error
     Ok(ParsedArgs { root, seed_base })
 }
 
-fn seed_nc_dash_lab(
+fn seed_nc_helm_lab(
     root: &Path,
     seed_base: u64,
-) -> Result<Vec<DashLabCampaignReport>, Box<dyn std::error::Error>> {
+) -> Result<Vec<HelmLabCampaignReport>, Box<dyn std::error::Error>> {
     ensure_empty_root(root)?;
 
     let profiles = [
-        DashLabProfile {
+        HelmLabProfile {
             slug: "map18-p4",
             player_count: MAP_SIZE_PLAYER_COUNTS[0],
         },
-        DashLabProfile {
+        HelmLabProfile {
             slug: "map27-p9",
             player_count: MAP_SIZE_PLAYER_COUNTS[1],
         },
-        DashLabProfile {
+        HelmLabProfile {
             slug: "map36-p16",
             player_count: MAP_SIZE_PLAYER_COUNTS[2],
         },
-        DashLabProfile {
+        HelmLabProfile {
             slug: "map45-p25",
             player_count: MAP_SIZE_PLAYER_COUNTS[3],
         },
@@ -192,9 +192,9 @@ fn ensure_empty_root(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
 fn seed_one_campaign(
     dir: &Path,
-    profile: DashLabProfile,
+    profile: HelmLabProfile,
     seed: u64,
-) -> Result<DashLabCampaignReport, Box<dyn std::error::Error>> {
+) -> Result<HelmLabCampaignReport, Box<dyn std::error::Error>> {
     fs::create_dir_all(dir)?;
 
     let store = CampaignStore::open_default_in_dir(dir)?;
@@ -202,10 +202,10 @@ fn seed_one_campaign(
     store.save_runtime_state_structured(&game_data, &BTreeSet::new(), &[], &[])?;
     store.save_campaign_settings(&CampaignSettings::new(profile.slug, &profile.game_name()))?;
 
-    join_dash_lab_empires(dir, profile.player_count)?;
+    join_helm_lab_empires(dir, profile.player_count)?;
     let stress = seed_player1_tui_stress(dir)?;
 
-    Ok(DashLabCampaignReport {
+    Ok(HelmLabCampaignReport {
         dir: dir.to_path_buf(),
         player_count: profile.player_count,
         map_size: profile.map_size(),
@@ -220,7 +220,7 @@ fn seed_one_campaign(
     })
 }
 
-fn join_dash_lab_empires(dir: &Path, player_count: u8) -> Result<(), Box<dyn std::error::Error>> {
+fn join_helm_lab_empires(dir: &Path, player_count: u8) -> Result<(), Box<dyn std::error::Error>> {
     with_runtime_game_mut(dir, |game_data| {
         for player_record_index_1_based in 1..=player_count as usize {
             let empire_name = EMPIRE_NAMES
@@ -258,15 +258,15 @@ fn homeworld_name(player_record_index_1_based: usize, empire_name: &str) -> Stri
 
 fn write_manifest(
     root: &Path,
-    reports: &[DashLabCampaignReport],
+    reports: &[HelmLabCampaignReport],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut text = String::new();
-    text.push_str("nc-dash lab\n");
+    text.push_str("nc-helm lab\n");
     text.push_str(&format!("root={}\n", root.display()));
     text.push('\n');
     for report in reports {
         text.push_str(&format!(
-            "{}\n  dir={}\n  players={}\n  map={}x{}\n  seed={}\n  planets={}\n  fleets={}\n  report_blocks={}\n  player1_mail={}\n  player1_full_intel={}\n  player1_partial_intel={}\n  commissioned_starbases={}\n  launch=cargo run -q -p nc-dash -- {}\n\n",
+            "{}\n  dir={}\n  players={}\n  map={}x{}\n  seed={}\n  planets={}\n  fleets={}\n  report_blocks={}\n  player1_mail={}\n  player1_full_intel={}\n  player1_partial_intel={}\n  commissioned_starbases={}\n  launch=cargo run -q -p nc-helm -- --dir {}\n\n",
             report.dir.file_name().and_then(|name| name.to_str()).unwrap_or("campaign"),
             report.dir.display(),
             report.player_count,

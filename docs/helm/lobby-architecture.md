@@ -2,9 +2,9 @@
 
 ## Overview
 
-`nc-lobby` is the hosted-first entry flow inside the `nc-dash` binary.
+`nc-lobby` is the hosted-first entry flow inside the `nc-helm` binary.
 
-It is not a separate binary and it is not a localhost/BBS surface. `nc-dash`
+It is not a separate binary and it is not a localhost/BBS surface. `nc-helm`
 launches into the lobby by default, then transitions into the hosted dashboard
 for a selected joined game. Direct game-dir startup remains available only as a
 hidden developer path.
@@ -17,8 +17,8 @@ topology and wire contract remain in:
 
 ## Core Direction
 
-- keep `nc-dash` on the existing fullscreen native `nc-ui` window/cell-grid shell
-- use `ratatui` inside `nc-dash` for lobby-owned settings/theme flows
+- keep `nc-helm` on the fullscreen native hosted-client shell
+- keep the lobby/theme runtime inside `nc-helm`
 - keep `nc-game` and `nc-door` on the existing `nc-ui` theme/runtime path
 - keep local client state in KDL files under platform-specific user paths
 - encrypt the local keychain with the user's password
@@ -38,7 +38,7 @@ Required local files:
   contacts, direct chat history, anonymous game-mail history, and joined-game
   diplomacy rosters
 - `config.kdl`: optional relay and client preferences
-- `settings.kdl`: local UI toggles plus the selected `nc-dash` theme key
+- `settings.kdl`: local UI toggles plus the selected `nc-helm` theme key
 
 Use platform-specific user paths:
 
@@ -80,7 +80,7 @@ payload body. It is not exposed in public relay tags.
 
 ## Information Architecture
 
-The lobby uses a three-pane layout inside the existing fullscreen `nc-dash`
+The lobby uses a three-pane layout inside the existing fullscreen `nc-helm`
 shell.
 
 - left pane: `My Games`
@@ -100,9 +100,9 @@ The tables should follow the existing repo table standards and stay data-dense,
 not widget-heavy.
 
 Theme ownership for hosted play now lives in lobby settings rather than the
-hosted dashboard overlay. The selected theme applies to the whole `nc-dash`
+hosted dashboard overlay. The selected theme applies to the whole `nc-helm`
 process, including the hosted dashboard, but that theme runtime is local to
-`nc-dash` and does not replace `nc-game` or `nc-door` theme handling.
+`nc-helm` and does not replace `nc-game` or `nc-door` theme handling.
 
 ## My Games Table
 
@@ -202,7 +202,7 @@ inside lobby `COMMS`.
 - `30523 PlayerMessage`: encrypted anonymous player-to-player diplomacy
 - `30524 TurnReceipt`: hosted order intake result
 
-The normal `nc-dash` lobby flow does not cache or expose invite strings. Invite
+The normal `nc-helm` lobby flow does not cache or expose invite strings. Invite
 codes remain a hidden operator-only reserve path for manual seat issuance or
 future paid-seat flows.
 
@@ -237,7 +237,7 @@ for fast startup, but must tolerate cache deletion and daemon resync.
 
 ## Module Boundaries
 
-Keep the hosted lobby split into focused modules under `rust/nc-dash/src/`.
+Keep the hosted lobby split into focused modules under `rust/nc-helm/src/`.
 
 - `lobby/state.rs`: lobby-only app state
 - `lobby/models.rs`: table rows, contact rows, thread items, and local cache records
@@ -270,7 +270,7 @@ All of these should be explicit UI states, not silent failures.
 
 The architecture is complete when:
 
-- `nc-dash` has a lobby-first startup story
+- `nc-helm` has a lobby-first startup story
 - local hosted client state is defined as KDL files under platform-specific
   user paths
 - keychain encryption and password handling are clearly local-only

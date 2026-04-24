@@ -28,7 +28,7 @@ If you are looking for future hosted direction, start with:
 
 - [architecture-v2.md](architecture-v2.md)
 - [protocol.md](protocol.md)
-- [../dash/lobby-architecture.md](../dash/lobby-architecture.md)
+- [../helm/lobby-architecture.md](../helm/lobby-architecture.md)
 
 Those future-hosted docs now treat encrypted direct community chat (`30518`) as
 the canonical lobby/community communication surface, while anonymous per-game

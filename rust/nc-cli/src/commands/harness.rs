@@ -10,7 +10,7 @@ use crate::commands::harness_campaign::{
     run_apply_turn_batch_args, run_claim_turn_args, run_init_campaign_args, run_open_turn_args,
     run_play_until_args, run_scan_turn_args,
 };
-use crate::commands::harness_dash_lab::run_seed_nc_dash_lab_args;
+use crate::commands::harness_helm_lab::run_seed_nc_helm_lab_args;
 use crate::commands::harness_player1_tui_stress::run_seed_player1_tui_stress_args;
 use crate::support::paths::resolve_repo_path;
 
@@ -91,8 +91,8 @@ pub(crate) fn run_harness_args(
         "seed-player1-tui-stress" => {
             run_seed_player1_tui_stress_args(args.collect::<Vec<_>>())?;
         }
-        "seed-nc-dash-lab" => {
-            run_seed_nc_dash_lab_args(args.collect::<Vec<_>>())?;
+        "seed-nc-helm-lab" => {
+            run_seed_nc_helm_lab_args(args.collect::<Vec<_>>())?;
         }
         other => return Err(format!("unknown harness subcommand: {other}").into()),
     }

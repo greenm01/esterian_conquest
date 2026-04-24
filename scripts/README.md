@@ -66,7 +66,7 @@ Override the local hosted games root:
 ./scripts/install_nc_host_user_service.sh --games-root /tmp/nc-host-games
 ```
 
-Use this when you want a stable localhost `nc-host` + `nc-dash` lab instead of
+Use this when you want a stable localhost `nc-host` + `nc-helm` lab instead of
 manually restarting binaries in separate terminals.
 
 ## Available Scripts
@@ -212,9 +212,9 @@ That mode:
 - creates an isolated `nc-connect` wallet/cache/config tree under `/tmp`
 - prints exact launch commands for the localhost host helper and GUI reconnect
 
-### `setup_nc_dash_lab.py`
+### `setup_nc_helm_lab.py`
 
-Seeds a dedicated `nc-dash` stress lab with one campaign for each supported map
+Seeds a dedicated `nc-helm` stress lab with one campaign for each supported map
 size tier:
 
 - `18x18` (`4` players)
@@ -222,24 +222,24 @@ size tier:
 - `36x36` (`16` players)
 - `45x45` (`25` players)
 
-It is a thin wrapper over `nc-cli harness seed-nc-dash-lab`, but it is shaped
-for repo-root use and prints the exact `nc-dash` launch command for each map.
+It is a thin wrapper over `nc-cli harness seed-nc-helm-lab`, but it is shaped
+for repo-root use and prints the exact `nc-helm` launch command for each map.
 
 Example:
 
 ```bash
-python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force
+python3 scripts/setup_nc_helm_lab.py --root /tmp/nc-helm-lab --force
 ```
 
 Launch one map immediately after seeding:
 
 ```bash
-python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force --launch map45-p25
+python3 scripts/setup_nc_helm_lab.py --root /tmp/nc-helm-lab --force --launch map45-p25
 ```
 
 Use this when you want:
 
-- quick visual passes across all `nc-dash` map tiers
+- quick visual passes across all `nc-helm` map tiers
 - reproducible dashboard testing at small, medium, and large galaxy scales
 - a single manifest under `/tmp` with launch commands for each seeded map
 
@@ -271,7 +271,7 @@ It:
 
 Use this only when you are deliberately testing the old retired hosted path.
 For the current relay-native localhost lab, use
-`install_nc_host_user_service.sh` with `nc-host` and `nc-dash` instead.
+`install_nc_host_user_service.sh` with `nc-host` and `nc-helm` instead.
 
 For same-machine hosted play, the intended normal command is the plain example
 above; `sudo` should not be necessary unless your SSH setup is unusual.

@@ -16,13 +16,13 @@ green.
 - Stabilize the localhost and BBS release surfaces for public beta use.
 - Fix real playtest bugs and workflow rough edges quickly.
 - Keep docs aligned with the local/BBS product story.
-- Treat future Nostr work as a separate `nc-host` / `nc-dash` track.
+- Treat future Nostr work as a separate `nc-host` / `nc-helm` track.
 
 ## Biggest Blockers
 
 - No known major engine/storage blocker remains.
 - The main remaining risk is field bugs found by real BBS and localhost players.
-- The hosted `nc-host` / `nc-dash` track now exists locally, but it is still a
+- The hosted `nc-host` / `nc-helm` track now exists locally, but it is still a
   dev-only path and not the public shipped product story.
 - The biggest remaining hosted client gap is finishing the last unsupported
   hosted dashboard actions and broadening the staged hosted draft flow beyond
@@ -44,7 +44,7 @@ green.
    exercise the hosted dashboard.
 7. Finish the remaining unsupported hosted dashboard actions or explicitly
    scope them out of the hosted flow.
-8. If modal drag pacing still feels rough in `nc-dash`, evaluate a future
+8. If modal drag pacing still feels rough in `nc-helm`, evaluate a future
    GPU/vsynced native renderer path as follow-up work.
-9. After `nc-dash` is stable on the shared ratatui render contract, replace
+9. After `nc-helm` is stable on the shared ratatui render contract, replace
    the temporary `crossterm` event types with a small local input model.

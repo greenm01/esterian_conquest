@@ -1,4 +1,4 @@
-//! nc-session — shared launch infrastructure for nc-game and nc-dash.
+//! nc-session — shared launch infrastructure for nc-game and nc-helm.
 //!
 //! Provides:
 //! - `StartupPhase` — generic phase progression for the intro flow

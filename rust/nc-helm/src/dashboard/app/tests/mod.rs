@@ -2931,7 +2931,7 @@ fn dash_app_with_starbase() -> DashApp {
 
 fn dash_app_with_starbase_store() -> DashApp {
     let root = std::env::temp_dir().join(format!(
-        "nc-dash-fleet-order-starbase-test-{}-{}",
+        "nc-helm-fleet-order-starbase-test-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2986,7 +2986,7 @@ fn dash_app_with_starbase_store() -> DashApp {
 
 fn dash_app_with_store() -> DashApp {
     let root = std::env::temp_dir().join(format!(
-        "nc-dash-fleet-order-test-{}-{}",
+        "nc-helm-fleet-order-test-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

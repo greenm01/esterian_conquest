@@ -5,7 +5,7 @@
 > Today the supported public gameplay surfaces are `nc-game` (localhost),
 > `nc-door` (BBS), and `nc-sysop` (local/BBS administration). This document
 > defines the separate future hosted stack centered on `nc-host` and
-> `nc-dash`.
+> `nc-helm`.
 
 ## 1. Core Direction
 
@@ -13,8 +13,8 @@ The hosted Nostr path is a clean split from localhost/BBS play.
 
 - `nc-sysop` remains localhost/BBS-only.
 - `nc-host` owns relay-native hosted play.
-- `nc-dash` grows a hosted lobby plus hosted dashboard mode.
-- `nc-dash` keeps its own local keychain/cache/settings in platform-specific
+- `nc-helm` grows a hosted lobby plus hosted dashboard mode.
+- `nc-helm` keeps its own local keychain/cache/settings in platform-specific
   user paths using KDL files.
 - Hosted storage does not reuse localhost/BBS `ncgame.db`.
 
@@ -29,7 +29,7 @@ The daemon model is:
 
 ```text
 +-----------+      +-----------+      +---------------------------+
-|  nc-dash  | <--> |   relay   | <--> |        nc-host          |
+|  nc-helm  | <--> |   relay   | <--> |        nc-host          |
 |  lobby +  |      | (daemon-  |      | supervisor + game workers |
 | dashboard |      | dedicated)|      +---------------------------+
 +-----------+      +-----------+                    |
@@ -95,7 +95,7 @@ This keeps the code lean:
 
 ## 5. Lobby Model
 
-`nc-dash --lobby` is the public hosted discovery surface.
+`nc-helm --lobby` is the public hosted discovery surface.
 
 The public lobby shows only games that are both:
 
@@ -144,7 +144,7 @@ First launch flow:
 Hosted handle ownership is host-local and tied to the player's `npub`.
 Comparison is case-insensitive after trimming whitespace. The same `npub` may
 keep or change its own handle, but a second player may not claim it on that
-same `nc-host`. `nc-dash` may save a handle locally while offline, but that
+same `nc-host`. `nc-helm` may save a handle locally while offline, but that
 choice remains unverified until `nc-host` accepts it through an explicit handle
 check or a later hosted action.
 
@@ -169,7 +169,7 @@ All non-public hosted kinds are private-by-default:
 
 ## 6. Invite and Join Flow
 
-Hosted first joins in the normal `nc-dash` lobby flow are approval-based and
+Hosted first joins in the normal `nc-helm` lobby flow are approval-based and
 code-free for the player. Invite codes remain available only as a reserve,
 operator-controlled path.
 
@@ -182,7 +182,7 @@ Reserve/manual invite codes still use the old human-readable format:
 But the public lobby never exposes those codes. The server flow is:
 
 1. `nc-host` publishes a public `30500 GameDefinition` for recruiting games.
-2. `nc-dash --lobby` lists those games.
+2. `nc-helm --lobby` lists those games.
 3. A player sends a join request over Nostr to the daemon.
 4. The daemon stores the request in the target game's request queue and
    notifies the sysop contact identity.
@@ -426,17 +426,17 @@ nc-host threads show --dir <path> --player <npub>
 nc-host threads send --dir <path> --player <npub> --message "..." [--handle <name>]
 ```
 
-### `nc-dash`
+### `nc-helm`
 
 ```text
-nc-dash
-nc-dash --relay <url>
+nc-helm
+nc-helm --relay <url>
 ```
 
-`nc-dash` is lobby-first for the hosted path. It keeps local keychain/cache
+`nc-helm` is lobby-first for the hosted path. It keeps local keychain/cache
 state in platform-specific KDL files and does not launch an SSH/PTy bridge.
 
-See [../dash/lobby-architecture.md](../dash/lobby-architecture.md) for the
+See [../helm/lobby-architecture.md](../helm/lobby-architecture.md) for the
 client-side hosted UI/state architecture.
 
 ## 12. Explicit Non-Goals
