@@ -66,6 +66,7 @@ impl DashApp {
         actions.push(PlanetTurnAction::ClearBuildKind { kind_raw });
     }
 
+    #[allow(dead_code)]
     pub(crate) fn stage_hosted_planet_clear_build_queue(
         &mut self,
         planet_record_index_1_based: usize,

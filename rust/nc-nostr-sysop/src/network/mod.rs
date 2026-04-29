@@ -24,11 +24,6 @@ pub enum NetworkEvent {
 }
 
 impl SysopClient {
-    pub async fn new(nsec: &str) -> Result<Self> {
-        let keys = Keys::parse(nsec)?;
-        Self::new_with_keys(keys).await
-    }
-
     pub async fn new_with_keys(keys: Keys) -> Result<Self> {
         let client = Client::new(keys.clone());
 
@@ -123,6 +118,7 @@ impl SysopClient {
         let mut notifications = self.client.notifications();
         let secret_key = self.keys.secret_key().clone();
 
+        let _ = tx.send(NetworkEvent::Connected);
         tokio::spawn(async move {
             while let Ok(notification) = notifications.recv().await {
                 if let RelayPoolNotification::Event { event, .. } = notification {
@@ -212,6 +208,9 @@ impl SysopClient {
                     }
                 }
             }
+            let _ = tx.send(NetworkEvent::Error(
+                "relay notification stream closed".to_string(),
+            ));
         });
 
         Ok(())

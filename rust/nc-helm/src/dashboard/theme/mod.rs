@@ -1,5 +1,7 @@
 //! Dashboard and lobby theme runtime local to `nc-helm`.
 
+#![allow(dead_code)]
+
 use std::cell::RefCell;
 
 use crate::dashboard::buffer::{CellStyle, GameColor};

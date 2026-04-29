@@ -345,6 +345,7 @@ impl DashApp {
         self.planet_overlay.footer_notice = None;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn show_planet_overlay_footer_notice(&mut self, message: impl Into<String>) {
         self.planet_overlay.footer_notice = Some(message.into());
     }

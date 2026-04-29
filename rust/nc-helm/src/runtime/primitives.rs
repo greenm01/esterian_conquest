@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::grid::GameColor;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

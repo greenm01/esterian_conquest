@@ -5,7 +5,6 @@ use crossterm::event::{KeyCode, KeyEvent};
 pub enum UpdateResult {
     None,
     MessageSent(String),
-    Command(String),
     Quit,
     Redraw,
 }

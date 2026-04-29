@@ -42,7 +42,7 @@ pub(crate) enum PlanetJumpDirection {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct ProjectedMapGeometry {
+pub(crate) struct ProjectedMapGeometry {
     axis_row: usize,
     bottom_axis_row: usize,
     row_label_col: usize,
@@ -1948,15 +1948,6 @@ mod tests {
 
     fn place_viewer_fleet(app: &mut DashApp, coords: [u8; 2]) {
         place_viewer_fleet_at_record(app, 0, coords);
-    }
-
-    fn move_all_viewer_fleets(app: &mut DashApp, coords: [u8; 2]) {
-        let viewer_empire_id = app.player_record_index_1_based as u8;
-        for fleet in &mut app.game_data.fleets.records {
-            if fleet.owner_empire_raw() == viewer_empire_id {
-                fleet.set_current_location_coords_raw(coords);
-            }
-        }
     }
 
     fn place_viewer_fleet_at_record(app: &mut DashApp, fleet_idx: usize, coords: [u8; 2]) {

@@ -61,6 +61,7 @@ pub fn build_hosted_dash_app(
     DashLaunchState::from_hosted_snapshot(snapshot)?.into_app(geometry)
 }
 
+#[allow(dead_code)]
 pub fn replay_hosted_draft(
     dashboard: &mut DashApp,
     draft: &TurnSubmission,
@@ -127,6 +128,7 @@ pub(crate) fn render_hosted_playfield_into(
     app::render::render_into(dashboard, playfield)
 }
 
+#[allow(dead_code)]
 pub(crate) fn render_hosted_buffer_into(
     dashboard: &DashApp,
     dashboard_playfield: &mut buffer::PlayfieldBuffer,

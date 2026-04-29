@@ -1630,10 +1630,6 @@ mod tests {
 
     use nc_data::GameStateBuilder;
     use nc_engine::build_seeded_initialized_game;
-    use nc_nostr::state_sync::{
-        GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedReportBlock,
-        HostedStarmapState, HostedStatePayload, HostedWorldState,
-    };
 
     use super::{
         FrameTimingSample, FrameTimingSummary, ResizeObservation, ResizeShrinkTracker,
@@ -2355,63 +2351,4 @@ mod tests {
         }
     }
 
-    fn sample_snapshot() -> GameState {
-        GameState {
-            game_id: "game".to_string(),
-            turn: 1,
-            year: 1,
-            player_seat: 1,
-            player_name: "Player One".to_string(),
-            state_hash: "hash".to_string(),
-            state: HostedStatePayload {
-                player: HostedPlayerState {
-                    seat: 1,
-                    empire_name: "Empire One".to_string(),
-                    handle: Some("player".to_string()),
-                    mode: "normal".to_string(),
-                    tax_rate: 15,
-                    planet_count: 1,
-                    starbase_count: 0,
-                    homeworld_planet_index: 1,
-                    last_run_year: 1,
-                    diplomacy: Vec::new(),
-                },
-                roster: vec![HostedPlayerRosterEntry {
-                    empire_id: 1,
-                    empire_name: "Empire One".to_string(),
-                    is_self: true,
-                }],
-                starmap: HostedStarmapState {
-                    map_width: 18,
-                    map_height: 18,
-                    viewer_empire_id: 1,
-                    year: 1,
-                    worlds: vec![HostedWorldState {
-                        planet_index: 1,
-                        coords: [1, 1],
-                        intel_tier: "full".to_string(),
-                        known_name: Some("Home".to_string()),
-                        known_owner_empire_id: Some(1),
-                        known_owner_empire_name: Some("Empire One".to_string()),
-                        known_potential_production: Some(20),
-                        known_armies: Some(5),
-                        known_ground_batteries: Some(2),
-                        known_starbase_count: Some(0),
-                        known_current_production: Some(15),
-                        known_stored_points: Some(10),
-                        known_docked_summary: None,
-                        known_orbit_summary: None,
-                    }],
-                },
-                owned_planets: Vec::new(),
-                owned_fleets: Vec::new(),
-            },
-            queued_mail: Vec::new(),
-            report_blocks: vec![HostedReportBlock {
-                viewer_empire_id: 1,
-                block_index: 0,
-                decoded_text: "Report".to_string(),
-            }],
-        }
-    }
 }

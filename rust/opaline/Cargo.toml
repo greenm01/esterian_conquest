@@ -68,11 +68,6 @@ name = "theme-showcase"
 path = "examples/theme_showcase.rs"
 required-features = ["builtin-themes", "gradients", "ratatui"]
 
-[profile.release]
-lto = true
-codegen-units = 1
-strip = true
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

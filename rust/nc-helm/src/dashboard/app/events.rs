@@ -38,6 +38,7 @@ impl DashApp {
         self.refresh_terminal_fit_state();
     }
 
+    #[allow(dead_code)]
     pub(crate) fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         render::render(self)
     }

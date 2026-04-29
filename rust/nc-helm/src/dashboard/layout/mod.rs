@@ -21,6 +21,7 @@ pub use widgets::{
 };
 
 /// Create a new PlayfieldBuffer at the full canvas size, filled with theme bg.
+#[allow(dead_code)]
 pub fn new_dashboard_buffer(geometry: ScreenGeometry) -> PlayfieldBuffer {
     PlayfieldBuffer::new(geometry.width(), geometry.height(), theme::body_style())
 }

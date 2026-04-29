@@ -567,12 +567,12 @@ struct LogoVertex {
 /// GPU-side resources for the background image: a 2D texture sized to the
 /// surface, plus a pre-built bind group ready to attach during rendering.
 struct BackgroundTexture {
-    texture: Texture,
+    _texture: Texture,
     view: TextureView,
 }
 
 struct GridAtlas {
-    texture: Texture,
+    _texture: Texture,
     view: TextureView,
 }
 
@@ -585,7 +585,7 @@ struct LogoSprite {
 }
 
 struct LogoAtlas {
-    texture: Texture,
+    _texture: Texture,
     view: TextureView,
     width_px: u32,
     height_px: u32,
@@ -616,6 +616,7 @@ struct DirtyColumnSpan {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[allow(dead_code)]
 struct DirtyPixelRect {
     left_px: usize,
     top_px: usize,
@@ -1626,7 +1627,10 @@ impl BackgroundTexture {
             view_formats: &[],
         });
         let view = texture.create_view(&TextureViewDescriptor::default());
-        Self { texture, view }
+        Self {
+            _texture: texture,
+            view,
+        }
     }
 }
 
@@ -1816,7 +1820,10 @@ fn generate_grid_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics
         },
     );
 
-    GridAtlas { texture, view }
+    GridAtlas {
+        _texture: texture,
+        view,
+    }
 }
 
 fn generate_logo_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics) -> LogoAtlas {
@@ -1889,7 +1896,7 @@ fn generate_logo_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics
         },
     );
     LogoAtlas {
-        texture,
+        _texture: texture,
         view,
         width_px: atlas_width,
         height_px: atlas_height,

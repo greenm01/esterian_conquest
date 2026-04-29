@@ -54,6 +54,7 @@ pub(crate) struct IncrementalRenderOutcome {
     pub full_rebuild: bool,
 }
 
+#[allow(dead_code)]
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buf = new_dashboard_buffer(app.geometry);
     render_into(app, &mut buf)?;

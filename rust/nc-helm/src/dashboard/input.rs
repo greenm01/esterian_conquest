@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 

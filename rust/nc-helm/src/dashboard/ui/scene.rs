@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::dashboard::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 
 #[derive(Clone, Copy, Debug, PartialEq)]

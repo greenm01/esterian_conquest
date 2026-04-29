@@ -228,8 +228,11 @@ async fn run_tui(args: Args) -> Result<()> {
             // Handle network events
             Some(net_event) = net_rx.recv() => {
                 match net_event {
-                    NetworkEvent::MessageReceived { sender, content, channel, .. } => {
-                        if let crate::app::SysopChannel::Direct(_) = &channel {
+                    NetworkEvent::Connected => {
+                        app.status_line = format!("Connected to {}", relay);
+                    }
+                    NetworkEvent::MessageReceived { sender, content, channel, is_direct } => {
+                        if is_direct {
                             if !app.channels.contains(&channel) {
                                 app.channels.push(channel.clone());
                             }
@@ -242,15 +245,15 @@ async fn run_tui(args: Args) -> Result<()> {
                             is_own: false,
                         });
                     }
-                    NetworkEvent::GameDiscovered { id, name: _ } => {
+                    NetworkEvent::GameDiscovered { id, name } => {
                         if !app.channels.iter().any(|c| matches!(c, crate::app::SysopChannel::Game(gid) if gid == &id)) {
                             app.channels.push(crate::app::SysopChannel::Game(id));
                         }
+                        app.status_line = format!("Discovered game: {}", name);
                     }
                     NetworkEvent::Error(err) => {
                         app.status_line = format!("Network Error: {}", err);
                     }
-                    _ => {}
                 }
             }
         }

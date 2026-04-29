@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use winit::dpi::PhysicalPosition;
 
 use crate::grid::{Column, Point, Row, ScreenGeometry};

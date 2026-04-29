@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::dashboard::buffer::{CellStyle, PlayfieldBuffer};
 
 pub const MODAL_CLOSE_BUTTON: &str = crate::chrome_tags::CLOSE_TAG_LABEL;
