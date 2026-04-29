@@ -19,7 +19,7 @@ use crate::transport::{
 };
 use crate::{CellStyle, GameColor, PlayfieldBuffer, Point, ScreenGeometry};
 
-pub const DEFAULT_RELAY_URL: &str = "ws://127.0.0.1:8080";
+pub const DEFAULT_RELAY_URL: &str = "ws://localhost:8080";
 pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
 pub(crate) const MIN_SUPPORTED_GEOMETRY: ScreenGeometry = ScreenGeometry::new(68, 24);
 pub const DEFAULT_LOCK_TIMEOUT_MINUTES: u16 = 10;

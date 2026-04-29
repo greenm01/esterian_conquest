@@ -66,6 +66,33 @@ Override the local hosted games root:
 ./scripts/install_nc_host_user_service.sh --games-root /tmp/nc-host-games
 ```
 
+### `install_nc_host_runit_service.sh`
+
+Void/runit dev installer for the relay-native hosted lab.
+
+It:
+
+- builds `target/debug/nc-host`
+- writes `~/.config/nc-host/host.kdl`
+- writes `~/.config/nc-host/host.nsec` if missing
+- creates or reuses `~/.local/share/nc-host/games/local-dev`
+- installs `/etc/sv/nc-host`
+- enables `/var/service/nc-host`
+- logs to `/var/log/nc-host/current`
+- starts or restarts `nc-host`
+
+Example:
+
+```bash
+./scripts/install_nc_host_runit_service.sh
+```
+
+Install the service without creating a dev game:
+
+```bash
+./scripts/install_nc_host_runit_service.sh --skip-game
+```
+
 Use this when you want a stable localhost `nc-host` + `nc-helm` lab instead of
 manually restarting binaries in separate terminals.
 

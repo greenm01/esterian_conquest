@@ -20,7 +20,7 @@ The localhost lab uses user-local paths:
 
 The host config uses:
 
-- `relay-url "ws://127.0.0.1:8080"`
+- `relay-url "ws://localhost:8080"`
 - `invite-relay-host "localhost:8080"`
 
 The relay itself should advertise:
@@ -51,7 +51,7 @@ Useful options:
 
 ```bash
 ./scripts/install_nc_host_user_service.sh --games-root /tmp/nc-host-games --no-restart
-./scripts/install_nc_host_user_service.sh --relay-url ws://127.0.0.1:8080 --invite-relay-host localhost:8080
+./scripts/install_nc_host_user_service.sh --relay-url ws://localhost:8080 --invite-relay-host localhost:8080
 ```
 
 ## Daily Dev Flow

@@ -17,7 +17,7 @@ HOST_IDENTITY_PATH="$HOST_CONFIG_DIR/host.nsec"
 HOST_UNIT_PATH="$SYSTEMD_USER_DIR/nc-host.service"
 RELAY_CONFIG_PATH="$CONFIG_ROOT/nostr-rs-relay/config.toml"
 
-RELAY_URL="ws://127.0.0.1:8080"
+RELAY_URL="ws://localhost:8080"
 INVITE_RELAY_HOST="localhost:8080"
 RESTART_SERVICES=1
 
@@ -28,7 +28,7 @@ Usage:
 
 Options:
   --games-root <path>          Override hosted games root.
-  --relay-url <url>            Host relay URL. Default: ws://127.0.0.1:8080
+  --relay-url <url>            Host relay URL. Default: ws://localhost:8080
   --invite-relay-host <host>   Invite relay host[:port]. Default: localhost:8080
   --no-restart                 Install files without restarting user services.
   --help                       Show this help.

@@ -33,7 +33,7 @@ fn local_dashboard_launch_opens_hosted_route_without_boot_effects() {
 
     assert!(effects.is_empty());
     assert!(matches!(app.model().route, Route::HostedGame(_)));
-    assert!(app.model().relay_url.contains("127.0.0.1"));
+    assert_eq!(app.model().relay_url, "ws://localhost:8080");
     assert!(!matches!(effects.as_slice(), [Effect::LoadBoot]));
 
     std::fs::remove_dir_all(&game_dir).expect("cleanup temp game dir");
