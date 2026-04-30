@@ -5,6 +5,7 @@ mod view;
 use std::path::Path;
 
 use nc_client::cache::ClientCache;
+use nc_data::TurnSubmission;
 use nc_nostr::first_join::FIRST_JOIN_NAME_MAX_CHARS;
 use nc_nostr::state_sync::GameState;
 pub(crate) use view::ViewRenderTimings;
@@ -480,6 +481,13 @@ pub enum Effect {
         row: MyGameRow,
         password: String,
         handle: Option<String>,
+    },
+    SaveHostedTurnDraft {
+        game_id: String,
+        player_pubkey: String,
+        password: String,
+        base_hash: String,
+        draft: Option<TurnSubmission>,
     },
     CompleteFirstJoinSetup {
         row: MyGameRow,

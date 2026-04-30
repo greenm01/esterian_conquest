@@ -42,6 +42,8 @@ use winit::platform::wayland::{
 use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::window::{Fullscreen, Window, WindowAttributes};
 
+use nc_client::hosted::store::{HostedDraftStatus, HostedStateStore};
+
 use crate::Point;
 use crate::app::{
     App, Effect, MATRIX_FRAME_STEP, MIN_SUPPORTED_GEOMETRY, Msg, Route, route_supports_session_lock,
@@ -490,6 +492,42 @@ impl Runtime {
                             let _ = proxy.send_event(RuntimeEvent::HostedGameOpened(result));
                         }
                     });
+                }
+                Effect::SaveHostedTurnDraft {
+                    game_id,
+                    player_pubkey,
+                    password,
+                    base_hash,
+                    draft,
+                } => {
+                    self.diagnostic_log("dispatch effect: SaveHostedTurnDraft");
+                    match HostedStateStore::open_default() {
+                        Ok(store) => {
+                            let result = if let Some(draft) = draft {
+                                store.save_draft(
+                                    &password,
+                                    &player_pubkey,
+                                    &game_id,
+                                    &base_hash,
+                                    &draft,
+                                    HostedDraftStatus::Local,
+                                    None,
+                                )
+                            } else {
+                                store.clear_draft(&player_pubkey, &game_id)
+                            };
+                            if let Err(err) = result {
+                                self.diagnostic_log(&format!(
+                                    "save hosted turn draft failed: {err}"
+                                ));
+                            }
+                        }
+                        Err(err) => {
+                            self.diagnostic_log(&format!(
+                                "open hosted turn draft store failed: {err}"
+                            ));
+                        }
+                    }
                 }
                 Effect::CompleteFirstJoinSetup {
                     row,

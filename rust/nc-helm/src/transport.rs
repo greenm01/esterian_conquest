@@ -7,7 +7,7 @@ use nc_client::cache::{CachedGame, ClientCache};
 use nc_client::hosted::session::{
     CatalogGame, HostedClientSession, HostedStateRequestError, PlayerEventBatch, SandboxJoinOutcome,
 };
-use nc_client::hosted::store::{CachedHostedSnapshot, HostedStateStore};
+use nc_client::hosted::store::{CachedHostedDraft, CachedHostedSnapshot, HostedStateStore};
 use nc_client::keychain::now_iso8601;
 use nc_nostr::game_definition::{GameStatus, RecruitingMode};
 use nc_nostr::invite_request::{InviteDecision, InviteRequestReceiptStatus};
@@ -29,6 +29,7 @@ pub struct HostedGameOpenSuccess {
     pub snapshot: nc_nostr::state_sync::GameState,
     pub row: crate::app::MyGameRow,
     pub cache: ClientCache,
+    pub cached_draft: Option<CachedHostedDraft>,
 }
 
 #[derive(Debug, Clone)]
@@ -712,6 +713,7 @@ fn join_sandbox_game(
                 snapshot,
                 row: joined_row,
                 cache: transport.cache.clone(),
+                cached_draft: None,
             }))
         }
     }
@@ -741,10 +743,13 @@ fn open_hosted_game(
                 .cache
                 .upsert_game(cached_game_from_joined_row(&joined_row));
             replace_roster(&mut transport.cache, &snapshot);
+            let cached_draft =
+                load_cached_draft_for_open(&transport.session, password, &joined_row.game_id);
             Ok(HostedGameOpenResult::Opened(HostedGameOpenSuccess {
                 snapshot,
                 row: joined_row,
                 cache: transport.cache.clone(),
+                cached_draft,
             }))
         }
         Err(err) => handle_open_game_error(transport, row, err),
@@ -761,6 +766,21 @@ fn load_cached_snapshot_for_open(
         .and_then(|store| {
             store
                 .load_snapshot(password, &session.public_key_hex(), game_id)
+                .ok()
+        })
+        .flatten()
+}
+
+fn load_cached_draft_for_open(
+    session: &HostedClientSession,
+    password: &str,
+    game_id: &str,
+) -> Option<CachedHostedDraft> {
+    HostedStateStore::open_default()
+        .ok()
+        .and_then(|store| {
+            store
+                .load_draft(password, &session.public_key_hex(), game_id)
                 .ok()
         })
         .flatten()
@@ -810,6 +830,7 @@ fn complete_first_join_setup(
         snapshot,
         row: joined_row,
         cache: transport.cache.clone(),
+        cached_draft: None,
     })
 }
 

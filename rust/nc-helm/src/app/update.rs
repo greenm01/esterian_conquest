@@ -1,5 +1,8 @@
+use nc_client::hosted::store::{CachedHostedDraft, HostedDraftStatus};
 use nc_client::password::validate_new_password;
+use nc_data::TurnSubmission;
 use nc_nostr::hosted::relay_url_to_invite_host;
+use nostr_sdk::Keys;
 
 use super::{
     DispatchOutcome, Effect, FirstJoinSetupField, HostedGameModel, LOBBY_TAB_ROW,
@@ -229,6 +232,7 @@ fn handle_sandbox_joined(
                 model,
                 success.row,
                 success.snapshot,
+                None,
                 Some("Sandbox joined.".to_string()),
             )
         }
@@ -277,7 +281,13 @@ fn handle_hosted_game_opened(
         Ok(crate::transport::HostedGameOpenResult::Opened(success)) => {
             model.cache = success.cache.clone();
             upsert_joined_game(model, success.row.clone());
-            open_snapshot_route(model, success.row, success.snapshot, None)
+            open_snapshot_route(
+                model,
+                success.row,
+                success.snapshot,
+                success.cached_draft,
+                None,
+            )
         }
         Ok(crate::transport::HostedGameOpenResult::Expired {
             row,
@@ -300,7 +310,7 @@ fn handle_first_join_setup_completed(
         Ok(success) => {
             model.cache = success.cache.clone();
             upsert_joined_game(model, success.row.clone());
-            open_snapshot_route(model, success.row, success.snapshot, None)
+            open_snapshot_route(model, success.row, success.snapshot, None, None)
         }
         Err(err) => {
             if let Route::FirstJoinSetup(setup) = &mut model.route {
@@ -369,6 +379,9 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> DispatchO
         return DispatchOutcome::redraw(Vec::new());
     }
 
+    let hosted_password = current_password(model);
+    let hosted_player_pubkey = current_player_pubkey_hex(model);
+
     match &mut model.route {
         Route::Lobby(lobby) => {
             if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
@@ -432,8 +445,18 @@ fn handle_mouse(model: &mut Model, mouse: crate::input::MouseEvent) -> DispatchO
             let Some(mapped) = dashboard_mouse_event(mouse) else {
                 return DispatchOutcome::no_redraw(Vec::new());
             };
+            let before = hosted.dashboard.hosted_turn_text();
+            let row = hosted.row.clone();
+            let password = hosted_password;
+            let player_pubkey = hosted_player_pubkey;
             let changed = dashboard::dispatch_hosted_mouse(&mut hosted.dashboard, mapped);
-            DispatchOutcome::new(Vec::new(), changed)
+            let after = hosted_turn_draft_for_save(&hosted.dashboard);
+            let after_text = after.as_ref().map(TurnSubmission::to_kdl_string);
+            let effects =
+                hosted_draft_save_effect(row, password, player_pubkey, before, after_text, after)
+                    .into_iter()
+                    .collect();
+            DispatchOutcome::new(effects, changed)
         }
         _ => DispatchOutcome::no_redraw(Vec::new()),
     }
@@ -987,13 +1010,21 @@ fn handle_first_join_setup_key(model: &mut Model, key: crate::input::KeyEvent) -
 }
 
 fn handle_hosted_game_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effect> {
+    let password = current_password(model);
+    let player_pubkey = current_player_pubkey_hex(model);
     let Route::HostedGame(hosted) = &mut model.route else {
         return Vec::new();
     };
     if let Some(mapped) = dashboard_key_event(key) {
+        let before = hosted.dashboard.hosted_turn_text();
+        let row = hosted.row.clone();
         dashboard::dispatch_hosted_key(&mut hosted.dashboard, mapped);
+        let after = hosted_turn_draft_for_save(&hosted.dashboard);
+        let after_text = after.as_ref().map(TurnSubmission::to_kdl_string);
+        let save_effect =
+            hosted_draft_save_effect(row, password, player_pubkey, before, after_text, after);
         if let Some(request) = dashboard::hosted_take_exit_request(&mut hosted.dashboard) {
-            return match request {
+            let mut effects = match request {
                 dashboard::DashboardExitRequest::QuitClient => {
                     model.should_quit = true;
                     vec![Effect::Quit]
@@ -1002,9 +1033,51 @@ fn handle_hosted_game_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec
                     return_to_lobby_with_status(model, String::new())
                 }
             };
+            if let Some(effect) = save_effect {
+                effects.push(effect);
+            }
+            return effects;
+        }
+        if let Some(effect) = save_effect {
+            return vec![effect];
         }
     }
     Vec::new()
+}
+
+fn hosted_turn_draft_for_save(dashboard: &dashboard::DashApp) -> Option<TurnSubmission> {
+    dashboard
+        .hosted_turn_draft
+        .as_ref()
+        .and_then(|draft| dashboard.hosted_turn_text().map(|_| draft.clone()))
+}
+
+fn hosted_draft_save_effect(
+    row: super::MyGameRow,
+    password: String,
+    player_pubkey: Option<String>,
+    before: Option<String>,
+    after_text: Option<String>,
+    draft: Option<TurnSubmission>,
+) -> Option<Effect> {
+    if before == after_text {
+        return None;
+    }
+    Some(Effect::SaveHostedTurnDraft {
+        game_id: row.game_id,
+        player_pubkey: player_pubkey?,
+        password,
+        base_hash: row.last_hash.unwrap_or_default(),
+        draft,
+    })
+}
+
+fn current_player_pubkey_hex(model: &Model) -> Option<String> {
+    model
+        .session
+        .as_ref()
+        .and_then(|session| Keys::parse(&session.active_nsec).ok())
+        .map(|keys| keys.public_key().to_hex())
 }
 
 fn activate_selected_row(model: &mut Model) -> Vec<Effect> {
@@ -1096,6 +1169,7 @@ fn open_snapshot_route(
     model: &mut Model,
     row: super::MyGameRow,
     snapshot: nc_nostr::state_sync::GameState,
+    cached_draft: Option<CachedHostedDraft>,
     lobby_status: Option<String>,
 ) -> Vec<Effect> {
     if let Some(setup) = first_join_setup_from_snapshot(row.clone(), &snapshot) {
@@ -1106,7 +1180,19 @@ fn open_snapshot_route(
         &snapshot,
         dashboard::ScreenGeometry::new(model.geometry.width(), model.geometry.height()),
     ) {
-        Ok(dashboard) => {
+        Ok(mut dashboard) => {
+            if let Some(cached_draft) = replayable_cached_draft(&snapshot, cached_draft) {
+                if let Err(err) =
+                    dashboard::replay_hosted_draft(&mut dashboard, &cached_draft.draft)
+                {
+                    return return_to_lobby_with_status(
+                        model,
+                        lobby_status
+                            .map(|status| format!("{status} Unable to replay saved orders: {err}"))
+                            .unwrap_or_else(|| format!("Unable to replay saved orders: {err}")),
+                    );
+                }
+            }
             model.route = Route::HostedGame(HostedGameModel {
                 row,
                 dashboard,
@@ -1121,6 +1207,19 @@ fn open_snapshot_route(
                 .unwrap_or_else(|| format!("Unable to build hosted dashboard: {err}")),
         ),
     }
+}
+
+fn replayable_cached_draft(
+    snapshot: &nc_nostr::state_sync::GameState,
+    cached_draft: Option<CachedHostedDraft>,
+) -> Option<CachedHostedDraft> {
+    cached_draft.filter(|cached| {
+        cached.status == HostedDraftStatus::Local
+            && cached.turn == snapshot.turn
+            && cached.base_hash == snapshot.state_hash
+            && cached.draft.player_record_index_1_based == snapshot.player_seat as usize
+            && u32::from(cached.draft.year.saturating_sub(3000)) == snapshot.turn
+    })
 }
 
 fn return_to_lobby_with_status(model: &mut Model, status: String) -> Vec<Effect> {
@@ -1406,19 +1505,22 @@ fn is_lock_shortcut(key: crate::input::KeyEvent) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        dashboard_mouse_event, handle_idle_lock, handle_key, handle_mouse, handle_unlocked, update,
+        dashboard_mouse_event, handle_idle_lock, handle_key, handle_mouse, handle_unlocked,
+        open_snapshot_route, update,
     };
     use crate::Point;
     use crate::app::{
         App, Effect, HostedGameModel, LobbyModel, LobbyTab, LockedModel, Model, Msg, MyGameRow,
-        NetworkState, Route, SessionState, help_close_tag_bounds,
+        NetworkState, Route, active_session_from_stored, help_close_tag_bounds,
     };
     use crate::dashboard;
     use crate::dashboard::app::state::{ActiveOverlay, ActivePopup};
     use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use crate::storage::StoredSession;
     use nc_client::cache::ClientCache;
+    use nc_client::hosted::store::{CachedHostedDraft, HostedDraftStatus};
     use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
+    use nc_data::{PlanetTurnAction, PlanetTurnBlock, TurnSubmission};
     use nc_nostr::state_sync::{
         GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
         HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
@@ -1566,6 +1668,43 @@ mod tests {
     }
 
     #[test]
+    fn hosted_game_build_command_emits_draft_autosave_effect() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        hosted.dashboard.overlay = ActiveOverlay::PlanetList;
+        hosted.dashboard.game_data.planets.records[0].set_stored_production_points(80);
+        hosted.dashboard.open_planet_build_specify();
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('='), KeyModifiers::NONE),
+        );
+
+        assert_eq!(effects.len(), 1);
+        let Effect::SaveHostedTurnDraft {
+            game_id,
+            base_hash,
+            draft: Some(draft),
+            ..
+        } = &effects[0]
+        else {
+            panic!("expected hosted draft save effect, got {:?}", effects[0]);
+        };
+        assert_eq!(game_id, "friday-night");
+        assert_eq!(base_hash, "abc123");
+        assert_eq!(draft.planets.len(), 1);
+        assert!(matches!(
+            draft.planets[0].actions.as_slice(),
+            [PlanetTurnAction::Build {
+                points_remaining_raw: 5,
+                kind_raw: 1
+            }]
+        ));
+    }
+
+    #[test]
     fn hosted_game_alt_q_confirm_yes_returns_to_lobby() {
         let mut model = hosted_game_model();
 
@@ -1589,6 +1728,56 @@ mod tests {
             }
             other => panic!("expected lobby after confirm, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn opening_hosted_game_replays_matching_local_draft() {
+        let (app, _) = App::new(None);
+        let mut model = app.model;
+        model.geometry = crate::ScreenGeometry::new(132, 44);
+        let snapshot = sample_snapshot();
+
+        let effects = open_snapshot_route(
+            &mut model,
+            sample_game_row(),
+            snapshot,
+            Some(cached_build_draft("abc123")),
+            None,
+        );
+
+        assert!(effects.is_empty());
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        let orders = nc_engine::planet_build_orders(&hosted.dashboard.game_data.planets.records[0]);
+        assert_eq!(orders.len(), 1);
+        assert_eq!(orders[0].kind, nc_data::ProductionItemKind::Destroyer);
+        assert_eq!(orders[0].points_remaining, 5);
+        assert!(hosted.dashboard.hosted_turn_text().is_some());
+    }
+
+    #[test]
+    fn opening_hosted_game_does_not_replay_stale_local_draft() {
+        let (app, _) = App::new(None);
+        let mut model = app.model;
+        model.geometry = crate::ScreenGeometry::new(132, 44);
+        let snapshot = sample_snapshot();
+
+        let effects = open_snapshot_route(
+            &mut model,
+            sample_game_row(),
+            snapshot,
+            Some(cached_build_draft("stale-hash")),
+            None,
+        );
+
+        assert!(effects.is_empty());
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        let orders = nc_engine::planet_build_orders(&hosted.dashboard.game_data.planets.records[0]);
+        assert!(orders.is_empty());
+        assert!(hosted.dashboard.hosted_turn_text().is_none());
     }
 
     #[test]
@@ -1720,12 +1909,10 @@ mod tests {
         let (app, _) = App::new(None);
         let mut model = app.model;
         model.geometry = crate::ScreenGeometry::new(132, 44);
-        model.session = Some(SessionState {
-            password: "hunter2".to_string(),
-            active_npub: "npub1test".to_string(),
-            active_nsec: "nsec1test".to_string(),
-            active_handle: Some("captain".to_string()),
-        });
+        model.session = Some(active_session_from_stored(
+            dummy_session("captain"),
+            "hunter2".to_string(),
+        ));
         model.network = NetworkState::Synced;
         let snapshot = sample_snapshot();
         let row = sample_game_row();
@@ -1743,6 +1930,32 @@ mod tests {
             status: None,
         });
         model
+    }
+
+    fn cached_build_draft(base_hash: &str) -> CachedHostedDraft {
+        CachedHostedDraft {
+            game_id: "friday-night".to_string(),
+            player_pubkey: "player".to_string(),
+            turn: 4,
+            base_hash: base_hash.to_string(),
+            status: HostedDraftStatus::Local,
+            submit_id: None,
+            draft: TurnSubmission {
+                player_record_index_1_based: 1,
+                year: 3004,
+                tax_rate: None,
+                diplomacy: Vec::new(),
+                planets: vec![PlanetTurnBlock {
+                    planet_record_index_1_based: 1,
+                    actions: vec![PlanetTurnAction::Build {
+                        points_remaining_raw: 5,
+                        kind_raw: 1,
+                    }],
+                }],
+                fleets: Vec::new(),
+                messages: Vec::new(),
+            },
+        }
     }
 
     fn sample_game_row() -> MyGameRow {
