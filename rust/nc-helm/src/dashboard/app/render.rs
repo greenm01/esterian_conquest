@@ -402,6 +402,10 @@ fn draw_dynamic_layer(
     if app.overlay == ActiveOverlay::Help {
         overlays::help::draw(buf, app, widgets.center_map);
     }
+    if app.popup == ActivePopup::QuitConfirm {
+        render_quit_confirm(buf, app, widgets.center_map);
+        return;
+    }
     if app.overlay == ActiveOverlay::None
         || (app.overlay == ActiveOverlay::PlanetList
             && app.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None

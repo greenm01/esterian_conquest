@@ -3797,6 +3797,18 @@ fn alt_q_opens_quit_confirm_popup() {
 }
 
 #[test]
+fn quit_confirm_renders_over_active_overlay() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::Settings;
+
+    app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
+
+    assert_eq!(app.overlay, ActiveOverlay::Settings);
+    assert_eq!(app.popup, ActivePopup::QuitConfirm);
+    assert!(render_dashboard_line(&app, "┐QUIT┌").contains("┐QUIT┌"));
+}
+
+#[test]
 fn quit_confirm_cancel_restores_underlying_popup() {
     let mut app = dash_app();
     app.popup = ActivePopup::PlanetDetail {
