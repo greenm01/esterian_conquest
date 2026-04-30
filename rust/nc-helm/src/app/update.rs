@@ -1514,13 +1514,16 @@ mod tests {
         NetworkState, Route, active_session_from_stored, help_close_tag_bounds,
     };
     use crate::dashboard;
-    use crate::dashboard::app::state::{ActiveOverlay, ActivePopup};
+    use crate::dashboard::app::state::{ActiveOverlay, ActivePopup, FleetOverlayRowKey};
+    use crate::dashboard::overlays::fleet_list;
     use crate::input::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use crate::storage::StoredSession;
     use nc_client::cache::ClientCache;
     use nc_client::hosted::store::{CachedHostedDraft, HostedDraftStatus};
     use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
-    use nc_data::{DiplomaticRelation, PlanetTurnAction, PlanetTurnBlock, TurnSubmission};
+    use nc_data::{
+        DiplomaticRelation, FleetTurnAction, PlanetTurnAction, PlanetTurnBlock, TurnSubmission,
+    };
     use nc_nostr::state_sync::{
         GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
         HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
@@ -1694,6 +1697,12 @@ mod tests {
         };
         assert_eq!(game_id, "friday-night");
         assert_eq!(base_hash, "abc123");
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        let orders = nc_engine::planet_build_orders(&hosted.dashboard.game_data.planets.records[0]);
+        assert_eq!(orders.len(), 1);
+        assert_eq!(orders[0].points_remaining, 5);
         assert_eq!(draft.planets.len(), 1);
         assert!(matches!(
             draft.planets[0].actions.as_slice(),
@@ -1740,6 +1749,10 @@ mod tests {
         else {
             panic!("expected hosted draft save effect, got {:?}", effects);
         };
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        assert_eq!(hosted.dashboard.game_data.player.records[0].tax_rate(), 42);
         assert_eq!(draft.tax_rate, Some(42));
     }
 
@@ -1769,9 +1782,104 @@ mod tests {
         else {
             panic!("expected hosted draft save effect, got {:?}", effects);
         };
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        assert_eq!(
+            hosted.dashboard.game_data.stored_diplomatic_relation(
+                hosted.dashboard.player_record_index_1_based as u8,
+                target
+            ),
+            Some(DiplomaticRelation::Enemy)
+        );
         assert_eq!(draft.diplomacy.len(), 1);
         assert_eq!(draft.diplomacy[0].to_empire_raw, target);
         assert_eq!(draft.diplomacy[0].relation, DiplomaticRelation::Enemy);
+    }
+
+    #[test]
+    fn hosted_game_planet_commission_emits_draft_autosave_effect_after_preview_update() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        hosted.dashboard.overlay = ActiveOverlay::PlanetList;
+
+        assert!(
+            handle_key(
+                &mut model,
+                KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)
+            )
+            .is_empty()
+        );
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+
+        let Effect::SaveHostedTurnDraft {
+            draft: Some(draft), ..
+        } = &effects[0]
+        else {
+            panic!("expected hosted draft save effect, got {:?}", effects);
+        };
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        assert_eq!(
+            hosted.dashboard.game_data.planets.records[0].stardock_count_raw(0),
+            0
+        );
+        assert_eq!(draft.planets.len(), 1);
+        assert!(matches!(
+            draft.planets[0].actions.as_slice(),
+            [PlanetTurnAction::Commission { slot_0_based: 0 }]
+        ));
+    }
+
+    #[test]
+    fn hosted_game_fleet_change_emits_draft_autosave_effect_after_preview_update() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        hosted.dashboard.overlay = ActiveOverlay::FleetList;
+        hosted.dashboard.fleet_overlay.selected = fleet_list::table_rows(&hosted.dashboard)
+            .iter()
+            .position(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
+            .expect("fleet row");
+
+        for key in [
+            KeyCode::Char('c'),
+            KeyCode::Char('r'),
+            KeyCode::Enter,
+            KeyCode::Char('4'),
+        ] {
+            assert!(handle_key(&mut model, KeyEvent::new(key, KeyModifiers::NONE)).is_empty());
+        }
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+
+        let Effect::SaveHostedTurnDraft {
+            draft: Some(draft), ..
+        } = &effects[0]
+        else {
+            panic!("expected hosted draft save effect, got {:?}", effects);
+        };
+        let Route::HostedGame(hosted) = &model.route else {
+            panic!("expected hosted route");
+        };
+        assert_eq!(
+            hosted.dashboard.game_data.fleets.records[0].rules_of_engagement(),
+            4
+        );
+        assert_eq!(draft.fleets.len(), 1);
+        assert!(matches!(
+            draft.fleets[0].actions.as_slice(),
+            [FleetTurnAction::RulesOfEngagement { value: 4 }]
+        ));
     }
 
     #[test]

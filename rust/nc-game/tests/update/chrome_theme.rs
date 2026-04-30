@@ -4,7 +4,7 @@ use crate::support::*;
 fn main_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -44,7 +44,7 @@ fn main_menu_matches_verified_v15_command_layout() {
 fn general_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -90,7 +90,7 @@ fn general_menu_matches_verified_v15_command_layout() {
 fn main_menu_notice_renders_below_fixed_command_row() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -118,7 +118,7 @@ fn main_menu_notice_renders_below_fixed_command_row() {
 fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -162,7 +162,7 @@ fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
 fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -199,7 +199,7 @@ fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
 fn main_menu_c_key_opens_theme_picker() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -223,7 +223,7 @@ fn main_menu_c_key_opens_theme_picker() {
 fn main_menu_popup_help_describes_the_color_theme_picker() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -255,7 +255,7 @@ fn main_menu_popup_help_describes_the_color_theme_picker() {
 fn first_time_and_main_popup_help_share_the_same_color_theme_text() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -290,7 +290,7 @@ fn door_mode_main_menu_uses_ansi_toggle_and_mag16_theme() {
         .expect("save preference");
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -354,7 +354,7 @@ fn door_mode_main_menu_uses_ansi_toggle_and_mag16_theme() {
 fn door_mode_first_time_menu_and_popup_help_use_ansi_toggle_text() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -393,7 +393,7 @@ fn door_mode_first_time_menu_and_popup_help_use_ansi_toggle_text() {
 fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -457,7 +457,7 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
 fn main_menu_question_mark_and_h_open_the_same_popup_help() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -498,7 +498,7 @@ fn main_menu_question_mark_and_h_open_the_same_popup_help() {
 fn theme_picker_popup_help_consumes_the_dismiss_key() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -534,7 +534,7 @@ fn theme_picker_popup_help_consumes_the_dismiss_key() {
 fn theme_picker_reopen_after_non_default_selection_keeps_cursor_on_active_theme() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -599,7 +599,7 @@ fn theme_picker_cursor_moves_freely_after_reopen_on_non_default_theme() {
     // moving the cursor with j/k should stay where you move it -- not snap back.
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -665,7 +665,7 @@ fn theme_picker_cursor_moves_freely_after_reopen_on_non_default_theme() {
 fn theme_picker_wraps_from_top_to_bottom_and_bottom_to_top() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -700,7 +700,7 @@ fn theme_picker_wraps_from_top_to_bottom_and_bottom_to_top() {
 fn theme_picker_q_returns_to_originating_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -749,7 +749,7 @@ fn joined_player_theme_preference_persists_across_reload() {
     );
 
     let reloaded = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -955,7 +955,7 @@ fn stale_stored_theme_preference_self_heals_to_classic_on_load() {
 fn first_time_menu_status_renders_below_fixed_command_row() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -983,7 +983,7 @@ fn first_time_menu_status_renders_below_fixed_command_row() {
 fn planet_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1023,7 +1023,7 @@ fn planet_menu_matches_verified_v15_command_layout() {
 fn planet_menu_notice_renders_below_fixed_command_row() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1055,7 +1055,7 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
 fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1088,7 +1088,7 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
 fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_normally() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1150,7 +1150,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
 fn command_menus_render_without_crashing_for_empty_empire_state() {
     let fixture_dir = temp_joined_empty_empire_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

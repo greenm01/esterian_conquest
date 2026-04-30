@@ -1,7 +1,7 @@
 mod primitives;
 mod renderer;
 
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -112,6 +112,16 @@ enum RuntimeEvent {
     HostedGameOpened(Result<HostedGameOpenResult, String>),
     FirstJoinSetupCompleted(Result<HostedGameOpenSuccess, String>),
     RelaySaved(Result<String, String>),
+    HostedTurnDraftSaved(Result<(), String>),
+}
+
+#[derive(Debug)]
+struct HostedDraftSaveRequest {
+    game_id: String,
+    player_pubkey: String,
+    password: String,
+    base_hash: String,
+    draft: Option<nc_data::TurnSubmission>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -175,6 +185,7 @@ struct Runtime {
     app: App,
     storage: StorageActor,
     transport: TransportActor,
+    hosted_draft_saves: mpsc::Sender<HostedDraftSaveRequest>,
     pending_effects: Vec<Effect>,
     window: Option<Arc<Window>>,
     renderer: Option<renderer::Renderer>,
@@ -204,6 +215,7 @@ impl Runtime {
         transport: TransportActor,
         pending_effects: Vec<Effect>,
     ) -> Self {
+        let hosted_draft_saves = start_hosted_draft_save_actor(proxy.clone());
         Self {
             native_options,
             session_backend,
@@ -211,6 +223,7 @@ impl Runtime {
             app,
             storage,
             transport,
+            hosted_draft_saves,
             pending_effects,
             window: None,
             renderer: None,
@@ -501,32 +514,14 @@ impl Runtime {
                     draft,
                 } => {
                     self.diagnostic_log("dispatch effect: SaveHostedTurnDraft");
-                    match HostedStateStore::open_default() {
-                        Ok(store) => {
-                            let result = if let Some(draft) = draft {
-                                store.save_draft(
-                                    &password,
-                                    &player_pubkey,
-                                    &game_id,
-                                    &base_hash,
-                                    &draft,
-                                    HostedDraftStatus::Local,
-                                    None,
-                                )
-                            } else {
-                                store.clear_draft(&player_pubkey, &game_id)
-                            };
-                            if let Err(err) = result {
-                                self.diagnostic_log(&format!(
-                                    "save hosted turn draft failed: {err}"
-                                ));
-                            }
-                        }
-                        Err(err) => {
-                            self.diagnostic_log(&format!(
-                                "open hosted turn draft store failed: {err}"
-                            ));
-                        }
+                    if let Err(err) = self.hosted_draft_saves.send(HostedDraftSaveRequest {
+                        game_id,
+                        player_pubkey,
+                        password,
+                        base_hash,
+                        draft,
+                    }) {
+                        self.diagnostic_log(&format!("queue hosted turn draft save failed: {err}"));
                     }
                 }
                 Effect::CompleteFirstJoinSetup {
@@ -896,6 +891,10 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 self.diagnostic_log("event: RelaySaved");
                 self.dispatch(Msg::RelaySaved(result), event_loop)
             }
+            RuntimeEvent::HostedTurnDraftSaved(result) => match result {
+                Ok(()) => self.diagnostic_log("event: HostedTurnDraftSaved"),
+                Err(err) => self.diagnostic_log(&format!("save hosted turn draft failed: {err}")),
+            },
         }
     }
 
@@ -1519,6 +1518,39 @@ fn classify_resize(
     } else {
         (ResizeVerdict::Accept, new_tracker)
     }
+}
+
+fn start_hosted_draft_save_actor(
+    proxy: EventLoopProxy<RuntimeEvent>,
+) -> mpsc::Sender<HostedDraftSaveRequest> {
+    let (tx, rx) = mpsc::channel::<HostedDraftSaveRequest>();
+    thread::spawn(move || {
+        while let Ok(request) = rx.recv() {
+            let result = save_hosted_turn_draft(request).map_err(|err| err.to_string());
+            let _ = proxy.send_event(RuntimeEvent::HostedTurnDraftSaved(result));
+        }
+    });
+    tx
+}
+
+fn save_hosted_turn_draft(
+    request: HostedDraftSaveRequest,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let store = HostedStateStore::open_default()?;
+    if let Some(draft) = request.draft {
+        store.save_draft(
+            &request.password,
+            &request.player_pubkey,
+            &request.game_id,
+            &request.base_hash,
+            &draft,
+            HostedDraftStatus::Local,
+            None,
+        )?;
+    } else {
+        store.clear_draft(&request.player_pubkey, &request.game_id)?;
+    }
+    Ok(())
 }
 
 fn session_backend_label(session_backend: SessionBackend) -> &'static str {

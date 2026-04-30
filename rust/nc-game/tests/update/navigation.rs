@@ -28,7 +28,7 @@ fn navigation_hotkeys_map_ctrl_d_to_page_down_actions() {
 fn planet_database_list_accepts_wrapped_coordinate_input() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -53,7 +53,7 @@ fn planet_database_list_accepts_wrapped_coordinate_input() {
 fn planet_brief_list_accepts_wrapped_coordinate_input() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -79,7 +79,7 @@ fn planet_brief_list_accepts_wrapped_coordinate_input() {
 fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -131,7 +131,7 @@ fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
 fn planet_database_terminal_typed_jump_clears_footer_input() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -190,7 +190,7 @@ fn planet_database_terminal_typed_jump_clears_footer_input() {
 fn fleet_list_keeps_selector_input_numeric_only() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -217,7 +217,7 @@ fn fleet_list_keeps_selector_input_numeric_only() {
 fn fleet_list_typed_jump_accepts_leading_zero_fleet_ids() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -265,7 +265,7 @@ fn fleet_list_typed_jump_accepts_leading_zero_fleet_ids() {
 fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -353,7 +353,7 @@ fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
 fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -419,7 +419,7 @@ fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
 fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -488,7 +488,7 @@ fn database_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
 fn empty_fleet_filter_clause_resets_to_all() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -534,7 +534,7 @@ fn empty_fleet_filter_clause_resets_to_all() {
 fn empty_planet_list_filter_clause_resets_to_all() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -581,7 +581,7 @@ fn empty_planet_list_filter_clause_resets_to_all() {
 fn empty_database_filter_clause_resets_to_all() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -624,7 +624,7 @@ fn empty_database_filter_clause_resets_to_all() {
 fn stale_fleet_filter_clause_resets_to_all_after_rows_change() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -697,7 +697,7 @@ fn stale_fleet_filter_clause_resets_to_all_after_rows_change() {
 fn stale_planet_list_filter_clause_resets_to_all_after_rows_change() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -763,7 +763,7 @@ fn stale_planet_list_filter_clause_resets_to_all_after_rows_change() {
 fn stale_database_filter_clause_resets_to_all_after_rows_change() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -826,7 +826,7 @@ fn stale_database_filter_clause_resets_to_all_after_rows_change() {
 fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -928,7 +928,7 @@ fn unknown_filter_column_uses_slap_key_notice_across_table_prompts() {
 fn q_closes_filter_prompts_instead_of_becoming_input() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -986,7 +986,7 @@ fn q_closes_filter_prompts_instead_of_becoming_input() {
 fn auto_commission_prompt_enter_defaults_to_yes() {
     let root = temp_game_with_auto_commission_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1013,7 +1013,7 @@ fn auto_commission_prompt_enter_defaults_to_yes() {
 fn planet_list_hotkeys_open_direct_row_actions_and_return_to_list() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1082,7 +1082,7 @@ fn planet_list_build_hotkey_shows_notice_when_selected_planet_has_no_build_budge
     save_runtime_state(&fixture_dir, &runtime);
 
     let config = AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2029,7 +2029,7 @@ fn fleet_review_detail_from_menu_uses_dismiss_prompt_and_returns_to_menu() {
 fn fleet_review_from_list_uses_dismiss_prompt_and_any_key_returns_to_list() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2330,7 +2330,7 @@ fn starbase_list_wraps_selection_from_top_to_bottom_and_bottom_to_top() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2513,7 +2513,7 @@ fn starbase_move_prompt_accepts_non_planet_sector_and_persists_report() {
 fn starbase_help_uses_move_wording_not_hauling() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2548,7 +2548,7 @@ fn starbase_help_uses_move_wording_not_hauling() {
 fn planet_build_list_help_mentions_delete_hotkey() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2573,7 +2573,7 @@ fn planet_build_list_help_mentions_delete_hotkey() {
 fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2620,7 +2620,7 @@ fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
 fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
     let root = temp_game_copy();
     let config = AppConfig {
-        game_dir: root,
+        game_dir: root.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2683,7 +2683,7 @@ fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
 fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2779,7 +2779,7 @@ fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
 fn fleet_list_order_success_returns_to_list() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2842,7 +2842,7 @@ fn fleet_list_order_success_returns_to_list() {
 fn fleet_eta_result_dismiss_returns_to_fleet_list_when_launched_from_list() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2932,7 +2932,7 @@ fn fleet_list_transfer_cancel_stays_in_fleet_flow() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3032,7 +3032,7 @@ fn fleet_list_transfer_host_error_uses_slap_a_key_latch_and_preserves_prompt() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3105,7 +3105,7 @@ fn fleet_list_transfer_donor_validation_uses_short_footer_notice_for_one_ship_fl
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3165,7 +3165,7 @@ fn fleet_list_transfer_donor_validation_uses_short_footer_notice_without_host_fl
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3373,7 +3373,7 @@ fn fleet_transfer_source_prompt_defaults_to_largest_eligible_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3415,7 +3415,7 @@ fn fleet_transfer_source_prompt_rejects_one_ship_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3464,7 +3464,7 @@ fn fleet_list_detach_single_ship_uses_short_footer_notice() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3523,7 +3523,7 @@ fn fleet_list_transfer_uses_typed_fleet_number_for_single_scout_validation() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3582,7 +3582,7 @@ fn fleet_list_detach_uses_typed_fleet_number_for_single_scout_validation() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3621,7 +3621,7 @@ fn fleet_transfer_destination_prompt_defaults_to_smallest_colocated_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3651,7 +3651,7 @@ fn fleet_transfer_destination_prompt_rejects_non_colocated_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3683,7 +3683,7 @@ fn fleet_transfer_destination_prompt_rejects_non_colocated_fleet() {
 fn general_rankings_opens_production_table_and_returns_to_general_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3733,7 +3733,7 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
 fn apply_action_toggles_autopilot_and_enemy_relation() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3890,7 +3890,7 @@ fn returning_login_preserves_manual_autopilot() {
 fn apply_action_clamps_enemies_scroll_to_visible_window() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3919,7 +3919,7 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
 fn enemies_typed_empire_number_moves_selector_bar_immediately() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

@@ -4,7 +4,7 @@ use crate::support::*;
 fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
     let fixture_dir = temp_game_with_auto_commission_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -53,7 +53,7 @@ fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
 fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -96,7 +96,7 @@ fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
 fn planet_list_auto_commission_prompt_and_report_return_to_list() {
     let fixture_dir = temp_game_with_auto_commission_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -168,7 +168,7 @@ fn planet_list_auto_commission_prompt_and_report_return_to_list() {
 fn planet_list_display_queue_opens_selected_planet_and_returns_to_list() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -206,7 +206,7 @@ fn planet_list_display_queue_opens_selected_planet_and_returns_to_list() {
 fn planet_list_abort_builds_prompt_stays_inline_and_clears_queue() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -266,7 +266,7 @@ fn planet_list_abort_builds_prompt_stays_inline_and_clears_queue() {
 fn planet_list_commission_opens_direct_draft_for_selected_planet_and_returns_to_list() {
     let fixture_dir = temp_game_with_auto_commission_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -353,7 +353,7 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -481,7 +481,7 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
 fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -520,7 +520,7 @@ fn planet_commission_draft_render_does_not_crash_when_picker_rows_disappear() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -563,7 +563,7 @@ fn planet_commission_picker_render_returns_to_planet_menu_when_empty() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -623,7 +623,7 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -774,7 +774,7 @@ fn planet_commission_draft_keeps_intermediate_success_inline() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -869,7 +869,7 @@ fn planet_commission_blank_submit_uses_displayed_default_qty() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -945,7 +945,7 @@ fn planet_commission_blank_row_move_commits_displayed_default_qty() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1048,7 +1048,7 @@ fn planet_commission_result_latches_dismiss_key_until_release() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1088,7 +1088,7 @@ fn planet_commission_result_latches_dismiss_key_until_release() {
 fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planets_exist() {
     let fixture_dir = temp_joined_no_assets_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1177,7 +1177,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     assert_eq!(homeworld.present_production_points(), Some(100));
     assert_eq!(homeworld.stored_production_points(), 50);
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1238,7 +1238,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
 fn repeated_same_kind_build_submissions_merge_into_one_player_visible_total() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1298,7 +1298,7 @@ fn repeated_same_kind_build_submissions_merge_into_one_player_visible_total() {
 fn empty_build_quantity_submission_uses_max_affordable_default() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1344,7 +1344,7 @@ fn build_specify_from_menu_stays_on_build_menu_when_no_budget_remains() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1387,7 +1387,7 @@ fn successful_build_that_exhausts_budget_returns_to_build_menu_with_notice() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1454,7 +1454,7 @@ fn starbase_build_quantity_is_capped_by_remaining_stardock_slots() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1486,7 +1486,7 @@ fn starbase_build_quantity_is_capped_by_remaining_stardock_slots() {
 fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     let fixture_dir = temp_joined_empty_empire_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1521,7 +1521,7 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
 fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_exist() {
     let fixture_dir = temp_joined_no_assets_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1584,7 +1584,7 @@ fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1765,7 +1765,7 @@ fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
 fn planet_database_render_uses_classic_stacked_headers() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1817,7 +1817,7 @@ fn planet_database_render_uses_classic_stacked_headers() {
 fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1913,7 +1913,7 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
 fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2200,7 +2200,7 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
 fn planet_database_renders_unowned_and_unknown_owner_rows_distinctly() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2277,7 +2277,7 @@ fn planet_database_renders_unowned_and_unknown_owner_rows_distinctly() {
 fn planet_database_renders_icd_owner_label_for_civil_disorder_worlds() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2339,7 +2339,7 @@ fn planet_database_renders_icd_owner_label_for_civil_disorder_worlds() {
 fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2381,7 +2381,7 @@ fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
 fn planet_menu_tax_prompt_stays_inline_for_errors_and_returns_to_menu_on_success() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2459,7 +2459,7 @@ fn planet_menu_tax_prompt_stays_inline_for_errors_and_returns_to_menu_on_success
 fn planet_menu_scorch_prompt_defaults_to_lowest_owned_planet_and_validates_ownership() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2702,7 +2702,7 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
 fn planet_menu_scorch_confirm_enter_honors_default_no_and_bails() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

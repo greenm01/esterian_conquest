@@ -98,7 +98,7 @@ fn apply_action_queues_composed_message() {
 fn compose_subject_treats_q_as_text_and_esc_as_return() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -161,7 +161,7 @@ fn compose_subject_treats_q_as_text_and_esc_as_return() {
 fn compose_subject_prompt_uses_esc_cancel_markup() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -218,7 +218,7 @@ fn compose_message_rejects_fourth_message_to_same_recipient_in_same_year() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -438,7 +438,7 @@ fn reports_inbox_rejects_no_match_year_filter_without_blanking_the_table() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -512,7 +512,7 @@ fn reports_inbox_rejects_no_match_year_filter_without_blanking_the_table() {
 fn reports_inbox_question_mark_opens_popup_help_with_inbox_commands() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -574,7 +574,7 @@ fn reports_inbox_enter_moves_focus_to_preview_when_id_input_is_empty() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -625,7 +625,7 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -682,7 +682,7 @@ fn reports_inbox_delete_keeps_sparse_session_ids_without_empty_rows() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -787,7 +787,7 @@ fn reports_inbox_leaves_scrollbar_gutter_when_many_items_exist() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -833,7 +833,7 @@ fn reports_inbox_long_preview_scrolls_and_clamps_without_panicking() {
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -920,7 +920,7 @@ fn reports_inbox_long_preview_scrolls_and_clamps_without_panicking() {
 fn apply_action_confirms_before_discarding_composed_message() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -998,7 +998,7 @@ fn apply_action_confirms_before_discarding_composed_message() {
 fn compose_body_navigation_tracks_visual_wrapped_lines() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1088,7 +1088,7 @@ fn compose_body_navigation_tracks_visual_wrapped_lines() {
 fn compose_body_allows_typing_hjkl_without_moving_cursor() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1120,7 +1120,7 @@ fn compose_body_allows_typing_hjkl_without_moving_cursor() {
 fn compose_body_popup_help_lists_send_and_cancel_shortcuts() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1148,7 +1148,7 @@ fn compose_body_popup_help_lists_send_and_cancel_shortcuts() {
 fn compose_body_cursor_can_move_down_from_empty_editor_without_mutating_body() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1178,7 +1178,7 @@ fn compose_body_cursor_can_move_down_from_empty_editor_without_mutating_body() {
 fn compose_body_cursor_can_move_into_blank_lines_and_type_there() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1219,7 +1219,7 @@ fn compose_body_cursor_can_move_into_blank_lines_and_type_there() {
 fn compose_body_cursor_can_move_right_past_end_of_text_without_mutating_body() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1249,7 +1249,7 @@ fn compose_body_cursor_can_move_right_past_end_of_text_without_mutating_body() {
 fn compose_body_tab_inserts_four_spaces() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1274,7 +1274,7 @@ fn compose_body_tab_inserts_four_spaces() {
 fn compose_body_tab_pushes_existing_text_right() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1299,7 +1299,7 @@ fn compose_body_tab_pushes_existing_text_right() {
 fn compose_body_cursor_left_and_right_do_not_page_jump_on_short_first_line() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1348,7 +1348,7 @@ fn compose_body_cursor_left_and_right_do_not_page_jump_on_short_first_line() {
 fn compose_body_cursor_preserves_visual_column_in_blank_canvas_space() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

@@ -93,7 +93,7 @@ fn fleet_order_prompt_uses_smart_default_while_other_prompts_keep_strongest_defa
     assert_eq!(strongest_owned_fleet_number(&fixture_dir), 2);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -177,7 +177,7 @@ fn fleet_order_prompt_prefers_ready_etac_fleets_over_stronger_ready_non_etac_fle
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -218,7 +218,7 @@ fn fleet_order_prompt_avoids_patrol_and_blockade_fleets_when_other_owned_fleets_
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -260,7 +260,7 @@ fn fleet_order_prompt_prefers_combat_only_fallback_over_active_etac_fleets() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -300,7 +300,7 @@ fn fleet_order_prompt_uses_strength_when_no_ready_non_patrol_fleets_exist() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -340,7 +340,7 @@ fn fleet_order_prompt_fallback_ignores_active_same_system_colonize_orders() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -387,7 +387,7 @@ fn fleet_order_prompt_fallback_ignores_mixed_combat_fleets_with_scouts_or_etacs(
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -412,7 +412,7 @@ fn fleet_order_prompt_fallback_ignores_mixed_combat_fleets_with_scouts_or_etacs(
 fn fleet_order_prompt_prefers_newly_auto_commissioned_fleet_first() {
     let fixture_dir = temp_game_with_auto_commission_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -453,7 +453,7 @@ fn fleet_order_prompt_prefers_newly_auto_commissioned_fleet_first() {
 fn fleet_order_prompt_prefers_most_recent_newly_commissioned_fleet() {
     let fixture_dir = temp_game_with_auto_commission_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -511,7 +511,7 @@ fn fleet_order_prompt_prefers_most_recent_newly_commissioned_fleet() {
 fn fleet_review_prompt_accepts_typed_fleet_id_and_opens_that_fleet() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -536,7 +536,7 @@ fn fleet_review_prompt_accepts_typed_fleet_id_and_opens_that_fleet() {
 fn fleet_review_close_returns_to_menu_without_restoring_review_prompt() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -575,7 +575,7 @@ fn fleet_review_close_returns_to_menu_without_restoring_review_prompt() {
 fn fleet_review_prompt_shows_invalid_fleet_message_on_unknown_typed_id() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -660,7 +660,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -794,7 +794,7 @@ fn fleet_transport_load_prompt_rejects_fleet_not_at_owned_world() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -858,7 +858,7 @@ fn fleet_transport_unload_prompt_rejects_fleet_not_at_owned_world() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -935,7 +935,7 @@ fn fleet_transport_load_prompt_requires_armies_on_owned_world() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1012,7 +1012,7 @@ fn fleet_transport_unload_prompt_requires_room_on_owned_world() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1048,7 +1048,7 @@ fn fleet_transport_unload_prompt_requires_room_on_owned_world() {
 fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_available() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1104,7 +1104,7 @@ fn fleet_transport_quantity_prompt_stays_inline_on_fleet_menu() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1171,7 +1171,7 @@ fn fleet_transport_load_prompt_rejects_fleet_already_full() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1230,7 +1230,7 @@ fn fleet_transport_unload_prompt_rejects_fleet_already_empty() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1381,7 +1381,7 @@ fn fleet_transport_unload_default_skips_empty_fleets_and_caps_qty_by_planet_capa
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1464,7 +1464,7 @@ fn planet_menu_load_and_unload_use_inline_transport_prompts() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1658,7 +1658,7 @@ fn planet_transport_load_default_chooses_best_planet_and_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1764,7 +1764,7 @@ fn planet_transport_unload_default_chooses_best_planet_and_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1844,7 +1844,7 @@ fn planet_transport_load_prompt_rejects_fleet_not_at_owned_world() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1875,7 +1875,7 @@ fn planet_transport_load_prompt_rejects_fleet_not_at_owned_world() {
 fn fleet_menu_long_notice_wraps_instead_of_clipping() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1924,7 +1924,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
 fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2027,7 +2027,7 @@ fn fleet_merge_defaults_to_largest_eligible_source_and_smallest_host() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2078,7 +2078,7 @@ fn fleet_merge_source_rejects_fleet_without_lower_numbered_host() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2141,7 +2141,7 @@ fn fleet_merge_host_rejects_non_colocated_fleet() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2525,7 +2525,7 @@ fn fleet_list_eta_column_shows_turns_remaining_for_arrived_fleets() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2644,7 +2644,7 @@ fn fleet_list_load_keeps_confirmation_when_table_does_not_show_army_load_state()
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2709,7 +2709,7 @@ fn fleet_list_transport_error_uses_slap_a_key_footer_and_consumes_next_key() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2822,7 +2822,7 @@ fn fleet_list_load_quantity_prompt_keeps_scrollbar_gutter() {
 fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2952,7 +2952,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
 fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3003,7 +3003,7 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
 fn fleet_eta_result_dismiss_returns_to_primary_fleet_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3070,7 +3070,7 @@ fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
     fleet.set_current_speed(0);
     save_runtime_state(&fixture_dir, &state);
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3126,7 +3126,7 @@ fn fleet_eta_allows_empty_sector_targets_for_resting_hold_fleets() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

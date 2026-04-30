@@ -4,7 +4,7 @@ use crate::support::*;
 fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -73,7 +73,7 @@ fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
 fn partial_starmap_colors_viewer_and_known_enemy_worlds_by_empire_slot() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -175,7 +175,7 @@ fn partial_starmap_cell(
 fn partial_starmap_view_24_row_door_keeps_command_prompt_visible_and_title_centered() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -221,7 +221,7 @@ fn partial_starmap_view_24_row_door_keeps_command_prompt_visible_and_title_cente
 fn partial_starmap_popup_help_mentions_enter_for_planet_info() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -258,7 +258,7 @@ fn partial_starmap_popup_help_mentions_enter_for_planet_info() {
 fn opening_reports_from_general_menu_with_empty_inbox_stays_on_menu_with_notice() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -288,7 +288,7 @@ fn opening_reports_from_general_menu_with_empty_inbox_stays_on_menu_with_notice(
 fn partial_starmap_small_map_keeps_title_and_prompt_left_aligned_to_grid() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -332,7 +332,7 @@ fn partial_starmap_small_map_keeps_title_and_prompt_left_aligned_to_grid() {
 fn partial_starmap_large_map_anchors_axes_and_clamps_crosshair_near_edges() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -370,7 +370,7 @@ fn partial_starmap_large_map_anchors_axes_and_clamps_crosshair_near_edges() {
 fn partial_starmap_enter_opens_planet_info_and_returns_to_map() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -415,7 +415,7 @@ fn partial_starmap_enter_opens_planet_info_and_returns_to_map() {
 fn partial_starmap_enter_on_empty_sector_is_noop() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -503,7 +503,7 @@ fn starmap_prompt_uses_plain_dismiss_prompt_below_last_text_line() {
 fn planet_info_intel_detail_shows_last_intel_and_tier() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -576,7 +576,7 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
 fn planet_info_intel_detail_shows_unowned_for_known_zero_owner() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -643,7 +643,7 @@ fn planet_info_intel_detail_shows_unowned_for_known_zero_owner() {
 fn owned_planet_info_detail_shows_owned_since_year() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -687,7 +687,7 @@ fn owned_planet_info_detail_shows_owned_since_year() {
 fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -722,7 +722,7 @@ fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
 fn main_menu_planet_info_prompt_renders_error_below_message() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -771,7 +771,7 @@ fn main_menu_planet_info_prompt_renders_error_below_message() {
 fn build_menu_planet_info_prompt_clears_stale_build_notice() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -818,7 +818,7 @@ fn build_menu_planet_info_prompt_clears_stale_build_notice() {
 fn build_menu_review_shortcut_opens_owned_planet_info_with_build_queue_and_returns() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -870,7 +870,7 @@ fn build_menu_review_shortcut_opens_owned_planet_info_with_build_queue_and_retur
 fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

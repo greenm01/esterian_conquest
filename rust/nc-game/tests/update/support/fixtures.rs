@@ -2,11 +2,44 @@ use super::*;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
+pub(crate) struct TempGameDir {
+    path: PathBuf,
+}
+
+impl TempGameDir {
+    fn new(label: &str) -> Self {
+        Self {
+            path: temp_dir_path(label),
+        }
+    }
+}
+
+impl std::ops::Deref for TempGameDir {
+    type Target = PathBuf;
+
+    fn deref(&self) -> &Self::Target {
+        &self.path
+    }
+}
+
+impl Drop for TempGameDir {
+    fn drop(&mut self) {
+        if let Err(err) = fs::remove_dir_all(&self.path)
+            && err.kind() != std::io::ErrorKind::NotFound
+        {
+            eprintln!(
+                "failed to remove temp game dir {}: {err}",
+                self.path.display()
+            );
+        }
+    }
+}
+
 pub(crate) fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-pub(crate) fn temp_dir(label: &str) -> PathBuf {
+pub(crate) fn temp_dir_path(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
         "{label}-{}-{}-{}",
         std::process::id(),
@@ -18,8 +51,8 @@ pub(crate) fn temp_dir(label: &str) -> PathBuf {
     ))
 }
 
-pub(crate) fn temp_game_copy() -> PathBuf {
-    let root = temp_dir("nc-game-update");
+pub(crate) fn temp_game_copy() -> TempGameDir {
+    let root = TempGameDir::new("nc-game-update");
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
     let mut data = CoreGameData::load(&root).expect("load joinable fixture");
     data.join_player(1, "Codex Dominion")
@@ -32,21 +65,21 @@ pub(crate) fn temp_game_copy() -> PathBuf {
     root
 }
 
-pub(crate) fn temp_first_time_game_copy() -> PathBuf {
-    let root = temp_dir("nc-game-first-time");
+pub(crate) fn temp_first_time_game_copy() -> TempGameDir {
+    let root = TempGameDir::new("nc-game-first-time");
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
     let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
     import_directory_snapshot(&store, &root).expect("seed sqlite snapshot");
     root
 }
 
-pub(crate) fn temp_joined_needs_homeworld_copy() -> PathBuf {
+pub(crate) fn temp_joined_needs_homeworld_copy() -> TempGameDir {
     temp_joined_needs_homeworld_copy_for_player(1)
 }
 
 pub(crate) fn temp_joined_needs_homeworld_copy_for_player(
     player_record_index_1_based: usize,
-) -> PathBuf {
+) -> TempGameDir {
     let root = temp_first_time_game_copy();
     let mut data = CoreGameData::load(&root).expect("load joinable fixture");
     data.join_player(
@@ -70,7 +103,7 @@ pub(crate) fn reserved_game_config(player_record_index_1_based: usize, alias: &s
     }
 }
 
-pub(crate) fn temp_full_game_copy() -> PathBuf {
+pub(crate) fn temp_full_game_copy() -> TempGameDir {
     let root = temp_first_time_game_copy();
     let mut data = CoreGameData::load(&root).expect("load full-game fixture");
     for player in 1..=4 {
@@ -83,7 +116,7 @@ pub(crate) fn temp_full_game_copy() -> PathBuf {
     root
 }
 
-pub(crate) fn temp_joined_no_assets_copy() -> PathBuf {
+pub(crate) fn temp_joined_no_assets_copy() -> TempGameDir {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
     for planet in &mut state.game_data.planets.records {
@@ -96,7 +129,7 @@ pub(crate) fn temp_joined_no_assets_copy() -> PathBuf {
     root
 }
 
-pub(crate) fn temp_joined_empty_empire_copy() -> PathBuf {
+pub(crate) fn temp_joined_empty_empire_copy() -> TempGameDir {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
     for planet in &mut state.game_data.planets.records {
@@ -114,7 +147,7 @@ pub(crate) fn temp_joined_empty_empire_copy() -> PathBuf {
     root
 }
 
-pub(crate) fn temp_game_with_starbase_copy() -> PathBuf {
+pub(crate) fn temp_game_with_starbase_copy() -> TempGameDir {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
     state
@@ -152,7 +185,7 @@ pub(crate) fn first_other_planet_coords(game_data: &CoreGameData, excluded: [u8;
         .expect("fixture should contain another planet")
 }
 
-pub(crate) fn temp_game_with_auto_commission_copy() -> PathBuf {
+pub(crate) fn temp_game_with_auto_commission_copy() -> TempGameDir {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
     let homeworld = state
@@ -172,7 +205,7 @@ pub(crate) fn temp_game_with_auto_commission_copy() -> PathBuf {
     root
 }
 
-pub(crate) fn temp_game_with_same_sector_fleets_copy() -> PathBuf {
+pub(crate) fn temp_game_with_same_sector_fleets_copy() -> TempGameDir {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
     state.game_data.fleets.records[0].set_current_location_coords_raw([6, 5]);

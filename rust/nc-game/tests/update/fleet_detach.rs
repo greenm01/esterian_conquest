@@ -219,7 +219,7 @@ fn fleet_detach_last_commissioned_message_persists_until_overwritten() {
 fn fleet_detach_commission_requires_staged_ships_and_preserves_staged_block() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -253,7 +253,7 @@ fn fleet_detach_commission_requires_staged_ships_and_preserves_staged_block() {
 fn fleet_detach_x_clears_staged_selection_without_leaving_screen() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -353,7 +353,7 @@ fn fleet_detach_final_commission_returns_to_menu_with_new_fleet_number_notice() 
     import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -478,7 +478,7 @@ fn fleet_detach_prompt_reports_missing_fleet_number() {
     import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -544,7 +544,7 @@ fn fleet_detach_prompt_reports_single_ship_fleet_as_ineligible() {
     import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -613,7 +613,7 @@ fn fleet_detach_prompt_defaults_to_largest_owned_fleet_by_ship_total() {
     import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,

@@ -180,7 +180,7 @@ fn reserved_first_time_player_skips_menu_and_sees_reserved_prompt() {
 fn reserved_local_first_time_player_without_door_mode_still_sees_first_time_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -505,7 +505,7 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
 fn first_time_join_empire_name_prompt_shows_esc_without_redundant_instruction() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -535,7 +535,7 @@ fn first_time_join_empire_name_prompt_shows_esc_without_redundant_instruction() 
 fn preloaded_first_login_empire_name_prompt_shows_esc_without_redundant_instruction() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -575,7 +575,7 @@ fn preloaded_first_login_empire_name_prompt_shows_esc_without_redundant_instruct
 fn first_time_homeworld_name_prompt_shows_esc_without_redundant_instruction() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -898,7 +898,7 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -964,7 +964,7 @@ fn colony_world_name_prompt_shows_esc_without_redundant_instruction() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1321,7 +1321,7 @@ fn escaping_empire_name_does_not_partially_join_player() {
 fn fixed_player_first_time_launch_skips_first_time_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1342,7 +1342,7 @@ fn fixed_player_first_time_launch_skips_first_time_menu() {
 fn fixed_player_join_name_screen_does_not_render_first_time_menu_rows() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1370,7 +1370,7 @@ fn fixed_player_join_name_screen_does_not_render_first_time_menu_rows() {
 fn fixed_player_join_confirm_screen_does_not_render_first_time_menu_rows() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1918,7 +1918,7 @@ fn first_time_join_from_reserved_dropfile_persists_caller_alias() {
 fn unbound_bbs_first_time_menu_refuses_join_when_no_open_empires_remain() {
     let fixture_dir = temp_full_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1948,7 +1948,7 @@ fn unbound_bbs_first_time_menu_refuses_join_when_no_open_empires_remain() {
 fn first_time_join_from_menu_refuses_full_game_and_displays_notice() {
     let fixture_dir = temp_full_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -2094,7 +2094,7 @@ fn first_time_join_does_not_offer_spent_civil_disorder_seats() {
         .expect("save spent-seat runtime state");
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
