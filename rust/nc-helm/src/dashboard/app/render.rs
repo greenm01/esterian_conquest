@@ -182,6 +182,9 @@ pub(crate) fn render_incremental_into(
 
     let mut cache = app.panel_cache.borrow_mut();
     if hashes.dynamic_layer_active || previous.dynamic_layer_active {
+        buf.clear_cursor();
+        draw_frame(buf, dashboard.frame, &widgets);
+        draw_footer(buf, app, &dashboard);
         draw_all_panels(buf, app, widgets, &hashes, &mut cache);
         draw_dynamic_layer(buf, app, widgets);
         dirty_rects.push(dashboard_interior_rect(widgets));

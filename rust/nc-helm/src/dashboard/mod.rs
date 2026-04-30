@@ -263,7 +263,9 @@ mod tests {
         render_hosted_buffer_incremental_into,
     };
     use crate::dashboard::DashApp;
+    use crate::dashboard::app::state::ActiveOverlay;
     use crate::dashboard::geometry::ScreenGeometry;
+    use crate::dashboard::overlays::frame::RelativePopupOrigin;
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -319,6 +321,23 @@ mod tests {
             .expect("incremental hosted render")
     }
 
+    fn place_overlay_over_dashboard_divider(app: &mut DashApp) {
+        let widgets = crate::dashboard::layout::dashboard_layout(app).widgets;
+        let parent = crate::dashboard::overlays::frame::dashboard_overlay_parent_rect(widgets);
+        app.overlay_position = Some(RelativePopupOrigin {
+            col_offset: widgets
+                .left_divider_col
+                .saturating_sub(parent.x as usize)
+                .saturating_sub(2),
+            row_offset: widgets
+                .left_planets
+                .outer
+                .row
+                .saturating_sub(parent.y as usize)
+                .saturating_sub(1),
+        });
+    }
+
     #[test]
     fn incremental_hosted_crosshair_update_matches_full_render() {
         let mut app = test_dash_app();
@@ -344,6 +363,61 @@ mod tests {
         assert!(second.stats.dirty_regions > 0);
         assert_ne!(first.hashes.starmap, second.hashes.starmap);
         assert_ne!(first.hashes.sector_detail, second.hashes.sector_detail);
+
+        let expected = render_hosted_buffer(&app).expect("full hosted render");
+        assert_playfields_match(&playfield, &expected);
+    }
+
+    #[test]
+    fn incremental_hosted_moved_overlay_restores_dashboard_chrome() {
+        let mut app = test_dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        place_overlay_over_dashboard_divider(&mut app);
+
+        let mut dashboard_playfield = dashboard_buffer();
+        let mut playfield = grid_buffer();
+        let first = render_incrementally(&app, None, &mut dashboard_playfield, &mut playfield);
+
+        let origin = app.overlay_position.expect("overlay origin");
+        app.overlay_position = Some(RelativePopupOrigin {
+            col_offset: origin.col_offset.saturating_add(12),
+            row_offset: origin.row_offset.saturating_add(3),
+        });
+
+        let second = render_incrementally(
+            &app,
+            Some(&first.hashes),
+            &mut dashboard_playfield,
+            &mut playfield,
+        );
+        assert!(!second.stats.full_rebuild);
+        assert!(second.stats.dirty_regions > 0);
+
+        let expected = render_hosted_buffer(&app).expect("full hosted render");
+        assert_playfields_match(&playfield, &expected);
+    }
+
+    #[test]
+    fn incremental_hosted_closed_overlay_restores_dashboard_chrome() {
+        let mut app = test_dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        place_overlay_over_dashboard_divider(&mut app);
+
+        let mut dashboard_playfield = dashboard_buffer();
+        let mut playfield = grid_buffer();
+        let first = render_incrementally(&app, None, &mut dashboard_playfield, &mut playfield);
+
+        app.overlay = ActiveOverlay::None;
+        app.overlay_position = None;
+
+        let second = render_incrementally(
+            &app,
+            Some(&first.hashes),
+            &mut dashboard_playfield,
+            &mut playfield,
+        );
+        assert!(!second.stats.full_rebuild);
+        assert!(second.stats.dirty_regions > 0);
 
         let expected = render_hosted_buffer(&app).expect("full hosted render");
         assert_playfields_match(&playfield, &expected);

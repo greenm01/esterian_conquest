@@ -1097,6 +1097,11 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     "event: RedrawRequested route={}",
                     route_label(&self.app.model().route)
                 ));
+                if let Some(mouse) =
+                    take_pending_pointer_motion_before_redraw(&mut self.pending_mouse_motion)
+                {
+                    self.dispatch(Msg::Mouse(mouse), event_loop);
+                }
                 if let Some(renderer) = &mut self.renderer {
                     let view_started = Instant::now();
                     let (view_cache_hit, view_timings, buffer) =
@@ -1156,7 +1161,9 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
         {
             self.needs_redraw = true;
         }
-        if let Some(mouse) = self.pending_mouse_motion.take() {
+        if let Some(mouse) =
+            take_pending_pointer_motion_before_redraw(&mut self.pending_mouse_motion)
+        {
             self.dispatch(Msg::Mouse(mouse), _event_loop);
         }
         if self.needs_redraw {
@@ -1168,6 +1175,7 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             _event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
         }
     }
+
 }
 
 /// Returns `true` for messages that may change the desired window geometry or
@@ -1356,6 +1364,12 @@ fn should_dispatch_pointer_move(previous: Option<Point>, next: Option<Point>) ->
 
 fn store_pending_pointer_motion(pending: &mut Option<MouseEvent>, mouse: MouseEvent) {
     *pending = Some(mouse);
+}
+
+fn take_pending_pointer_motion_before_redraw(
+    pending: &mut Option<MouseEvent>,
+) -> Option<MouseEvent> {
+    pending.take()
 }
 
 fn hosted_route_next_wakeup(route: &Route) -> Option<Instant> {
@@ -1637,7 +1651,8 @@ mod tests {
         combine_deadlines, full_map_fit_scale_multiplier, hosted_route_next_wakeup,
         map_pointer_cell, minimum_window_size, pointer_move_event_kind, route_uses_mouse,
         session_backend_label, should_dispatch_pointer_move, store_pending_pointer_motion,
-        window_attributes_for_mode, window_decorations_for_session,
+        take_pending_pointer_motion_before_redraw, window_attributes_for_mode,
+        window_decorations_for_session,
     };
     use crate::Point;
     use crate::app::{
@@ -1827,6 +1842,34 @@ mod tests {
         let pending = pending.expect("latest pointer motion should be retained");
         assert_eq!(pending.position, Point::from_usize(4, 5));
         assert_eq!(pending.modifiers, KeyModifiers::SHIFT);
+    }
+
+    #[test]
+    fn redraw_takes_latest_pending_pointer_motion() {
+        let mut pending = None;
+        store_pending_pointer_motion(
+            &mut pending,
+            MouseEvent {
+                kind: MouseEventKind::Moved,
+                position: Point::from_usize(2, 3),
+                modifiers: KeyModifiers::NONE,
+            },
+        );
+        store_pending_pointer_motion(
+            &mut pending,
+            MouseEvent {
+                kind: MouseEventKind::Drag(MouseButton::Left),
+                position: Point::from_usize(6, 7),
+                modifiers: KeyModifiers::CONTROL,
+            },
+        );
+
+        let mouse =
+            take_pending_pointer_motion_before_redraw(&mut pending).expect("pending motion");
+        assert_eq!(mouse.position, Point::from_usize(6, 7));
+        assert_eq!(mouse.kind, MouseEventKind::Drag(MouseButton::Left));
+        assert_eq!(mouse.modifiers, KeyModifiers::CONTROL);
+        assert!(pending.is_none());
     }
 
     #[test]
@@ -2350,5 +2393,4 @@ mod tests {
             last_hash: Some("hash".to_string()),
         }
     }
-
 }
