@@ -338,6 +338,41 @@ mod tests {
         });
     }
 
+    fn place_overlay_over_sector_detail_lower_rows(app: &mut DashApp) {
+        let widgets = crate::dashboard::layout::dashboard_layout(app).widgets;
+        let parent = crate::dashboard::overlays::frame::dashboard_overlay_parent_rect(widgets);
+        app.overlay_position = Some(RelativePopupOrigin {
+            col_offset: widgets
+                .right_sector_detail
+                .body
+                .col
+                .saturating_sub(parent.x as usize)
+                .saturating_sub(2),
+            row_offset: widgets
+                .right_sector_detail
+                .body
+                .row
+                .saturating_add(9)
+                .saturating_sub(parent.y as usize),
+        });
+    }
+
+    fn move_crosshair_to_empty_sector(app: &mut DashApp) {
+        let occupied = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .map(|planet| planet.coords_raw())
+            .collect::<BTreeSet<_>>();
+        let empty = (1..=18)
+            .flat_map(|y| (1..=18).map(move |x| [x, y]))
+            .find(|coords| !occupied.contains(coords))
+            .expect("empty sector");
+        app.crosshair_x = empty[0];
+        app.crosshair_y = empty[1];
+    }
+
     #[test]
     fn incremental_hosted_crosshair_update_matches_full_render() {
         let mut app = test_dash_app();
@@ -418,6 +453,41 @@ mod tests {
         );
         assert!(!second.stats.full_rebuild);
         assert!(second.stats.dirty_regions > 0);
+
+        let expected = render_hosted_buffer(&app).expect("full hosted render");
+        assert_playfields_match(&playfield, &expected);
+    }
+
+    #[test]
+    fn incremental_hosted_sector_detail_cache_miss_does_not_preserve_modal_bleed() {
+        let mut app = test_dash_app();
+        app.overlay = ActiveOverlay::Settings;
+        place_overlay_over_sector_detail_lower_rows(&mut app);
+
+        let mut dashboard_playfield = dashboard_buffer();
+        let mut playfield = grid_buffer();
+        let first = render_incrementally(&app, None, &mut dashboard_playfield, &mut playfield);
+
+        move_crosshair_to_empty_sector(&mut app);
+        let second = render_incrementally(
+            &app,
+            Some(&first.hashes),
+            &mut dashboard_playfield,
+            &mut playfield,
+        );
+        assert!(!second.stats.full_rebuild);
+        assert!(second.stats.dirty_regions > 0);
+
+        app.overlay = ActiveOverlay::None;
+        app.overlay_position = None;
+        let third = render_incrementally(
+            &app,
+            Some(&second.hashes),
+            &mut dashboard_playfield,
+            &mut playfield,
+        );
+        assert!(!third.stats.full_rebuild);
+        assert!(third.stats.dirty_regions > 0);
 
         let expected = render_hosted_buffer(&app).expect("full hosted render");
         assert_playfields_match(&playfield, &expected);
