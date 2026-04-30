@@ -26,6 +26,7 @@ impl DashApp {
 
     pub(crate) fn save_and_refresh_runtime(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(store) = self.campaign_store.clone() else {
+            self.game_data_revision += 1;
             return Ok(());
         };
         let access_mode = player_access_mode(

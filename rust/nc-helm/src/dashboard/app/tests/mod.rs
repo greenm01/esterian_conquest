@@ -308,6 +308,30 @@ fn equals_key_queues_selected_build_unit() {
 }
 
 #[test]
+fn build_command_refreshes_cached_planet_status_without_store() {
+    let mut app = dash_app();
+    let owned_coords = first_owned_planet_coords(&app);
+    let expected_record = owned_planet_record_index(&app, owned_coords);
+    app.crosshair_x = owned_coords[0];
+    app.crosshair_y = owned_coords[1];
+    app.game_data.planets.records[expected_record - 1].set_stored_production_points(80);
+
+    let before = planet_view::selected_planet_detail(&app).expect("selected planet");
+    assert_eq!(
+        detail_value(&before.widget_fields, "Building"),
+        Some("Nothing")
+    );
+    let initial_revision = app.game_data_revision;
+
+    app.open_planet_build_specify_for_record(expected_record);
+    app.handle_key(key(KeyCode::Char('+')));
+
+    assert!(app.game_data_revision > initial_revision);
+    let after = planet_view::selected_planet_detail(&app).expect("selected planet");
+    assert_eq!(detail_value(&after.widget_fields, "Building"), Some("1DD"));
+}
+
+#[test]
 fn empty_build_browse_enter_opens_quantity_for_highlighted_unit() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::PlanetList;
@@ -2866,6 +2890,13 @@ fn keyboard_opening_fleet_list_clears_transient_location_filter() {
 
     assert_eq!(app.overlay, ActiveOverlay::FleetList);
     assert_eq!(app.fleet_overlay.location_filter, None);
+}
+
+fn detail_value<'a>(fields: &'a [planet_view::DetailLine], label: &str) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|field| field.label == label)
+        .map(|field| field.value.as_str())
 }
 
 fn dash_app() -> DashApp {
