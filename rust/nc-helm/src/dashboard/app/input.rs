@@ -67,7 +67,9 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
 
         // Tax rate
-        KeyCode::Char('x') | KeyCode::Char('X') => Action::SetTaxRate,
+        KeyCode::Char('t') | KeyCode::Char('T') | KeyCode::Char('x') | KeyCode::Char('X') => {
+            Action::SetTaxRate
+        }
 
         // Navigation — context-sensitive
         KeyCode::Up | KeyCode::Char('k') => match focus {

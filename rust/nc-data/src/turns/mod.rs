@@ -12,8 +12,7 @@ mod parser;
 mod render;
 mod runtime;
 
-pub const MAX_MESSAGE_SUBJECT_CHARS: usize = 60;
-pub const MAX_MESSAGE_BODY_CHARS: usize = 1000;
+pub use crate::player_mail::{MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnSubmission {

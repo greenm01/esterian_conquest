@@ -1,6 +1,6 @@
 use nc_data::{
-    FleetDetachSelection, FleetTurnAction, FleetTurnBlock, PlanetTurnAction, PlanetTurnBlock,
-    TurnSubmission,
+    DiplomaticRelation, FleetDetachSelection, FleetTurnAction, FleetTurnBlock, PlanetTurnAction,
+    PlanetTurnBlock, TurnDiplomacyDirective, TurnMessage, TurnSubmission,
 };
 
 use super::state::DashApp;
@@ -32,6 +32,56 @@ impl DashApp {
             points_remaining_raw,
             kind_raw,
         });
+    }
+
+    pub(crate) fn stage_hosted_tax_rate(&mut self, tax_rate: u8) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        submission.tax_rate = Some(tax_rate);
+    }
+
+    pub(crate) fn stage_hosted_diplomacy(
+        &mut self,
+        to_empire_raw: u8,
+        relation: DiplomaticRelation,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        if let Some(existing) = submission
+            .diplomacy
+            .iter_mut()
+            .find(|directive| directive.to_empire_raw == to_empire_raw)
+        {
+            existing.relation = relation;
+        } else {
+            submission.diplomacy.push(TurnDiplomacyDirective {
+                to_empire_raw,
+                relation,
+            });
+        }
+    }
+
+    pub(crate) fn stage_hosted_message(
+        &mut self,
+        recipient_empire_raw: u8,
+        subject: String,
+        body: String,
+    ) {
+        let Some(submission) = self.hosted_turn_draft.as_mut() else {
+            return;
+        };
+        submission.messages.push(TurnMessage {
+            recipient_empire_raw,
+            subject,
+            body,
+        });
+    }
+
+    pub(crate) fn remove_hosted_message(&mut self, index: usize) -> Option<TurnMessage> {
+        let submission = self.hosted_turn_draft.as_mut()?;
+        (index < submission.messages.len()).then(|| submission.messages.remove(index))
     }
 
     pub(crate) fn stage_hosted_planet_clear_build_kind(

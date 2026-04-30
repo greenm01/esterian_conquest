@@ -133,7 +133,10 @@ or localhost access.
 
 `nc-helm` is the hosted client architecture. Today it implements the local
 bootstrap, encrypted SQLite keychain flow, lobby shell, and background
-catalog/notices sync on a fresh `winit`/`wgpu`/`glyphon` runtime.
+catalog/notices sync on a fresh `winit`/`wgpu`/`glyphon` runtime. Hosted
+dashboard edits stage local turn drafts for build, fleet, tax, diplomacy, and
+quick in-game message orders so they survive returning to the lobby and
+reopening the game.
 
 Try the new client with:
 

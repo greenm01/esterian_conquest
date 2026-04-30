@@ -68,6 +68,10 @@ pub fn replay_hosted_draft(
 ) -> Result<(), nc_data::TurnSubmissionError> {
     draft.apply_to(&mut dashboard.game_data, &mut dashboard.queued_mail)?;
     dashboard.hosted_turn_draft = Some(draft.clone());
+    dashboard.game_data_revision += 1;
+    *dashboard.panel_cache.borrow_mut() = app::panel_cache::PanelCache::default();
+    *dashboard.starmap_projection_cache.borrow_mut() = None;
+    *dashboard.sector_detail_cache.borrow_mut() = None;
     Ok(())
 }
 

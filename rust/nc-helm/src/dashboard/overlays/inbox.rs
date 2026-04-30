@@ -3,7 +3,7 @@
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::table::{TableFooter, draw_scrollbar_at};
 
-use crate::dashboard::app::state::{ActiveOverlay, DashApp, InboxFocus};
+use crate::dashboard::app::state::{ActiveOverlay, DashApp, InboxFocus, InboxPromptMode};
 use crate::dashboard::inbox::{DashInboxItem, matches_filter, project_inbox_items};
 use crate::dashboard::layout::MapWidgetFrame;
 use crate::dashboard::layout::dashboard;
@@ -16,7 +16,7 @@ use crate::dashboard::overlays::frame::{
 };
 use crate::dashboard::theme;
 
-pub(crate) const HOTKEYS: &str = "? M R A Y D <ESC>";
+pub(crate) const HOTKEYS: &str = "? M R A Y D C O <ESC>";
 const LIST_WIDTH: usize = 28;
 const SPLIT_GAP_WIDTH: usize = 2;
 const TARGET_PREVIEW_WIDTH: usize = 72;
@@ -36,17 +36,17 @@ struct InboxPaneLayout {
 }
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    if app.inbox_overlay.prompt_mode == InboxPromptMode::Outbox {
+        draw_outbox(buf, app, map_frame);
+        return;
+    }
     let items = inbox_items(app);
     let selected = app
         .inbox_overlay
         .selected
         .min(items.len().saturating_sub(1));
     let selected_default = items.get(selected).map(|_| format!("{:02}", selected + 1));
-    let footer = TableFooter::CommandBar {
-        hotkeys_markup: HOTKEYS,
-        default: selected_default.as_deref(),
-        input: &app.inbox_overlay.jump_input,
-    };
+    let footer = inbox_footer(app, selected_default.as_deref());
     let filter_line = format!(
         "Filter:{}  Year:{}  Focus:{}{}",
         app.inbox_overlay.filter.label(),
@@ -240,17 +240,16 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 }
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    if app.inbox_overlay.prompt_mode == InboxPromptMode::Outbox {
+        return outbox_popup_rect(app, map_frame);
+    }
     let items = inbox_items(app);
     let selected = app
         .inbox_overlay
         .selected
         .min(items.len().saturating_sub(1));
     let selected_default = items.get(selected).map(|_| format!("{:02}", selected + 1));
-    let footer = TableFooter::CommandBar {
-        hotkeys_markup: HOTKEYS,
-        default: selected_default.as_deref(),
-        input: &app.inbox_overlay.jump_input,
-    };
+    let footer = inbox_footer(app, selected_default.as_deref());
     let filter_line = format!(
         "Filter:{}  Year:{}  Focus:{}{}",
         app.inbox_overlay.filter.label(),
@@ -289,6 +288,139 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
     )
+}
+
+fn inbox_footer<'a>(app: &'a DashApp, selected_default: Option<&'a str>) -> TableFooter<'a> {
+    match app.inbox_overlay.prompt_mode {
+        InboxPromptMode::None => TableFooter::CommandBar {
+            hotkeys_markup: HOTKEYS,
+            default: selected_default,
+            input: &app.inbox_overlay.jump_input,
+        },
+        InboxPromptMode::ComposeRecipient => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Recipient empire #",
+            default: &app.inbox_overlay.prompt_default,
+            input: &app.inbox_overlay.prompt_input,
+        },
+        InboxPromptMode::ComposeSubject => TableFooter::CommandPromptInput {
+            label: "COMMAND",
+            prompt: "Subject -> ",
+            input: &app.inbox_overlay.prompt_input,
+        },
+        InboxPromptMode::ComposeBody => TableFooter::CommandPromptInput {
+            label: "COMMAND",
+            prompt: "Body -> ",
+            input: &app.inbox_overlay.prompt_input,
+        },
+        InboxPromptMode::ComposeConfirm => TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "Send message? Y/[N] ->",
+        },
+        InboxPromptMode::Outbox => unreachable!("outbox uses its own footer"),
+    }
+}
+
+fn draw_outbox(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    let messages = staged_outbox_messages(app);
+    let selected = app
+        .inbox_overlay
+        .outbox_selected
+        .min(messages.len().saturating_sub(1));
+    let selected_default = messages
+        .get(selected)
+        .map(|_| format!("{:02}", selected + 1));
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: "? D <ESC>",
+        default: selected_default.as_deref(),
+        input: &app.inbox_overlay.prompt_input,
+    };
+    let body_width = (LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH)
+        .min(max_overlay_body_width(map_frame));
+    let natural_rows = messages.len().max(1);
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
+        buf,
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        "OUTBOX",
+        body_width,
+        2 + natural_rows,
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::Inbox),
+    );
+    let max_rows = frame.body_height.saturating_sub(2);
+    write_clipped(
+        buf,
+        frame.body_row,
+        frame.body_col,
+        frame.body_width,
+        "ID  To  Subject",
+        theme::section_title_style(),
+    );
+    draw_hline(
+        buf,
+        frame.body_row + 1,
+        frame.body_col,
+        frame.body_width,
+        theme::border_style(),
+    );
+    let scroll = clamp_scroll(
+        app.inbox_overlay.outbox_scroll,
+        selected,
+        max_rows,
+        messages.len(),
+    );
+    for (visible_idx, message) in messages.iter().skip(scroll).take(max_rows).enumerate() {
+        let row = frame.body_row + 2 + visible_idx;
+        let absolute_idx = scroll + visible_idx;
+        let style = if absolute_idx == selected {
+            theme::alert_style()
+        } else {
+            theme::value_style()
+        };
+        let line = format!(
+            "{:>2}  {:>2}  {}",
+            absolute_idx + 1,
+            message.recipient_empire_raw,
+            truncate(&message.subject, frame.body_width.saturating_sub(9))
+        );
+        write_clipped(buf, row, frame.body_col, frame.body_width, &line, style);
+    }
+    if messages.is_empty() {
+        write_clipped(
+            buf,
+            frame.body_row + 2,
+            frame.body_col,
+            frame.body_width,
+            "No staged outgoing messages.",
+            theme::dim_style(),
+        );
+    }
+}
+
+fn outbox_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let messages = staged_outbox_messages(app);
+    overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        "OUTBOX",
+        (LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH)
+            .min(max_overlay_body_width(map_frame)),
+        2 + messages.len().max(1),
+        OverlaySizePolicy::default(),
+        TableFooter::CommandBar {
+            hotkeys_markup: "? D <ESC>",
+            default: None,
+            input: &app.inbox_overlay.prompt_input,
+        },
+        app.overlay_position_for(ActiveOverlay::Inbox),
+    )
+}
+
+pub(crate) fn staged_outbox_messages(app: &DashApp) -> Vec<nc_data::TurnMessage> {
+    app.hosted_turn_draft
+        .as_ref()
+        .map(|draft| draft.messages.clone())
+        .unwrap_or_default()
 }
 
 pub(crate) fn hit_test_inbox_pane(
@@ -450,7 +582,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_inbox_commands() {
-        assert_eq!(HOTKEYS, "? M R A Y D <ESC>");
+        assert_eq!(HOTKEYS, "? M R A Y D C O <ESC>");
     }
 
     #[test]

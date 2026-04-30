@@ -126,7 +126,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
         );
         for col_x in projected.x_min..=projected.x_max {
             let has_viewer_fleet = cache.viewer_fleet_sectors.contains(&[col_x, row_y]);
-            let planet = cache.world_index
+            let planet = cache
+                .world_index
                 .get(&[col_x, row_y])
                 .map(|&i| &cache.projection.worlds[i]);
             let is_selected = col_x == app.crosshair_x && row_y == app.crosshair_y;
@@ -252,17 +253,15 @@ struct ProjectionBounds {
 /// margin of the viewport edges.  Called after every crosshair move.
 pub fn advance_starmap_viewport(app: &mut DashApp) {
     let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
-    let frame = crate::dashboard::layout::dashboard_layout(app).widgets.center_map;
+    let frame = crate::dashboard::layout::dashboard_layout(app)
+        .widgets
+        .center_map;
     let lattice_width = frame
         .grid
         .width
         .saturating_sub(frame.row_label_cols)
         .saturating_sub(1);
-    let visible_x = max_visible_sector_count(
-        lattice_width,
-        map_size,
-        frame.cell_width.max(1),
-    );
+    let visible_x = max_visible_sector_count(lattice_width, map_size, frame.cell_width.max(1));
     let visible_y = max_visible_sector_rows(frame.grid.height, map_size);
     app.starmap_viewport_x_min = viewport_start(
         app.starmap_viewport_x_min,
@@ -285,14 +284,20 @@ fn projected_display_bounds(
     map_size: u8,
     lattice_width: usize,
 ) -> ProjectionBounds {
-    let visible_x = max_visible_sector_count(
-        lattice_width,
-        map_size,
-        frame.cell_width.max(1),
-    );
+    let visible_x = max_visible_sector_count(lattice_width, map_size, frame.cell_width.max(1));
     let visible_y = max_visible_sector_rows(frame.grid.height, map_size);
-    let x_min = viewport_start(app.starmap_viewport_x_min, app.crosshair_x, visible_x, map_size);
-    let y_min = viewport_start(app.starmap_viewport_y_min, app.crosshair_y, visible_y, map_size);
+    let x_min = viewport_start(
+        app.starmap_viewport_x_min,
+        app.crosshair_x,
+        visible_x,
+        map_size,
+    );
+    let y_min = viewport_start(
+        app.starmap_viewport_y_min,
+        app.crosshair_y,
+        visible_y,
+        map_size,
+    );
     let x_max = x_min + visible_x.saturating_sub(1);
     let y_max = y_min + visible_y.saturating_sub(1);
     ProjectionBounds {
@@ -305,7 +310,11 @@ fn projected_display_bounds(
     }
 }
 
-pub(crate) fn max_visible_sector_count(extent: usize, map_size: u8, min_extent_per_sector: usize) -> u8 {
+pub(crate) fn max_visible_sector_count(
+    extent: usize,
+    map_size: u8,
+    min_extent_per_sector: usize,
+) -> u8 {
     extent
         .saturating_div(min_extent_per_sector.max(1))
         .max(1)
@@ -340,13 +349,12 @@ fn viewport_start(prev_start: u8, center: u8, visible: u8, map_size: u8) -> u8 {
 
     // If the viewport nearly fills the map, disable the margin and fall back
     // to clamp-only behaviour so the user is not locked to the centre.
-    let effective_margin = if u16::from(visible) + 2 * u16::from(STARMAP_SCROLL_MARGIN)
-        >= u16::from(map_size)
-    {
-        0
-    } else {
-        STARMAP_SCROLL_MARGIN
-    };
+    let effective_margin =
+        if u16::from(visible) + 2 * u16::from(STARMAP_SCROLL_MARGIN) >= u16::from(map_size) {
+            0
+        } else {
+            STARMAP_SCROLL_MARGIN
+        };
 
     // Sentinel 0 means "not yet initialised — centre on crosshair".
     if prev_start == 0 {
@@ -362,7 +370,9 @@ fn viewport_start(prev_start: u8, center: u8, visible: u8, map_size: u8) -> u8 {
     let new_start = if center < left_trigger {
         center.saturating_sub(effective_margin).max(1)
     } else if center > right_trigger {
-        (center + effective_margin + 1).saturating_sub(visible).max(1)
+        (center + effective_margin + 1)
+            .saturating_sub(visible)
+            .max(1)
     } else {
         prev_start
     };
@@ -573,7 +583,12 @@ pub(crate) fn jump_planet_target_for_app(
     direction: PlanetJumpDirection,
 ) -> Option<[u8; 2]> {
     let cache = cached_projection_for_app(app);
-    jump_planet_target_coords(cache.projection.map_width, &cache.projection.worlds, current, direction)
+    jump_planet_target_coords(
+        cache.projection.map_width,
+        &cache.projection.worlds,
+        current,
+        direction,
+    )
 }
 
 #[cfg(test)]
@@ -664,7 +679,8 @@ pub(crate) fn cached_projection_for_app(
     }
 
     std::cell::Ref::map(app.starmap_projection_cache.borrow(), |opt| {
-        opt.as_ref().expect("starmap projection cache should be populated")
+        opt.as_ref()
+            .expect("starmap projection cache should be populated")
     })
 }
 

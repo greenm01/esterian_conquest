@@ -7,14 +7,14 @@ use crate::dashboard::planet_view;
 use crate::dashboard::table_selection;
 use std::time::Instant;
 
-use super::input::{key_to_action, Action};
+use super::input::{Action, key_to_action};
 use super::state;
 use super::state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
     FleetOverlayPromptMode, HelpContext, MapViewMode, OwnedPlanetPopupMode,
     PlanetOverlayPromptMode,
 };
-use super::{map_coord_rows, parse_table_coord, COMMAND_LINE_TOAST_STEP};
+use super::{COMMAND_LINE_TOAST_STEP, map_coord_rows, parse_table_coord};
 use crate::dashboard::app::render;
 
 impl DashApp {
@@ -54,6 +54,7 @@ impl DashApp {
         match self.overlay {
             ActiveOverlay::None => match self.popup {
                 ActivePopup::OwnedPlanet { .. } => self.owned_planet_popup.status.as_deref(),
+                ActivePopup::TaxPrompt => self.tax_prompt_status.as_deref(),
                 ActivePopup::QuitConfirm | ActivePopup::PlanetDetail { .. } | ActivePopup::None => {
                     None
                 }
@@ -106,7 +107,8 @@ impl DashApp {
             },
             ActiveOverlay::IntelDatabase => self.intel_overlay.prompt_status.as_deref(),
             ActiveOverlay::Settings => self.settings_overlay.status_message.as_deref(),
-            ActiveOverlay::Inbox | ActiveOverlay::Diplomacy | ActiveOverlay::Help => None,
+            ActiveOverlay::Inbox => self.inbox_overlay.prompt_status.as_deref(),
+            ActiveOverlay::Diplomacy | ActiveOverlay::Help => None,
         }
     }
 
@@ -133,6 +135,8 @@ impl DashApp {
                 .any(|frame| frame.prompt_status.is_some())
             || self.settings_overlay.status_message.is_some()
             || self.owned_planet_popup.status.is_some()
+            || self.tax_prompt_status.is_some()
+            || self.inbox_overlay.prompt_status.is_some()
     }
 
     fn clear_all_command_line_toasts(&mut self) {
@@ -156,6 +160,8 @@ impl DashApp {
         }
         self.settings_overlay.status_message = None;
         self.owned_planet_popup.status = None;
+        self.tax_prompt_status = None;
+        self.inbox_overlay.prompt_status = None;
     }
 
     fn dismiss_active_command_line_toast(&mut self) {
@@ -220,6 +226,9 @@ impl DashApp {
         }
         if matches!(self.popup, ActivePopup::OwnedPlanet { .. }) {
             self.owned_planet_popup.reset();
+        } else if self.popup == ActivePopup::TaxPrompt {
+            self.tax_prompt_input.clear();
+            self.tax_prompt_status = None;
         }
         self.popup = ActivePopup::None;
         self.popup_position = None;
@@ -345,8 +354,8 @@ impl DashApp {
             }
             Action::Home => self.scroll_home(),
             Action::End => self.scroll_end(),
-            // SetTaxRate requires a multi-key input prompt.
-            Action::SetTaxRate | Action::None => {}
+            Action::SetTaxRate => self.open_tax_prompt(),
+            Action::None => {}
         }
     }
 
@@ -371,12 +380,63 @@ impl DashApp {
         }
     }
 
+    fn open_tax_prompt(&mut self) {
+        self.tax_prompt_input.clear();
+        self.tax_prompt_status = None;
+        self.popup_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
+        self.popup = ActivePopup::TaxPrompt;
+    }
+
+    fn submit_tax_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let raw = self.tax_prompt_input.trim();
+        let tax_rate = if raw.is_empty() {
+            self.game_data
+                .player
+                .records
+                .get(self.player_record_index_1_based.saturating_sub(1))
+                .map(|player| player.tax_rate())
+                .unwrap_or(0)
+        } else {
+            raw.parse::<u8>()
+                .map_err(|_| "Enter an integer tax rate from 0 to 100.")?
+        };
+        if tax_rate > 100 {
+            return Err("Enter an integer tax rate from 0 to 100.".into());
+        }
+        self.game_data
+            .set_player_tax_rate(self.player_record_index_1_based, tax_rate)?;
+        self.stage_hosted_tax_rate(tax_rate);
+        self.save_and_refresh_runtime()?;
+        self.close_active_popup();
+        self.command_line_toast_message = Some(format!("Empire tax rate set to {tax_rate}%."));
+        self.command_line_toast_deadline = Some(Instant::now() + COMMAND_LINE_TOAST_STEP);
+        Ok(())
+    }
+
     fn handle_popup_key(&mut self, key: KeyEvent) -> bool {
         match self.popup {
             ActivePopup::QuitConfirm => match key.code {
                 KeyCode::Char('y' | 'Y') => self.request_exit(DashboardExitRequest::ReturnToLobby),
                 KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n' | 'N') => {
                     self.apply_action(Action::ClosePopup);
+                }
+                _ => {}
+            },
+            ActivePopup::TaxPrompt => match key.code {
+                KeyCode::Esc => self.apply_action(Action::ClosePopup),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_tax_prompt() {
+                        self.tax_prompt_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.tax_prompt_input.pop();
+                    self.tax_prompt_status = None;
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() && self.tax_prompt_input.len() < 3 => {
+                    self.tax_prompt_input.push(ch);
+                    self.tax_prompt_status = None;
                 }
                 _ => {}
             },

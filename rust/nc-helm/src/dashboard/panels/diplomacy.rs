@@ -200,8 +200,8 @@ fn visible_row_start(
 #[cfg(test)]
 mod tests {
     use super::{
-        body_rows, column_metrics, cp_label, format_row_line, minimum_body_width,
-        preferred_body_width, visible_row_start, DiplomacyPanelRow, MIN_BODY_ROWS,
+        DiplomacyPanelRow, MIN_BODY_ROWS, body_rows, column_metrics, cp_label, format_row_line,
+        minimum_body_width, preferred_body_width, visible_row_start,
     };
     use crate::dashboard::app::state::DashApp;
     use crate::dashboard::buffer::PlayfieldBuffer;
@@ -219,9 +219,10 @@ mod tests {
 
         assert_eq!(rows.len(), 3);
         assert!(rows.iter().all(|row| row.empire_slot != 1));
-        assert!(rows
-            .windows(2)
-            .all(|pair| pair[0].production >= pair[1].production));
+        assert!(
+            rows.windows(2)
+                .all(|pair| pair[0].production >= pair[1].production)
+        );
     }
 
     #[test]

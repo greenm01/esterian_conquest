@@ -3,8 +3,8 @@ use nc_data::{
     EmpirePlanetEconomyRow, PlanetRecord,
 };
 use nc_engine::{
-    planet_commission_slot_entries, resolve_planet_transport_fleet_selection,
-    transport_fleet_candidates_for_planet, ArmyTransportMode, PlanetCommissionSlotEntry,
+    ArmyTransportMode, PlanetCommissionSlotEntry, planet_commission_slot_entries,
+    resolve_planet_transport_fleet_selection, transport_fleet_candidates_for_planet,
 };
 
 use super::state::{ActiveMouseGesture, ActivePopup, DashApp, OwnedPlanetPopupMode};

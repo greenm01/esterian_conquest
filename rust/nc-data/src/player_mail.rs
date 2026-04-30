@@ -2,6 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const QUEUE_FILE_NAME: &str = "RUSTMAIL.QUE";
+pub const MAX_MESSAGE_SUBJECT_CHARS: usize = 60;
+pub const MAX_MESSAGE_BODY_CHARS: usize = 1000;
 pub const MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR: usize = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +61,46 @@ pub fn validate_queue_message_limit(
         ));
     }
     Ok(())
+}
+
+pub fn validate_queued_player_message(
+    queue: &[QueuedPlayerMail],
+    sender_empire_id: u8,
+    recipient_empire_id: u8,
+    year: u16,
+    player_count: u8,
+    subject: &str,
+    body: &str,
+) -> Result<(String, String), String> {
+    if recipient_empire_id == 0 || recipient_empire_id > player_count {
+        return Err(format!(
+            "message recipient must be in 1..={player_count}, got {recipient_empire_id}"
+        ));
+    }
+    if recipient_empire_id == sender_empire_id {
+        return Err("message recipient cannot be the submitting player".to_string());
+    }
+
+    let subject = subject.trim();
+    let body = body.trim();
+    if body.is_empty() {
+        return Err("message body cannot be empty".to_string());
+    }
+    if subject.chars().count() > MAX_MESSAGE_SUBJECT_CHARS {
+        return Err(format!(
+            "message subject exceeds {} characters",
+            MAX_MESSAGE_SUBJECT_CHARS
+        ));
+    }
+    if body.chars().count() > MAX_MESSAGE_BODY_CHARS {
+        return Err(format!(
+            "message body exceeds {} characters",
+            MAX_MESSAGE_BODY_CHARS
+        ));
+    }
+    validate_queue_message_limit(queue, sender_empire_id, recipient_empire_id, year)?;
+
+    Ok((subject.to_string(), body.to_string()))
 }
 
 pub fn queue_path(dir: &Path) -> PathBuf {

@@ -2239,16 +2239,21 @@ mod tests {
     fn selection_shader_uses_directional_half_cell_vertical_stems() {
         assert!(BACKGROUND_SHADER.contains("var vertical_arm = false;"));
         assert_eq!(
-            BACKGROUND_SHADER.matches("vertical_arm = local_y >= mid_y;").count(),
+            BACKGROUND_SHADER
+                .matches("vertical_arm = local_y >= mid_y;")
+                .count(),
             2
         );
         assert_eq!(
-            BACKGROUND_SHADER.matches("vertical_arm = local_y <= mid_y;").count(),
+            BACKGROUND_SHADER
+                .matches("vertical_arm = local_y <= mid_y;")
+                .count(),
             2
         );
-        assert!(BACKGROUND_SHADER.contains(
-            "(on_horizontal && horizontal_arm) || (on_vertical && vertical_arm)"
-        ));
+        assert!(
+            BACKGROUND_SHADER
+                .contains("(on_horizontal && horizontal_arm) || (on_vertical && vertical_arm)")
+        );
         assert!(!BACKGROUND_SHADER.contains(
             "return select(0.0, 1.0, on_vertical || (on_horizontal && horizontal_arm));"
         ));

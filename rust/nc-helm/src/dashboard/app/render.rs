@@ -15,7 +15,7 @@ use crate::dashboard::layout::{
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
 use crate::dashboard::modal::{
-    draw_modal_frame_in_parent_with_placement, ModalPlacement, ModalTheme,
+    ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement,
 };
 use crate::dashboard::overlays;
 use crate::dashboard::panels::{
@@ -422,6 +422,7 @@ fn draw_popup_layer(
 ) {
     match app.popup {
         ActivePopup::QuitConfirm => render_quit_confirm(buf, app, map_frame),
+        ActivePopup::TaxPrompt => popups::tax_prompt::draw(buf, app, map_frame),
         ActivePopup::PlanetDetail {
             planet_record_index_1_based,
         } => {

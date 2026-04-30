@@ -6,28 +6,27 @@ use crate::chrome_tags;
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::coords::{format_sector_coords_default, format_sector_coords_table};
 use crate::dashboard::table::{
-    centered_table_start_col, resolve_table_columns, table_footer_scaffold_width,
-    table_render_width, with_command_line_toast, write_split_table_at,
-    write_stacked_table_window_with_theme_at, SplitTableRow, TableColumn, TableFooter,
-    TableWidthMode,
+    SplitTableRow, TableColumn, TableFooter, TableWidthMode, centered_table_start_col,
+    resolve_table_columns, table_footer_scaffold_width, table_render_width,
+    with_command_line_toast, write_split_table_at, write_stacked_table_window_with_theme_at,
 };
 use crate::dashboard::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use crate::dashboard::table_selection;
 use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
-use nc_engine::{planet_build_view, BUILD_UNITS};
+use nc_engine::{BUILD_UNITS, planet_build_view};
 
 use crate::dashboard::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     SortDirection,
 };
-use crate::dashboard::layout::dashboard;
 use crate::dashboard::layout::MapWidgetFrame;
-use crate::dashboard::modal::{Rect, MODAL_CLOSE_BUTTON};
+use crate::dashboard::layout::dashboard;
+use crate::dashboard::modal::{MODAL_CLOSE_BUTTON, Rect};
 use crate::dashboard::overlays::frame::{
-    assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
-    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_parent, stacked_table_body_height, standard_table_body_height,
-    write_clipped, OverlayAxisSize, OverlaySizePolicy,
+    OverlayAxisSize, OverlaySizePolicy, assert_overlay_body_write_fits,
+    dashboard_overlay_parent_rect, draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, stacked_table_body_height,
+    standard_table_body_height, write_clipped,
 };
 use crate::dashboard::theme;
 
@@ -1497,8 +1496,9 @@ mod tests {
         );
 
         assert!(buf.plain_line(popup.y as usize).contains("BUDGET: 80"));
-        assert!(!buf
-            .plain_line((popup.y + 1) as usize)
-            .contains("BUDGET: 80"));
+        assert!(
+            !buf.plain_line((popup.y + 1) as usize)
+                .contains("BUDGET: 80")
+        );
     }
 }

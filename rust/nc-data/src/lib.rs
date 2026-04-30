@@ -97,7 +97,7 @@ pub use player_lifecycle::{
 pub use player_mail::{
     MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, QueuedPlayerMail, append_mail_queue,
     clear_mail_queue, load_mail_queue, queued_message_count_for_sender_recipient_year,
-    save_mail_queue, validate_queue_message_limit,
+    save_mail_queue, validate_queue_message_limit, validate_queued_player_message,
 };
 pub use player_war_stats::{
     apply_maintenance_events_to_player_war_stats, default_player_war_stats_states,

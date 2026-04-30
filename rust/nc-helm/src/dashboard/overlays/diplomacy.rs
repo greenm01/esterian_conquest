@@ -17,7 +17,7 @@ use crate::dashboard::overlays::frame::{
 };
 use crate::dashboard::theme;
 
-const HOTKEYS: &str = "? <ESC>";
+const HOTKEYS: &str = "? E N <ESC>";
 const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_diplomacy_commands() {
-        assert_eq!(HOTKEYS, "? <ESC>");
+        assert_eq!(HOTKEYS, "? E N <ESC>");
     }
 }
 
@@ -174,6 +174,33 @@ struct DiplomacyRow {
     state_style: crate::dashboard::buffer::CellStyle,
     relation: String,
     relation_style: crate::dashboard::buffer::CellStyle,
+}
+
+pub(crate) fn selected_empire_slot(app: &DashApp) -> Option<u8> {
+    let mut rows = app
+        .game_data
+        .player
+        .records
+        .iter()
+        .enumerate()
+        .map(|(idx, player)| DiplomacyRow {
+            slot: (idx + 1) as u8,
+            name: String::new(),
+            planets: player.planet_count_raw(),
+            production: player.production_score_raw(),
+            state: String::new(),
+            state_style: theme::value_style(),
+            relation: String::new(),
+            relation_style: theme::value_style(),
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|a, b| b.production.cmp(&a.production));
+    rows.get(
+        app.diplomacy_overlay
+            .selected
+            .min(rows.len().saturating_sub(1)),
+    )
+    .map(|row| row.slot)
 }
 
 fn write_diplomacy_row(

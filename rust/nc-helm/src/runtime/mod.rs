@@ -981,7 +981,10 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 let mouse_enabled = route_uses_mouse(&self.app.model().route);
                 debug!(
                     "MouseInput button={:?} pressed={} mouse_enabled={} pointer={:?}",
-                    button, state.is_pressed(), mouse_enabled, self.pointer_cell
+                    button,
+                    state.is_pressed(),
+                    mouse_enabled,
+                    self.pointer_cell
                 );
                 if state.is_pressed() && mouse_enabled {
                     self.last_user_input = Some(Instant::now());
@@ -1036,7 +1039,8 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                 }
                 if mouse_enabled {
                     if let Some(position) = self.pointer_cell {
-                        let lines = mouse_wheel_delta_to_lines(delta, &mut self.pending_wheel_residual);
+                        let lines =
+                            mouse_wheel_delta_to_lines(delta, &mut self.pending_wheel_residual);
                         debug!(
                             "MouseWheel lines={} residual={}",
                             lines, self.pending_wheel_residual
@@ -1213,7 +1217,6 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
             _event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
         }
     }
-
 }
 
 /// Returns `true` for messages that may change the desired window geometry or

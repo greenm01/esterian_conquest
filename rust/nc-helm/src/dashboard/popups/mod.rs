@@ -4,3 +4,4 @@ pub mod fleet_detail;
 pub mod owned_planet;
 pub mod planet_detail;
 pub mod report_detail;
+pub mod tax_prompt;

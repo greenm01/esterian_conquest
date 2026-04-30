@@ -1,23 +1,43 @@
-use crate::dashboard::inbox::{matches_filter, project_inbox_items, DashInboxItemSource};
+use crate::dashboard::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::dashboard::input::{KeyCode, KeyEvent};
-use crate::dashboard::overlays::{fleet_list, inbox, intel_database, planet_list};
+use crate::dashboard::overlays::{diplomacy, fleet_list, inbox, intel_database, planet_list};
 use crate::dashboard::table_filter::{
-    format_column_code_error, is_filter_column_char, parse_column_code, parse_filter_clause,
-    TableFilterClause,
+    TableFilterClause, format_column_code_error, is_filter_column_char, parse_column_code,
+    parse_filter_clause,
 };
 use crate::dashboard::table_selection;
 use crate::dashboard::table_selection::{sync_scroll_to_cursor, wrap_next_index, wrap_prev_index};
 
 use super::state;
 use super::state::{
+    ActiveMouseGesture, ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode,
+    FleetOverlaySort, HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
+    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
-    default_planet_overlay_sort_direction, ActiveMouseGesture, ActiveOverlay, DashApp,
-    FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
-    IntelOverlayPromptMode, IntelOverlaySort, PlanetOverlayFilter, PlanetOverlayPromptMode,
-    PlanetOverlaySort,
+    default_planet_overlay_sort_direction,
 };
 
 impl DashApp {
+    fn set_selected_diplomatic_relation(
+        &mut self,
+        relation: nc_data::DiplomaticRelation,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(empire_slot) = diplomacy::selected_empire_slot(self) else {
+            return Ok(());
+        };
+        if empire_slot as usize == self.player_record_index_1_based {
+            return Ok(());
+        }
+        self.game_data.set_stored_diplomatic_relation(
+            self.player_record_index_1_based as u8,
+            empire_slot,
+            relation,
+        )?;
+        self.stage_hosted_diplomacy(empire_slot, relation);
+        self.save_and_refresh_runtime()?;
+        Ok(())
+    }
+
     pub(super) fn handle_overlay_key(&mut self, key: KeyEvent) -> bool {
         match self.overlay {
             ActiveOverlay::None => false,
@@ -37,13 +57,31 @@ impl DashApp {
                 if self.handle_overlay_close_or_help(key, HelpContext::Diplomacy) {
                     return true;
                 }
-                let total_rows = self.game_data.player.records.len();
-                handle_list_overlay_key(
-                    key,
-                    &mut self.diplomacy_overlay.selected,
-                    &mut self.diplomacy_overlay.scroll,
-                    total_rows,
-                );
+                match key.code {
+                    KeyCode::Char('e') | KeyCode::Char('E') => {
+                        if let Err(err) = self
+                            .set_selected_diplomatic_relation(nc_data::DiplomaticRelation::Enemy)
+                        {
+                            self.command_line_toast_message = Some(err.to_string());
+                        }
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') => {
+                        if let Err(err) = self
+                            .set_selected_diplomatic_relation(nc_data::DiplomaticRelation::Neutral)
+                        {
+                            self.command_line_toast_message = Some(err.to_string());
+                        }
+                    }
+                    _ => {
+                        let total_rows = self.game_data.player.records.len();
+                        handle_list_overlay_key(
+                            key,
+                            &mut self.diplomacy_overlay.selected,
+                            &mut self.diplomacy_overlay.scroll,
+                            total_rows,
+                        );
+                    }
+                }
                 true
             }
             ActiveOverlay::Inbox => {
@@ -951,6 +989,10 @@ impl DashApp {
     }
 
     fn handle_inbox_overlay_key(&mut self, key: KeyEvent) {
+        if self.inbox_overlay.prompt_mode != state::InboxPromptMode::None {
+            self.handle_inbox_prompt_key(key);
+            return;
+        }
         if self.inbox_overlay.delete_confirm {
             match key.code {
                 KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
@@ -995,6 +1037,8 @@ impl DashApp {
             KeyCode::Char('d') | KeyCode::Char('D') => {
                 self.inbox_overlay.delete_confirm = true;
             }
+            KeyCode::Char('c') | KeyCode::Char('C') => self.open_inbox_compose_recipient(),
+            KeyCode::Char('o') | KeyCode::Char('O') => self.open_inbox_outbox(),
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
                 self.inbox_overlay.jump_input.push(ch);
                 if self.sync_inbox_overlay_cursor_to_input() {
@@ -1071,6 +1115,226 @@ impl DashApp {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn handle_inbox_prompt_key(&mut self, key: KeyEvent) {
+        match self.inbox_overlay.prompt_mode {
+            state::InboxPromptMode::ComposeRecipient => match key.code {
+                KeyCode::Esc => self.close_inbox_prompt(),
+                KeyCode::Enter => self.submit_inbox_compose_recipient(),
+                KeyCode::Backspace => {
+                    self.inbox_overlay.prompt_input.pop();
+                    self.inbox_overlay.prompt_status = None;
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.inbox_overlay.prompt_input.push(ch);
+                    self.inbox_overlay.prompt_status = None;
+                }
+                _ => {}
+            },
+            state::InboxPromptMode::ComposeSubject => match key.code {
+                KeyCode::Esc => self.close_inbox_prompt(),
+                KeyCode::Enter => self.submit_inbox_compose_subject(),
+                KeyCode::Backspace => {
+                    self.inbox_overlay.prompt_input.pop();
+                    self.inbox_overlay.prompt_status = None;
+                }
+                KeyCode::Char(ch)
+                    if !ch.is_control()
+                        && self.inbox_overlay.prompt_input.chars().count()
+                            < nc_data::MAX_MESSAGE_SUBJECT_CHARS =>
+                {
+                    self.inbox_overlay.prompt_input.push(ch);
+                    self.inbox_overlay.prompt_status = None;
+                }
+                _ => {}
+            },
+            state::InboxPromptMode::ComposeBody => match key.code {
+                KeyCode::Esc => self.close_inbox_prompt(),
+                KeyCode::Enter => self.submit_inbox_compose_body(),
+                KeyCode::Backspace => {
+                    self.inbox_overlay.prompt_input.pop();
+                    self.inbox_overlay.prompt_status = None;
+                }
+                KeyCode::Char(ch)
+                    if !ch.is_control()
+                        && self.inbox_overlay.prompt_input.chars().count()
+                            < nc_data::MAX_MESSAGE_BODY_CHARS =>
+                {
+                    self.inbox_overlay.prompt_input.push(ch);
+                    self.inbox_overlay.prompt_status = None;
+                }
+                _ => {}
+            },
+            state::InboxPromptMode::ComposeConfirm => match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                    if let Err(err) = self.confirm_inbox_compose_message() {
+                        self.inbox_overlay.prompt_status = Some(err.to_string());
+                        self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeBody;
+                        self.inbox_overlay.prompt_input = self.inbox_overlay.compose_body.clone();
+                    }
+                }
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => self.close_inbox_prompt(),
+                _ => {}
+            },
+            state::InboxPromptMode::Outbox => match key.code {
+                KeyCode::Esc => self.close_inbox_prompt(),
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    if let Err(err) = self.delete_selected_outbox_message() {
+                        self.inbox_overlay.prompt_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    let total_rows = inbox::staged_outbox_messages(self).len();
+                    self.inbox_overlay.outbox_selected =
+                        wrap_prev_index(self.inbox_overlay.outbox_selected, total_rows);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    let total_rows = inbox::staged_outbox_messages(self).len();
+                    self.inbox_overlay.outbox_selected =
+                        wrap_next_index(self.inbox_overlay.outbox_selected, total_rows);
+                }
+                KeyCode::Backspace => {
+                    self.inbox_overlay.prompt_input.pop();
+                    self.sync_outbox_cursor_to_input();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.inbox_overlay.prompt_input.push(ch);
+                    self.sync_outbox_cursor_to_input();
+                }
+                _ => {}
+            },
+            state::InboxPromptMode::None => {}
+        }
+    }
+
+    fn open_inbox_compose_recipient(&mut self) {
+        self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeRecipient;
+        self.inbox_overlay.prompt_input.clear();
+        self.inbox_overlay.prompt_default = first_message_recipient_default(self);
+        self.inbox_overlay.prompt_status = None;
+        self.inbox_overlay.compose_recipient_empire = None;
+        self.inbox_overlay.compose_subject.clear();
+        self.inbox_overlay.compose_body.clear();
+    }
+
+    fn submit_inbox_compose_recipient(&mut self) {
+        let raw = prompt_raw_value(
+            &self.inbox_overlay.prompt_input,
+            &self.inbox_overlay.prompt_default,
+        );
+        let Ok(recipient) = raw.parse::<u8>() else {
+            self.inbox_overlay.prompt_status = Some("Enter an empire number.".to_string());
+            return;
+        };
+        let max_empire = self.game_data.conquest.player_count();
+        if recipient == 0 || recipient > max_empire {
+            self.inbox_overlay.prompt_status =
+                Some(format!("Enter an empire number in 1..={max_empire}."));
+            return;
+        }
+        if recipient as usize == self.player_record_index_1_based {
+            self.inbox_overlay.prompt_status = Some("You cannot message yourself.".to_string());
+            return;
+        }
+        self.inbox_overlay.compose_recipient_empire = Some(recipient);
+        self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeSubject;
+        self.inbox_overlay.prompt_input.clear();
+        self.inbox_overlay.prompt_default.clear();
+        self.inbox_overlay.prompt_status = None;
+    }
+
+    fn submit_inbox_compose_subject(&mut self) {
+        self.inbox_overlay.compose_subject = self.inbox_overlay.prompt_input.trim().to_string();
+        self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeBody;
+        self.inbox_overlay.prompt_input.clear();
+        self.inbox_overlay.prompt_status = None;
+    }
+
+    fn submit_inbox_compose_body(&mut self) {
+        self.inbox_overlay.compose_body = self.inbox_overlay.prompt_input.trim().to_string();
+        self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeConfirm;
+        self.inbox_overlay.prompt_status = None;
+    }
+
+    fn confirm_inbox_compose_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let recipient = self
+            .inbox_overlay
+            .compose_recipient_empire
+            .ok_or("Choose a recipient first.")?;
+        let (subject, body) = nc_data::validate_queued_player_message(
+            &self.queued_mail,
+            self.player_record_index_1_based as u8,
+            recipient,
+            self.game_data.conquest.game_year(),
+            self.game_data.conquest.player_count(),
+            &self.inbox_overlay.compose_subject,
+            &self.inbox_overlay.compose_body,
+        )?;
+        self.queued_mail.push(nc_data::QueuedPlayerMail {
+            sender_empire_id: self.player_record_index_1_based as u8,
+            recipient_empire_id: recipient,
+            year: self.game_data.conquest.game_year(),
+            subject: subject.clone(),
+            body: body.clone(),
+            recipient_deleted: false,
+        });
+        self.stage_hosted_message(recipient, subject, body);
+        self.save_and_refresh_runtime()?;
+        self.close_inbox_prompt();
+        Ok(())
+    }
+
+    fn open_inbox_outbox(&mut self) {
+        self.inbox_overlay.prompt_mode = state::InboxPromptMode::Outbox;
+        self.inbox_overlay.prompt_input.clear();
+        self.inbox_overlay.prompt_default.clear();
+        self.inbox_overlay.prompt_status = None;
+    }
+
+    fn delete_selected_outbox_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let messages = inbox::staged_outbox_messages(self);
+        let selected = self
+            .inbox_overlay
+            .outbox_selected
+            .min(messages.len().saturating_sub(1));
+        let Some(message) = self.remove_hosted_message(selected) else {
+            return Ok(());
+        };
+        remove_preview_queued_message(self, &message);
+        self.save_and_refresh_runtime()?;
+        let remaining = inbox::staged_outbox_messages(self).len();
+        self.inbox_overlay.outbox_selected = self
+            .inbox_overlay
+            .outbox_selected
+            .min(remaining.saturating_sub(1));
+        Ok(())
+    }
+
+    fn close_inbox_prompt(&mut self) {
+        self.inbox_overlay.prompt_mode = state::InboxPromptMode::None;
+        self.inbox_overlay.prompt_input.clear();
+        self.inbox_overlay.prompt_default.clear();
+        self.inbox_overlay.prompt_status = None;
+        self.inbox_overlay.compose_recipient_empire = None;
+        self.inbox_overlay.compose_subject.clear();
+        self.inbox_overlay.compose_body.clear();
+    }
+
+    fn sync_outbox_cursor_to_input(&mut self) {
+        let rows = (1..=inbox::staged_outbox_messages(self).len())
+            .map(|idx| vec![format!("{idx:02}")])
+            .collect::<Vec<_>>();
+        let Some(matched) =
+            table_selection::find_typed_jump(&rows, 0, &self.inbox_overlay.prompt_input)
+        else {
+            return;
+        };
+        self.inbox_overlay.outbox_selected = matched.index;
+        sync_scroll_to_cursor(&mut self.inbox_overlay.outbox_scroll, matched.index, 10);
+        if matched.is_terminal_exact_match {
+            self.inbox_overlay.prompt_input.clear();
         }
     }
 
@@ -1510,6 +1774,27 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
                 mail.mark_deleted_by_recipient();
             }
         }
+    }
+}
+
+fn first_message_recipient_default(app: &DashApp) -> String {
+    (1..=app.game_data.conquest.player_count())
+        .find(|empire| *empire as usize != app.player_record_index_1_based)
+        .map(|empire| empire.to_string())
+        .unwrap_or_default()
+}
+
+fn remove_preview_queued_message(app: &mut DashApp, message: &nc_data::TurnMessage) {
+    let sender = app.player_record_index_1_based as u8;
+    let year = app.game_data.conquest.game_year();
+    if let Some(index) = app.queued_mail.iter().position(|mail| {
+        mail.sender_empire_id == sender
+            && mail.recipient_empire_id == message.recipient_empire_raw
+            && mail.year == year
+            && mail.subject == message.subject
+            && mail.body == message.body
+    }) {
+        app.queued_mail.remove(index);
     }
 }
 

@@ -3,7 +3,7 @@ use tracing::debug;
 use crate::dashboard::app::input::Action;
 use crate::dashboard::input::{MouseButton, MouseEvent, MouseEventKind};
 use crate::dashboard::layout::dashboard;
-use crate::dashboard::modal::{modal_close_button_contains, Rect};
+use crate::dashboard::modal::{Rect, modal_close_button_contains};
 use crate::dashboard::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::dashboard::panels::starmap;
 use crate::dashboard::planet_view;
@@ -622,6 +622,9 @@ impl DashApp {
                     self.popup_position,
                 ),
             ),
+            ActivePopup::TaxPrompt => Some(crate::dashboard::popups::tax_prompt::popup_rect(
+                self, map_frame,
+            )),
             ActivePopup::PlanetDetail {
                 planet_record_index_1_based,
             } => Some(crate::dashboard::popups::planet_detail::popup_rect(

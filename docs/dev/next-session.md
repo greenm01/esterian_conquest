@@ -24,9 +24,9 @@ green.
 - The main remaining risk is field bugs found by real BBS and localhost players.
 - The hosted `nc-host` / `nc-helm` track now exists locally, but it is still a
   dev-only path and not the public shipped product story.
-- The biggest remaining hosted client gap is finishing the last unsupported
-  hosted dashboard actions and broadening the staged hosted draft flow beyond
-  the current fleet-order and planet-build surfaces.
+- The hosted client now stages and replays build, fleet, tax, diplomacy, and
+  quick message drafts. Remaining gaps are narrower unsupported actions such as
+  starbase moves and fleet renumbering.
 - The BBS door renderer still repaints full frames instead of using the
   retained-frame diffing already in local `nc-game`.
 

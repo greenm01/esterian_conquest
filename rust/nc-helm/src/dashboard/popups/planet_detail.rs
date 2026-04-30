@@ -11,16 +11,16 @@ use crate::dashboard::overlays::frame::{
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
     overlay_popup_rect_for_body_in_parent,
 };
-use crate::dashboard::planet_view::selected_planet_detail;
+use crate::dashboard::planet_view::planet_detail_for_record;
 use crate::dashboard::theme;
 
 pub fn draw(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
     map_frame: MapWidgetFrame,
-    _planet_record_index_1_based: usize,
+    planet_record_index_1_based: usize,
 ) {
-    let Some(detail) = selected_planet_detail(app) else {
+    let Some(detail) = planet_detail_for_record(app, planet_record_index_1_based) else {
         return;
     };
 
@@ -40,7 +40,7 @@ pub fn draw(
         OverlaySizePolicy::default(),
         TableFooter::None,
         app.popup_position_for(crate::dashboard::app::state::ActivePopup::PlanetDetail {
-            planet_record_index_1_based: _planet_record_index_1_based,
+            planet_record_index_1_based,
         }),
     );
     for (idx, line) in lines.into_iter().enumerate().take(popup.body_height) {
@@ -60,7 +60,7 @@ pub fn popup_rect(
     map_frame: MapWidgetFrame,
     planet_record_index_1_based: usize,
 ) -> Rect {
-    let Some(detail) = selected_planet_detail(app) else {
+    let Some(detail) = planet_detail_for_record(app, planet_record_index_1_based) else {
         return overlay_popup_rect_for_body_in_parent(
             dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
             "PLANET INFO",

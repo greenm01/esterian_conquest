@@ -1,8 +1,8 @@
 use super::{
-    FleetTurnAction, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS, PlanetTurnAction,
-    TurnMessage, TurnSubmission, TurnSubmissionError, TurnSubmissionReport,
+    FleetTurnAction, PlanetTurnAction, TurnMessage, TurnSubmission, TurnSubmissionError,
+    TurnSubmissionReport,
 };
-use crate::{CoreGameData, ProductionItemKind, QueuedPlayerMail, validate_queue_message_limit};
+use crate::{CoreGameData, ProductionItemKind, QueuedPlayerMail, validate_queued_player_message};
 
 pub(super) fn apply_turn_submission(
     submission: &TurnSubmission,
@@ -356,43 +356,14 @@ fn queue_message(
     sender_player_record_index_1_based: usize,
     message: &TurnMessage,
 ) -> Result<(), TurnSubmissionError> {
-    let player_count = game_data.conquest.player_count();
-    if message.recipient_empire_raw == 0 || message.recipient_empire_raw > player_count {
-        return Err(TurnSubmissionError::Validation(format!(
-            "message recipient must be in 1..={player_count}, got {}",
-            message.recipient_empire_raw
-        )));
-    }
-    if message.recipient_empire_raw as usize == sender_player_record_index_1_based {
-        return Err(TurnSubmissionError::Validation(
-            "message recipient cannot be the submitting player".to_string(),
-        ));
-    }
-
-    let subject = message.subject.trim();
-    let body = message.body.trim();
-    if body.is_empty() {
-        return Err(TurnSubmissionError::Validation(
-            "message body cannot be empty".to_string(),
-        ));
-    }
-    if subject.chars().count() > MAX_MESSAGE_SUBJECT_CHARS {
-        return Err(TurnSubmissionError::Validation(format!(
-            "message subject exceeds {} characters",
-            MAX_MESSAGE_SUBJECT_CHARS
-        )));
-    }
-    if body.chars().count() > MAX_MESSAGE_BODY_CHARS {
-        return Err(TurnSubmissionError::Validation(format!(
-            "message body exceeds {} characters",
-            MAX_MESSAGE_BODY_CHARS
-        )));
-    }
-    validate_queue_message_limit(
+    let (subject, body) = validate_queued_player_message(
         queued_mail,
         sender_player_record_index_1_based as u8,
         message.recipient_empire_raw,
         game_data.conquest.game_year(),
+        game_data.conquest.player_count(),
+        &message.subject,
+        &message.body,
     )
     .map_err(TurnSubmissionError::Validation)?;
 
@@ -400,8 +371,8 @@ fn queue_message(
         sender_empire_id: sender_player_record_index_1_based as u8,
         recipient_empire_id: message.recipient_empire_raw,
         year: game_data.conquest.game_year(),
-        subject: subject.to_string(),
-        body: body.to_string(),
+        subject,
+        body,
         recipient_deleted: false,
     });
     Ok(())

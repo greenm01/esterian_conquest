@@ -10,8 +10,8 @@ use nc_data::{
     yearly_tax_revenue,
 };
 
-use crate::dashboard::app::state::DashApp;
 use crate::dashboard::app::panel_cache::CachedSectorDetails;
+use crate::dashboard::app::state::DashApp;
 use crate::dashboard::panels::starmap::cached_projection_for_app;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +37,13 @@ pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDeta
     if planet_record_index_1_based == 0 {
         return None;
     }
+    planet_detail_for_record(app, planet_record_index_1_based)
+}
+
+pub(crate) fn planet_detail_for_record(
+    app: &DashApp,
+    planet_record_index_1_based: usize,
+) -> Option<SelectedPlanetDetail> {
     cached_sector_details_for_app(app)
         .details_by_planet_index
         .get(&planet_record_index_1_based)
@@ -434,7 +441,8 @@ fn cached_sector_details_for_app(app: &DashApp) -> Ref<'_, CachedSectorDetails> 
     }
 
     Ref::map(app.sector_detail_cache.borrow(), |opt| {
-        opt.as_ref().expect("sector detail cache should be populated")
+        opt.as_ref()
+            .expect("sector detail cache should be populated")
     })
 }
 
@@ -485,7 +493,9 @@ fn build_cached_sector_details(app: &DashApp) -> CachedSectorDetails {
         .min(PREFERRED_BODY_WIDTH_CAP);
     let preferred_body_rows = details_by_planet_index
         .values()
-        .map(|detail| rendered_widget_lines(&detail.widget_fields, preferred_body_width, MAX_BODY_ROWS).len())
+        .map(|detail| {
+            rendered_widget_lines(&detail.widget_fields, preferred_body_width, MAX_BODY_ROWS).len()
+        })
         .max()
         .unwrap_or(1)
         .clamp(MIN_BODY_ROWS, MAX_BODY_ROWS);
@@ -860,8 +870,7 @@ mod tests {
         );
         let before = preferred_sector_detail_body_width(&app);
 
-        app.game_data.planets.records[0]
-            .set_planet_name("Frontier Bastion Prime");
+        app.game_data.planets.records[0].set_planet_name("Frontier Bastion Prime");
         app.game_data_revision += 1;
 
         let after = preferred_sector_detail_body_width(&app);

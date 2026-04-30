@@ -7,7 +7,7 @@ use crate::dashboard::overlays::frame::{
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
     overlay_popup_rect_for_body_in_parent,
 };
-use crate::dashboard::planet_view::selected_planet_detail;
+use crate::dashboard::planet_view::planet_detail_for_record;
 use crate::dashboard::table::{TableFooter, with_command_line_toast};
 use crate::dashboard::theme;
 use nc_data::ProductionItemKind;
@@ -269,7 +269,8 @@ fn max_line_width(lines: &[String]) -> usize {
 }
 
 fn browse_lines(app: &DashApp, max_body_width: usize) -> Vec<String> {
-    selected_planet_detail(app)
+    app.owned_planet_popup_record_index_1_based()
+        .and_then(|record| planet_detail_for_record(app, record))
         .map(|detail| {
             crate::dashboard::popups::planet_detail::popup_lines(
                 &detail.popup_lines,

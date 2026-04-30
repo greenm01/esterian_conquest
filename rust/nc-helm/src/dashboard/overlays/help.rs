@@ -4,14 +4,14 @@ use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::table::TableFooter;
 
 use crate::dashboard::app::state::{ActiveOverlay, DashApp, HelpContext};
-use crate::dashboard::layout::dashboard;
 use crate::dashboard::layout::MapWidgetFrame;
-use crate::dashboard::modal::{format_help_rows, wrap_formatted_help_lines, Rect};
+use crate::dashboard::layout::dashboard;
+use crate::dashboard::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
 use crate::dashboard::overlays::frame::{
-    assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
     max_overlay_body_height_in_parent, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_parent, write_clipped, OverlaySizePolicy,
+    overlay_popup_rect_for_body_in_parent, write_clipped,
 };
 use crate::dashboard::theme;
 
@@ -291,12 +291,16 @@ mod tests {
         let lines = help_lines(HelpContext::FleetList);
 
         assert!(lines.iter().any(|line| line.contains("Typed jump")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("O") && line.contains("Order checked fleets")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("SPACE") && line.contains("checked state")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("O") && line.contains("Order checked fleets"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("SPACE") && line.contains("checked state"))
+        );
         assert!(!lines.iter().any(|line| line.contains("O / C / M / T")));
         assert!(!lines.iter().any(|line| line.contains("TODO")));
         assert!(!lines.iter().any(|line| line.contains("FLEET LIST")));
@@ -307,13 +311,17 @@ mod tests {
     #[test]
     fn overlay_help_omits_stale_browse_commands() {
         let planet = help_lines(HelpContext::PlanetList);
-        assert!(planet
-            .iter()
-            .any(|line| line.contains("B") && line.contains("build orders")));
+        assert!(
+            planet
+                .iter()
+                .any(|line| line.contains("B") && line.contains("build orders"))
+        );
         assert!(!planet.iter().any(|line| line.contains("TODO")));
-        assert!(planet
-            .iter()
-            .any(|line| line.contains("Enter") && line.contains("selected planet")));
+        assert!(
+            planet
+                .iter()
+                .any(|line| line.contains("Enter") && line.contains("selected planet"))
+        );
 
         let intel = help_lines(HelpContext::IntelDatabase);
         assert!(intel.iter().any(|line| line.contains("Coords")));
@@ -330,9 +338,11 @@ mod tests {
         assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
 
         let settings = help_lines(HelpContext::Settings);
-        assert!(settings
-            .iter()
-            .any(|line| line.contains("hover-follow crosshair")));
+        assert!(
+            settings
+                .iter()
+                .any(|line| line.contains("hover-follow crosshair"))
+        );
         assert!(!settings.iter().any(|line| line.contains("TODO")));
     }
 
@@ -341,21 +351,31 @@ mod tests {
         let lines = help_lines(HelpContext::Global);
 
         assert!(!lines.iter().any(|line| line.contains("GLOBAL HOTKEYS")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("P") && line.contains("Open Planet List")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("[") && line.contains("previous planet")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("XX,YY") && line.contains("map coordinates")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("+") && line.contains("Zoom the map in")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("V") && line.contains("fill map view")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("P") && line.contains("Open Planet List"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("[") && line.contains("previous planet"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("XX,YY") && line.contains("map coordinates"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("+") && line.contains("Zoom the map in"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("V") && line.contains("fill map view"))
+        );
         assert!(lines.iter().any(|line| line.contains("Left Click")));
         assert!(lines.iter().any(|line| line.contains("Right Click")));
         assert!(lines.iter().any(|line| line.contains("Map Exit")));

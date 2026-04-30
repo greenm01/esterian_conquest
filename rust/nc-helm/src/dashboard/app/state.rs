@@ -87,6 +87,7 @@ impl ActiveOverlay {
 pub enum ActivePopup {
     None,
     QuitConfirm,
+    TaxPrompt,
     PlanetDetail { planet_record_index_1_based: usize },
     OwnedPlanet { planet_record_index_1_based: usize },
 }
@@ -207,6 +208,16 @@ pub enum InboxFilter {
     All,
     Reports,
     Messages,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxPromptMode {
+    None,
+    ComposeRecipient,
+    ComposeSubject,
+    ComposeBody,
+    ComposeConfirm,
+    Outbox,
 }
 
 impl InboxFilter {
@@ -794,6 +805,15 @@ pub struct InboxOverlayState {
     pub current_year_only: bool,
     pub delete_confirm: bool,
     pub jump_input: String,
+    pub prompt_mode: InboxPromptMode,
+    pub prompt_input: String,
+    pub prompt_default: String,
+    pub prompt_status: Option<String>,
+    pub compose_recipient_empire: Option<u8>,
+    pub compose_subject: String,
+    pub compose_body: String,
+    pub outbox_selected: usize,
+    pub outbox_scroll: usize,
 }
 
 impl Default for InboxOverlayState {
@@ -807,6 +827,15 @@ impl Default for InboxOverlayState {
             current_year_only: false,
             delete_confirm: false,
             jump_input: String::new(),
+            prompt_mode: InboxPromptMode::None,
+            prompt_input: String::new(),
+            prompt_default: String::new(),
+            prompt_status: None,
+            compose_recipient_empire: None,
+            compose_subject: String::new(),
+            compose_body: String::new(),
+            outbox_selected: 0,
+            outbox_scroll: 0,
         }
     }
 }
@@ -870,6 +899,8 @@ pub struct DashApp {
     pub inbox_overlay: InboxOverlayState,
     pub settings_overlay: SettingsOverlayState,
     pub owned_planet_popup: OwnedPlanetPopupState,
+    pub tax_prompt_input: String,
+    pub tax_prompt_status: Option<String>,
 
     pub is_terminal_too_small: bool,
     pub should_quit: bool,
@@ -935,6 +966,8 @@ impl Clone for DashApp {
             inbox_overlay: self.inbox_overlay.clone(),
             settings_overlay: self.settings_overlay.clone(),
             owned_planet_popup: self.owned_planet_popup.clone(),
+            tax_prompt_input: self.tax_prompt_input.clone(),
+            tax_prompt_status: self.tax_prompt_status.clone(),
             is_terminal_too_small: self.is_terminal_too_small,
             should_quit: self.should_quit,
             exit_request: self.exit_request,
@@ -1024,6 +1057,8 @@ impl DashApp {
             inbox_overlay: InboxOverlayState::default(),
             settings_overlay: SettingsOverlayState::default(),
             owned_planet_popup: OwnedPlanetPopupState::default(),
+            tax_prompt_input: String::new(),
+            tax_prompt_status: None,
             is_terminal_too_small: false,
             should_quit: false,
             exit_request: None,

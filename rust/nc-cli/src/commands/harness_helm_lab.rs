@@ -104,7 +104,10 @@ pub(crate) fn run_seed_nc_helm_lab_args(
             report.player1_partial_intel,
             report.commissioned_starbases
         );
-        println!("    cargo run -q -p nc-helm -- --dir {}", report.dir.display());
+        println!(
+            "    cargo run -q -p nc-helm -- --dir {}",
+            report.dir.display()
+        );
     }
     println!("  manifest={}", parsed.root.join("README.txt").display());
     Ok(())

@@ -12,13 +12,13 @@ use crate::dashboard::input::{
 };
 use crate::dashboard::layout::dashboard::dashboard_layout;
 use crate::dashboard::native::NativeApp;
-use crate::dashboard::overlays::{fleet_list, intel_database, planet_list};
+use crate::dashboard::overlays::{diplomacy, fleet_list, intel_database, planet_list};
 use crate::dashboard::panels::starmap;
 use crate::dashboard::planet_view;
 use crate::dashboard::table_selection::{wrap_next_index, wrap_prev_index};
 use nc_data::{
-    CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot, QueuedPlayerMail,
-    ReportBlockRow,
+    CampaignStore, DiplomaticRelation, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot,
+    PlanetTurnAction, PlanetTurnBlock, QueuedPlayerMail, ReportBlockRow, TurnSubmission,
 };
 use nc_engine::{
     build_seeded_initialized_game, fleet_target_input_kind, recommended_coordinate_target,
@@ -518,8 +518,10 @@ fn planet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.planet_overlay.prompt_status.as_deref(),
         Some(" Ambiguous: sbs/sta")
     );
-    assert!(render_planet_footer_line(&app, "Ambiguous: sbs/sta")
-        .contains("COMMAND <-  Ambiguous: sbs/sta"));
+    assert!(
+        render_planet_footer_line(&app, "Ambiguous: sbs/sta")
+            .contains("COMMAND <-  Ambiguous: sbs/sta")
+    );
 
     app.handle_key(key(KeyCode::Backspace));
     assert_eq!(app.planet_overlay.prompt_status, None);
@@ -878,10 +880,11 @@ fn fleet_selection_toggles_on_space() {
     };
 
     app.handle_key(key(KeyCode::Char(' ')));
-    assert!(app
-        .fleet_overlay
-        .selected_fleet_record_indexes
-        .contains(&record_index));
+    assert!(
+        app.fleet_overlay
+            .selected_fleet_record_indexes
+            .contains(&record_index)
+    );
 
     app.handle_key(key(KeyCode::Char(' ')));
     assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
@@ -900,10 +903,11 @@ fn fleet_sort_preserves_checked_selection() {
 
     app.apply_fleet_overlay_sort(crate::dashboard::app::state::FleetOverlaySort::Eta);
 
-    assert!(app
-        .fleet_overlay
-        .selected_fleet_record_indexes
-        .contains(&record_index));
+    assert!(
+        app.fleet_overlay
+            .selected_fleet_record_indexes
+            .contains(&record_index)
+    );
 }
 
 #[test]
@@ -969,9 +973,11 @@ fn fleet_filter_clears_checked_selection() {
 fn fleet_list_excludes_starbases() {
     let mut app = dash_app_with_starbase();
     app.overlay = ActiveOverlay::FleetList;
-    assert!(fleet_list::table_rows(&app)
-        .iter()
-        .all(|row| !matches!(row.key, FleetOverlayRowKey::Starbase(_))));
+    assert!(
+        fleet_list::table_rows(&app)
+            .iter()
+            .all(|row| !matches!(row.key, FleetOverlayRowKey::Starbase(_)))
+    );
 }
 
 #[test]
@@ -1333,8 +1339,10 @@ fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.fleet_overlay.filter_prompt_status.as_deref(),
         Some(" Ambiguous: sel/shi/spd")
     );
-    assert!(render_fleet_footer_line(&app, "Ambiguous: sel/shi/spd")
-        .contains("COMMAND <-  Ambiguous: sel/shi/spd"));
+    assert!(
+        render_fleet_footer_line(&app, "Ambiguous: sel/shi/spd")
+            .contains("COMMAND <-  Ambiguous: sel/shi/spd")
+    );
 
     app.handle_key(key(KeyCode::Char('p')));
     app.handle_key(key(KeyCode::Enter));
@@ -1370,8 +1378,10 @@ fn intel_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
         app.intel_overlay.prompt_status.as_deref(),
         Some(" Ambiguous: sbs/sco/see")
     );
-    assert!(render_intel_footer_line(&app, "Ambiguous: sbs/sco/see")
-        .contains("COMMAND <-  Ambiguous: sbs/sco/see"));
+    assert!(
+        render_intel_footer_line(&app, "Ambiguous: sbs/sco/see")
+            .contains("COMMAND <-  Ambiguous: sbs/sco/see")
+    );
 
     app.handle_key(key(KeyCode::Char('c')));
     app.handle_key(key(KeyCode::Enter));
@@ -1561,8 +1571,10 @@ fn stale_intel_filter_clause_resets_to_all_after_rows_change() {
 
     assert!(app.intel_overlay.filter_clause.is_none());
     assert!(!intel_database::table_rows(&app).is_empty());
-    assert!(render_intel_title_line(&app, "TOTAL PLANET DATABASE:")
-        .contains("TOTAL PLANET DATABASE: COO ASCENDING ALL"));
+    assert!(
+        render_intel_title_line(&app, "TOTAL PLANET DATABASE:")
+            .contains("TOTAL PLANET DATABASE: COO ASCENDING ALL")
+    );
 }
 
 #[test]
@@ -2478,9 +2490,11 @@ fn left_click_on_empty_sector_fleet_glyph_opens_filtered_fleet_list() {
 
     assert_eq!(app.overlay, ActiveOverlay::FleetList);
     assert_eq!(app.fleet_overlay.location_filter, Some(empty_coords));
-    assert!(fleet_list::table_rows(&app)
-        .iter()
-        .all(|row| row.coords == empty_coords));
+    assert!(
+        fleet_list::table_rows(&app)
+            .iter()
+            .all(|row| row.coords == empty_coords)
+    );
 }
 
 #[test]
@@ -2641,12 +2655,13 @@ fn planet_list_commission_runs_inline_from_footer() {
         app.game_data.planets.records[record - 1].stardock_count_raw(0),
         0
     );
-    assert!(app
-        .planet_overlay
-        .footer_notice
-        .as_deref()
-        .unwrap_or_default()
-        .contains("Commissioned"));
+    assert!(
+        app.planet_overlay
+            .footer_notice
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Commissioned")
+    );
 }
 
 #[test]
@@ -2665,8 +2680,10 @@ fn planet_list_transport_runs_inline_from_footer() {
             mode: nc_engine::ArmyTransportMode::Load
         }
     );
-    assert!(render_planet_footer_line(&app, "How many armies to load?")
-        .contains("How many armies to load?"));
+    assert!(
+        render_planet_footer_line(&app, "How many armies to load?")
+            .contains("How many armies to load?")
+    );
 
     app.handle_key(key(KeyCode::Enter));
 
@@ -2679,12 +2696,13 @@ fn planet_list_transport_runs_inline_from_footer() {
         app.game_data.planets.records[record - 1].army_count_raw(),
         4
     );
-    assert!(app
-        .planet_overlay
-        .footer_notice
-        .as_deref()
-        .unwrap_or_default()
-        .contains("Loaded 1 armies onto Fleet"));
+    assert!(
+        app.planet_overlay
+            .footer_notice
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Loaded 1 armies onto Fleet")
+    );
 }
 
 #[test]
@@ -2704,8 +2722,10 @@ fn planet_list_mass_commission_uses_all_owned_planets() {
         app.planet_overlay.prompt_mode,
         PlanetOverlayPromptMode::MassCommissionConfirm
     );
-    assert!(render_planet_footer_line(&app, "Mass commission? Y/[N] ->")
-        .contains("Mass commission? Y/[N] ->"));
+    assert!(
+        render_planet_footer_line(&app, "Mass commission? Y/[N] ->")
+            .contains("Mass commission? Y/[N] ->")
+    );
 
     app.handle_key(key(KeyCode::Char('y')));
 
@@ -2713,12 +2733,13 @@ fn planet_list_mass_commission_uses_all_owned_planets() {
         app.planet_overlay.prompt_mode,
         PlanetOverlayPromptMode::None
     );
-    assert!(app
-        .planet_overlay
-        .footer_notice
-        .as_deref()
-        .unwrap_or_default()
-        .contains("Mass commissioned"));
+    assert!(
+        app.planet_overlay
+            .footer_notice
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Mass commissioned")
+    );
     assert_eq!(
         app.game_data.planets.records[other_record - 1].stardock_count_raw(0),
         0
@@ -3077,11 +3098,157 @@ fn keyboard_opening_fleet_list_clears_transient_location_filter() {
     assert_eq!(app.fleet_overlay.location_filter, None);
 }
 
+#[test]
+fn owned_planet_popup_browse_uses_popup_record_not_crosshair() {
+    let mut app = dash_app();
+    let other_coords = app.game_data.planets.records[1].coords_raw();
+    app.game_data.planets.records[0].set_build_kind_raw(0, 3);
+    app.game_data.planets.records[0].set_build_count_raw(0, 90);
+    app.open_owned_planet_popup(1);
+    app.crosshair_x = other_coords[0];
+    app.crosshair_y = other_coords[1];
+
+    let buffer = app.render_playfield().expect("render");
+    let text = buffer_text(&buffer);
+
+    assert!(text.contains("Building"));
+    assert!(text.contains("2BB"));
+}
+
+#[test]
+fn hosted_draft_replay_refreshes_planet_status_cache() {
+    let mut app = dash_app();
+    app.crosshair_x = app.game_data.planets.records[0].coords_raw()[0];
+    app.crosshair_y = app.game_data.planets.records[0].coords_raw()[1];
+    let _ = planet_view::selected_planet_detail(&app).expect("cached detail");
+    let before_revision = app.game_data_revision;
+    let draft = TurnSubmission {
+        player_record_index_1_based: 1,
+        year: app.game_data.conquest.game_year(),
+        tax_rate: None,
+        diplomacy: Vec::new(),
+        planets: vec![PlanetTurnBlock {
+            planet_record_index_1_based: 1,
+            actions: vec![PlanetTurnAction::Build {
+                points_remaining_raw: 5,
+                kind_raw: 1,
+            }],
+        }],
+        fleets: Vec::new(),
+        messages: Vec::new(),
+    };
+
+    crate::dashboard::replay_hosted_draft(&mut app, &draft).expect("replay draft");
+
+    assert!(app.game_data_revision > before_revision);
+    let detail = planet_view::selected_planet_detail(&app).expect("detail after replay");
+    assert_eq!(detail_value(&detail.popup_lines, "Building"), Some("1DD"));
+}
+
+#[test]
+fn tax_prompt_updates_preview_and_hosted_draft() {
+    let mut app = dash_app();
+    app.initialize_hosted_turn_draft();
+    let before_revision = app.game_data_revision;
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('4'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(app.game_data.player.records[0].tax_rate(), 42);
+    assert_eq!(
+        app.hosted_turn_draft
+            .as_ref()
+            .and_then(|draft| draft.tax_rate),
+        Some(42)
+    );
+    assert!(app.game_data_revision > before_revision);
+}
+
+#[test]
+fn diplomacy_overlay_updates_preview_and_hosted_draft() {
+    let mut app = dash_app();
+    app.initialize_hosted_turn_draft();
+    app.overlay = ActiveOverlay::Diplomacy;
+    while diplomacy::selected_empire_slot(&app) == Some(app.player_record_index_1_based as u8) {
+        app.diplomacy_overlay.selected += 1;
+    }
+    let target = diplomacy::selected_empire_slot(&app).expect("target empire");
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE));
+
+    assert_eq!(
+        app.game_data
+            .stored_diplomatic_relation(app.player_record_index_1_based as u8, target),
+        Some(DiplomaticRelation::Enemy)
+    );
+    assert_eq!(
+        app.hosted_turn_draft
+            .as_ref()
+            .and_then(|draft| draft
+                .diplomacy
+                .iter()
+                .find(|row| row.to_empire_raw == target))
+            .map(|row| row.relation),
+        Some(DiplomaticRelation::Enemy)
+    );
+}
+
+#[test]
+fn inbox_quick_compose_stages_and_removes_hosted_message() {
+    let mut app = dash_app();
+    app.initialize_hosted_turn_draft();
+    app.overlay = ActiveOverlay::Inbox;
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('H'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('M'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
+
+    let draft = app.hosted_turn_draft.as_ref().expect("draft");
+    assert_eq!(draft.messages.len(), 1);
+    assert_eq!(draft.messages[0].recipient_empire_raw, 2);
+    assert_eq!(draft.messages[0].subject, "Hi");
+    assert_eq!(draft.messages[0].body, "Move");
+    assert!(app.queued_mail.iter().any(|mail| {
+        mail.sender_empire_id == 1 && mail.recipient_empire_id == 2 && mail.subject == "Hi"
+    }));
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
+
+    assert!(app.hosted_turn_draft.as_ref().unwrap().messages.is_empty());
+    assert!(!app.queued_mail.iter().any(|mail| {
+        mail.sender_empire_id == 1 && mail.recipient_empire_id == 2 && mail.subject == "Hi"
+    }));
+}
+
 fn detail_value<'a>(fields: &'a [planet_view::DetailLine], label: &str) -> Option<&'a str> {
     fields
         .iter()
         .find(|field| field.label == label)
         .map(|field| field.value.as_str())
+}
+
+fn buffer_text(buffer: &PlayfieldBuffer) -> String {
+    let mut text = String::new();
+    for row in 0..buffer.height() {
+        for cell in buffer.row(row) {
+            text.push(cell.ch);
+        }
+        text.push('\n');
+    }
+    text
 }
 
 fn dash_app() -> DashApp {
@@ -3723,8 +3890,10 @@ fn settings_status_uses_command_line_toast_instead_of_body_row() {
     app.overlay = ActiveOverlay::Settings;
     app.settings_overlay.status_message = Some("Saved local settings".to_string());
 
-    assert!(render_settings_line(&app, "Saved local settings")
-        .contains("COMMAND <- Saved local settings"));
+    assert!(
+        render_settings_line(&app, "Saved local settings")
+            .contains("COMMAND <- Saved local settings")
+    );
 }
 
 #[test]

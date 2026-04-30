@@ -1520,7 +1520,7 @@ mod tests {
     use nc_client::cache::ClientCache;
     use nc_client::hosted::store::{CachedHostedDraft, HostedDraftStatus};
     use nc_client::keychain::{Keychain, active_identity_npub, now_iso8601, push_new_identity};
-    use nc_data::{PlanetTurnAction, PlanetTurnBlock, TurnSubmission};
+    use nc_data::{DiplomaticRelation, PlanetTurnAction, PlanetTurnBlock, TurnSubmission};
     use nc_nostr::state_sync::{
         GameState, HostedDiplomacyState, HostedFleetShips, HostedOwnedFleet, HostedOwnedPlanet,
         HostedPlayerRosterEntry, HostedPlayerState, HostedQueuedMail, HostedReportBlock,
@@ -1702,6 +1702,116 @@ mod tests {
                 kind_raw: 1
             }]
         ));
+    }
+
+    #[test]
+    fn hosted_game_tax_command_emits_draft_autosave_effect() {
+        let mut model = hosted_game_model();
+
+        assert!(
+            handle_key(
+                &mut model,
+                KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE)
+            )
+            .is_empty()
+        );
+        assert!(
+            handle_key(
+                &mut model,
+                KeyEvent::new(KeyCode::Char('4'), KeyModifiers::NONE)
+            )
+            .is_empty()
+        );
+        assert!(
+            handle_key(
+                &mut model,
+                KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE)
+            )
+            .is_empty()
+        );
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+
+        let Effect::SaveHostedTurnDraft {
+            draft: Some(draft), ..
+        } = &effects[0]
+        else {
+            panic!("expected hosted draft save effect, got {:?}", effects);
+        };
+        assert_eq!(draft.tax_rate, Some(42));
+    }
+
+    #[test]
+    fn hosted_game_diplomacy_command_emits_draft_autosave_effect() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        hosted.dashboard.overlay = ActiveOverlay::Diplomacy;
+        while crate::dashboard::overlays::diplomacy::selected_empire_slot(&hosted.dashboard)
+            == Some(hosted.dashboard.player_record_index_1_based as u8)
+        {
+            hosted.dashboard.diplomacy_overlay.selected += 1;
+        }
+        let target = crate::dashboard::overlays::diplomacy::selected_empire_slot(&hosted.dashboard)
+            .expect("target");
+
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+        );
+
+        let Effect::SaveHostedTurnDraft {
+            draft: Some(draft), ..
+        } = &effects[0]
+        else {
+            panic!("expected hosted draft save effect, got {:?}", effects);
+        };
+        assert_eq!(draft.diplomacy.len(), 1);
+        assert_eq!(draft.diplomacy[0].to_empire_raw, target);
+        assert_eq!(draft.diplomacy[0].relation, DiplomaticRelation::Enemy);
+    }
+
+    #[test]
+    fn hosted_game_quick_message_emits_draft_autosave_effect() {
+        let mut model = hosted_game_model();
+        let Route::HostedGame(hosted) = &mut model.route else {
+            panic!("expected hosted route");
+        };
+        hosted.dashboard.overlay = ActiveOverlay::Inbox;
+
+        for key in [
+            KeyCode::Char('c'),
+            KeyCode::Char('2'),
+            KeyCode::Enter,
+            KeyCode::Char('H'),
+            KeyCode::Char('i'),
+            KeyCode::Enter,
+            KeyCode::Char('M'),
+            KeyCode::Char('o'),
+            KeyCode::Char('v'),
+            KeyCode::Char('e'),
+            KeyCode::Enter,
+        ] {
+            assert!(handle_key(&mut model, KeyEvent::new(key, KeyModifiers::NONE)).is_empty());
+        }
+        let effects = handle_key(
+            &mut model,
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+        );
+
+        let Effect::SaveHostedTurnDraft {
+            draft: Some(draft), ..
+        } = &effects[0]
+        else {
+            panic!("expected hosted draft save effect, got {:?}", effects);
+        };
+        assert_eq!(draft.messages.len(), 1);
+        assert_eq!(draft.messages[0].recipient_empire_raw, 2);
+        assert_eq!(draft.messages[0].subject, "Hi");
+        assert_eq!(draft.messages[0].body, "Move");
     }
 
     #[test]
