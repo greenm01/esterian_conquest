@@ -2,7 +2,7 @@
 
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::buffer::{CellStyle, PlayfieldBuffer, StyledSpan};
-use crate::dashboard::diplomacy_view::{display_name, relation_label_and_style};
+use crate::dashboard::diplomacy_view::relation_label_and_style;
 use crate::dashboard::layout::widgets::WidgetRect;
 use crate::dashboard::layout::{self, PanelWidgetFrame};
 use crate::dashboard::theme;
@@ -10,14 +10,11 @@ use nc_data::EmpireProductionRankingSort;
 
 pub(crate) const TITLE: &str = "DIPLOMACY";
 pub(crate) const MIN_BODY_ROWS: usize = 4;
-const PREFERRED_NAME_WIDTH: usize = 10;
-const MIN_NAME_WIDTH: usize = 4;
 const CP_WIDTH: usize = 5;
 
 #[derive(Debug, Clone)]
 pub(crate) struct DiplomacyPanelRow {
     pub empire_slot: u8,
-    pub name: String,
     pub production: u16,
     pub relation: &'static str,
     pub relation_style: CellStyle,
@@ -34,7 +31,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
 
     let start = visible_row_start(&rows, app.diplomacy_scroll, visible_row_count);
     let visible_rows = rows.iter().skip(start).take(visible_row_count);
-    let metrics = column_metrics(&rows, frame.body.width);
+    let metrics = column_metrics(&rows);
 
     let mut body_row = 0usize;
     for row_data in visible_rows {
@@ -69,8 +66,7 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<DiplomacyPanelRow> {
             if empire_slot == viewer_slot {
                 return None;
             }
-            let player = app
-                .game_data
+            app.game_data
                 .player
                 .records
                 .get(empire_slot.saturating_sub(1) as usize)?;
@@ -78,7 +74,6 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<DiplomacyPanelRow> {
                 relation_label_and_style(Some(viewer), viewer_slot, empire_slot);
             Some(DiplomacyPanelRow {
                 empire_slot,
-                name: display_name(player, empire_slot),
                 production: ranking.current_production,
                 relation,
                 relation_style,
@@ -89,29 +84,24 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<DiplomacyPanelRow> {
 
 pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
     let rows = body_rows(app);
-    let metrics = column_metrics(&rows, usize::MAX / 2);
-    row_line_width(
-        metrics.slot_width,
-        PREFERRED_NAME_WIDTH,
-        metrics.relation_width,
-    )
+    let metrics = column_metrics(&rows);
+    row_line_width(metrics.slot_width, metrics.relation_width)
 }
 
 #[cfg(test)]
 pub(crate) fn minimum_body_width(app: &DashApp) -> usize {
     let rows = body_rows(app);
-    let metrics = column_metrics(&rows, usize::MAX / 2);
-    row_line_width(metrics.slot_width, MIN_NAME_WIDTH, metrics.relation_width)
+    let metrics = column_metrics(&rows);
+    row_line_width(metrics.slot_width, metrics.relation_width)
 }
 
 #[derive(Clone, Copy, Debug)]
 struct ColumnMetrics {
     slot_width: usize,
-    name_width: usize,
     relation_width: usize,
 }
 
-fn column_metrics(rows: &[DiplomacyPanelRow], available_width: usize) -> ColumnMetrics {
+fn column_metrics(rows: &[DiplomacyPanelRow]) -> ColumnMetrics {
     let slot_width = rows
         .iter()
         .map(|row| empire_slot_label(row.empire_slot).chars().count())
@@ -120,22 +110,12 @@ fn column_metrics(rows: &[DiplomacyPanelRow], available_width: usize) -> ColumnM
         .max(2);
     let relation_width = rows
         .iter()
-        .map(|row| row.relation.chars().count())
+        .map(|row| compact_relation_label(row.relation).chars().count())
         .max()
-        .unwrap_or("Neutral".chars().count());
-    let available_name =
-        available_width.saturating_sub(row_line_width(slot_width, 0, relation_width));
-    let preferred_name = rows
-        .iter()
-        .map(|row| row.name.chars().count().min(PREFERRED_NAME_WIDTH))
-        .max()
-        .unwrap_or(MIN_NAME_WIDTH)
-        .max(MIN_NAME_WIDTH);
-    let name_width = preferred_name.min(available_name.max(MIN_NAME_WIDTH));
+        .unwrap_or("Neutr".chars().count());
 
     ColumnMetrics {
         slot_width,
-        name_width,
         relation_width,
     }
 }
@@ -148,26 +128,33 @@ fn cp_label(production: u16) -> String {
     format!("{production:0CP_WIDTH$} CP")
 }
 
-fn row_line_width(slot_width: usize, name_width: usize, relation_width: usize) -> usize {
-    slot_width + 1 + name_width + 1 + 2 + relation_width + 3 + (CP_WIDTH + 3) + 2
+fn compact_relation_label(relation: &'static str) -> &'static str {
+    match relation {
+        "Neutral" => "Neutr",
+        other => other,
+    }
+}
+
+fn row_line_width(slot_width: usize, relation_width: usize) -> usize {
+    slot_width + 3 + relation_width + 3 + (CP_WIDTH + 3) + 2
 }
 
 fn format_row_line(row: &DiplomacyPanelRow, metrics: &ColumnMetrics, body_width: usize) -> String {
     let slot = empire_slot_label(row.empire_slot);
-    let available_name = body_width.saturating_sub(row_line_width(
-        metrics.slot_width,
-        0,
-        metrics.relation_width,
-    ));
-    let name_width = metrics.name_width.min(available_name.max(MIN_NAME_WIDTH));
-    let name = ellipsize(&row.name, name_width);
-    format!(
-        "{slot:<slot_width$} {name:<name_width$} [ {relation:<relation_width$} | {cp} ]",
-        relation = row.relation,
+    let relation = compact_relation_label(row.relation);
+    let line = format!(
+        "{slot:<slot_width$} [ {relation:<relation_width$} | {cp} ]",
         cp = cp_label(row.production),
         slot_width = metrics.slot_width,
-        name_width = name_width,
         relation_width = metrics.relation_width,
+    );
+    if line.chars().count() <= body_width {
+        return line;
+    }
+    format!(
+        "{slot:<slot_width$} [ {relation} | {cp} ]",
+        cp = cp_label(row.production),
+        slot_width = metrics.slot_width,
     )
 }
 
@@ -187,7 +174,7 @@ fn write_diplomacy_row(
         .take(body.width)
         .collect::<String>();
     let empire_style = theme::empire_slot_style(row.empire_slot);
-    let split = slot_name_end(&text);
+    let split = slot_end(&text);
     let spans = [
         StyledSpan::new(&text[..split], empire_style),
         StyledSpan::new(&text[split..], row.relation_style),
@@ -195,8 +182,8 @@ fn write_diplomacy_row(
     buf.write_spans_clipped(body.row + body_row_offset, body.col, &spans);
 }
 
-fn slot_name_end(text: &str) -> usize {
-    text.find(" [ ").unwrap_or(text.len())
+fn slot_end(text: &str) -> usize {
+    text.find(" [").unwrap_or(text.len())
 }
 
 fn visible_row_start(
@@ -210,24 +197,11 @@ fn visible_row_start(
     requested_scroll.min(rows.len().saturating_sub(visible_row_count))
 }
 
-fn ellipsize(text: &str, width: usize) -> String {
-    let text_width = text.chars().count();
-    if text_width <= width {
-        return text.to_string();
-    }
-    if width <= 3 {
-        return ".".repeat(width);
-    }
-    let keep = width.saturating_sub(3);
-    let prefix: String = text.chars().take(keep).collect();
-    format!("{prefix}...")
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        DiplomacyPanelRow, MIN_BODY_ROWS, body_rows, column_metrics, cp_label, ellipsize,
-        format_row_line, minimum_body_width, preferred_body_width, visible_row_start,
+        body_rows, column_metrics, cp_label, format_row_line, minimum_body_width,
+        preferred_body_width, visible_row_start, DiplomacyPanelRow, MIN_BODY_ROWS,
     };
     use crate::dashboard::app::state::DashApp;
     use crate::dashboard::buffer::PlayfieldBuffer;
@@ -245,15 +219,9 @@ mod tests {
 
         assert_eq!(rows.len(), 3);
         assert!(rows.iter().all(|row| row.empire_slot != 1));
-        assert!(
-            rows.windows(2)
-                .all(|pair| pair[0].production >= pair[1].production)
-        );
-    }
-
-    #[test]
-    fn long_names_ellipsize_with_three_dots() {
-        assert_eq!(ellipsize("Foobarbaz", 6), "Foo...");
+        assert!(rows
+            .windows(2)
+            .all(|pair| pair[0].production >= pair[1].production));
     }
 
     #[test]
@@ -267,10 +235,10 @@ mod tests {
     fn compact_row_uses_relation_and_zero_padded_cp() {
         let app = dash_app();
         let rows = body_rows(&app);
-        let metrics = column_metrics(&rows, 37);
+        let metrics = column_metrics(&rows);
         let row = format_row_line(&rows[0], &metrics, 37);
 
-        assert!(row.contains("[ Neutral | 00100 CP ]"), "{row}");
+        assert!(row.contains("[ Neutr | 00100 CP ]"), "{row}");
         assert!(row.starts_with("#"), "{row}");
     }
 
@@ -279,24 +247,22 @@ mod tests {
         let rows = vec![
             DiplomacyPanelRow {
                 empire_slot: 25,
-                name: "The Glorious Empire".to_string(),
                 production: 0,
                 relation: "Enemy",
                 relation_style: theme::enemy_style(),
             },
             DiplomacyPanelRow {
                 empire_slot: 2,
-                name: "Neutral Empire".to_string(),
                 production: 100,
                 relation: "Neutral",
                 relation_style: theme::dim_style(),
             },
         ];
-        let metrics = column_metrics(&rows, 37);
-        let row = format_row_line(&rows[0], &metrics, 37);
+        let metrics = column_metrics(&rows);
+        let row = format_row_line(&rows[0], &metrics, 24);
 
-        assert_eq!(row, "#25 The Glo... [ Enemy   | 00000 CP ]");
-        assert_eq!(row.chars().count(), 37);
+        assert_eq!(row, "#25 [ Enemy | 00000 CP ]");
+        assert_eq!(row.chars().count(), 24);
     }
 
     #[test]

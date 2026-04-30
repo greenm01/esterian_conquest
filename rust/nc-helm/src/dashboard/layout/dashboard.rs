@@ -16,7 +16,7 @@ use crate::dashboard::panels::{
 };
 
 const LEFT_PANEL_WIDTH_CAP: usize = 20;
-const RIGHT_PANEL_WIDTH_CAP: usize = 38;
+const RIGHT_PANEL_WIDTH_CAP: usize = 25;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DashboardLayout {
