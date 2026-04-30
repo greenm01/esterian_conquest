@@ -2541,6 +2541,191 @@ fn owned_planet_popup_footer_shows_command_rail() {
 }
 
 #[test]
+fn planet_list_footer_shows_owned_planet_commands() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+
+    assert!(
+        render_planet_footer_line(&app, "COMMAND <- ? F S B C M L U X <ESC>")
+            .contains("COMMAND <- ? F S B C M L U X <ESC>")
+    );
+}
+
+#[test]
+fn planet_list_enter_opens_status_and_escape_returns_to_table() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+    let record = selected_planet_record_index(&app);
+
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+    assert_eq!(
+        app.popup,
+        ActivePopup::OwnedPlanet {
+            planet_record_index_1_based: record
+        }
+    );
+    assert!(render_dashboard_line(&app, "PLANET STATUS").contains("PLANET STATUS"));
+
+    app.handle_key(key(KeyCode::Esc));
+
+    assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+    assert_eq!(app.popup, ActivePopup::None);
+}
+
+#[test]
+fn planet_list_selected_planet_commands_open_inline_footer_prompts() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+    let record = selected_planet_record_index(&app);
+    prepare_selected_planet_for_owned_commands(&mut app, record);
+
+    app.handle_key(key(KeyCode::Char('c')));
+    assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::CommissionSelect
+    );
+    assert!(render_planet_footer_line(&app, "Commission slot #").contains("Commission slot #"));
+    app.handle_key(key(KeyCode::Esc));
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::None
+    );
+
+    app.handle_key(key(KeyCode::Char('l')));
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::TransportFleetSelect {
+            mode: nc_engine::ArmyTransportMode::Load
+        }
+    );
+    assert!(render_planet_footer_line(&app, "Load Fleet #").contains("Load Fleet #"));
+    app.handle_key(key(KeyCode::Esc));
+
+    app.handle_key(key(KeyCode::Char('u')));
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::TransportFleetSelect {
+            mode: nc_engine::ArmyTransportMode::Unload
+        }
+    );
+    assert!(render_planet_footer_line(&app, "Unload Fleet #").contains("Unload Fleet #"));
+    app.handle_key(key(KeyCode::Esc));
+
+    app.handle_key(key(KeyCode::Char('x')));
+    assert_eq!(
+        app.owned_planet_popup.mode,
+        OwnedPlanetPopupMode::ScorchConfirm1
+    );
+}
+
+#[test]
+fn planet_list_commission_runs_inline_from_footer() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+    let record = selected_planet_record_index(&app);
+    prepare_selected_planet_for_owned_commands(&mut app, record);
+
+    app.handle_key(key(KeyCode::Char('c')));
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::None
+    );
+    assert_eq!(
+        app.game_data.planets.records[record - 1].stardock_count_raw(0),
+        0
+    );
+    assert!(app
+        .planet_overlay
+        .footer_notice
+        .as_deref()
+        .unwrap_or_default()
+        .contains("Commissioned"));
+}
+
+#[test]
+fn planet_list_transport_runs_inline_from_footer() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+    let record = selected_planet_record_index(&app);
+    prepare_selected_planet_for_owned_commands(&mut app, record);
+
+    app.handle_key(key(KeyCode::Char('l')));
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::TransportQuantity {
+            mode: nc_engine::ArmyTransportMode::Load
+        }
+    );
+    assert!(render_planet_footer_line(&app, "How many armies to load?")
+        .contains("How many armies to load?"));
+
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::None
+    );
+    assert_eq!(
+        app.game_data.planets.records[record - 1].army_count_raw(),
+        4
+    );
+    assert!(app
+        .planet_overlay
+        .footer_notice
+        .as_deref()
+        .unwrap_or_default()
+        .contains("Loaded 1 armies onto Fleet"));
+}
+
+#[test]
+fn planet_list_mass_commission_uses_all_owned_planets() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+    let selected_record = selected_planet_record_index(&app);
+    clear_stardock(&mut app, selected_record);
+    let other_record = seed_extra_owned_planet_with_stardock(&mut app);
+    select_planet_row_by_record(&mut app, selected_record);
+
+    app.handle_key(key(KeyCode::Char('m')));
+
+    assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::MassCommissionConfirm
+    );
+    assert!(render_planet_footer_line(&app, "Mass commission? Y/[N] ->")
+        .contains("Mass commission? Y/[N] ->"));
+
+    app.handle_key(key(KeyCode::Char('y')));
+
+    assert_eq!(
+        app.planet_overlay.prompt_mode,
+        PlanetOverlayPromptMode::None
+    );
+    assert!(app
+        .planet_overlay
+        .footer_notice
+        .as_deref()
+        .unwrap_or_default()
+        .contains("Mass commissioned"));
+    assert_eq!(
+        app.game_data.planets.records[other_record - 1].stardock_count_raw(0),
+        0
+    );
+}
+
+#[test]
 fn owned_planet_popup_browse_uses_planet_status_title() {
     let mut app = dash_app();
     let owned_coords = first_owned_planet_coords(&app);
@@ -3208,6 +3393,20 @@ fn first_owned_planet_coords(app: &DashApp) -> [u8; 2] {
         .expect("owned planet")
 }
 
+fn selected_planet_record_index(app: &DashApp) -> usize {
+    planet_list::table_rows(app)
+        .get(app.planet_overlay.selected)
+        .map(|row| row.planet_record_index_1_based)
+        .expect("selected planet row")
+}
+
+fn select_planet_row_by_record(app: &mut DashApp, record: usize) {
+    app.planet_overlay.selected = planet_list::table_rows(app)
+        .iter()
+        .position(|row| row.planet_record_index_1_based == record)
+        .expect("planet row");
+}
+
 fn owned_planet_record_index(app: &DashApp, coords: [u8; 2]) -> usize {
     app.game_data
         .planets
@@ -3217,6 +3416,58 @@ fn owned_planet_record_index(app: &DashApp, coords: [u8; 2]) -> usize {
         .find(|(_, planet)| planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == coords)
         .map(|(idx, _)| idx + 1)
         .expect("owned planet")
+}
+
+fn clear_stardock(app: &mut DashApp, record: usize) {
+    let planet = app
+        .game_data
+        .planets
+        .records
+        .get_mut(record.saturating_sub(1))
+        .expect("planet record");
+    for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
+        planet.set_stardock_kind_raw(slot, 0);
+        planet.set_stardock_count_raw(slot, 0);
+    }
+}
+
+fn prepare_selected_planet_for_owned_commands(app: &mut DashApp, record: usize) {
+    let coords = app.game_data.planets.records[record - 1].coords_raw();
+    let planet = app
+        .game_data
+        .planets
+        .records
+        .get_mut(record.saturating_sub(1))
+        .expect("planet record");
+    planet.set_army_count_raw(5);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 1);
+
+    let fleet = app
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("owned fleet");
+    fleet.set_current_location_coords_raw(coords);
+    fleet.set_troop_transport_count(2);
+    fleet.set_army_count(1);
+}
+
+fn seed_extra_owned_planet_with_stardock(app: &mut DashApp) -> usize {
+    let (idx, planet) = app
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1 && planet.coords_raw() != [0, 0])
+        .expect("non-player planet");
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 1);
+    idx + 1
 }
 
 fn first_empty_sector_coords(app: &DashApp) -> [u8; 2] {

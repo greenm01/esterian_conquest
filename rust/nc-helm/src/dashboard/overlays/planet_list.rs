@@ -6,31 +6,32 @@ use crate::chrome_tags;
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::coords::{format_sector_coords_default, format_sector_coords_table};
 use crate::dashboard::table::{
-    SplitTableRow, TableColumn, TableFooter, TableWidthMode, centered_table_start_col,
-    resolve_table_columns, table_footer_scaffold_width, table_render_width,
-    with_command_line_toast, write_split_table_at, write_stacked_table_window_with_theme_at,
+    centered_table_start_col, resolve_table_columns, table_footer_scaffold_width,
+    table_render_width, with_command_line_toast, write_split_table_at,
+    write_stacked_table_window_with_theme_at, SplitTableRow, TableColumn, TableFooter,
+    TableWidthMode,
 };
 use crate::dashboard::table_filter::{FilterKind, TableFilterClause, TableFilterColumn};
 use crate::dashboard::table_selection;
 use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
-use nc_engine::{BUILD_UNITS, planet_build_view};
+use nc_engine::{planet_build_view, BUILD_UNITS};
 
 use crate::dashboard::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     SortDirection,
 };
-use crate::dashboard::layout::MapWidgetFrame;
 use crate::dashboard::layout::dashboard;
-use crate::dashboard::modal::{MODAL_CLOSE_BUTTON, Rect};
+use crate::dashboard::layout::MapWidgetFrame;
+use crate::dashboard::modal::{Rect, MODAL_CLOSE_BUTTON};
 use crate::dashboard::overlays::frame::{
-    OverlayAxisSize, OverlaySizePolicy, assert_overlay_body_write_fits,
-    dashboard_overlay_parent_rect, draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
-    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, stacked_table_body_height,
-    standard_table_body_height, write_clipped,
+    assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_parent, stacked_table_body_height, standard_table_body_height,
+    write_clipped, OverlayAxisSize, OverlaySizePolicy,
 };
 use crate::dashboard::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S B <ESC>";
+pub(crate) const HOTKEYS: &str = "? F S B C M L U X <ESC>";
 const TOP_HEADERS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
@@ -226,6 +227,40 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
                 input: &app.planet_overlay.prompt_input,
             }
         }
+        PlanetOverlayPromptMode::CommissionSelect => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Commission slot #",
+            default: &app.planet_overlay.prompt_default,
+            input: &app.planet_overlay.prompt_input,
+        },
+        PlanetOverlayPromptMode::MassCommissionConfirm => TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "Mass commission? Y/[N] ->",
+        },
+        PlanetOverlayPromptMode::TransportFleetSelect { mode } => {
+            filter_prompt = match mode {
+                nc_engine::ArmyTransportMode::Load => "Load Fleet #".to_string(),
+                nc_engine::ArmyTransportMode::Unload => "Unload Fleet #".to_string(),
+            };
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.planet_overlay.prompt_default,
+                input: &app.planet_overlay.prompt_input,
+            }
+        }
+        PlanetOverlayPromptMode::TransportQuantity { mode } => {
+            filter_prompt = match mode {
+                nc_engine::ArmyTransportMode::Load => "How many armies to load?".to_string(),
+                nc_engine::ArmyTransportMode::Unload => "How many armies to unload?".to_string(),
+            };
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.planet_overlay.prompt_default,
+                input: &app.planet_overlay.prompt_input,
+            }
+        }
         PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
             unreachable!("build flows render separately")
         }
@@ -356,6 +391,40 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
                     .map(|column| column.code)
                     .unwrap_or("value")
             );
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.planet_overlay.prompt_default,
+                input: &app.planet_overlay.prompt_input,
+            }
+        }
+        PlanetOverlayPromptMode::CommissionSelect => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Commission slot #",
+            default: &app.planet_overlay.prompt_default,
+            input: &app.planet_overlay.prompt_input,
+        },
+        PlanetOverlayPromptMode::MassCommissionConfirm => TableFooter::CommandPrompt {
+            label: "COMMAND",
+            prompt: "Mass commission? Y/[N] ->",
+        },
+        PlanetOverlayPromptMode::TransportFleetSelect { mode } => {
+            filter_prompt = match mode {
+                nc_engine::ArmyTransportMode::Load => "Load Fleet #".to_string(),
+                nc_engine::ArmyTransportMode::Unload => "Unload Fleet #".to_string(),
+            };
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.planet_overlay.prompt_default,
+                input: &app.planet_overlay.prompt_input,
+            }
+        }
+        PlanetOverlayPromptMode::TransportQuantity { mode } => {
+            filter_prompt = match mode {
+                nc_engine::ArmyTransportMode::Load => "How many armies to load?".to_string(),
+                nc_engine::ArmyTransportMode::Unload => "How many armies to unload?".to_string(),
+            };
             TableFooter::CommandInput {
                 label: "COMMAND",
                 prompt: filter_prompt.as_str(),
@@ -1056,7 +1125,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_planet_list_commands() {
-        assert_eq!(HOTKEYS, "? F S B <ESC>");
+        assert_eq!(HOTKEYS, "? F S B C M L U X <ESC>");
     }
 
     #[test]
@@ -1428,9 +1497,8 @@ mod tests {
         );
 
         assert!(buf.plain_line(popup.y as usize).contains("BUDGET: 80"));
-        assert!(
-            !buf.plain_line((popup.y + 1) as usize)
-                .contains("BUDGET: 80")
-        );
+        assert!(!buf
+            .plain_line((popup.y + 1) as usize)
+            .contains("BUDGET: 80"));
     }
 }

@@ -3,11 +3,12 @@ use nc_data::{
     EmpirePlanetEconomyRow, PlanetRecord,
 };
 use nc_engine::{
-    ArmyTransportMode, PlanetCommissionSlotEntry, planet_commission_slot_entries,
-    resolve_planet_transport_fleet_selection, transport_fleet_candidates_for_planet,
+    planet_commission_slot_entries, resolve_planet_transport_fleet_selection,
+    transport_fleet_candidates_for_planet, ArmyTransportMode, PlanetCommissionSlotEntry,
 };
 
 use super::state::{ActiveMouseGesture, ActivePopup, DashApp, OwnedPlanetPopupMode};
+use crate::dashboard::overlays::planet_list;
 
 impl DashApp {
     pub(crate) fn open_owned_planet_popup(&mut self, planet_record_index_1_based: usize) {
@@ -17,6 +18,21 @@ impl DashApp {
         self.popup = ActivePopup::OwnedPlanet {
             planet_record_index_1_based,
         };
+    }
+
+    pub(crate) fn open_selected_planet_status_popup(&mut self) {
+        let Some(record) = self.selected_planet_overlay_record_index_1_based() else {
+            return;
+        };
+        self.open_owned_planet_popup(record);
+    }
+
+    pub(crate) fn open_selected_planet_scorch_confirm(&mut self) {
+        let Some(record) = self.selected_planet_overlay_record_index_1_based() else {
+            return;
+        };
+        self.open_owned_planet_popup(record);
+        self.open_owned_planet_scorch_confirm();
     }
 
     pub(crate) fn close_owned_planet_popup(&mut self) {
@@ -59,6 +75,20 @@ impl DashApp {
 
     pub(crate) fn owned_planet_row(&self) -> Option<EmpirePlanetEconomyRow> {
         let record = self.owned_planet_popup_record_index_1_based()?;
+        self.game_data
+            .empire_planet_economy_rows(self.player_record_index_1_based)
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == record)
+    }
+
+    pub(crate) fn planet_overlay_action_planet_record_index_1_based(&self) -> Option<usize> {
+        self.planet_overlay
+            .action_planet_record_index_1_based
+            .or_else(|| self.selected_planet_overlay_record_index_1_based())
+    }
+
+    pub(crate) fn planet_overlay_action_planet_row(&self) -> Option<EmpirePlanetEconomyRow> {
+        let record = self.planet_overlay_action_planet_record_index_1_based()?;
         self.game_data
             .empire_planet_economy_rows(self.player_record_index_1_based)
             .into_iter()
@@ -128,8 +158,54 @@ impl DashApp {
         Ok(())
     }
 
+    pub(crate) fn open_planet_overlay_commission_select(&mut self) {
+        let Some(record) = self.selected_planet_overlay_record_index_1_based() else {
+            return;
+        };
+        let entries = self.planet_overlay_commission_entries_for_record(record);
+        let Some(entry) = entries.first() else {
+            self.show_planet_overlay_footer_notice("Stardock empty");
+            return;
+        };
+        self.planet_overlay.clear_prompt();
+        self.clear_planet_overlay_footer_notice();
+        self.planet_overlay.action_planet_record_index_1_based = Some(record);
+        self.planet_overlay.prompt_default = format!("{:02}", entry.slot_0_based + 1);
+        self.planet_overlay
+            .open_prompt(super::state::PlanetOverlayPromptMode::CommissionSelect);
+    }
+
+    pub(crate) fn submit_planet_overlay_commission(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let raw = prompt_raw_value(
+            &self.planet_overlay.prompt_input,
+            &self.planet_overlay.prompt_default,
+        );
+        let slot = raw
+            .parse::<usize>()
+            .map_err(|_| "Enter a valid slot number.")?;
+        let Some(slot_0_based) = slot.checked_sub(1) else {
+            return Err("Slot numbers are 1-based.".into());
+        };
+        let Some(record) = self.planet_overlay_action_planet_record_index_1_based() else {
+            self.planet_overlay.clear_prompt();
+            return Ok(());
+        };
+        let result = self.game_data.commission_planet_stardock_slot(
+            self.player_record_index_1_based,
+            record,
+            slot_0_based,
+        )?;
+        self.stage_hosted_planet_commission(record, slot_0_based);
+        self.save_and_refresh_runtime()?;
+        let message = self.format_commission_result_line(result);
+        self.close_planet_overlay_action_with_notice(message);
+        Ok(())
+    }
+
     pub(crate) fn open_owned_planet_mass_commission_confirm(&mut self) {
-        if self.owned_planet_commission_entries().is_empty() {
+        if !self.any_owned_planet_commission_entries() {
             self.show_owned_planet_status("Stardock empty");
             return;
         }
@@ -159,6 +235,44 @@ impl DashApp {
         Ok(())
     }
 
+    pub(crate) fn open_planet_overlay_mass_commission_confirm(&mut self) {
+        let Some(record) = self.selected_planet_overlay_record_index_1_based() else {
+            return;
+        };
+        if !self.any_owned_planet_commission_entries() {
+            self.show_planet_overlay_footer_notice("Stardock empty");
+            return;
+        }
+        self.planet_overlay.clear_prompt();
+        self.clear_planet_overlay_footer_notice();
+        self.planet_overlay.action_planet_record_index_1_based = Some(record);
+        self.planet_overlay
+            .open_prompt(super::state::PlanetOverlayPromptMode::MassCommissionConfirm);
+    }
+
+    pub(crate) fn confirm_planet_overlay_mass_commission(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = self
+            .game_data
+            .auto_commission_all_stardock_units(self.player_record_index_1_based)?;
+        let Some(record) = self.planet_overlay_action_planet_record_index_1_based() else {
+            self.planet_overlay.clear_prompt();
+            return Ok(());
+        };
+        self.stage_hosted_planet_auto_commission(record);
+        self.save_and_refresh_runtime()?;
+        if report.entries.is_empty() {
+            self.close_planet_overlay_action_with_notice("Nothing was available to commission.");
+            return Ok(());
+        }
+        self.close_planet_overlay_action_with_notice(format!(
+            "Mass commissioned {} ships and {} starbases.",
+            report.ships_commissioned, report.starbases_commissioned
+        ));
+        Ok(())
+    }
+
     pub(crate) fn open_owned_planet_transport_fleet_select(&mut self, mode: ArmyTransportMode) {
         let Some(planet) = self.owned_planet_row() else {
             self.close_owned_planet_popup();
@@ -182,6 +296,161 @@ impl DashApp {
         };
         self.set_owned_planet_popup_mode(OwnedPlanetPopupMode::TransportFleetSelect { mode });
         self.owned_planet_popup.default = first.fleet_number.to_string();
+    }
+
+    pub(crate) fn open_planet_overlay_transport_fleet_select(&mut self, mode: ArmyTransportMode) {
+        let Some(record) = self.selected_planet_overlay_record_index_1_based() else {
+            return;
+        };
+        let Some(planet) = self
+            .game_data
+            .empire_planet_economy_rows(self.player_record_index_1_based)
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == record)
+        else {
+            return;
+        };
+        let candidates = transport_fleet_candidates_for_planet(
+            &self.game_data,
+            self.player_record_index_1_based as u8,
+            mode,
+            &planet,
+        )
+        .into_iter()
+        .filter(|fleet| fleet.available_qty > 0)
+        .collect::<Vec<_>>();
+        let Some(first) = candidates.first() else {
+            self.show_planet_overlay_footer_notice(match mode {
+                ArmyTransportMode::Load => "No TT available",
+                ArmyTransportMode::Unload => "No TT* available",
+            });
+            return;
+        };
+        self.planet_overlay.clear_prompt();
+        self.clear_planet_overlay_footer_notice();
+        self.planet_overlay.action_planet_record_index_1_based = Some(record);
+        self.planet_overlay.prompt_default = first.fleet_number.to_string();
+        self.planet_overlay
+            .open_prompt(super::state::PlanetOverlayPromptMode::TransportFleetSelect { mode });
+    }
+
+    pub(crate) fn submit_planet_overlay_transport_fleet(
+        &mut self,
+        mode: ArmyTransportMode,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let raw = prompt_raw_value(
+            &self.planet_overlay.prompt_input,
+            &self.planet_overlay.prompt_default,
+        );
+        let fleet_number = raw
+            .parse::<u16>()
+            .map_err(|_| "Enter one of your fleet numbers.")?;
+        let Some(planet) = self.planet_overlay_action_planet_row() else {
+            self.planet_overlay.clear_prompt();
+            return Ok(());
+        };
+        let Some(fleet) = transport_fleet_candidates_for_planet(
+            &self.game_data,
+            self.player_record_index_1_based as u8,
+            mode,
+            &planet,
+        )
+        .into_iter()
+        .filter(|fleet| fleet.available_qty > 0)
+        .find(|fleet| fleet.fleet_number == fleet_number) else {
+            return Err("Enter one of your fleet numbers.".into());
+        };
+        self.planet_overlay.prompt_mode =
+            super::state::PlanetOverlayPromptMode::TransportQuantity { mode };
+        self.planet_overlay.prompt_input.clear();
+        self.planet_overlay.prompt_default = fleet.available_qty.to_string();
+        self.planet_overlay.prompt_status = None;
+        self.planet_overlay
+            .transport_selected_fleet_record_index_1_based = Some(fleet.fleet_record_index_1_based);
+        self.planet_overlay.transport_selected_fleet_number = Some(fleet.fleet_number);
+        self.planet_overlay.transport_available_qty = fleet.available_qty;
+        Ok(())
+    }
+
+    pub(crate) fn submit_planet_overlay_transport_quantity(
+        &mut self,
+        mode: ArmyTransportMode,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(planet_record_index_1_based) =
+            self.planet_overlay_action_planet_record_index_1_based()
+        else {
+            self.planet_overlay.clear_prompt();
+            return Ok(());
+        };
+        let Some(fleet_record_index_1_based) = self
+            .planet_overlay
+            .transport_selected_fleet_record_index_1_based
+        else {
+            self.planet_overlay.clear_prompt();
+            return Ok(());
+        };
+        let qty = if self.planet_overlay.prompt_input.trim().is_empty() {
+            self.planet_overlay.transport_available_qty
+        } else {
+            self.planet_overlay
+                .prompt_input
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "Enter a valid quantity.")?
+        };
+        if qty == 0 {
+            self.planet_overlay.clear_prompt();
+            return Ok(());
+        }
+        if qty > self.planet_overlay.transport_available_qty {
+            return Err(format!(
+                "Enter a quantity from 0 to {}.",
+                self.planet_overlay.transport_available_qty
+            )
+            .into());
+        }
+        match mode {
+            ArmyTransportMode::Load => {
+                self.game_data.load_planet_armies_onto_fleet(
+                    self.player_record_index_1_based,
+                    planet_record_index_1_based,
+                    fleet_record_index_1_based,
+                    qty,
+                )?;
+                self.stage_hosted_fleet_load_armies(
+                    fleet_record_index_1_based,
+                    planet_record_index_1_based,
+                    qty,
+                );
+            }
+            ArmyTransportMode::Unload => {
+                self.game_data.unload_fleet_armies_to_planet(
+                    self.player_record_index_1_based,
+                    planet_record_index_1_based,
+                    fleet_record_index_1_based,
+                    qty,
+                )?;
+                self.stage_hosted_fleet_unload_armies(
+                    fleet_record_index_1_based,
+                    planet_record_index_1_based,
+                    qty,
+                );
+            }
+        }
+        self.save_and_refresh_runtime()?;
+        let fleet_number = self
+            .planet_overlay
+            .transport_selected_fleet_number
+            .unwrap_or_default();
+        self.close_planet_overlay_action_with_notice(match mode {
+            ArmyTransportMode::Load => {
+                format!("Loaded {qty} armies onto Fleet {fleet_number:02}.")
+            }
+            ArmyTransportMode::Unload => {
+                format!("Unloaded {qty} armies from Fleet {fleet_number:02}.")
+            }
+        });
+        Ok(())
     }
 
     pub(crate) fn submit_owned_planet_transport_fleet(
@@ -349,11 +618,27 @@ impl DashApp {
             .unwrap_or_default()
     }
 
+    fn any_owned_planet_commission_entries(&self) -> bool {
+        self.game_data
+            .planets
+            .records
+            .iter()
+            .filter(|planet| {
+                planet.owner_empire_slot_raw() as usize == self.player_record_index_1_based
+            })
+            .any(|planet| !planet_commission_slot_entries(planet).is_empty())
+    }
+
     pub(crate) fn show_owned_planet_status(&mut self, message: impl Into<String>) {
         self.owned_planet_popup.mode = OwnedPlanetPopupMode::Browse;
         self.owned_planet_popup.status = Some(message.into());
         self.owned_planet_popup.input.clear();
         self.owned_planet_popup.default.clear();
+    }
+
+    pub(crate) fn close_planet_overlay_action_with_notice(&mut self, message: impl Into<String>) {
+        self.planet_overlay.clear_prompt();
+        self.show_planet_overlay_footer_notice(message);
     }
 
     fn format_commission_result_line(&self, result: CommissionResult) -> String {
@@ -383,6 +668,28 @@ impl DashApp {
                 format!("Commissioned Starbase #{base_number:02}.")
             }
         }
+    }
+
+    fn selected_planet_overlay_record_index_1_based(&self) -> Option<usize> {
+        let rows = planet_list::table_rows(self);
+        let selected = self
+            .planet_overlay
+            .selected
+            .min(rows.len().saturating_sub(1));
+        rows.get(selected)
+            .map(|row| row.planet_record_index_1_based)
+    }
+
+    fn planet_overlay_commission_entries_for_record(
+        &self,
+        record: usize,
+    ) -> Vec<PlanetCommissionSlotEntry> {
+        self.game_data
+            .planets
+            .records
+            .get(record.saturating_sub(1))
+            .map(planet_commission_slot_entries)
+            .unwrap_or_default()
     }
 
     fn format_auto_commission_report_lines(
@@ -451,4 +758,12 @@ fn push_auto_commission_ship_code(parts: &mut Vec<String>, code: &str, qty: u32)
         return;
     }
     parts.push(format!("{code} {qty:02}"));
+}
+
+fn prompt_raw_value<'a>(input: &'a str, default: &'a str) -> &'a str {
+    if input.trim().is_empty() {
+        default.trim()
+    } else {
+        input.trim()
+    }
 }

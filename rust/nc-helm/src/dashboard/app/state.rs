@@ -310,6 +310,10 @@ pub enum PlanetOverlayPromptMode {
     FilterValueInput,
     BuildSpecify,
     BuildQuantity,
+    CommissionSelect,
+    MassCommissionConfirm,
+    TransportFleetSelect { mode: ArmyTransportMode },
+    TransportQuantity { mode: ArmyTransportMode },
 }
 
 #[derive(Debug, Clone)]
@@ -344,6 +348,10 @@ pub struct PlanetOverlayState {
     pub build_unit_input: String,
     pub build_quantity_input: String,
     pub build_quantity_status: Option<String>,
+    pub action_planet_record_index_1_based: Option<usize>,
+    pub transport_selected_fleet_record_index_1_based: Option<usize>,
+    pub transport_selected_fleet_number: Option<u16>,
+    pub transport_available_qty: u16,
 }
 
 impl Default for PlanetOverlayState {
@@ -372,6 +380,10 @@ impl Default for PlanetOverlayState {
             build_unit_input: String::new(),
             build_quantity_input: String::new(),
             build_quantity_status: None,
+            action_planet_record_index_1_based: None,
+            transport_selected_fleet_record_index_1_based: None,
+            transport_selected_fleet_number: None,
+            transport_available_qty: 0,
         }
     }
 }
@@ -410,6 +422,10 @@ impl PlanetOverlayState {
         self.pending_range_anchor = None;
         self.pending_filter_column = None;
         self.prompt_stack.clear();
+        self.action_planet_record_index_1_based = None;
+        self.transport_selected_fleet_record_index_1_based = None;
+        self.transport_selected_fleet_number = None;
+        self.transport_available_qty = 0;
     }
 }
 

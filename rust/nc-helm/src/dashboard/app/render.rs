@@ -7,13 +7,15 @@ use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::widgets::WidgetRect;
 
 use crate::dashboard::app::panel_cache::CachedPanel;
-use crate::dashboard::app::state::{ActiveOverlay, ActivePopup, DashApp, MapViewMode};
+use crate::dashboard::app::state::{
+    ActiveOverlay, ActivePopup, DashApp, MapViewMode, PlanetOverlayPromptMode,
+};
 use crate::dashboard::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
 use crate::dashboard::modal::{
-    ModalPlacement, ModalTheme, draw_modal_frame_in_parent_with_placement,
+    draw_modal_frame_in_parent_with_placement, ModalPlacement, ModalTheme,
 };
 use crate::dashboard::overlays;
 use crate::dashboard::panels::{
@@ -389,31 +391,33 @@ fn draw_dynamic_layer(
     if app.overlay == ActiveOverlay::Help {
         overlays::help::draw(buf, app, widgets.center_map);
     }
-    if app.overlay == ActiveOverlay::None {
-        match app.popup {
-            ActivePopup::QuitConfirm => render_quit_confirm(buf, app, widgets.center_map),
-            ActivePopup::PlanetDetail {
-                planet_record_index_1_based,
-            } => {
-                popups::planet_detail::draw(
-                    buf,
-                    app,
-                    widgets.center_map,
-                    planet_record_index_1_based,
-                );
-            }
-            ActivePopup::OwnedPlanet {
-                planet_record_index_1_based,
-            } => {
-                popups::owned_planet::draw(
-                    buf,
-                    app,
-                    widgets.center_map,
-                    planet_record_index_1_based,
-                );
-            }
-            ActivePopup::None => {}
+    if app.overlay == ActiveOverlay::None
+        || (app.overlay == ActiveOverlay::PlanetList
+            && app.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None
+            && matches!(app.popup, ActivePopup::OwnedPlanet { .. }))
+    {
+        draw_popup_layer(buf, app, widgets.center_map);
+    }
+}
+
+fn draw_popup_layer(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    map_frame: crate::dashboard::layout::MapWidgetFrame,
+) {
+    match app.popup {
+        ActivePopup::QuitConfirm => render_quit_confirm(buf, app, map_frame),
+        ActivePopup::PlanetDetail {
+            planet_record_index_1_based,
+        } => {
+            popups::planet_detail::draw(buf, app, map_frame, planet_record_index_1_based);
         }
+        ActivePopup::OwnedPlanet {
+            planet_record_index_1_based,
+        } => {
+            popups::owned_planet::draw(buf, app, map_frame, planet_record_index_1_based);
+        }
+        ActivePopup::None => {}
     }
 }
 

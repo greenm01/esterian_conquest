@@ -62,7 +62,11 @@ impl DashApp {
                 PlanetOverlayPromptMode::None => self.planet_overlay.footer_notice.as_deref(),
                 PlanetOverlayPromptMode::SortMenu
                 | PlanetOverlayPromptMode::FilterMenu
-                | PlanetOverlayPromptMode::FilterValueInput => {
+                | PlanetOverlayPromptMode::FilterValueInput
+                | PlanetOverlayPromptMode::CommissionSelect
+                | PlanetOverlayPromptMode::MassCommissionConfirm
+                | PlanetOverlayPromptMode::TransportFleetSelect { .. }
+                | PlanetOverlayPromptMode::TransportQuantity { .. } => {
                     self.planet_overlay.prompt_status.as_deref()
                 }
                 PlanetOverlayPromptMode::BuildSpecify => {
@@ -228,6 +232,13 @@ impl DashApp {
         if key.modifiers.contains(KeyModifiers::ALT) && matches!(key.code, KeyCode::Char('q' | 'Q'))
         {
             self.open_quit_confirm();
+            return;
+        }
+        if self.overlay == ActiveOverlay::PlanetList
+            && self.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None
+            && matches!(self.popup, ActivePopup::OwnedPlanet { .. })
+            && self.handle_popup_key(key)
+        {
             return;
         }
         if self.overlay != ActiveOverlay::None && self.handle_overlay_key(key) {

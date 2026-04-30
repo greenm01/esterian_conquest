@@ -173,6 +173,72 @@ impl DashApp {
                 }
                 _ => {}
             },
+            PlanetOverlayPromptMode::CommissionSelect => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+                KeyCode::Esc => self.planet_overlay.clear_prompt(),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_planet_overlay_commission() {
+                        self.planet_overlay.prompt_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.planet_overlay.prompt_input.pop();
+                    self.planet_overlay.prompt_status = None;
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.planet_overlay.prompt_input.push(ch);
+                    self.planet_overlay.prompt_status = None;
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::MassCommissionConfirm => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    if let Err(err) = self.confirm_planet_overlay_mass_commission() {
+                        self.planet_overlay.prompt_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Enter | KeyCode::Esc => {
+                    self.planet_overlay.clear_prompt()
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::TransportFleetSelect { mode } => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+                KeyCode::Esc => self.planet_overlay.clear_prompt(),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_planet_overlay_transport_fleet(mode) {
+                        self.planet_overlay.prompt_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.planet_overlay.prompt_input.pop();
+                    self.planet_overlay.prompt_status = None;
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.planet_overlay.prompt_input.push(ch);
+                    self.planet_overlay.prompt_status = None;
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::TransportQuantity { mode } => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+                KeyCode::Esc => self.planet_overlay.clear_prompt(),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_planet_overlay_transport_quantity(mode) {
+                        self.planet_overlay.prompt_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.planet_overlay.prompt_input.pop();
+                    self.planet_overlay.prompt_status = None;
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.planet_overlay.prompt_input.push(ch);
+                    self.planet_overlay.prompt_status = None;
+                }
+                _ => {}
+            },
             PlanetOverlayPromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetListSort),
                 KeyCode::Esc => {
@@ -284,6 +350,7 @@ impl DashApp {
         match key.code {
             KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+            KeyCode::Enter => self.open_selected_planet_status_popup(),
             KeyCode::Char('f') | KeyCode::Char('F') => {
                 self.clear_planet_overlay_footer_notice();
                 self.planet_overlay
@@ -303,6 +370,16 @@ impl DashApp {
                 self.planet_overlay.prompt_status = None;
             }
             KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
+            KeyCode::Char('c') | KeyCode::Char('C') => self.open_planet_overlay_commission_select(),
+            KeyCode::Char('m') | KeyCode::Char('M') => {
+                self.open_planet_overlay_mass_commission_confirm()
+            }
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                self.open_planet_overlay_transport_fleet_select(nc_engine::ArmyTransportMode::Load)
+            }
+            KeyCode::Char('u') | KeyCode::Char('U') => self
+                .open_planet_overlay_transport_fleet_select(nc_engine::ArmyTransportMode::Unload),
+            KeyCode::Char('x') | KeyCode::Char('X') => self.open_selected_planet_scorch_confirm(),
             KeyCode::Char(ch)
                 if self.planet_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
