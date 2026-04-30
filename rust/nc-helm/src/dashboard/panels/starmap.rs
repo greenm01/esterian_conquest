@@ -1561,7 +1561,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(93, 45),
             ScreenGeometry::new(0, 0),
             1,
         );
@@ -1759,7 +1759,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(93, 45),
             ScreenGeometry::new(0, 0),
             1,
         );
@@ -1798,7 +1798,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(93, 45),
             ScreenGeometry::new(0, 0),
             1,
         );
@@ -1831,7 +1831,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(93, 45),
             ScreenGeometry::new(0, 0),
             1,
         );
@@ -1901,7 +1901,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(93, 45),
             ScreenGeometry::new(0, 0),
             1,
         );

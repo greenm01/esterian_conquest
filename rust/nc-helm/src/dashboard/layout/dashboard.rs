@@ -16,7 +16,7 @@ use crate::dashboard::panels::{
 };
 
 const LEFT_PANEL_WIDTH_CAP: usize = 20;
-const RIGHT_PANEL_WIDTH_CAP: usize = 25;
+const RIGHT_PANEL_WIDTH_CAP: usize = 38;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DashboardLayout {
@@ -172,7 +172,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
     let comms_rows = comms::body_rows(app);
     let galaxy_rows = known_galaxy::body_rows(app);
     let diplomacy_rows = diplomacy::body_rows(app);
-    let diplomacy_body_rows = diplomacy_rows.len().saturating_mul(2).max(1);
+    let diplomacy_body_rows = diplomacy_rows.len().max(diplomacy::MIN_BODY_ROWS);
     let sector_detail_rows = sector_detail::preferred_body_rows(app);
     let sector_detail_width = sector_detail::preferred_body_width(app);
 
