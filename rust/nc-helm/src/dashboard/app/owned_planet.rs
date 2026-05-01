@@ -240,7 +240,7 @@ impl DashApp {
             return;
         };
         if !self.any_owned_planet_commission_entries() {
-            self.show_planet_overlay_footer_notice("Stardock empty");
+            self.show_planet_overlay_footer_notice("Stardocks empty");
             return;
         }
         self.planet_overlay.clear_prompt();

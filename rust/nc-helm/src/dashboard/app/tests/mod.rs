@@ -2566,6 +2566,35 @@ fn planet_list_footer_shows_owned_planet_commands() {
 }
 
 #[test]
+fn planet_list_mass_commission_empty_toast_uses_plural_stardocks() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::PlanetList;
+    clear_owned_stardocks(&mut app);
+
+    app.handle_key(key(KeyCode::Char('m')));
+
+    assert_eq!(
+        app.planet_overlay.footer_notice.as_deref(),
+        Some("Stardocks empty")
+    );
+}
+
+#[test]
+fn owned_planet_mass_commission_empty_toast_uses_singular_stardock() {
+    let mut app = dash_app();
+    let record = selected_planet_record_index(&app);
+    clear_owned_stardocks(&mut app);
+    app.open_owned_planet_popup(record);
+
+    app.handle_key(key(KeyCode::Char('m')));
+
+    assert_eq!(
+        app.owned_planet_popup.status.as_deref(),
+        Some("Stardock empty")
+    );
+}
+
+#[test]
 fn planet_list_enter_opens_status_and_escape_returns_to_table() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::PlanetList;
@@ -3595,6 +3624,23 @@ fn clear_stardock(app: &mut DashApp, record: usize) {
     for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
         planet.set_stardock_kind_raw(slot, 0);
         planet.set_stardock_count_raw(slot, 0);
+    }
+}
+
+fn clear_owned_stardocks(app: &mut DashApp) {
+    let owned_records = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, planet)| {
+            (planet.owner_empire_slot_raw() as usize == app.player_record_index_1_based)
+                .then_some(idx + 1)
+        })
+        .collect::<Vec<_>>();
+    for record in owned_records {
+        clear_stardock(app, record);
     }
 }
 
