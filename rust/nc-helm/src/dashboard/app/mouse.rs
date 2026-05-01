@@ -4,7 +4,7 @@ use crate::dashboard::app::input::Action;
 use crate::dashboard::input::{MouseButton, MouseEvent, MouseEventKind};
 use crate::dashboard::layout::dashboard;
 use crate::dashboard::modal::{Rect, modal_close_button_contains};
-use crate::dashboard::overlays::{fleet_list, inbox, intel_database, planet_list};
+use crate::dashboard::overlays::{diplomacy, fleet_list, inbox, intel_database, planet_list};
 use crate::dashboard::panels::starmap;
 use crate::dashboard::planet_view;
 use crate::dashboard::table_selection::sync_scroll_to_cursor;
@@ -32,6 +32,8 @@ struct MouseRenderState {
     starmap_viewport_x_min: u8,
     starmap_viewport_y_min: u8,
     diplomacy_scroll: usize,
+    diplomacy_overlay_selected: usize,
+    diplomacy_overlay_scroll: usize,
     inbox_selected: usize,
     inbox_scroll: usize,
     inbox_preview_scroll: usize,
@@ -57,6 +59,8 @@ impl DashApp {
             starmap_viewport_x_min: self.starmap_viewport_x_min,
             starmap_viewport_y_min: self.starmap_viewport_y_min,
             diplomacy_scroll: self.diplomacy_scroll,
+            diplomacy_overlay_selected: self.diplomacy_overlay.selected,
+            diplomacy_overlay_scroll: self.diplomacy_overlay.scroll,
             inbox_selected: self.inbox_overlay.selected,
             inbox_scroll: self.inbox_overlay.scroll,
             inbox_preview_scroll: self.inbox_overlay.preview_scroll,
@@ -218,11 +222,15 @@ impl DashApp {
         );
         match self.overlay {
             ActiveOverlay::Diplomacy => {
-                let total = self.game_data.player.records.len();
-                self.diplomacy_scroll = scroll_clamp(
-                    self.diplomacy_scroll as i32 - lines,
-                    total.saturating_sub(1) as i32,
-                );
+                let total = diplomacy::table_rows(self).len();
+                self.diplomacy_overlay.selected =
+                    scroll_selected(self.diplomacy_overlay.selected, lines, total);
+                if lines > 0 {
+                    self.diplomacy_overlay.scroll = self
+                        .diplomacy_overlay
+                        .scroll
+                        .min(self.diplomacy_overlay.selected);
+                }
             }
             ActiveOverlay::Inbox => {
                 match inbox::hit_test_inbox_pane(

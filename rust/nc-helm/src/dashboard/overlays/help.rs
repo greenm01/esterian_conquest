@@ -270,7 +270,11 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ),
             ("?", "Open this helper"),
         ],
-        HelpContext::Diplomacy => vec![("?", "Open this helper")],
+        HelpContext::Diplomacy => vec![
+            ("E", "Mark the selected empire as Enemy"),
+            ("N", "Mark the selected empire as Neutral"),
+            ("?", "Open this helper"),
+        ],
         HelpContext::Settings => vec![
             ("M", "Toggle hover-follow crosshair on the map"),
             ("Grid", "Classic EC boxed coordinate grid"),
@@ -340,7 +344,17 @@ mod tests {
         assert!(!inbox.iter().any(|line| line.contains("Enter")));
 
         let diplomacy = help_lines(HelpContext::Diplomacy);
-        assert_eq!(diplomacy.len(), 1);
+        assert!(!diplomacy.iter().any(|line| line.contains("Rows")));
+        assert!(
+            diplomacy
+                .iter()
+                .any(|line| line.contains("E") && line.contains("Enemy"))
+        );
+        assert!(
+            diplomacy
+                .iter()
+                .any(|line| line.contains("N") && line.contains("Neutral"))
+        );
         assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
 
         let settings = help_lines(HelpContext::Settings);

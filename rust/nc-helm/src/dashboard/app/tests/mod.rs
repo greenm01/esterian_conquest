@@ -3451,6 +3451,75 @@ fn diplomacy_overlay_updates_preview_and_hosted_draft() {
 }
 
 #[test]
+fn diplomacy_overlay_renders_shared_table_header() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::Diplomacy;
+
+    let lines = render_diplomacy_overlay_lines(&app);
+    let header = lines
+        .iter()
+        .find(|line| line.contains("Rnk") && line.contains("Empire"))
+        .expect("diplomacy table header");
+
+    assert!(header.contains("│"), "{header}");
+    assert!(header.contains("Planets"), "{header}");
+    assert!(header.contains("Prod"), "{header}");
+    assert!(header.contains("Relations"), "{header}");
+}
+
+#[test]
+fn diplomacy_overlay_uses_live_planets_and_production() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::Diplomacy;
+    let live_planets = app.game_data.player_owned_planet_count_current_known(1);
+    let live_production = app.game_data.empire_present_production(1);
+    assert!(live_planets > 0);
+    assert!(live_production > 0);
+    app.game_data.player.records[0].set_planet_count_raw(0);
+    app.game_data.player.records[0].set_production_score_raw(0);
+
+    let own_row = diplomacy::table_rows(&app)
+        .into_iter()
+        .find(|row| row.slot == 1)
+        .expect("player row");
+    assert_eq!(own_row.cells[2], live_planets.to_string());
+    assert_eq!(own_row.cells[3], live_production.to_string());
+
+    let visible_name = own_row.name.chars().take(17).collect::<String>();
+    let rendered_row = render_diplomacy_overlay_lines(&app)
+        .into_iter()
+        .find(|line| line.contains(&visible_name))
+        .expect("rendered player diplomacy row");
+    assert!(
+        rendered_row.contains(&live_planets.to_string()),
+        "{rendered_row}"
+    );
+    assert!(
+        rendered_row.contains(&live_production.to_string()),
+        "{rendered_row}"
+    );
+}
+
+#[test]
+fn diplomacy_selection_uses_displayed_live_ranking_order() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::Diplomacy;
+    app.game_data.player.records[0].set_production_score_raw(0);
+    app.game_data.player.records[1].set_production_score_raw(u16::MAX);
+    app.diplomacy_overlay.selected = 0;
+
+    let first_displayed_slot = diplomacy::table_rows(&app)
+        .first()
+        .map(|row| row.slot)
+        .expect("diplomacy row");
+
+    assert_eq!(
+        diplomacy::selected_empire_slot(&app),
+        Some(first_displayed_slot)
+    );
+}
+
+#[test]
 fn inbox_quick_compose_stages_and_removes_hosted_message() {
     let mut app = dash_app();
     app.initialize_hosted_turn_draft();
@@ -4263,6 +4332,19 @@ fn render_settings_contains(app: &DashApp, needle: &str) -> bool {
         .any(|line| line.contains(needle))
 }
 
+fn render_diplomacy_overlay_lines(app: &DashApp) -> Vec<String> {
+    let layout = dashboard_layout(app);
+    let mut buffer = PlayfieldBuffer::new(
+        app.geometry.width(),
+        app.geometry.height(),
+        crate::dashboard::theme::body_style(),
+    );
+    diplomacy::draw(&mut buffer, app, layout.widgets.center_map);
+    (0..buffer.height())
+        .map(|row| buffer.plain_line(row))
+        .collect()
+}
+
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
 }
@@ -4637,30 +4719,31 @@ fn mouse_wheel_on_fitting_starmap_does_nothing() {
 fn mouse_wheel_in_diplomacy_overlay_scrolls_list() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::Diplomacy;
-    app.diplomacy_scroll = 0;
+    app.diplomacy_overlay.selected = 0;
+    app.diplomacy_overlay.scroll = 0;
 
     let map_frame = dashboard_layout(&app).widgets.center_map;
     let popup = app.current_overlay_popup_rect(map_frame).unwrap();
     let col = popup.x + 2;
     let row = popup.y + 2;
 
-    // Scroll down (negative lines) → diplomacy_scroll increases.
+    // Scroll down (negative lines) moves popup selection down.
     app.dispatch_mouse_event_for_repro(MouseEvent {
         kind: MouseEventKind::Scroll { lines: -3 },
         column: col,
         row,
         modifiers: KeyModifiers::NONE,
     });
-    assert_eq!(app.diplomacy_scroll, 3);
+    assert_eq!(app.diplomacy_overlay.selected, 3);
 
-    // Scroll up (positive lines) → diplomacy_scroll decreases.
+    // Scroll up (positive lines) moves popup selection up.
     app.dispatch_mouse_event_for_repro(MouseEvent {
         kind: MouseEventKind::Scroll { lines: 2 },
         column: col,
         row,
         modifiers: KeyModifiers::NONE,
     });
-    assert_eq!(app.diplomacy_scroll, 1);
+    assert_eq!(app.diplomacy_overlay.selected, 1);
 }
 
 #[test]
@@ -4982,7 +5065,8 @@ fn mouse_wheel_inbox_preview_requests_redraw() {
 fn mouse_wheel_diplomacy_requests_redraw() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::Diplomacy;
-    app.diplomacy_scroll = 0;
+    app.diplomacy_overlay.selected = 0;
+    app.diplomacy_overlay.scroll = 0;
 
     let map_frame = dashboard_layout(&app).widgets.center_map;
     let popup = app.current_overlay_popup_rect(map_frame).unwrap();
