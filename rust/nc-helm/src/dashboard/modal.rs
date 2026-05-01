@@ -354,6 +354,10 @@ pub fn max_content_width(parent: Rect) -> usize {
     parent.width.saturating_sub(6).max(1) as usize
 }
 
+pub fn compact_content_width(parent: Rect) -> usize {
+    max_content_width(parent).min(30).max(1)
+}
+
 pub fn measure_modal_text_lines(lines: &[String], max_content_width: usize) -> WrappedTextLines {
     let lines = wrap_modal_text_lines(lines, max_content_width);
     let content_width = lines

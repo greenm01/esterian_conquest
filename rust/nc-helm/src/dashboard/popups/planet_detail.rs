@@ -5,7 +5,7 @@ use crate::dashboard::table::TableFooter;
 
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::{Rect, max_content_width};
+use crate::dashboard::modal::{Rect, compact_content_width};
 use crate::dashboard::overlays::frame::{
     OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -25,7 +25,7 @@ pub fn draw(
     };
 
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let max_body_width = max_content_width(parent);
+    let max_body_width = compact_content_width(parent);
     let lines = popup_lines(&detail.popup_lines, max_body_width);
     let body_width = lines
         .iter()
@@ -75,7 +75,7 @@ pub fn popup_rect(
         );
     };
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let max_body_width = max_content_width(parent);
+    let max_body_width = compact_content_width(parent);
     let lines = popup_lines(&detail.popup_lines, max_body_width);
     let body_width = lines
         .iter()

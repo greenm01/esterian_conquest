@@ -3217,6 +3217,32 @@ fn tax_prompt_wraps_long_status_into_popup_body() {
 }
 
 #[test]
+fn tax_prompt_wraps_explanation_instead_of_stretching_popup() {
+    let mut app = dash_app();
+    app.popup = ActivePopup::TaxPrompt;
+    let map_frame = dashboard_layout(&app).widgets.center_map;
+    let popup = app.current_popup_rect(map_frame).expect("tax popup");
+    let buffer = crate::dashboard::app::render::render(&app).expect("dashboard render");
+
+    assert!(popup.width <= 34);
+    assert_eq!(popup.height, 7);
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Enter 0-100. Rates above 65%")
+    }));
+    assert!(
+        (0..buffer.height())
+            .any(|row| { buffer.plain_line(row).contains("can damage production.") })
+    );
+    assert!(!(0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Enter 0-100. Rates above 65% can damage production.")
+    }));
+}
+
+#[test]
 fn diplomacy_overlay_updates_preview_and_hosted_draft() {
     let mut app = dash_app();
     app.initialize_hosted_turn_draft();

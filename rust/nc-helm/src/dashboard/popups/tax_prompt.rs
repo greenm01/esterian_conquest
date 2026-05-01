@@ -1,7 +1,7 @@
 use crate::dashboard::app::state::{ActivePopup, DashApp};
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::{Rect, max_content_width, wrap_modal_text_lines};
+use crate::dashboard::modal::{Rect, compact_content_width, wrap_modal_text_lines};
 use crate::dashboard::overlays::frame::{
     OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -14,7 +14,7 @@ const TITLE: &str = "TAX RATE";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let lines = popup_lines(app, max_content_width(parent));
+    let lines = popup_lines(app, compact_content_width(parent));
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         parent,
@@ -39,7 +39,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame
 
 pub fn popup_rect(app: &DashApp, _map_frame: MapWidgetFrame) -> Rect {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let lines = popup_lines(app, max_content_width(parent));
+    let lines = popup_lines(app, compact_content_width(parent));
     overlay_popup_rect_for_body_in_parent(
         parent,
         TITLE,
@@ -78,7 +78,7 @@ struct PopupLine {
 
 fn popup_lines(app: &DashApp, max_width: usize) -> Vec<PopupLine> {
     let tax = current_tax(app);
-    let raw = [
+    let mut raw = vec![
         (
             format!("Current empire tax rate: {tax}%"),
             theme::value_style(),
@@ -87,11 +87,14 @@ fn popup_lines(app: &DashApp, max_width: usize) -> Vec<PopupLine> {
             String::from("Enter 0-100. Rates above 65% can damage production."),
             theme::value_style(),
         ),
-        (
-            app.tax_prompt_status.clone().unwrap_or_default(),
-            theme::alert_style(),
-        ),
     ];
+    if let Some(status) = app
+        .tax_prompt_status
+        .as_deref()
+        .filter(|status| !status.is_empty())
+    {
+        raw.push((status.to_string(), theme::alert_style()));
+    }
     let mut wrapped = Vec::new();
     for (line, style) in raw {
         for content in wrap_modal_text_lines(&[line], max_width.max(1)) {

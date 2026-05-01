@@ -1,7 +1,7 @@
 use crate::dashboard::app::state::{DashApp, OwnedPlanetPopupMode};
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::{Rect, max_content_width};
+use crate::dashboard::modal::{Rect, compact_content_width};
 use crate::dashboard::overlays::frame::{
     OverlayFrame, OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -22,7 +22,7 @@ pub fn draw(
     planet_record_index_1_based: usize,
 ) {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let max_body_width = max_content_width(parent);
+    let max_body_width = compact_content_width(parent);
     let popup = popup_layout(app, max_body_width);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
@@ -45,7 +45,7 @@ pub fn popup_rect(
     planet_record_index_1_based: usize,
 ) -> Rect {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let max_body_width = max_content_width(parent);
+    let max_body_width = compact_content_width(parent);
     let popup = popup_layout(app, max_body_width);
     overlay_popup_rect_for_body_in_parent(
         parent,

@@ -8,7 +8,7 @@ use crate::dashboard::layout;
 use crate::dashboard::layout::MapWidgetFrame;
 use crate::dashboard::layout::dashboard;
 use crate::dashboard::modal::{
-    Rect, WrappedTextLines, max_content_width, measure_modal_text_lines,
+    Rect, WrappedTextLines, compact_content_width, measure_modal_text_lines,
 };
 use crate::dashboard::overlays::frame::{
     OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
@@ -75,7 +75,7 @@ fn wrapped_settings_lines(app: &DashApp, parent: Rect) -> WrappedTextLines {
         .iter()
         .map(|(key, desc)| layout::format_label_value(key, label_width, desc))
         .collect::<Vec<_>>();
-    measure_modal_text_lines(&formatted, max_content_width(parent))
+    measure_modal_text_lines(&formatted, compact_content_width(parent))
 }
 
 fn settings_lines(app: &DashApp) -> Vec<(String, String)> {
