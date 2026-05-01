@@ -1,7 +1,7 @@
 use crate::dashboard::app::state::{DashApp, OwnedPlanetPopupMode};
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::{Rect, compact_content_width};
+use crate::dashboard::modal::{Rect, compact_content_width, max_content_width};
 use crate::dashboard::overlays::frame::{
     OverlayFrame, OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -22,8 +22,9 @@ pub fn draw(
     planet_record_index_1_based: usize,
 ) {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let max_body_width = compact_content_width(parent);
-    let popup = popup_layout(app, max_body_width);
+    let compact_body_width = compact_content_width(parent);
+    let label_value_body_width = max_content_width(parent);
+    let popup = popup_layout(app, compact_body_width, label_value_body_width);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         parent,
@@ -45,8 +46,9 @@ pub fn popup_rect(
     planet_record_index_1_based: usize,
 ) -> Rect {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let max_body_width = compact_content_width(parent);
-    let popup = popup_layout(app, max_body_width);
+    let compact_body_width = compact_content_width(parent);
+    let label_value_body_width = max_content_width(parent);
+    let popup = popup_layout(app, compact_body_width, label_value_body_width);
     overlay_popup_rect_for_body_in_parent(
         parent,
         &popup.title,
@@ -72,10 +74,14 @@ enum PopupBody {
     Plain(Vec<String>),
 }
 
-fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> {
+fn popup_layout<'a>(
+    app: &'a DashApp,
+    compact_body_width: usize,
+    label_value_body_width: usize,
+) -> PopupLayout<'a> {
     match app.owned_planet_popup.mode {
         OwnedPlanetPopupMode::Browse => {
-            let lines = browse_lines(app, max_body_width);
+            let lines = browse_lines(app, label_value_body_width);
             plain_popup_layout(
                 String::from("PLANET STATUS"),
                 lines,
@@ -96,7 +102,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             };
             plain_popup_layout(
                 String::from("PLANET STATUS"),
-                wrap_plain_lines(&commission_lines(app), max_body_width),
+                wrap_plain_lines(&commission_lines(app), compact_body_width),
                 command_line_toast_footer(
                     app,
                     TableFooter::CommandInput {
@@ -110,7 +116,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
         }
         OwnedPlanetPopupMode::CommissionResult => plain_popup_layout(
             String::from("PLANET STATUS"),
-            wrap_plain_lines(&app.owned_planet_popup.report_lines, max_body_width),
+            wrap_plain_lines(&app.owned_planet_popup.report_lines, compact_body_width),
             command_line_toast_footer(
                 app,
                 TableFooter::CommandPrompt {
@@ -125,7 +131,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
                 &[String::from(
                     "Automatically commission all ships and starbases in stardock?",
                 )],
-                max_body_width,
+                compact_body_width,
             ),
             command_line_toast_footer(
                 app,
@@ -137,7 +143,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
         ),
         OwnedPlanetPopupMode::MassCommissionReport => plain_popup_layout(
             String::from("PLANET STATUS"),
-            wrap_plain_lines(&app.owned_planet_popup.report_lines, max_body_width),
+            wrap_plain_lines(&app.owned_planet_popup.report_lines, compact_body_width),
             command_line_toast_footer(
                 app,
                 TableFooter::CommandPrompt {
@@ -158,7 +164,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             };
             plain_popup_layout(
                 String::from("PLANET STATUS"),
-                wrap_plain_lines(&transport_fleet_lines(app, mode), max_body_width),
+                wrap_plain_lines(&transport_fleet_lines(app, mode), compact_body_width),
                 command_line_toast_footer(
                     app,
                     TableFooter::CommandInput {
@@ -182,7 +188,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
             };
             plain_popup_layout(
                 String::from("PLANET STATUS"),
-                wrap_plain_lines(&transport_quantity_lines(app, mode), max_body_width),
+                wrap_plain_lines(&transport_quantity_lines(app, mode), compact_body_width),
                 command_line_toast_footer(
                     app,
                     TableFooter::CommandInput {
@@ -196,7 +202,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
         }
         OwnedPlanetPopupMode::ScorchConfirm1 => plain_popup_layout(
             String::from("PLANET STATUS"),
-            wrap_plain_lines(&scorch_lines(app), max_body_width),
+            wrap_plain_lines(&scorch_lines(app), compact_body_width),
             command_line_toast_footer(
                 app,
                 TableFooter::CommandPrompt {
@@ -207,7 +213,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
         ),
         OwnedPlanetPopupMode::ScorchConfirm2 => plain_popup_layout(
             String::from("PLANET STATUS"),
-            wrap_plain_lines(&scorch_lines(app), max_body_width),
+            wrap_plain_lines(&scorch_lines(app), compact_body_width),
             command_line_toast_footer(
                 app,
                 TableFooter::CommandPrompt {
@@ -218,7 +224,7 @@ fn popup_layout<'a>(app: &'a DashApp, max_body_width: usize) -> PopupLayout<'a> 
         ),
         OwnedPlanetPopupMode::ScorchConfirm3 => plain_popup_layout(
             String::from("PLANET STATUS"),
-            wrap_plain_lines(&scorch_lines(app), max_body_width),
+            wrap_plain_lines(&scorch_lines(app), compact_body_width),
             command_line_toast_footer(
                 app,
                 TableFooter::CommandPrompt {

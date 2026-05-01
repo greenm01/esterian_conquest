@@ -2787,6 +2787,30 @@ fn owned_planet_popup_browse_uses_planet_status_title() {
 }
 
 #[test]
+fn owned_planet_popup_browse_keeps_regular_status_value_together() {
+    let mut app = dash_app();
+    let record = seed_extra_owned_regular_planet(&mut app);
+
+    app.open_owned_planet_popup(record);
+
+    let line = render_owned_planet_popup_line(&app, "Regular planet - industry intact");
+    assert!(line.contains("Status"));
+}
+
+#[test]
+fn planet_detail_popup_keeps_regular_status_value_together() {
+    let mut app = dash_app();
+    let record = seed_extra_owned_regular_planet(&mut app);
+
+    app.popup = ActivePopup::PlanetDetail {
+        planet_record_index_1_based: record,
+    };
+
+    let line = render_planet_detail_popup_line(&app, "Regular planet - industry intact");
+    assert!(line.contains("Status"));
+}
+
+#[test]
 fn owned_planet_popup_question_mark_opens_help_overlay() {
     let mut app = dash_app();
     let owned_coords = first_owned_planet_coords(&app);
@@ -3729,6 +3753,36 @@ fn seed_extra_owned_planet_with_stardock(app: &mut DashApp) -> usize {
     idx + 1
 }
 
+fn seed_extra_owned_regular_planet(app: &mut DashApp) -> usize {
+    let coords = (1..=30)
+        .flat_map(|x| (1..=30).map(move |y| [x, y]))
+        .find(|coords| {
+            !app.game_data
+                .planets
+                .records
+                .iter()
+                .any(|planet| planet.coords_raw() == *coords)
+        })
+        .expect("unused regular planet coords");
+    let (idx, planet) = app
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(_, planet)| planet.coords_raw() == [0, 0])
+        .expect("unused planet record");
+    planet.set_coords_raw(coords);
+    planet.set_potential_production_raw([50, 0]);
+    planet.set_ownership_status_raw(1);
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_status_or_name_summary_raw("Outpost");
+    let potential = planet.potential_production_points().max(1);
+    assert!(planet.set_present_production_points(potential));
+    app.game_data_revision += 1;
+    idx + 1
+}
+
 fn first_empty_sector_coords(app: &DashApp) -> [u8; 2] {
     first_visible_sector_matching(app, |coords| {
         !sector_has_planet(app, coords) && !sector_has_player_fleet(app, coords)
@@ -3898,6 +3952,31 @@ fn render_owned_planet_popup_line(app: &DashApp, needle: &str) -> String {
         .map(|row| buffer.plain_line(row))
         .find(|line| line.contains(needle))
         .expect("owned planet popup line")
+}
+
+fn render_planet_detail_popup_line(app: &DashApp, needle: &str) -> String {
+    let layout = dashboard_layout(app);
+    let mut buffer = PlayfieldBuffer::new(
+        app.geometry.width(),
+        app.geometry.height(),
+        crate::dashboard::theme::body_style(),
+    );
+    let planet_record_index_1_based = match app.popup {
+        ActivePopup::PlanetDetail {
+            planet_record_index_1_based,
+        } => planet_record_index_1_based,
+        other => panic!("expected planet detail popup, got {other:?}"),
+    };
+    crate::dashboard::popups::planet_detail::draw(
+        &mut buffer,
+        app,
+        layout.widgets.center_map,
+        planet_record_index_1_based,
+    );
+    (0..buffer.height())
+        .map(|row| buffer.plain_line(row))
+        .find(|line| line.contains(needle))
+        .expect("planet detail popup line")
 }
 
 fn render_dashboard_line(app: &DashApp, needle: &str) -> String {
