@@ -639,6 +639,13 @@ impl DashApp {
                 map_frame,
                 planet_record_index_1_based,
             )),
+            ActivePopup::FleetDetail {
+                fleet_record_index_1_based,
+            } => Some(crate::dashboard::popups::fleet_detail::popup_rect(
+                self,
+                map_frame,
+                fleet_record_index_1_based,
+            )),
         }
     }
 }

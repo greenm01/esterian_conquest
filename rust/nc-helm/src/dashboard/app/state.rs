@@ -90,6 +90,7 @@ pub enum ActivePopup {
     TaxPrompt,
     PlanetDetail { planet_record_index_1_based: usize },
     OwnedPlanet { planet_record_index_1_based: usize },
+    FleetDetail { fleet_record_index_1_based: usize },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

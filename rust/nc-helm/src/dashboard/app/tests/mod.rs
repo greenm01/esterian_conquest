@@ -1371,6 +1371,36 @@ fn intel_database_enter_on_non_owned_planet_opens_info_and_escape_returns_to_dat
 }
 
 #[test]
+fn fleet_list_enter_on_fleet_opens_review_and_escape_returns_to_list() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::FleetList;
+    select_first_fleet_row(&mut app);
+    let record = match fleet_list::table_rows(&app)[app.fleet_overlay.selected].key {
+        FleetOverlayRowKey::Fleet(record) => record,
+        FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
+    };
+
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(app.overlay, ActiveOverlay::FleetList);
+    assert_eq!(
+        app.popup,
+        ActivePopup::FleetDetail {
+            fleet_record_index_1_based: record
+        }
+    );
+    assert!(render_dashboard_line(&app, "REVIEW FLEET").contains("REVIEW FLEET"));
+    let fleet_line = render_dashboard_line(&app, "Fleet ID");
+    let location_line = render_dashboard_line(&app, "Location");
+    assert_eq!(fleet_line.find(" : "), location_line.find(" : "));
+
+    app.handle_key(key(KeyCode::Esc));
+
+    assert_eq!(app.overlay, ActiveOverlay::FleetList);
+    assert_eq!(app.popup, ActivePopup::None);
+}
+
+#[test]
 fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::FleetList;

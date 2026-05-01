@@ -10,10 +10,10 @@ use crate::dashboard::table_selection::{sync_scroll_to_cursor, wrap_next_index, 
 
 use super::state;
 use super::state::{
-    ActiveMouseGesture, ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode,
-    FleetOverlaySort, HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
-    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
-    default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
+    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter,
+    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext, IntelOverlayFilter,
+    IntelOverlayPromptMode, IntelOverlaySort, PlanetOverlayFilter, PlanetOverlayPromptMode,
+    PlanetOverlaySort, default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
     default_planet_overlay_sort_direction,
 };
 
@@ -743,6 +743,7 @@ impl DashApp {
         }
         match key.code {
             KeyCode::Esc => self.close_active_overlay(),
+            KeyCode::Enter => self.open_selected_fleet_detail_popup(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetList),
             KeyCode::Char('f') | KeyCode::Char('F') => {
                 self.fleet_overlay
@@ -786,6 +787,21 @@ impl DashApp {
                 );
             }
         }
+    }
+
+    fn open_selected_fleet_detail_popup(&mut self) {
+        let rows = fleet_list::table_rows(self);
+        let Some(row) = rows.get(self.fleet_overlay.selected) else {
+            return;
+        };
+        let FleetOverlayRowKey::Fleet(fleet_record_index_1_based) = row.key else {
+            return;
+        };
+        self.popup_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
+        self.popup = ActivePopup::FleetDetail {
+            fleet_record_index_1_based,
+        };
     }
 
     fn handle_intel_overlay_key(&mut self, key: KeyEvent) {

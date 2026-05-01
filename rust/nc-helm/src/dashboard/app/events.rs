@@ -55,9 +55,10 @@ impl DashApp {
             ActiveOverlay::None => match self.popup {
                 ActivePopup::OwnedPlanet { .. } => self.owned_planet_popup.status.as_deref(),
                 ActivePopup::TaxPrompt => self.tax_prompt_status.as_deref(),
-                ActivePopup::QuitConfirm | ActivePopup::PlanetDetail { .. } | ActivePopup::None => {
-                    None
-                }
+                ActivePopup::QuitConfirm
+                | ActivePopup::PlanetDetail { .. }
+                | ActivePopup::FleetDetail { .. }
+                | ActivePopup::None => None,
             },
             ActiveOverlay::PlanetList => match self.planet_overlay.prompt_mode {
                 PlanetOverlayPromptMode::None => self.planet_overlay.footer_notice.as_deref(),
@@ -271,7 +272,9 @@ impl DashApp {
     fn caller_overlay_popup_has_key_priority(&self) -> bool {
         let popup_over_caller = matches!(
             self.popup,
-            ActivePopup::OwnedPlanet { .. } | ActivePopup::PlanetDetail { .. }
+            ActivePopup::OwnedPlanet { .. }
+                | ActivePopup::PlanetDetail { .. }
+                | ActivePopup::FleetDetail { .. }
         );
         if !popup_over_caller {
             return false;
@@ -282,6 +285,9 @@ impl DashApp {
             }
             ActiveOverlay::IntelDatabase => {
                 self.intel_overlay.prompt_mode == IntelOverlayPromptMode::None
+            }
+            ActiveOverlay::FleetList => {
+                self.fleet_overlay.prompt_mode == FleetOverlayPromptMode::None
             }
             _ => false,
         }

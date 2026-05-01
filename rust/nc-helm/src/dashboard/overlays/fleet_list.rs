@@ -51,7 +51,7 @@ pub fn fleet_table_order_label(order: Order) -> &'static str {
 }
 use crate::dashboard::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <ESC>";
+pub(crate) const HOTKEYS: &str = "? ENTER F S O C M T SPACE <ESC>";
 const ORDER_PROMPT_LABEL_WIDTH: usize = 15;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -1864,7 +1864,7 @@ mod tests {
 
     #[test]
     fn fleet_browse_hotkeys_match_supported_commands() {
-        assert_eq!(HOTKEYS, "? F S O C M T SPACE <ESC>");
+        assert_eq!(HOTKEYS, "? ENTER F S O C M T SPACE <ESC>");
     }
 
     #[test]
@@ -1957,7 +1957,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("COMMAND <- ? F S O C M T SPACE <ESC>"))
+                .any(|line| line.contains("COMMAND <- ? ENTER F S O C M T SPACE <ESC>"))
         );
         assert!(
             !lines

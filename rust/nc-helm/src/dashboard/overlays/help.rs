@@ -169,6 +169,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::FleetList => vec![
+            ("Enter", "Open review for the selected fleet"),
             ("F", "Open the fleet-list filter prompt"),
             ("S", "Open the fleet-list sort menu"),
             ("SPACE", "Toggle the checked state of the current fleet row"),
@@ -301,6 +302,11 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("SPACE") && line.contains("checked state"))
         );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("Enter") && line.contains("selected fleet"))
+        );
         assert!(!lines.iter().any(|line| line.contains("O / C / M / T")));
         assert!(!lines.iter().any(|line| line.contains("TODO")));
         assert!(!lines.iter().any(|line| line.contains("FLEET LIST")));
@@ -411,7 +417,7 @@ mod tests {
             let lines = help_lines(context);
             assert!(!lines.iter().any(|line| line.starts_with("Arrows")));
             assert!(!lines.iter().any(|line| line.starts_with("H J K L")));
-            if context != HelpContext::PlanetList {
+            if !matches!(context, HelpContext::PlanetList | HelpContext::FleetList) {
                 assert!(!lines.iter().any(|line| line.starts_with("Enter")));
             }
             assert!(!lines.iter().any(|line| line.starts_with("Esc")));

@@ -8,8 +8,8 @@ use crate::dashboard::layout::widgets::WidgetRect;
 
 use crate::dashboard::app::panel_cache::CachedPanel;
 use crate::dashboard::app::state::{
-    ActiveOverlay, ActivePopup, DashApp, IntelOverlayPromptMode, MapViewMode,
-    PlanetOverlayPromptMode,
+    ActiveOverlay, ActivePopup, DashApp, FleetOverlayPromptMode, IntelOverlayPromptMode,
+    MapViewMode, PlanetOverlayPromptMode,
 };
 use crate::dashboard::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
@@ -415,7 +415,9 @@ fn draw_dynamic_layer(
 fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {
     let popup_over_caller = matches!(
         app.popup,
-        ActivePopup::OwnedPlanet { .. } | ActivePopup::PlanetDetail { .. }
+        ActivePopup::OwnedPlanet { .. }
+            | ActivePopup::PlanetDetail { .. }
+            | ActivePopup::FleetDetail { .. }
     );
     if !popup_over_caller {
         return false;
@@ -427,6 +429,7 @@ fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {
         ActiveOverlay::IntelDatabase => {
             app.intel_overlay.prompt_mode == IntelOverlayPromptMode::None
         }
+        ActiveOverlay::FleetList => app.fleet_overlay.prompt_mode == FleetOverlayPromptMode::None,
         _ => false,
     }
 }
@@ -448,6 +451,11 @@ fn draw_popup_layer(
             planet_record_index_1_based,
         } => {
             popups::owned_planet::draw(buf, app, map_frame, planet_record_index_1_based);
+        }
+        ActivePopup::FleetDetail {
+            fleet_record_index_1_based,
+        } => {
+            popups::fleet_detail::draw(buf, app, map_frame, fleet_record_index_1_based);
         }
         ActivePopup::None => {}
     }
