@@ -1,7 +1,7 @@
 use crate::dashboard::app::state::{DashApp, OwnedPlanetPopupMode};
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::Rect;
+use crate::dashboard::modal::{Rect, max_content_width};
 use crate::dashboard::overlays::frame::{
     OverlayFrame, OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -18,14 +18,15 @@ use nc_engine::{
 pub fn draw(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
-    map_frame: MapWidgetFrame,
+    _map_frame: MapWidgetFrame,
     planet_record_index_1_based: usize,
 ) {
-    let max_body_width = map_frame.outer.width.saturating_sub(6).max(1);
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let max_body_width = max_content_width(parent);
     let popup = popup_layout(app, max_body_width);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         &popup.title,
         popup.body_width,
         popup.body_height,
@@ -40,13 +41,14 @@ pub fn draw(
 
 pub fn popup_rect(
     app: &DashApp,
-    map_frame: MapWidgetFrame,
+    _map_frame: MapWidgetFrame,
     planet_record_index_1_based: usize,
 ) -> Rect {
-    let max_body_width = map_frame.outer.width.saturating_sub(6).max(1);
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let max_body_width = max_content_width(parent);
     let popup = popup_layout(app, max_body_width);
     overlay_popup_rect_for_body_in_parent(
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         &popup.title,
         popup.body_width,
         popup.body_height,

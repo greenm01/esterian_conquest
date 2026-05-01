@@ -55,7 +55,7 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         // Global overlay shortcuts
         KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenOverlay(ActiveOverlay::PlanetList),
         KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenOverlay(ActiveOverlay::FleetList),
-        KeyCode::Char('i') | KeyCode::Char('I') => {
+        KeyCode::Char('t') | KeyCode::Char('T') => {
             Action::OpenOverlay(ActiveOverlay::IntelDatabase)
         }
         KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenOverlay(ActiveOverlay::Inbox),
@@ -67,9 +67,7 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
 
         // Tax rate
-        KeyCode::Char('t') | KeyCode::Char('T') | KeyCode::Char('x') | KeyCode::Char('X') => {
-            Action::SetTaxRate
-        }
+        KeyCode::Char('x') | KeyCode::Char('X') => Action::SetTaxRate,
 
         // Navigation — context-sensitive
         KeyCode::Up | KeyCode::Char('k') => match focus {
@@ -188,6 +186,26 @@ mod tests {
                 ActiveOverlay::PlanetList,
             ),
             Action::None
+        );
+    }
+
+    #[test]
+    fn t_opens_total_planet_database_and_x_sets_tax_rate() {
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::OpenOverlay(ActiveOverlay::IntelDatabase)
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::SetTaxRate
         );
     }
 }

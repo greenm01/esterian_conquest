@@ -676,6 +676,10 @@ fn handle_lobby_key(model: &mut Model, key: crate::input::KeyEvent) -> Vec<Effec
         }
 
         match key.code {
+            KeyCode::Esc => {
+                lobby.quit_confirm_open = true;
+                Vec::new()
+            }
             KeyCode::Tab => {
                 lobby.active_tab = lobby.active_tab.next();
                 Vec::new()
@@ -1720,7 +1724,7 @@ mod tests {
         assert!(
             handle_key(
                 &mut model,
-                KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE)
+                KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE)
             )
             .is_empty()
         );
@@ -2073,6 +2077,35 @@ mod tests {
     }
 
     #[test]
+    fn lobby_escape_opens_quit_confirm_when_no_popup_is_active() {
+        let mut model = lobby_model(false, false);
+
+        let effects = handle_key(&mut model, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+        assert!(effects.is_empty());
+        match &model.route {
+            Route::Lobby(lobby) => assert!(lobby.quit_confirm_open),
+            other => panic!("expected lobby after Esc, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn lobby_escape_closes_help_without_opening_quit_confirm() {
+        let mut model = lobby_model(true, false);
+
+        let effects = handle_key(&mut model, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+        assert!(effects.is_empty());
+        match &model.route {
+            Route::Lobby(lobby) => {
+                assert!(!lobby.help_open);
+                assert!(!lobby.quit_confirm_open);
+            }
+            other => panic!("expected lobby after Esc, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn hosted_mouse_noop_skips_redraw() {
         let mut model = hosted_game_model();
         let Route::HostedGame(hosted) = &mut model.route else {
@@ -2145,6 +2178,25 @@ mod tests {
         model.route = Route::HostedGame(HostedGameModel {
             row,
             dashboard,
+            status: None,
+        });
+        model
+    }
+
+    fn lobby_model(help_open: bool, quit_confirm_open: bool) -> Model {
+        let (app, _) = App::new(None);
+        let mut model = app.model;
+        model.route = Route::Lobby(LobbyModel {
+            active_tab: LobbyTab::MyGames,
+            help_open,
+            quit_confirm_open,
+            selected_my_game: 0,
+            my_games_scroll: 0,
+            selected_open_game: 0,
+            open_games_scroll: 0,
+            settings_scroll: 0,
+            editing_relay: false,
+            relay_draft: model.relay_url.clone(),
             status: None,
         });
         model

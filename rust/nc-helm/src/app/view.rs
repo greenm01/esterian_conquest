@@ -1,9 +1,8 @@
 use super::{
-    DEFAULT_GEOMETRY, FirstJoinSetupField, FirstRunField, HELP_CLOSE_LABEL, HELP_POPUP_HEIGHT,
-    HELP_POPUP_WIDTH, LOBBY_TAB_ROW, LobbyTab, MIN_SUPPORTED_GEOMETRY, Model, NetworkState, Route,
-    centered_box_geometry,
+    DEFAULT_GEOMETRY, FirstJoinSetupField, FirstRunField, HELP_CLOSE_LABEL, LOBBY_TAB_ROW,
+    LobbyTab, MIN_SUPPORTED_GEOMETRY, Model, NetworkState, Route, centered_box_geometry,
     chrome::{draw_modal_panel, draw_panel, draw_top_tag_right},
-    lobby_tab_bounds, mask,
+    help_popup_geometry, lobby_help_lines, lobby_tab_bounds, mask, wrapped_lobby_popup_lines,
 };
 use crate::dashboard::table::{
     TableAlign, TableColumn as DashboardTableColumn, table_render_width,
@@ -25,12 +24,6 @@ const FIRST_RUN_GATE_HEIGHT: usize = 22;
 const LOCKED_GATE_WIDTH: usize = 60;
 const LOCKED_GATE_HEIGHT: usize = 14;
 const LOCKED_GATE_HEIGHT_WITH_STATUS: usize = 16;
-const SANDBOX_JOIN_CONFIRM_WIDTH: usize = 64;
-const SANDBOX_JOIN_CONFIRM_HEIGHT: usize = 11;
-const SANDBOX_JOIN_UNAVAILABLE_WIDTH: usize = 68;
-const SANDBOX_JOIN_UNAVAILABLE_HEIGHT: usize = 11;
-const SANDBOX_DELETE_CONFIRM_WIDTH: usize = 68;
-const SANDBOX_DELETE_CONFIRM_HEIGHT: usize = 11;
 const FIRST_JOIN_GATE_WIDTH: usize = 72;
 const FIRST_JOIN_GATE_HEIGHT: usize = 18;
 const GATE_SIDE_PADDING: usize = 3;
@@ -69,6 +62,12 @@ struct LobbyPanelLayout {
 struct LobbyBodyLayout {
     top: usize,
     height: usize,
+}
+
+#[derive(Clone)]
+struct StyledPopupLine {
+    content: String,
+    style: CellStyle,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -662,33 +661,19 @@ fn render_sandbox_join_confirm(
     geometry: ScreenGeometry,
     row: &super::OpenGameRow,
 ) {
-    centered_box(
+    draw_text_popup(
         buffer,
         geometry,
-        SANDBOX_JOIN_CONFIRM_WIDTH,
-        SANDBOX_JOIN_CONFIRM_HEIGHT,
         "JOIN SANDBOX",
-        |buffer, left, top| {
-            let content_left = left + 3;
-            buffer.write_text_clipped(
-                top + 2,
-                content_left,
-                &format!("Game: {}", row.game),
-                panel(),
-            );
-            buffer.write_text_clipped(
-                top + 4,
-                content_left,
-                "Join this sandbox now?",
-                panel_accent(),
-            );
-            buffer.write_text_clipped(
-                top + 6,
-                content_left,
+        vec![
+            styled_popup_line(format!("Game: {}", row.game), panel()),
+            styled_popup_line("", panel()),
+            styled_popup_line("Join this sandbox now?", panel_accent()),
+            styled_popup_line(
                 "Y joins an open seat immediately. Any other key cancels.",
                 panel_dim(),
-            );
-        },
+            ),
+        ],
     );
 }
 
@@ -698,28 +683,17 @@ fn render_sandbox_join_unavailable(
     row: &super::OpenGameRow,
     notice: &str,
 ) {
-    centered_box(
+    draw_text_popup(
         buffer,
         geometry,
-        SANDBOX_JOIN_UNAVAILABLE_WIDTH,
-        SANDBOX_JOIN_UNAVAILABLE_HEIGHT,
         "SANDBOX UNAVAILABLE",
-        |buffer, left, top| {
-            let content_left = left + 3;
-            buffer.write_text_clipped(
-                top + 2,
-                content_left,
-                &format!("Game: {}", row.game),
-                panel(),
-            );
-            buffer.write_text_clipped(top + 4, content_left, notice, panel_warning());
-            buffer.write_text_clipped(
-                top + 6,
-                content_left,
-                "Press any key to return to the lobby.",
-                panel_dim(),
-            );
-        },
+        vec![
+            styled_popup_line(format!("Game: {}", row.game), panel()),
+            styled_popup_line("", panel()),
+            styled_popup_line(notice, panel_warning()),
+            styled_popup_line("", panel()),
+            styled_popup_line("Press any key to return to the lobby.", panel_dim()),
+        ],
     );
 }
 
@@ -728,34 +702,88 @@ fn render_sandbox_delete_confirm(
     geometry: ScreenGeometry,
     row: &super::MyGameRow,
 ) {
-    centered_box(
+    draw_text_popup(
         buffer,
         geometry,
-        SANDBOX_DELETE_CONFIRM_WIDTH,
-        SANDBOX_DELETE_CONFIRM_HEIGHT,
         "DELETE SANDBOX",
-        |buffer, left, top| {
-            let content_left = left + 3;
-            buffer.write_text_clipped(
-                top + 2,
-                content_left,
-                &format!("Game: {}", row.game),
-                panel(),
-            );
-            buffer.write_text_clipped(
-                top + 4,
-                content_left,
+        vec![
+            styled_popup_line(format!("Game: {}", row.game), panel()),
+            styled_popup_line("", panel()),
+            styled_popup_line(
                 "Release this sandbox seat and remove it from My Games?",
                 panel_accent(),
-            );
-            buffer.write_text_clipped(
-                top + 6,
-                content_left,
-                "Y releases the seat. Any other key cancels.",
-                panel_dim(),
-            );
-        },
+            ),
+            styled_popup_line("Y releases the seat. Any other key cancels.", panel_dim()),
+        ],
     );
+}
+
+fn styled_popup_line(content: impl Into<String>, style: CellStyle) -> StyledPopupLine {
+    StyledPopupLine {
+        content: content.into(),
+        style,
+    }
+}
+
+fn draw_text_popup(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    title: &str,
+    lines: Vec<StyledPopupLine>,
+) {
+    let max_width = geometry.width().saturating_sub(4).max(1);
+    let max_content_width = max_width.saturating_sub(4).max(1);
+    let wrapped = wrap_styled_popup_lines(&lines, max_content_width);
+    let body_width = wrapped
+        .iter()
+        .map(|line| line.content.chars().count())
+        .max()
+        .unwrap_or(1);
+    let title_width = crate::chrome_tags::tag_width(title) + 4;
+    let width = (body_width + 4).max(title_width).min(geometry.width());
+    let height = (wrapped.len() + 2).min(geometry.height());
+    let (left, top, width, height) = centered_box_geometry(geometry, width, height);
+    draw_modal_panel(
+        buffer,
+        left,
+        top,
+        width,
+        height,
+        theme::panel_border_style(),
+        panel_accent(),
+        Some(panel()),
+        Some(title),
+        None,
+    );
+
+    let content_left = left + 2;
+    let content_width = width.saturating_sub(4);
+    let visible_rows = height.saturating_sub(2);
+    for (idx, line) in wrapped.iter().enumerate().take(visible_rows) {
+        buffer.write_text_clipped(
+            top + 1 + idx,
+            content_left,
+            &truncate(&line.content, content_width),
+            line.style,
+        );
+    }
+}
+
+fn wrap_styled_popup_lines(lines: &[StyledPopupLine], width: usize) -> Vec<StyledPopupLine> {
+    let mut wrapped = Vec::new();
+    for line in lines {
+        for content in wrap_lobby_text(&line.content, width.max(1)) {
+            wrapped.push(StyledPopupLine {
+                content,
+                style: line.style,
+            });
+        }
+    }
+    if wrapped.is_empty() {
+        vec![styled_popup_line("", panel())]
+    } else {
+        wrapped
+    }
 }
 
 fn render_first_join_setup(
@@ -1895,8 +1923,7 @@ fn draw_command_panel(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
 }
 
 fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
-    let (left, top, width, height) =
-        centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT);
+    let (left, top, width, height) = help_popup_geometry(geometry);
     draw_modal_panel(
         buffer,
         left,
@@ -1919,23 +1946,11 @@ fn draw_help_popup(buffer: &mut PlayfieldBuffer, geometry: ScreenGeometry) {
         panel_accent(),
     );
 
-    let lines = [
-        "NC-HELM is the new TEA player client.",
-        "",
-        "M/O/C/S : switch lobby tabs",
-        "Up/Down : move the active table cursor",
-        "Alt+R   : refresh My Games, Open Games, and notices",
-        "Alt+D   : delete the selected sandbox from My Games",
-        "? or H  : reopen this help popup",
-        "Q or Esc: close this popup",
-        "Alt+Q   : quit the client",
-        "",
-        "Background sync still runs every few seconds.",
-    ];
-    for (idx, line) in lines.iter().enumerate() {
+    let lines = wrapped_lobby_popup_lines(lobby_help_lines(), width.saturating_sub(4));
+    for (idx, line) in lines.iter().enumerate().take(height.saturating_sub(2)) {
         buffer.write_text_clipped(
-            top + 2 + idx,
-            left + 3,
+            top + 1 + idx,
+            left + 2,
             line,
             if line.is_empty() {
                 panel()

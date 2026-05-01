@@ -25,11 +25,26 @@ pub const DEFAULT_GEOMETRY: ScreenGeometry = ScreenGeometry::new(100, 36);
 pub(crate) const MIN_SUPPORTED_GEOMETRY: ScreenGeometry = ScreenGeometry::new(68, 24);
 pub const DEFAULT_LOCK_TIMEOUT_MINUTES: u16 = 10;
 pub const LOCK_TIMEOUT_OPTIONS: [u16; 5] = [0, 5, 10, 15, 30];
-pub const HELP_POPUP_WIDTH: usize = 60;
-pub const HELP_POPUP_HEIGHT: usize = 14;
 pub const HELP_CLOSE_LABEL: &str = "[X]";
 pub(crate) const LOBBY_TAB_ROW: usize = 2;
 const LOBBY_TAB_GAP: usize = 1;
+const LOBBY_POPUP_MARGIN: usize = 4;
+const LOBBY_POPUP_HORIZONTAL_PADDING: usize = 4;
+const LOBBY_POPUP_VERTICAL_PADDING: usize = 2;
+const LOBBY_HELP_TITLE: &str = "HELP";
+const LOBBY_HELP_LINES: &[&str] = &[
+    "NC-HELM is the new TEA player client.",
+    "",
+    "M/O/C/S : switch lobby tabs",
+    "Up/Down : move the active table cursor",
+    "Alt+R   : refresh My Games, Open Games, and notices",
+    "Alt+D   : delete the selected sandbox from My Games",
+    "? or H  : reopen this help popup",
+    "Q or Esc: close this popup",
+    "Esc/Alt+Q: quit from the lobby",
+    "",
+    "Background sync still runs every few seconds.",
+];
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -589,14 +604,119 @@ pub(crate) fn centered_box_geometry(
     (left, top, width, height)
 }
 
+pub(crate) fn lobby_help_lines() -> &'static [&'static str] {
+    LOBBY_HELP_LINES
+}
+
+pub(crate) fn wrapped_lobby_popup_lines(lines: &[&str], content_width: usize) -> Vec<String> {
+    let mut wrapped = Vec::new();
+    for line in lines {
+        wrapped.extend(wrap_lobby_popup_line(line, content_width.max(1)));
+    }
+    if wrapped.is_empty() {
+        vec![String::new()]
+    } else {
+        wrapped
+    }
+}
+
 pub(crate) fn help_popup_geometry(geometry: ScreenGeometry) -> (usize, usize, usize, usize) {
-    centered_box_geometry(geometry, HELP_POPUP_WIDTH, HELP_POPUP_HEIGHT)
+    let min_width =
+        chrome::top_tag_width(LOBBY_HELP_TITLE) + chrome::top_tag_width(HELP_CLOSE_LABEL) + 6;
+    text_popup_geometry(geometry, LOBBY_HELP_TITLE, LOBBY_HELP_LINES, min_width)
 }
 
 pub(crate) fn help_close_tag_bounds(geometry: ScreenGeometry) -> Option<(usize, usize, usize)> {
     let (left, top, width, _) = help_popup_geometry(geometry);
     let col = chrome::top_tag_right_col(left, width, HELP_CLOSE_LABEL)?;
     Some((top, col, chrome::top_tag_width(HELP_CLOSE_LABEL)))
+}
+
+fn text_popup_geometry(
+    geometry: ScreenGeometry,
+    title: &str,
+    lines: &[&str],
+    min_width: usize,
+) -> (usize, usize, usize, usize) {
+    let max_width = geometry.width().saturating_sub(LOBBY_POPUP_MARGIN).max(1);
+    let max_content_width = max_width
+        .saturating_sub(LOBBY_POPUP_HORIZONTAL_PADDING)
+        .max(1);
+    let wrapped = wrapped_lobby_popup_lines(lines, max_content_width);
+    let body_width = wrapped
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
+    let title_width = chrome::top_tag_width(title) + 4;
+    let width = (body_width + LOBBY_POPUP_HORIZONTAL_PADDING)
+        .max(title_width)
+        .max(min_width)
+        .min(geometry.width());
+    let height = (wrapped.len() + LOBBY_POPUP_VERTICAL_PADDING).min(geometry.height());
+    centered_box_geometry(geometry, width, height)
+}
+
+fn wrap_lobby_popup_line(text: &str, width: usize) -> Vec<String> {
+    if text.is_empty() {
+        return vec![String::new()];
+    }
+    if width == 0 {
+        return vec![String::new()];
+    }
+    if text.chars().count() <= width {
+        return vec![text.to_string()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        let word_width = word.chars().count();
+        if current.is_empty() {
+            if word_width <= width {
+                current.push_str(word);
+            } else {
+                let mut chunks = chunk_lobby_popup_word(word, width);
+                current = chunks.pop().unwrap_or_default();
+                lines.extend(chunks);
+            }
+            continue;
+        }
+        if current.chars().count() + 1 + word_width <= width {
+            current.push(' ');
+            current.push_str(word);
+            continue;
+        }
+        lines.push(current);
+        current = String::new();
+        if word_width <= width {
+            current.push_str(word);
+        } else {
+            let mut chunks = chunk_lobby_popup_word(word, width);
+            current = chunks.pop().unwrap_or_default();
+            lines.extend(chunks);
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+fn chunk_lobby_popup_word(word: &str, width: usize) -> Vec<String> {
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+    for ch in word.chars() {
+        if current.chars().count() == width {
+            chunks.push(current);
+            current = String::new();
+        }
+        current.push(ch);
+    }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+    chunks
 }
 
 pub(crate) fn lobby_tab_bounds(geometry: ScreenGeometry) -> [(LobbyTab, usize, usize); 4] {

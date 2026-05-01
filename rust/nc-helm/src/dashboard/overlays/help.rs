@@ -71,7 +71,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::Global => vec![
             ("P", "Open Planet List"),
             ("F", "Open Fleet List"),
-            ("I", "Open Total Planet Database"),
+            ("T", "Open Total Planet Database"),
             ("R", "Open Inbox"),
             ("D", "Open Diplomacy"),
             ("S", "Open Settings"),

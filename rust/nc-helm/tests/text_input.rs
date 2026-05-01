@@ -23,7 +23,6 @@ fn text_input_updates_unlock_password_field() {
 fn text_input_updates_settings_relay_draft() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
     let _ = app.dispatch(Msg::TextInput("relay".to_string()));

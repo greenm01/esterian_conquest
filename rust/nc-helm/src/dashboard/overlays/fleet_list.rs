@@ -52,7 +52,6 @@ pub fn fleet_table_order_label(order: Order) -> &'static str {
 use crate::dashboard::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <ESC>";
-const GROUP_ORDER_BODY_WIDTH: usize = 54;
 const ORDER_PROMPT_LABEL_WIDTH: usize = 15;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -861,7 +860,7 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame:
 fn draw_group_fleet_order_prompt(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
-    map_frame: MapWidgetFrame,
+    _map_frame: MapWidgetFrame,
 ) {
     let target_prompt = app.fleet_order_target_prompt();
     let target_default = app.fleet_order_target_default_value();
@@ -905,19 +904,15 @@ fn draw_group_fleet_order_prompt(
         },
         _ => unreachable!("group fleet order prompt expected"),
     };
-    let mut lines = group_fleet_order_prompt_lines(app);
-    let body_width = GROUP_ORDER_BODY_WIDTH.min(max_overlay_body_width(map_frame).max(1));
-    let wrapped_lines = lines
-        .drain(..)
-        .flat_map(|line| wrap_group_prompt_line(&line, body_width))
-        .collect::<Vec<_>>();
-    let body_height = wrapped_lines.len();
+    let lines = group_fleet_order_prompt_lines(app);
+    let parent = overlay_parent_rect(app);
+    let wrapped = wrapped_prompt_blocks(parent, &lines);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        overlay_parent_rect(app),
+        parent,
         "GROUP FLEET ORDER",
-        body_width,
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
         OverlaySizePolicy::default(),
         command_line_footer(app, footer),
         app.overlay_position_for(ActiveOverlay::FleetList),
@@ -925,10 +920,16 @@ fn draw_group_fleet_order_prompt(
     assert_overlay_body_write_fits(
         frame,
         "GROUP FLEET ORDER",
-        body_width.min(frame.body_width),
-        body_height,
+        wrapped.width(),
+        wrapped.height(),
     );
-    for (idx, line) in wrapped_lines.iter().enumerate().take(frame.body_height) {
+    for (idx, line) in wrapped
+        .body
+        .lines
+        .iter()
+        .enumerate()
+        .take(frame.body_height)
+    {
         write_clipped(
             buf,
             frame.body_row + idx,
@@ -938,7 +939,7 @@ fn draw_group_fleet_order_prompt(
             if matches!(
                 app.fleet_overlay.prompt_mode,
                 FleetOverlayPromptMode::OrderConfirm
-            ) && idx + 1 == wrapped_lines.len()
+            ) && idx + 1 == wrapped.body.lines.len()
             {
                 theme::dim_style()
             } else {
@@ -1225,7 +1226,7 @@ fn fleet_transfer_popup_rect(app: &DashApp) -> Rect {
     )
 }
 
-fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+fn order_prompt_popup_rect(app: &DashApp, _map_frame: MapWidgetFrame) -> Rect {
     let target_prompt = app.fleet_order_target_prompt();
     let target_default = app.fleet_order_target_default_value();
     let target_x_default = app.fleet_order_target_x_default_value();
@@ -1270,18 +1271,14 @@ fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     };
 
     if app.fleet_order_is_group_scope() {
-        let mut lines = group_fleet_order_prompt_lines(app);
-        let body_width = GROUP_ORDER_BODY_WIDTH.min(max_overlay_body_width(map_frame).max(1));
-        let wrapped_lines = lines
-            .drain(..)
-            .flat_map(|line| wrap_group_prompt_line(&line, body_width))
-            .collect::<Vec<_>>();
-        let body_height = wrapped_lines.len();
+        let lines = group_fleet_order_prompt_lines(app);
+        let parent = overlay_parent_rect(app);
+        let wrapped = wrapped_prompt_blocks(parent, &lines);
         return overlay_popup_rect_for_body_in_parent(
-            overlay_parent_rect(app),
+            parent,
             "GROUP FLEET ORDER",
-            body_width,
-            body_height,
+            wrapped.width(),
+            wrapped.height(),
             OverlaySizePolicy::default(),
             command_line_footer(app, footer),
             app.overlay_position_for(ActiveOverlay::FleetList),
@@ -1353,39 +1350,6 @@ fn starbase_move_popup_rect(app: &DashApp) -> Rect {
         command_line_footer(app, footer),
         app.overlay_position_for(ActiveOverlay::FleetList),
     )
-}
-
-fn wrap_group_prompt_line(line: &str, width: usize) -> Vec<String> {
-    if width == 0 || line.chars().count() <= width {
-        return vec![line.to_string()];
-    }
-    if let Some((prefix, values)) = line.split_once(": ") {
-        let mut rows = Vec::new();
-        let prefix_text = format!("{prefix}: ");
-        let prefix_width = prefix_text.chars().count();
-        let continuation = " ".repeat(prefix_width);
-        let mut current = prefix_text.clone();
-        let mut current_width = prefix_width;
-        for part in values.split(", ") {
-            let token = if current_width > prefix_width {
-                format!(", {part}")
-            } else {
-                part.to_string()
-            };
-            let token_width = token.chars().count();
-            if current_width > prefix_width && current_width + token_width > width {
-                rows.push(current);
-                current = format!("{continuation}{part}");
-                current_width = prefix_width + part.chars().count();
-            } else {
-                current.push_str(&token);
-                current_width += token_width;
-            }
-        }
-        rows.push(current);
-        return rows;
-    }
-    vec![line.chars().take(width).collect()]
 }
 
 fn row_states_from_enabled_flags(flags: &[bool]) -> Vec<crate::dashboard::table::TableRowState> {
@@ -2203,7 +2167,7 @@ mod tests {
     }
 
     #[test]
-    fn group_fleet_order_prompt_keeps_stable_modal_width() {
+    fn group_fleet_order_prompt_width_tracks_wrapped_content() {
         let mut short = dash_app();
         configure_group_confirm_prompt(&mut short, &[0]);
 
@@ -2213,7 +2177,9 @@ mod tests {
         let short_title = render_group_order_title(&short);
         let wide_title = render_group_order_title(&wide);
 
-        assert_eq!(short_title, wide_title);
+        assert!(
+            modal_width_from_title_line(&short_title) < modal_width_from_title_line(&wide_title)
+        );
         assert!(
             render_group_order_body(&wide)
                 .iter()
@@ -2324,6 +2290,19 @@ mod tests {
                     || line.contains("Target")
             })
             .collect()
+    }
+
+    fn modal_width_from_title_line(line: &str) -> usize {
+        let chars = line.chars().collect::<Vec<_>>();
+        let left = chars
+            .iter()
+            .position(|ch| *ch == '┌')
+            .expect("left modal border");
+        let right = chars
+            .iter()
+            .rposition(|ch| *ch == '┐')
+            .expect("right modal border");
+        right.saturating_sub(left).saturating_add(1)
     }
 
     #[test]

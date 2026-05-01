@@ -71,7 +71,6 @@ fn first_run_view_uses_unicode_centered_box_chrome() {
 fn lobby_view_uses_unicode_shell_and_panel_titles() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
 
     let buffer = app.view();
     let header = buffer.plain_line(0);
@@ -109,7 +108,6 @@ fn lobby_view_uses_unicode_shell_and_panel_titles() {
 fn comms_panel_still_uses_full_width_shell() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('c'))));
 
     let buffer = app.view();
@@ -121,7 +119,6 @@ fn comms_panel_still_uses_full_width_shell() {
 fn open_games_panel_centers_when_the_list_is_short() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('o'))));
 
     let buffer = app.view();
@@ -134,7 +131,6 @@ fn open_games_panel_centers_when_the_list_is_short() {
 fn settings_panel_shrinkwraps_and_wraps_inside_the_box() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let _ = app.dispatch(Msg::Resize(ScreenGeometry::new(68, 36)));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
 
@@ -157,7 +153,6 @@ fn settings_panel_shrinkwraps_and_wraps_inside_the_box() {
 fn command_panel_highlights_hotkeys() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
 
     let buffer = app.view();
     let line = buffer.plain_line(34);
@@ -187,6 +182,20 @@ fn help_popup_uses_left_help_tag_and_right_close_tag() {
     assert!(buffer.plain_line(11).contains("┐HELP┌"));
     assert!(buffer.plain_line(11).contains("┐[X]┌"));
     assert_modal_has_outer_padding(&buffer, "┐HELP┌");
+}
+
+#[test]
+fn help_popup_shrinkwraps_to_last_help_line() {
+    let (mut app, _) = App::new(None);
+    let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
+    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('?'))));
+
+    let buffer = app.view();
+    let (_, left, right, bottom) = modal_bounds(&buffer, "┐HELP┌");
+    let last_help_row = find_line(&buffer, "Background sync still runs");
+
+    assert_eq!(last_help_row, bottom - 1);
+    assert!(right.saturating_sub(left).saturating_add(1) < 60);
 }
 
 #[test]
@@ -230,7 +239,6 @@ fn lobby_quit_popup_uses_outer_padding() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
 
     let buffer = app.view();
     assert_modal_has_outer_padding(&buffer, "┐QUIT┌");
@@ -258,6 +266,8 @@ fn sandbox_delete_confirm_popup_renders_copy() {
             .iter()
             .any(|line| line.contains("Release this sandbox seat"))
     );
+    let (_, _, _, bottom) = modal_bounds(&buffer, "DELETE SANDBOX");
+    assert_eq!(find_line(&buffer, "Any other key cancels."), bottom - 1);
 }
 
 #[test]

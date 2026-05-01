@@ -5,7 +5,7 @@ use crate::dashboard::table::TableFooter;
 
 use crate::dashboard::app::state::DashApp;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::Rect;
+use crate::dashboard::modal::{Rect, max_content_width};
 use crate::dashboard::overlays::frame::{
     OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -17,14 +17,15 @@ use crate::dashboard::theme;
 pub fn draw(
     buf: &mut PlayfieldBuffer,
     app: &DashApp,
-    map_frame: MapWidgetFrame,
+    _map_frame: MapWidgetFrame,
     planet_record_index_1_based: usize,
 ) {
     let Some(detail) = planet_detail_for_record(app, planet_record_index_1_based) else {
         return;
     };
 
-    let max_body_width = map_frame.outer.width.saturating_sub(6);
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let max_body_width = max_content_width(parent);
     let lines = popup_lines(&detail.popup_lines, max_body_width);
     let body_width = lines
         .iter()
@@ -33,7 +34,7 @@ pub fn draw(
         .unwrap_or(0);
     let popup = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         "PLANET INFO",
         body_width,
         lines.len(),
@@ -57,7 +58,7 @@ pub fn draw(
 
 pub fn popup_rect(
     app: &DashApp,
-    map_frame: MapWidgetFrame,
+    _map_frame: MapWidgetFrame,
     planet_record_index_1_based: usize,
 ) -> Rect {
     let Some(detail) = planet_detail_for_record(app, planet_record_index_1_based) else {
@@ -73,7 +74,8 @@ pub fn popup_rect(
             }),
         );
     };
-    let max_body_width = map_frame.outer.width.saturating_sub(6);
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let max_body_width = max_content_width(parent);
     let lines = popup_lines(&detail.popup_lines, max_body_width);
     let body_width = lines
         .iter()
@@ -81,7 +83,7 @@ pub fn popup_rect(
         .max()
         .unwrap_or(0);
     overlay_popup_rect_for_body_in_parent(
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         "PLANET INFO",
         body_width,
         lines.len(),

@@ -3180,7 +3180,7 @@ fn tax_prompt_updates_preview_and_hosted_draft() {
     app.initialize_hosted_turn_draft();
     let before_revision = app.game_data_revision;
 
-    app.handle_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('4'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -3194,6 +3194,26 @@ fn tax_prompt_updates_preview_and_hosted_draft() {
         Some(42)
     );
     assert!(app.game_data_revision > before_revision);
+}
+
+#[test]
+fn tax_prompt_wraps_long_status_into_popup_body() {
+    let mut app = dash_app();
+    app.popup = ActivePopup::TaxPrompt;
+    app.tax_prompt_status = Some(format!(
+        "{}{}",
+        "This-tax-status-message-is-deliberately-long-enough-to-wrap-inside-the-popup-body-without-spaces.",
+        "This-tax-status-message-is-deliberately-long-enough-to-wrap-inside-the-popup-body-without-spaces."
+    ));
+    let map_frame = dashboard_layout(&app).widgets.center_map;
+    let popup = app.current_popup_rect(map_frame).expect("tax popup");
+    let buffer = crate::dashboard::app::render::render(&app).expect("dashboard render");
+
+    assert!(popup.height > 7);
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("deliberately-long") || line.contains("popup-body")
+    }));
 }
 
 #[test]

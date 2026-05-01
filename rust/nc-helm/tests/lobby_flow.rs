@@ -173,7 +173,6 @@ fn alt_q_is_ignored_on_resume_unlock_prompt() {
 fn letter_shortcuts_switch_lobby_tabs() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let buffer = app.view();
     assert!(
         buffer
@@ -206,7 +205,6 @@ fn letter_shortcuts_switch_lobby_tabs() {
 fn left_clicking_tab_strip_switches_lobby_tabs() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
 
     let row = 2usize;
     let line = app.view().plain_line(row);
@@ -228,7 +226,6 @@ fn left_clicking_tab_strip_switches_lobby_tabs() {
 fn settings_relay_edit_emits_save_and_reconnect_effects() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('s'))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Char('r'))));
     for _ in 0.."ws://127.0.0.1:8080".chars().count() {
@@ -252,7 +249,6 @@ fn settings_relay_edit_emits_save_and_reconnect_effects() {
 fn alt_q_opens_lobby_quit_confirm_and_y_quits() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
 
     let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
     assert!(effects.is_empty());
@@ -272,7 +268,6 @@ fn lobby_quit_confirm_uses_compact_shared_copy() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
 
     let buffer = app.view();
     let title_row = find_line(&buffer, "QUIT");
@@ -294,7 +289,6 @@ fn lobby_quit_confirm_enter_defaults_to_no() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
     let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
-    let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('q'))));
 
     let effects = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Enter)));
 
@@ -370,7 +364,6 @@ fn enter_on_sandbox_open_game_opens_confirm_then_y_joins() {
 fn alt_r_emits_refresh_effect_from_lobby() {
     let (mut app, _) = App::new(None);
     let _ = app.dispatch(Msg::Unlocked(Ok(dummy_session("captain"))));
-    let _ = app.dispatch(Msg::Key(key(nc_helm::KeyCode::Esc)));
 
     let effects = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('r'))));
     assert!(matches!(effects.as_slice(), [Effect::RefreshLobby]));

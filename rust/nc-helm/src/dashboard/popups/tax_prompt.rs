@@ -1,7 +1,7 @@
 use crate::dashboard::app::state::{ActivePopup, DashApp};
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::{self, MapWidgetFrame, dashboard};
-use crate::dashboard::modal::Rect;
+use crate::dashboard::modal::{Rect, max_content_width, wrap_modal_text_lines};
 use crate::dashboard::overlays::frame::{
     OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
@@ -11,49 +11,40 @@ use crate::dashboard::table::{TableFooter, with_command_line_toast};
 use crate::dashboard::theme;
 
 const TITLE: &str = "TAX RATE";
-const BODY_WIDTH: usize = 44;
-const BODY_HEIGHT: usize = 3;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let lines = popup_lines(app, max_content_width(parent));
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         TITLE,
-        BODY_WIDTH,
-        BODY_HEIGHT,
+        max_line_width(&lines),
+        lines.len(),
         OverlaySizePolicy::default(),
         footer(app),
         app.popup_position_for(ActivePopup::TaxPrompt),
     );
-    let tax = current_tax(app);
-    let lines = [
-        format!("Current empire tax rate: {tax}%"),
-        String::from("Enter 0-100. Rates above 65% can damage production."),
-        app.tax_prompt_status.clone().unwrap_or_default(),
-    ];
     for (idx, line) in lines.into_iter().enumerate().take(frame.body_height) {
-        let style = if idx == 2 {
-            theme::alert_style()
-        } else {
-            theme::value_style()
-        };
         layout::write_clipped(
             buf,
             frame.body_row + idx,
             frame.body_col,
             frame.body_width,
-            &line,
-            style,
+            &line.content,
+            line.style,
         );
     }
 }
 
 pub fn popup_rect(app: &DashApp, _map_frame: MapWidgetFrame) -> Rect {
+    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
+    let lines = popup_lines(app, max_content_width(parent));
     overlay_popup_rect_for_body_in_parent(
-        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        parent,
         TITLE,
-        BODY_WIDTH,
-        BODY_HEIGHT,
+        max_line_width(&lines),
+        lines.len(),
         OverlaySizePolicy::default(),
         footer(app),
         app.popup_position_for(ActivePopup::TaxPrompt),
@@ -78,4 +69,50 @@ fn current_tax(app: &DashApp) -> u8 {
         .get(app.player_record_index_1_based.saturating_sub(1))
         .map(|player| player.tax_rate())
         .unwrap_or(0)
+}
+
+struct PopupLine {
+    content: String,
+    style: crate::dashboard::buffer::CellStyle,
+}
+
+fn popup_lines(app: &DashApp, max_width: usize) -> Vec<PopupLine> {
+    let tax = current_tax(app);
+    let raw = [
+        (
+            format!("Current empire tax rate: {tax}%"),
+            theme::value_style(),
+        ),
+        (
+            String::from("Enter 0-100. Rates above 65% can damage production."),
+            theme::value_style(),
+        ),
+        (
+            app.tax_prompt_status.clone().unwrap_or_default(),
+            theme::alert_style(),
+        ),
+    ];
+    let mut wrapped = Vec::new();
+    for (line, style) in raw {
+        for content in wrap_modal_text_lines(&[line], max_width.max(1)) {
+            wrapped.push(PopupLine { content, style });
+        }
+    }
+    if wrapped.is_empty() {
+        vec![PopupLine {
+            content: String::new(),
+            style: theme::value_style(),
+        }]
+    } else {
+        wrapped
+    }
+}
+
+fn max_line_width(lines: &[PopupLine]) -> usize {
+    lines
+        .iter()
+        .map(|line| line.content.chars().count())
+        .max()
+        .unwrap_or(1)
+        .max(1)
 }
