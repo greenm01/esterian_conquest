@@ -598,7 +598,7 @@ mod tests {
     }
 
     #[test]
-    fn diplomacy_keeps_minimum_visible_rows_at_required_size() {
+    fn diplomacy_widget_uses_actual_visible_relation_rows() {
         let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -619,7 +619,10 @@ mod tests {
         let layout = dashboard_layout(&app);
 
         assert_eq!(layout.frame, required);
-        assert!(layout.widgets.right_diplomacy.body.height >= diplomacy::MIN_BODY_ROWS);
+        assert_eq!(
+            layout.widgets.right_diplomacy.body.height,
+            diplomacy::body_rows(&app).len()
+        );
         assert!(layout.widgets.left_war_record.body.height >= war_record::MIN_BODY_ROWS);
     }
 

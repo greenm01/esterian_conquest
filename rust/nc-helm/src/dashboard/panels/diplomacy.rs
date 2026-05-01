@@ -9,7 +9,7 @@ use crate::dashboard::theme;
 use nc_data::EmpireProductionRankingSort;
 
 pub(crate) const TITLE: &str = "DIPLOMACY";
-pub(crate) const MIN_BODY_ROWS: usize = 4;
+pub(crate) const MIN_BODY_ROWS: usize = 1;
 const CP_WIDTH: usize = 5;
 
 #[derive(Debug, Clone)]
@@ -229,7 +229,7 @@ mod tests {
     fn preferred_width_stays_above_minimum() {
         let app = dash_app();
         assert!(preferred_body_width(&app) >= minimum_body_width(&app));
-        assert_eq!(MIN_BODY_ROWS, 4);
+        assert_eq!(MIN_BODY_ROWS, 1);
     }
 
     #[test]
