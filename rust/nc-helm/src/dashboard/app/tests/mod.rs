@@ -1389,6 +1389,12 @@ fn fleet_list_enter_on_fleet_opens_review_and_escape_returns_to_list() {
         FleetOverlayRowKey::Fleet(record) => record,
         FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
     };
+    {
+        let fleet = &mut app.game_data.fleets.records[record - 1];
+        fleet.set_troop_transport_count(3);
+        fleet.set_army_count(2);
+        fleet.recompute_max_speed_from_composition();
+    }
 
     app.handle_key(key(KeyCode::Enter));
 
@@ -1408,12 +1414,33 @@ fn fleet_list_enter_on_fleet_opens_review_and_escape_returns_to_list() {
     assert!(!lines.iter().any(|line| line.contains("FLEET LIST:")));
     assert!(!lines.iter().any(|line| line.contains("Fleet ID")));
     assert!(!lines.iter().any(|line| line.contains("Standing Order")));
-    let location_line = render_dashboard_line(&app, "Location");
-    let speed_line = render_dashboard_line(&app, "Current / Max Speed");
-    let orders_line = render_dashboard_line(&app, "Orders");
-    let target_line = render_dashboard_line(&app, "Target");
-    assert_eq!(location_line.find(" : "), speed_line.find(" : "));
+    assert!(
+        !lines
+            .iter()
+            .any(|line| line.contains("Current / Max Speed"))
+    );
+    assert!(
+        !lines
+            .iter()
+            .any(|line| line.contains("Rules of Engagement"))
+    );
+    assert!(!lines.iter().any(|line| line.contains("Composition")));
+    let location_line = render_fleet_detail_popup_line(&app, "Location");
+    let current_speed_line = render_fleet_detail_popup_line(&app, "Speed");
+    let max_speed_line = render_fleet_detail_popup_line(&app, "Max Speed");
+    let roe_line = render_fleet_detail_popup_line(&app, "ROE");
+    let orders_line = render_fleet_detail_popup_line(&app, "Orders");
+    let target_line = render_fleet_detail_popup_line(&app, "Target");
+    let ships_line = render_fleet_detail_popup_line(&app, "Ships");
+    let armies_line = render_fleet_detail_popup_line(&app, "Armies");
+    assert!(ships_line.contains("TT*"), "{ships_line}");
+    assert!(armies_line.contains("2"), "{armies_line}");
+    assert_eq!(location_line.find(" : "), current_speed_line.find(" : "));
+    assert_eq!(current_speed_line.find(" : "), max_speed_line.find(" : "));
+    assert_eq!(max_speed_line.find(" : "), roe_line.find(" : "));
     assert_eq!(orders_line.find(" : "), target_line.find(" : "));
+    assert_eq!(target_line.find(" : "), ships_line.find(" : "));
+    assert_eq!(ships_line.find(" : "), armies_line.find(" : "));
 
     app.handle_key(key(KeyCode::Esc));
 
@@ -4140,6 +4167,31 @@ fn render_planet_detail_popup_line(app: &DashApp, needle: &str) -> String {
         .map(|row| buffer.plain_line(row))
         .find(|line| line.contains(needle))
         .expect("planet detail popup line")
+}
+
+fn render_fleet_detail_popup_line(app: &DashApp, needle: &str) -> String {
+    let layout = dashboard_layout(app);
+    let mut buffer = PlayfieldBuffer::new(
+        app.geometry.width(),
+        app.geometry.height(),
+        crate::dashboard::theme::body_style(),
+    );
+    let fleet_record_index_1_based = match app.popup {
+        ActivePopup::FleetDetail {
+            fleet_record_index_1_based,
+        } => fleet_record_index_1_based,
+        other => panic!("expected fleet detail popup, got {other:?}"),
+    };
+    crate::dashboard::popups::fleet_detail::draw(
+        &mut buffer,
+        app,
+        layout.widgets.center_map,
+        fleet_record_index_1_based,
+    );
+    (0..buffer.height())
+        .map(|row| buffer.plain_line(row))
+        .find(|line| line.contains(needle))
+        .expect("fleet detail popup line")
 }
 
 fn render_dashboard_line(app: &DashApp, needle: &str) -> String {

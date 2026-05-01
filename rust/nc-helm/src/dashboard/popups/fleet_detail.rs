@@ -108,11 +108,15 @@ fn detail_lines(app: &DashApp, fleet_record_index_1_based: usize) -> Option<Vec<
             value: format_sector_coords_table(row.coords),
         },
         DetailLine {
-            label: "Current / Max Speed",
-            value: format!("{}/{}", row.current_speed, fleet.max_speed()),
+            label: "Speed",
+            value: row.current_speed.to_string(),
         },
         DetailLine {
-            label: "Rules of Engagement",
+            label: "Max Speed",
+            value: fleet.max_speed().to_string(),
+        },
+        DetailLine {
+            label: "ROE",
             value: row.roe.to_string(),
         },
         DetailLine {
@@ -124,8 +128,12 @@ fn detail_lines(app: &DashApp, fleet_record_index_1_based: usize) -> Option<Vec<
             value: format_sector_coords_table(row.target_coords),
         },
         DetailLine {
-            label: "Composition",
+            label: "Ships",
             value: fleet.ship_composition_table_summary(),
+        },
+        DetailLine {
+            label: "Armies",
+            value: row.loaded_armies.to_string(),
         },
     ])
 }
