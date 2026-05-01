@@ -11,7 +11,7 @@ use super::input::{Action, key_to_action};
 use super::state;
 use super::state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
-    FleetOverlayPromptMode, HelpContext, MapViewMode, OwnedPlanetPopupMode,
+    FleetOverlayPromptMode, HelpContext, IntelOverlayPromptMode, MapViewMode, OwnedPlanetPopupMode,
     PlanetOverlayPromptMode,
 };
 use super::{COMMAND_LINE_TOAST_STEP, map_coord_rows, parse_table_coord};
@@ -243,11 +243,7 @@ impl DashApp {
             self.open_quit_confirm();
             return;
         }
-        if self.overlay == ActiveOverlay::PlanetList
-            && self.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None
-            && matches!(self.popup, ActivePopup::OwnedPlanet { .. })
-            && self.handle_popup_key(key)
-        {
+        if self.caller_overlay_popup_has_key_priority() && self.handle_popup_key(key) {
             return;
         }
         if self.overlay != ActiveOverlay::None && self.handle_overlay_key(key) {
@@ -270,6 +266,25 @@ impl DashApp {
         }
         self.apply_action(action);
         self.normalize_table_overlay_filters();
+    }
+
+    fn caller_overlay_popup_has_key_priority(&self) -> bool {
+        let popup_over_caller = matches!(
+            self.popup,
+            ActivePopup::OwnedPlanet { .. } | ActivePopup::PlanetDetail { .. }
+        );
+        if !popup_over_caller {
+            return false;
+        }
+        match self.overlay {
+            ActiveOverlay::PlanetList => {
+                self.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None
+            }
+            ActiveOverlay::IntelDatabase => {
+                self.intel_overlay.prompt_mode == IntelOverlayPromptMode::None
+            }
+            _ => false,
+        }
     }
 
     pub(super) fn apply_action(&mut self, action: Action) {

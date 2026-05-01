@@ -948,6 +948,7 @@ impl DashApp {
         match key.code {
             KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabase),
+            KeyCode::Enter => self.open_selected_intel_planet_popup(),
             KeyCode::Char('f') | KeyCode::Char('F') => {
                 self.intel_overlay
                     .open_prompt(IntelOverlayPromptMode::FilterMenu);
@@ -985,6 +986,31 @@ impl DashApp {
                     total_rows,
                 );
             }
+        }
+    }
+
+    fn open_selected_intel_planet_popup(&mut self) {
+        let Some(row) = intel_database::table_rows(self)
+            .get(self.intel_overlay.selected)
+            .cloned()
+        else {
+            return;
+        };
+        let owner = self
+            .game_data
+            .planets
+            .records
+            .get(row.planet_record_index_1_based.saturating_sub(1))
+            .map(|planet| planet.owner_empire_slot_raw())
+            .unwrap_or(0);
+        if owner == self.player_record_index_1_based as u8 {
+            self.open_owned_planet_popup(row.planet_record_index_1_based);
+        } else {
+            self.popup_position = None;
+            self.mouse_gesture = ActiveMouseGesture::None;
+            self.popup = state::ActivePopup::PlanetDetail {
+                planet_record_index_1_based: row.planet_record_index_1_based,
+            };
         }
     }
 

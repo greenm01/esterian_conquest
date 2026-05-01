@@ -1322,6 +1322,55 @@ fn nested_intel_filter_modals_unwind_one_level_at_a_time() {
 }
 
 #[test]
+fn intel_database_enter_on_owned_planet_opens_status_and_escape_returns_to_database() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::IntelDatabase;
+    let record = first_owned_planet_record_index(&app);
+    select_intel_row_by_record(&mut app, record);
+
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+    assert_eq!(
+        app.popup,
+        ActivePopup::OwnedPlanet {
+            planet_record_index_1_based: record
+        }
+    );
+    assert!(render_dashboard_line(&app, "PLANET STATUS").contains("PLANET STATUS"));
+
+    app.handle_key(key(KeyCode::Esc));
+
+    assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+    assert_eq!(app.popup, ActivePopup::None);
+}
+
+#[test]
+fn intel_database_enter_on_non_owned_planet_opens_info_and_escape_returns_to_database() {
+    let mut app = dash_app();
+    app.planet_intel_snapshots = view_world_audit_snapshots(&app.game_data, 1);
+    app.overlay = ActiveOverlay::IntelDatabase;
+    let record = first_non_owned_planet_record_index(&app);
+    select_intel_row_by_record(&mut app, record);
+
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+    assert_eq!(
+        app.popup,
+        ActivePopup::PlanetDetail {
+            planet_record_index_1_based: record
+        }
+    );
+    assert!(render_dashboard_line(&app, "PLANET INFO").contains("PLANET INFO"));
+
+    app.handle_key(key(KeyCode::Esc));
+
+    assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+    assert_eq!(app.popup, ActivePopup::None);
+}
+
+#[test]
 fn fleet_filter_prompt_accepts_unique_prefix_and_reports_ambiguity_inline() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::FleetList;
@@ -3659,11 +3708,46 @@ fn first_owned_planet_coords(app: &DashApp) -> [u8; 2] {
         .expect("owned planet")
 }
 
+fn first_owned_planet_record_index(app: &DashApp) -> usize {
+    app.game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| {
+            planet.owner_empire_slot_raw() as usize == app.player_record_index_1_based
+                && planet.coords_raw() != [0, 0]
+        })
+        .map(|(idx, _)| idx + 1)
+        .expect("owned planet")
+}
+
+fn first_non_owned_planet_record_index(app: &DashApp) -> usize {
+    app.game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| {
+            planet.owner_empire_slot_raw() as usize != app.player_record_index_1_based
+                && planet.coords_raw() != [0, 0]
+        })
+        .map(|(idx, _)| idx + 1)
+        .expect("non-owned planet")
+}
+
 fn selected_planet_record_index(app: &DashApp) -> usize {
     planet_list::table_rows(app)
         .get(app.planet_overlay.selected)
         .map(|row| row.planet_record_index_1_based)
         .expect("selected planet row")
+}
+
+fn select_intel_row_by_record(app: &mut DashApp, record: usize) {
+    app.intel_overlay.selected = intel_database::table_rows(app)
+        .iter()
+        .position(|row| row.planet_record_index_1_based == record)
+        .expect("intel row");
 }
 
 fn select_planet_row_by_record(app: &mut DashApp, record: usize) {

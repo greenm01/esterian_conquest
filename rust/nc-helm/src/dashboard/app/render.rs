@@ -8,7 +8,8 @@ use crate::dashboard::layout::widgets::WidgetRect;
 
 use crate::dashboard::app::panel_cache::CachedPanel;
 use crate::dashboard::app::state::{
-    ActiveOverlay, ActivePopup, DashApp, MapViewMode, PlanetOverlayPromptMode,
+    ActiveOverlay, ActivePopup, DashApp, IntelOverlayPromptMode, MapViewMode,
+    PlanetOverlayPromptMode,
 };
 use crate::dashboard::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
@@ -406,12 +407,27 @@ fn draw_dynamic_layer(
         render_quit_confirm(buf, app, widgets.center_map);
         return;
     }
-    if app.overlay == ActiveOverlay::None
-        || (app.overlay == ActiveOverlay::PlanetList
-            && app.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None
-            && matches!(app.popup, ActivePopup::OwnedPlanet { .. }))
-    {
+    if app.overlay == ActiveOverlay::None || caller_overlay_popup_is_visible(app) {
         draw_popup_layer(buf, app, widgets.center_map);
+    }
+}
+
+fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {
+    let popup_over_caller = matches!(
+        app.popup,
+        ActivePopup::OwnedPlanet { .. } | ActivePopup::PlanetDetail { .. }
+    );
+    if !popup_over_caller {
+        return false;
+    }
+    match app.overlay {
+        ActiveOverlay::PlanetList => {
+            app.planet_overlay.prompt_mode == PlanetOverlayPromptMode::None
+        }
+        ActiveOverlay::IntelDatabase => {
+            app.intel_overlay.prompt_mode == IntelOverlayPromptMode::None
+        }
+        _ => false,
     }
 }
 
