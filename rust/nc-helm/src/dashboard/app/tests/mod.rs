@@ -1338,6 +1338,11 @@ fn intel_database_enter_on_owned_planet_opens_status_and_escape_returns_to_datab
         }
     );
     assert!(render_dashboard_line(&app, "PLANET STATUS").contains("PLANET STATUS"));
+    assert!(
+        !render_dashboard_lines(&app)
+            .iter()
+            .any(|line| line.contains("TOTAL PLANET DATABASE:"))
+    );
 
     app.handle_key(key(KeyCode::Esc));
 
@@ -1363,6 +1368,11 @@ fn intel_database_enter_on_non_owned_planet_opens_info_and_escape_returns_to_dat
         }
     );
     assert!(render_dashboard_line(&app, "PLANET INFO").contains("PLANET INFO"));
+    assert!(
+        !render_dashboard_lines(&app)
+            .iter()
+            .any(|line| line.contains("TOTAL PLANET DATABASE:"))
+    );
 
     app.handle_key(key(KeyCode::Esc));
 
@@ -2351,6 +2361,29 @@ fn clicking_quit_confirm_close_button_restores_underlying_popup() {
 }
 
 #[test]
+fn clicking_quit_confirm_close_button_restores_underlying_overlay() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::Settings;
+    app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
+    let map_frame = dashboard_layout(&app).widgets.center_map;
+    let popup = app
+        .current_popup_rect(map_frame)
+        .expect("quit confirm popup");
+    let close_col =
+        crate::dashboard::modal::modal_close_button_col(popup).expect("popup close col");
+
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        close_col,
+        popup.y,
+    ));
+
+    assert_eq!(app.overlay, ActiveOverlay::Settings);
+    assert_eq!(app.popup, ActivePopup::None);
+    assert!(render_dashboard_line(&app, "SETTINGS").contains("SETTINGS"));
+}
+
+#[test]
 fn fleet_helper_modal_rect_is_draggable_surface() {
     let mut app = dash_app();
     app.overlay = ActiveOverlay::FleetList;
@@ -2700,6 +2733,11 @@ fn planet_list_enter_opens_status_and_escape_returns_to_table() {
         }
     );
     assert!(render_dashboard_line(&app, "PLANET STATUS").contains("PLANET STATUS"));
+    assert!(
+        !render_dashboard_lines(&app)
+            .iter()
+            .any(|line| line.contains("PLANET LIST:"))
+    );
 
     app.handle_key(key(KeyCode::Esc));
 
@@ -4277,6 +4315,17 @@ fn quit_confirm_renders_over_active_overlay() {
     assert_eq!(app.overlay, ActiveOverlay::Settings);
     assert_eq!(app.popup, ActivePopup::QuitConfirm);
     assert!(render_dashboard_line(&app, "┐QUIT┌").contains("┐QUIT┌"));
+    assert!(
+        !render_dashboard_lines(&app)
+            .iter()
+            .any(|line| line.contains("SETTINGS"))
+    );
+
+    app.dispatch_key_event(key(KeyCode::Esc));
+
+    assert_eq!(app.overlay, ActiveOverlay::Settings);
+    assert_eq!(app.popup, ActivePopup::None);
+    assert!(render_dashboard_line(&app, "SETTINGS").contains("SETTINGS"));
 }
 
 #[test]
@@ -4287,6 +4336,12 @@ fn quit_confirm_cancel_restores_underlying_popup() {
     };
 
     app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
+    assert!(render_dashboard_line(&app, "┐QUIT┌").contains("┐QUIT┌"));
+    assert!(
+        !render_dashboard_lines(&app)
+            .iter()
+            .any(|line| line.contains("PLANET INFO"))
+    );
     app.dispatch_key_event(key(KeyCode::Enter));
 
     assert_eq!(

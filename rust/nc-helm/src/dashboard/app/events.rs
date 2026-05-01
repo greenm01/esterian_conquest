@@ -270,6 +270,9 @@ impl DashApp {
     }
 
     fn caller_overlay_popup_has_key_priority(&self) -> bool {
+        if self.popup == ActivePopup::QuitConfirm {
+            return true;
+        }
         let popup_over_caller = matches!(
             self.popup,
             ActivePopup::OwnedPlanet { .. }

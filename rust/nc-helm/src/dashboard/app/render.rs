@@ -413,10 +413,10 @@ fn draw_dynamic_layer(
 }
 
 fn caller_overlay_is_hidden_by_popup(app: &DashApp) -> bool {
-    matches!(
-        (app.overlay, app.popup),
-        (ActiveOverlay::FleetList, ActivePopup::FleetDetail { .. })
-    )
+    if app.popup == ActivePopup::QuitConfirm {
+        return app.overlay != ActiveOverlay::None;
+    }
+    caller_overlay_popup_is_visible(app)
 }
 
 fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {
