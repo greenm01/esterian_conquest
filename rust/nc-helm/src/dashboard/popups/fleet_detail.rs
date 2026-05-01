@@ -104,10 +104,6 @@ fn detail_lines(app: &DashApp, fleet_record_index_1_based: usize) -> Option<Vec<
         .find(|row| row.key == FleetOverlayRowKey::Fleet(fleet_record_index_1_based))?;
     Some(vec![
         DetailLine {
-            label: "Fleet ID",
-            value: row.id_label,
-        },
-        DetailLine {
             label: "Location",
             value: format_sector_coords_table(row.coords),
         },
@@ -120,8 +116,12 @@ fn detail_lines(app: &DashApp, fleet_record_index_1_based: usize) -> Option<Vec<
             value: row.roe.to_string(),
         },
         DetailLine {
-            label: "Standing Order",
-            value: fleet.standing_order_summary(),
+            label: "Orders",
+            value: fleet_list::fleet_table_order_label(row.order).to_string(),
+        },
+        DetailLine {
+            label: "Target",
+            value: format_sector_coords_table(row.target_coords),
         },
         DetailLine {
             label: "Composition",
@@ -131,17 +131,14 @@ fn detail_lines(app: &DashApp, fleet_record_index_1_based: usize) -> Option<Vec<
 }
 
 fn popup_title(app: &DashApp, fleet_record_index_1_based: usize) -> String {
-    let rows = fleet_list::table_rows(app);
-    let total = rows
-        .iter()
-        .filter(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
-        .count();
-    let position = rows
-        .iter()
-        .filter(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
-        .position(|row| row.key == FleetOverlayRowKey::Fleet(fleet_record_index_1_based));
-    match (position, total) {
-        (Some(position), total) if total > 0 => format!("REVIEW FLEET {}/{}", position + 1, total),
-        _ => "REVIEW FLEET".to_string(),
+    let Some(row) = fleet_list::table_rows(app)
+        .into_iter()
+        .find(|row| row.key == FleetOverlayRowKey::Fleet(fleet_record_index_1_based))
+    else {
+        return "REVIEW FLEET".to_string();
+    };
+    match row.id_label.is_empty() {
+        true => "REVIEW FLEET".to_string(),
+        false => format!("REVIEW FLEET {}", row.id_label),
     }
 }

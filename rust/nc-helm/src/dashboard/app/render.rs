@@ -397,7 +397,7 @@ fn draw_dynamic_layer(
     widgets: crate::dashboard::layout::DashboardWidgetFrames,
 ) {
     let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
-    if underlay != ActiveOverlay::None {
+    if underlay != ActiveOverlay::None && !caller_overlay_is_hidden_by_popup(app) {
         draw_non_help_overlay(buf, app, widgets.center_map, underlay);
     }
     if app.overlay == ActiveOverlay::Help {
@@ -410,6 +410,13 @@ fn draw_dynamic_layer(
     if app.overlay == ActiveOverlay::None || caller_overlay_popup_is_visible(app) {
         draw_popup_layer(buf, app, widgets.center_map);
     }
+}
+
+fn caller_overlay_is_hidden_by_popup(app: &DashApp) -> bool {
+    matches!(
+        (app.overlay, app.popup),
+        (ActiveOverlay::FleetList, ActivePopup::FleetDetail { .. })
+    )
 }
 
 fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {

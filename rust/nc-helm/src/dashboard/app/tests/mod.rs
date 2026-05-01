@@ -1383,16 +1383,27 @@ fn fleet_list_enter_on_fleet_opens_review_and_escape_returns_to_list() {
     app.handle_key(key(KeyCode::Enter));
 
     assert_eq!(app.overlay, ActiveOverlay::FleetList);
+    let fleet_number = app.game_data.fleets.records[record - 1].local_slot_word_raw();
     assert_eq!(
         app.popup,
         ActivePopup::FleetDetail {
             fleet_record_index_1_based: record
         }
     );
-    assert!(render_dashboard_line(&app, "REVIEW FLEET").contains("REVIEW FLEET"));
-    let fleet_line = render_dashboard_line(&app, "Fleet ID");
+    assert!(
+        render_dashboard_line(&app, &format!("REVIEW FLEET {fleet_number}"))
+            .contains(&format!("REVIEW FLEET {fleet_number}"))
+    );
+    let lines = render_dashboard_lines(&app);
+    assert!(!lines.iter().any(|line| line.contains("FLEET LIST:")));
+    assert!(!lines.iter().any(|line| line.contains("Fleet ID")));
+    assert!(!lines.iter().any(|line| line.contains("Standing Order")));
     let location_line = render_dashboard_line(&app, "Location");
-    assert_eq!(fleet_line.find(" : "), location_line.find(" : "));
+    let speed_line = render_dashboard_line(&app, "Current / Max Speed");
+    let orders_line = render_dashboard_line(&app, "Orders");
+    let target_line = render_dashboard_line(&app, "Target");
+    assert_eq!(location_line.find(" : "), speed_line.find(" : "));
+    assert_eq!(orders_line.find(" : "), target_line.find(" : "));
 
     app.handle_key(key(KeyCode::Esc));
 
@@ -4094,11 +4105,17 @@ fn render_planet_detail_popup_line(app: &DashApp, needle: &str) -> String {
 }
 
 fn render_dashboard_line(app: &DashApp, needle: &str) -> String {
+    render_dashboard_lines(app)
+        .into_iter()
+        .find(|line| line.contains(needle))
+        .expect("dashboard line")
+}
+
+fn render_dashboard_lines(app: &DashApp) -> Vec<String> {
     let buffer = crate::dashboard::app::render::render(app).expect("dashboard render");
     (0..buffer.height())
         .map(|row| buffer.plain_line(row))
-        .find(|line| line.contains(needle))
-        .expect("dashboard line")
+        .collect()
 }
 
 fn render_intel_footer_line(app: &DashApp, needle: &str) -> String {
