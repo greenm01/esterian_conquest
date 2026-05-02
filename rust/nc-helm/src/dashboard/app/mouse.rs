@@ -136,7 +136,7 @@ impl DashApp {
             MouseEventKind::Drag(MouseButton::Left) => {
                 if self.popup != ActivePopup::None || self.overlay != ActiveOverlay::None {
                     self.handle_mouse_move(mouse, modal_parent);
-                } else if self.client_settings.follow_mouse_on_map {
+                } else {
                     self.handle_map_hover(mouse, map_frame);
                 }
             }
@@ -145,9 +145,7 @@ impl DashApp {
                     self.mouse_gesture = ActiveMouseGesture::None;
                     return;
                 }
-                if self.client_settings.follow_mouse_on_map {
-                    self.handle_map_hover(mouse, map_frame);
-                }
+                self.handle_map_hover(mouse, map_frame);
             }
             MouseEventKind::Drag(MouseButton::Middle) => {
                 if let ActiveMouseGesture::DraggingStarmap {
@@ -309,8 +307,8 @@ impl DashApp {
                         self.intel_overlay.scroll.min(self.intel_overlay.selected);
                 }
             }
-            ActiveOverlay::Settings | ActiveOverlay::Help => {
-                debug!("handle_overlay_scroll: Settings/Help no-op");
+            ActiveOverlay::Help => {
+                debug!("handle_overlay_scroll: Help no-op");
             }
             ActiveOverlay::None => {
                 debug!("handle_overlay_scroll: overlay=None");
@@ -604,9 +602,6 @@ impl DashApp {
             ActiveOverlay::IntelDatabase => Some(intel_database::popup_rect(self, map_frame)),
             ActiveOverlay::Inbox => Some(inbox::popup_rect(self, map_frame)),
             ActiveOverlay::Diplomacy => Some(crate::dashboard::overlays::diplomacy::popup_rect(
-                self, map_frame,
-            )),
-            ActiveOverlay::Settings => Some(crate::dashboard::overlays::settings::popup_rect(
                 self, map_frame,
             )),
             ActiveOverlay::Help => Some(crate::dashboard::overlays::help::popup_rect(

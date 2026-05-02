@@ -2,8 +2,8 @@ use super::{map_coord_rows, parse_table_coord};
 use crate::dashboard::app::state::{
     ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest, FleetOrderScope, FleetOverlayFilter,
     FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext, IntelOverlayFilter,
-    IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, OwnedPlanetPopupMode,
-    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
+    IntelOverlayPromptMode, IntelOverlaySort, OwnedPlanetPopupMode, PlanetOverlayFilter,
+    PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
 };
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::geometry::ScreenGeometry;
@@ -152,37 +152,6 @@ fn dashboard_actions_clear_partial_map_coord_input() {
     ));
 
     assert!(app.map_coord_input.is_empty());
-}
-
-#[test]
-fn map_view_mode_key_toggles_readable_and_fill() {
-    let mut app = dash_app();
-
-    assert_eq!(app.map_view_mode, MapViewMode::Readable);
-    app.handle_key(KeyEvent::new(
-        KeyCode::Char('v'),
-        crate::dashboard::input::KeyModifiers::NONE,
-    ));
-    assert_eq!(app.map_view_mode, MapViewMode::Fill);
-    app.handle_key(KeyEvent::new(
-        KeyCode::Char('v'),
-        crate::dashboard::input::KeyModifiers::NONE,
-    ));
-    assert_eq!(app.map_view_mode, MapViewMode::Readable);
-}
-
-#[test]
-fn toggling_map_view_rechecks_too_small_state() {
-    let mut app = dash_app();
-    app.geometry = ScreenGeometry::new(40, 20);
-    app.is_terminal_too_small = false;
-
-    app.handle_key(KeyEvent::new(
-        KeyCode::Char('v'),
-        crate::dashboard::input::KeyModifiers::NONE,
-    ));
-
-    assert!(app.is_terminal_too_small);
 }
 
 #[test]
@@ -2390,7 +2359,7 @@ fn clicking_quit_confirm_close_button_restores_underlying_popup() {
 #[test]
 fn clicking_quit_confirm_close_button_restores_underlying_overlay() {
     let mut app = dash_app();
-    app.overlay = ActiveOverlay::Settings;
+    app.overlay = ActiveOverlay::FleetList;
     app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
     let map_frame = dashboard_layout(&app).widgets.center_map;
     let popup = app
@@ -2405,9 +2374,9 @@ fn clicking_quit_confirm_close_button_restores_underlying_overlay() {
         popup.y,
     ));
 
-    assert_eq!(app.overlay, ActiveOverlay::Settings);
+    assert_eq!(app.overlay, ActiveOverlay::FleetList);
     assert_eq!(app.popup, ActivePopup::None);
-    assert!(render_dashboard_line(&app, "SETTINGS").contains("SETTINGS"));
+    assert!(render_dashboard_line(&app, "FLEET LIST").contains("FLEET LIST"));
 }
 
 #[test]
@@ -2551,8 +2520,7 @@ fn hovering_visible_sector_moves_crosshair() {
 #[test]
 fn dispatch_mouse_move_without_visible_change_reports_no_redraw() {
     let mut app = dash_app();
-    app.client_settings.follow_mouse_on_map = false;
-    let target = first_empty_sector_coords(&app);
+    let target = [app.crosshair_x, app.crosshair_y];
     let (column, row) = screen_point_for_sector(&app, target);
 
     assert!(!app.dispatch_mouse_event(mouse(MouseEventKind::Moved, column, row)));
@@ -2565,19 +2533,6 @@ fn dispatch_mouse_move_with_crosshair_change_reports_redraw() {
     let (column, row) = screen_point_for_sector(&app, target);
 
     assert!(app.dispatch_mouse_event(mouse(MouseEventKind::Moved, column, row)));
-}
-
-#[test]
-fn hovering_visible_sector_does_not_move_crosshair_when_hover_follow_is_disabled() {
-    let mut app = dash_app();
-    let starting = [app.crosshair_x, app.crosshair_y];
-    let target = first_empty_sector_coords(&app);
-    let (column, row) = screen_point_for_sector(&app, target);
-    app.client_settings.follow_mouse_on_map = false;
-
-    app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
-
-    assert_eq!([app.crosshair_x, app.crosshair_y], starting);
 }
 
 #[test]
@@ -2594,17 +2549,6 @@ fn moving_mouse_outside_map_widget_resets_crosshair_to_homeworld() {
     app.handle_mouse(mouse(MouseEventKind::Moved, outside.0, outside.1));
 
     assert_eq!([app.crosshair_x, app.crosshair_y], homeworld);
-}
-
-#[test]
-fn settings_overlay_toggle_keys_update_client_settings() {
-    let mut app = dash_app();
-    app.overlay = ActiveOverlay::Settings;
-
-    app.handle_key(key(KeyCode::Char('m')));
-
-    assert!(!app.client_settings.follow_mouse_on_map);
-    assert_eq!(app.overlay, ActiveOverlay::Settings);
 }
 
 #[test]
@@ -4305,33 +4249,6 @@ fn render_intel_title_line(app: &DashApp, needle: &str) -> String {
         .expect("intel title")
 }
 
-fn render_settings_line(app: &DashApp, needle: &str) -> String {
-    let layout = dashboard_layout(app);
-    let mut buffer = PlayfieldBuffer::new(
-        app.geometry.width(),
-        app.geometry.height(),
-        crate::dashboard::theme::body_style(),
-    );
-    crate::dashboard::overlays::settings::draw(&mut buffer, app, layout.widgets.center_map);
-    (0..buffer.height())
-        .map(|row| buffer.plain_line(row))
-        .find(|line| line.contains(needle))
-        .expect("settings line")
-}
-
-fn render_settings_contains(app: &DashApp, needle: &str) -> bool {
-    let layout = dashboard_layout(app);
-    let mut buffer = PlayfieldBuffer::new(
-        app.geometry.width(),
-        app.geometry.height(),
-        crate::dashboard::theme::body_style(),
-    );
-    crate::dashboard::overlays::settings::draw(&mut buffer, app, layout.widgets.center_map);
-    (0..buffer.height())
-        .map(|row| buffer.plain_line(row))
-        .any(|line| line.contains(needle))
-}
-
 fn render_diplomacy_overlay_lines(app: &DashApp) -> Vec<String> {
     let layout = dashboard_layout(app);
     let mut buffer = PlayfieldBuffer::new(
@@ -4359,23 +4276,11 @@ fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
 }
 
 #[test]
-fn settings_status_uses_command_line_toast_instead_of_body_row() {
-    let mut app = dash_app();
-    app.overlay = ActiveOverlay::Settings;
-    app.settings_overlay.status_message = Some("Saved local settings".to_string());
-
-    assert!(
-        render_settings_line(&app, "Saved local settings")
-            .contains("COMMAND <- Saved local settings")
-    );
-}
-
-#[test]
 fn command_line_toast_clears_after_one_second() {
     let mut app = dash_app();
     let now = Instant::now();
-    app.overlay = ActiveOverlay::Settings;
-    app.settings_overlay.status_message = Some("Saved local settings".to_string());
+    app.overlay = ActiveOverlay::PlanetList;
+    app.planet_overlay.footer_notice = Some("Saved local settings".to_string());
 
     assert!(app.update_command_line_toast_state(now));
     assert_eq!(
@@ -4383,25 +4288,24 @@ fn command_line_toast_clears_after_one_second() {
         Some(now + Duration::from_secs(1))
     );
     assert_eq!(
-        app.settings_overlay.status_message.as_deref(),
+        app.planet_overlay.footer_notice.as_deref(),
         Some("Saved local settings")
     );
 
     assert!(app.update_command_line_toast_state(now + Duration::from_secs(1)));
-    assert_eq!(app.settings_overlay.status_message, None);
-    assert!(!render_settings_contains(&app, "Saved local settings"));
+    assert_eq!(app.planet_overlay.footer_notice, None);
 }
 
 #[test]
 fn command_line_toast_key_dismissal_still_runs_normal_action() {
     let mut app = dash_app();
-    app.overlay = ActiveOverlay::Settings;
-    app.settings_overlay.status_message = Some("Saved local settings".to_string());
+    app.overlay = ActiveOverlay::PlanetList;
+    app.planet_overlay.footer_notice = Some("Saved local settings".to_string());
 
     app.dispatch_key_event(key(KeyCode::Esc));
 
     assert_eq!(app.overlay, ActiveOverlay::None);
-    assert_eq!(app.settings_overlay.status_message, None);
+    assert_eq!(app.planet_overlay.footer_notice, None);
 }
 
 #[test]
@@ -4442,24 +4346,24 @@ fn alt_q_opens_quit_confirm_popup() {
 #[test]
 fn quit_confirm_renders_over_active_overlay() {
     let mut app = dash_app();
-    app.overlay = ActiveOverlay::Settings;
+    app.overlay = ActiveOverlay::FleetList;
 
     app.dispatch_key_event(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT));
 
-    assert_eq!(app.overlay, ActiveOverlay::Settings);
+    assert_eq!(app.overlay, ActiveOverlay::FleetList);
     assert_eq!(app.popup, ActivePopup::QuitConfirm);
     assert!(render_dashboard_line(&app, "┐QUIT┌").contains("┐QUIT┌"));
     assert!(
         !render_dashboard_lines(&app)
             .iter()
-            .any(|line| line.contains("SETTINGS"))
+            .any(|line| line.contains("FLEET LIST"))
     );
 
     app.dispatch_key_event(key(KeyCode::Esc));
 
-    assert_eq!(app.overlay, ActiveOverlay::Settings);
+    assert_eq!(app.overlay, ActiveOverlay::FleetList);
     assert_eq!(app.popup, ActivePopup::None);
-    assert!(render_dashboard_line(&app, "SETTINGS").contains("SETTINGS"));
+    assert!(render_dashboard_line(&app, "FLEET LIST").contains("FLEET LIST"));
 }
 
 #[test]

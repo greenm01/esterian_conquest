@@ -91,18 +91,6 @@ impl DashApp {
                 self.handle_inbox_overlay_key(key);
                 true
             }
-            ActiveOverlay::Settings => {
-                if self.handle_overlay_close_or_help(key, HelpContext::Settings) {
-                    return true;
-                }
-                match key.code {
-                    KeyCode::Char('m') | KeyCode::Char('M') => {
-                        self.toggle_follow_mouse_on_map_setting();
-                    }
-                    _ => {}
-                }
-                true
-            }
             ActiveOverlay::Help => {
                 let _ = key;
                 self.close_active_overlay();
@@ -143,9 +131,6 @@ impl DashApp {
             if self.overlay == ActiveOverlay::FleetList {
                 self.fleet_overlay.clear_group_selection();
                 self.fleet_overlay.clear_transient_location_filter();
-            }
-            if self.overlay == ActiveOverlay::Settings {
-                self.clear_settings_status();
             }
             self.overlay = ActiveOverlay::None;
             self.overlay_position = None;

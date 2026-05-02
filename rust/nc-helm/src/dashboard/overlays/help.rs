@@ -74,7 +74,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("T", "Open Total Planet Database"),
             ("R", "Open Inbox"),
             ("D", "Open Diplomacy"),
-            ("S", "Open Settings"),
             ("Alt-Q", "Return to lobby"),
             ("?", "Open this helper"),
             ("Tab", "Cycle dashboard focus"),
@@ -85,12 +84,11 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("+", "Zoom the map in"),
             ("-", "Zoom the map out"),
             ("Z", "Reset the map zoom for the current view mode"),
-            ("V", "Toggle readable and fill map view"),
             (
                 "Viewport",
                 "Small terminals auto-clip the map around the crosshair",
             ),
-            ("Mouse", "Hover-follow can be toggled in Settings"),
+            ("Mouse", "Hovering over the map moves the crosshair"),
             ("Left Click", "Open player fleets at that sector, if any"),
             (
                 "Right Click",
@@ -98,7 +96,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ),
             (
                 "Map Exit",
-                "Leaving the map widget resets home when hover-follow is on",
+                "Leaving the map widget resets the crosshair home",
             ),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
             ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
@@ -275,12 +273,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("N", "Mark the selected empire as Neutral"),
             ("?", "Open this helper"),
         ],
-        HelpContext::Settings => vec![
-            ("M", "Toggle hover-follow crosshair on the map"),
-            ("Grid", "Classic EC boxed coordinate grid"),
-            ("Clicks", "Always move the crosshair and run sector actions"),
-            ("?", "Open this helper"),
-        ],
     })
 }
 
@@ -356,14 +348,6 @@ mod tests {
                 .any(|line| line.contains("N") && line.contains("Neutral"))
         );
         assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
-
-        let settings = help_lines(HelpContext::Settings);
-        assert!(
-            settings
-                .iter()
-                .any(|line| line.contains("hover-follow crosshair"))
-        );
-        assert!(!settings.iter().any(|line| line.contains("TODO")));
     }
 
     #[test]
@@ -391,10 +375,17 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("+") && line.contains("Zoom the map in"))
         );
+        assert!(!lines.iter().any(|line| line.contains("Open Settings")));
+        assert!(!lines.iter().any(|line| line.contains("fill map view")));
+        assert!(
+            !lines
+                .iter()
+                .any(|line| line.contains("toggled in Settings"))
+        );
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("V") && line.contains("fill map view"))
+                .any(|line| line.contains("Mouse") && line.contains("moves the crosshair"))
         );
         assert!(lines.iter().any(|line| line.contains("Left Click")));
         assert!(lines.iter().any(|line| line.contains("Right Click")));
@@ -426,7 +417,6 @@ mod tests {
             HelpContext::IntelDatabaseFilter,
             HelpContext::Inbox,
             HelpContext::Diplomacy,
-            HelpContext::Settings,
         ] {
             let lines = help_lines(context);
             assert!(!lines.iter().any(|line| line.starts_with("Arrows")));

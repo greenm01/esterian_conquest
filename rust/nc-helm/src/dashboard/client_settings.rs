@@ -13,7 +13,6 @@ pub struct PersistedWindowState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DashClientSettings {
-    pub follow_mouse_on_map: bool,
     pub theme_key: String,
     pub window_width: Option<u16>,
     pub window_height: Option<u16>,
@@ -23,7 +22,6 @@ pub struct DashClientSettings {
 impl Default for DashClientSettings {
     fn default() -> Self {
         Self {
-            follow_mouse_on_map: true,
             theme_key: "tokyo-night".to_string(),
             window_width: None,
             window_height: None,
@@ -71,7 +69,6 @@ pub fn load_client_settings_from(
             continue;
         };
         match key.trim() {
-            "follow_mouse_on_map" => settings.follow_mouse_on_map = value.trim() == "true",
             "theme_key" => settings.theme_key = value.trim().to_string(),
             "window_width" => settings.window_width = value.trim().parse::<u16>().ok(),
             "window_height" => settings.window_height = value.trim().parse::<u16>().ok(),
@@ -82,6 +79,7 @@ pub fn load_client_settings_from(
     Ok(settings)
 }
 
+#[allow(dead_code)]
 pub fn save_client_settings_to(
     settings: &DashClientSettings,
     path: &Path,
@@ -91,7 +89,6 @@ pub fn save_client_settings_to(
     }
     let tmp = path.with_extension("tmp");
     let mut file = fs::File::create(&tmp)?;
-    writeln!(file, "follow_mouse_on_map={}", settings.follow_mouse_on_map)?;
     writeln!(file, "theme_key={}", settings.theme_key)?;
     if let Some(width) = settings.window_width {
         writeln!(file, "window_width={width}")?;
@@ -102,4 +99,46 @@ pub fn save_client_settings_to(
     writeln!(file, "window_maximized={}", settings.window_maximized)?;
     fs::rename(tmp, path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DashClientSettings, load_client_settings_from, save_client_settings_to};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_settings_path(name: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time")
+            .as_nanos();
+        std::env::temp_dir().join(format!("nc-helm-{name}-{}-{nanos}.txt", std::process::id()))
+    }
+
+    #[test]
+    fn legacy_follow_mouse_setting_is_ignored() {
+        let path = temp_settings_path("legacy-follow-mouse");
+        fs::write(
+            &path,
+            "follow_mouse_on_map=false\ntheme_key=classic\nwindow_maximized=true\n",
+        )
+        .expect("write settings");
+
+        let settings = load_client_settings_from(&path).expect("load settings");
+
+        assert_eq!(settings.theme_key, "classic");
+        assert!(settings.window_maximized);
+        fs::remove_file(path).expect("remove settings");
+    }
+
+    #[test]
+    fn saving_settings_does_not_rewrite_removed_follow_mouse_key() {
+        let path = temp_settings_path("save-without-follow-mouse");
+        save_client_settings_to(&DashClientSettings::default(), &path).expect("save settings");
+
+        let raw = fs::read_to_string(&path).expect("read settings");
+
+        assert!(!raw.contains("follow_mouse_on_map"));
+        fs::remove_file(path).expect("remove settings");
+    }
 }

@@ -481,7 +481,6 @@ fn draw_non_help_overlay(
         ActiveOverlay::IntelDatabase => overlays::intel_database::draw(buf, app, map_frame),
         ActiveOverlay::Inbox => overlays::inbox::draw(buf, app, map_frame),
         ActiveOverlay::Diplomacy => overlays::diplomacy::draw(buf, app, map_frame),
-        ActiveOverlay::Settings => overlays::settings::draw(buf, app, map_frame),
     }
 }
 
@@ -693,7 +692,6 @@ fn header_hash(app: &DashApp) -> u64 {
     let mut h = DefaultHasher::new();
     app.game_data_revision.hash(&mut h);
     app.player_record_index_1_based.hash(&mut h);
-    app.autopilot_on.hash(&mut h);
     h.finish()
 }
 

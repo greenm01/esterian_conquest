@@ -11,7 +11,7 @@ use super::input::{Action, key_to_action};
 use super::state;
 use super::state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
-    FleetOverlayPromptMode, HelpContext, IntelOverlayPromptMode, MapViewMode, OwnedPlanetPopupMode,
+    FleetOverlayPromptMode, HelpContext, IntelOverlayPromptMode, OwnedPlanetPopupMode,
     PlanetOverlayPromptMode,
 };
 use super::{COMMAND_LINE_TOAST_STEP, map_coord_rows, parse_table_coord};
@@ -107,7 +107,6 @@ impl DashApp {
                 }
             },
             ActiveOverlay::IntelDatabase => self.intel_overlay.prompt_status.as_deref(),
-            ActiveOverlay::Settings => self.settings_overlay.status_message.as_deref(),
             ActiveOverlay::Inbox => self.inbox_overlay.prompt_status.as_deref(),
             ActiveOverlay::Diplomacy | ActiveOverlay::Help => None,
         }
@@ -134,7 +133,6 @@ impl DashApp {
                 .prompt_stack
                 .iter()
                 .any(|frame| frame.prompt_status.is_some())
-            || self.settings_overlay.status_message.is_some()
             || self.owned_planet_popup.status.is_some()
             || self.tax_prompt_status.is_some()
             || self.inbox_overlay.prompt_status.is_some()
@@ -159,7 +157,6 @@ impl DashApp {
         for frame in &mut self.intel_overlay.prompt_stack {
             frame.prompt_status = None;
         }
-        self.settings_overlay.status_message = None;
         self.owned_planet_popup.status = None;
         self.tax_prompt_status = None;
         self.inbox_overlay.prompt_status = None;
@@ -301,7 +298,6 @@ impl DashApp {
             Action::Quit => self.request_exit(DashboardExitRequest::QuitClient),
             Action::FocusNext => self.focus = self.focus.next(),
             Action::FocusPrev => self.focus = self.focus.prev(),
-            Action::ToggleAutopilot => self.autopilot_on = !self.autopilot_on,
             Action::OpenOverlay(overlay) => {
                 if overlay == ActiveOverlay::Help {
                     self.help_context = HelpContext::Global;
@@ -310,9 +306,6 @@ impl DashApp {
                 }
                 if overlay == ActiveOverlay::FleetList {
                     self.fleet_overlay.clear_transient_location_filter();
-                }
-                if overlay == ActiveOverlay::Settings {
-                    self.clear_settings_status();
                 }
                 self.overlay_position = None;
                 self.mouse_gesture = ActiveMouseGesture::None;
@@ -355,13 +348,6 @@ impl DashApp {
             }
             Action::JumpPlanetForward => {
                 self.jump_crosshair_to_planet(starmap::PlanetJumpDirection::Forward);
-            }
-            Action::ToggleMapViewMode => {
-                self.map_view_mode = match self.map_view_mode {
-                    MapViewMode::Readable => MapViewMode::Fill,
-                    MapViewMode::Fill => MapViewMode::Readable,
-                };
-                self.refresh_terminal_fit_state();
             }
             Action::OpenPlanetDetailPopup => self.open_planet_detail_popup_at_cursor(),
             Action::ScrollUp => self.scroll_up(),

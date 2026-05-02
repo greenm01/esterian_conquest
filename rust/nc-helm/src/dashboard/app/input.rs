@@ -22,9 +22,7 @@ pub enum Action {
     MoveCrosshairRight,
     JumpPlanetBackward,
     JumpPlanetForward,
-    ToggleMapViewMode,
     OpenPlanetDetailPopup,
-    ToggleAutopilot,
     SetTaxRate,
     OpenOverlay(ActiveOverlay),
     CloseOverlay,
@@ -60,11 +58,7 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         }
         KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenOverlay(ActiveOverlay::Inbox),
         KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenOverlay(ActiveOverlay::Diplomacy),
-        KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenOverlay(ActiveOverlay::Settings),
         KeyCode::Char('?') => Action::OpenOverlay(ActiveOverlay::Help),
-
-        // Autopilot toggle
-        KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
 
         // Tax rate
         KeyCode::Char('x') | KeyCode::Char('X') => Action::SetTaxRate,
@@ -88,9 +82,6 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         },
         KeyCode::Char('[') if focus == PanelFocus::Map => Action::JumpPlanetBackward,
         KeyCode::Char(']') if focus == PanelFocus::Map => Action::JumpPlanetForward,
-        KeyCode::Char('v') | KeyCode::Char('V') if focus == PanelFocus::Map => {
-            Action::ToggleMapViewMode
-        }
         KeyCode::PageUp => Action::PageUp,
         KeyCode::PageDown => Action::PageDown,
         KeyCode::Home => Action::Home,
@@ -170,14 +161,30 @@ mod tests {
     }
 
     #[test]
-    fn map_view_mode_key_only_on_map_without_overlay() {
+    fn removed_dashboard_shortcuts_are_unbound() {
         assert_eq!(
             key_to_action(
                 KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE),
                 PanelFocus::Map,
                 ActiveOverlay::None,
             ),
-            Action::ToggleMapViewMode
+            Action::None
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::None
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::None
         );
         assert_eq!(
             key_to_action(

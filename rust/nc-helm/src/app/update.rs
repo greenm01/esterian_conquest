@@ -2111,7 +2111,6 @@ mod tests {
         let Route::HostedGame(hosted) = &mut model.route else {
             panic!("expected hosted route");
         };
-        hosted.dashboard.client_settings.follow_mouse_on_map = false;
         let target = [hosted.dashboard.crosshair_x, hosted.dashboard.crosshair_y];
         let (column, row) = hosted
             .dashboard

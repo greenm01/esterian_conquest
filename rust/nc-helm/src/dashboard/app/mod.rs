@@ -11,7 +11,6 @@ pub(crate) mod panel_cache;
 mod persistence;
 pub(crate) mod planet_build;
 pub mod render;
-mod settings;
 pub mod state;
 
 #[cfg(test)]

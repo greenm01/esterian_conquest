@@ -188,21 +188,15 @@ pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp, layout: &DashboardL
         .get(app.player_record_index_1_based.saturating_sub(1));
     let year = app.game_data.conquest.game_year();
     let tax = player.map(|p| p.tax_rate()).unwrap_or(0);
-    let ap = if app.autopilot_on { "ON" } else { "OFF" };
-    let right_str = format!("Y{year}                  Autopilot:{ap}  Tax:{tax}% ");
+    let right_str = format!("Y{year}                  Tax:{tax}% ");
     let right_col = (ox + fw).saturating_sub(right_str.len() + 1);
-    let style = if app.autopilot_on {
-        theme::alert_style()
-    } else {
-        theme::header_style()
-    };
     write_strict_span(
         buf,
         row,
         right_col,
         inner_right.saturating_sub(right_col) + 1,
         &right_str,
-        style,
+        theme::header_style(),
         "dashboard header stats",
     );
 }

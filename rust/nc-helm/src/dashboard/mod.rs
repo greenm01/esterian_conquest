@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn incremental_hosted_sector_detail_cache_miss_does_not_preserve_modal_bleed() {
         let mut app = test_dash_app();
-        app.overlay = ActiveOverlay::Settings;
+        app.overlay = ActiveOverlay::Inbox;
         place_overlay_over_sector_detail_lower_rows(&mut app);
 
         let mut dashboard_playfield = dashboard_buffer();

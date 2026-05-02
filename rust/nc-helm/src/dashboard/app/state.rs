@@ -64,7 +64,6 @@ pub enum ActiveOverlay {
     IntelDatabase,
     Inbox,
     Diplomacy,
-    Settings,
     Help,
 }
 
@@ -76,7 +75,6 @@ impl ActiveOverlay {
             | Self::IntelDatabase
             | Self::Inbox
             | Self::Diplomacy
-            | Self::Settings
             | Self::Help => true,
             Self::None => false,
         }
@@ -195,7 +193,6 @@ pub enum HelpContext {
     IntelDatabaseFilter,
     Inbox,
     Diplomacy,
-    Settings,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -235,11 +232,6 @@ impl InboxFilter {
 pub struct ListOverlayState {
     pub selected: usize,
     pub scroll: usize,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct SettingsOverlayState {
-    pub status_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -876,7 +868,6 @@ pub struct DashApp {
     pub help_return_overlay_position: Option<RelativePopupOrigin>,
     pub mouse_gesture: ActiveMouseGesture,
     pub help_context: HelpContext,
-    pub autopilot_on: bool,
 
     // Starmap crosshair (1-based sector coords)
     pub crosshair_x: u8,
@@ -898,7 +889,6 @@ pub struct DashApp {
     pub intel_overlay: IntelOverlayState,
     pub diplomacy_overlay: ListOverlayState,
     pub inbox_overlay: InboxOverlayState,
-    pub settings_overlay: SettingsOverlayState,
     pub owned_planet_popup: OwnedPlanetPopupState,
     pub tax_prompt_input: String,
     pub tax_prompt_status: Option<String>,
@@ -949,7 +939,6 @@ impl Clone for DashApp {
             help_return_overlay_position: self.help_return_overlay_position,
             mouse_gesture: self.mouse_gesture,
             help_context: self.help_context,
-            autopilot_on: self.autopilot_on,
             crosshair_x: self.crosshair_x,
             crosshair_y: self.crosshair_y,
             map_view_mode: self.map_view_mode,
@@ -965,7 +954,6 @@ impl Clone for DashApp {
             intel_overlay: self.intel_overlay.clone(),
             diplomacy_overlay: self.diplomacy_overlay.clone(),
             inbox_overlay: self.inbox_overlay.clone(),
-            settings_overlay: self.settings_overlay.clone(),
             owned_planet_popup: self.owned_planet_popup.clone(),
             tax_prompt_input: self.tax_prompt_input.clone(),
             tax_prompt_status: self.tax_prompt_status.clone(),
@@ -1040,7 +1028,6 @@ impl DashApp {
             help_return_overlay_position: None,
             mouse_gesture: ActiveMouseGesture::None,
             help_context: HelpContext::Global,
-            autopilot_on: false,
             crosshair_x,
             crosshair_y,
             map_view_mode: MapViewMode::Readable,
@@ -1056,7 +1043,6 @@ impl DashApp {
             intel_overlay: IntelOverlayState::default(),
             diplomacy_overlay: ListOverlayState::default(),
             inbox_overlay: InboxOverlayState::default(),
-            settings_overlay: SettingsOverlayState::default(),
             owned_planet_popup: OwnedPlanetPopupState::default(),
             tax_prompt_input: String::new(),
             tax_prompt_status: None,
