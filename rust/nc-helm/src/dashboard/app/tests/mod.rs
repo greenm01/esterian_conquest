@@ -1083,10 +1083,141 @@ fn checked_change_applies_roe_to_all_checked_fleets() {
 
     assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
     assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+    assert_eq!(
+        app.fleet_overlay.aux_status.as_deref(),
+        Some("Set ROE 4 for 2 checked fleets.")
+    );
     for record_index in selected_records {
         let fleet = &app.game_data.fleets.records[record_index - 1];
         assert_eq!(fleet.rules_of_engagement(), 4);
     }
+}
+
+#[test]
+fn fleet_change_prompt_renders_inline_in_fleet_list_footer() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::FleetList;
+
+    app.handle_key(key(KeyCode::Char('c')));
+
+    assert_eq!(
+        app.fleet_overlay.prompt_mode,
+        FleetOverlayPromptMode::ChangeField
+    );
+    assert!(render_fleet_title_line(&app, "FLEET LIST:").contains("FLEET LIST:"));
+    assert!(
+        render_fleet_footer_line(&app, "Change <R>OE, <I>D, or <S>peed")
+            .contains("COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <ESC> ->")
+    );
+    assert!(
+        !render_dashboard_lines(&app)
+            .iter()
+            .any(|line| line.contains("CHANGE FLEET"))
+    );
+}
+
+#[test]
+fn checked_fleet_change_rejects_id_field_inline() {
+    let mut app = dash_app();
+    app.overlay = ActiveOverlay::FleetList;
+    select_first_two_fleet_rows(&mut app);
+
+    app.handle_key(key(KeyCode::Char('c')));
+    app.handle_key(key(KeyCode::Char('i')));
+    app.handle_key(key(KeyCode::Enter));
+
+    assert_eq!(
+        app.fleet_overlay.prompt_mode,
+        FleetOverlayPromptMode::ChangeField
+    );
+    assert_eq!(
+        app.fleet_overlay.aux_status.as_deref(),
+        Some("Enter R or S.")
+    );
+}
+
+#[test]
+fn selected_fleet_change_accepts_roe_id_and_speed() {
+    let mut roe_app = dash_app_with_store();
+    roe_app.overlay = ActiveOverlay::FleetList;
+    let roe_row = roe_app
+        .selected_fleet_order_row_from_table()
+        .expect("selected fleet row");
+    {
+        let fleet = &mut roe_app.game_data.fleets.records[roe_row.fleet_record_index_1_based - 1];
+        fleet.set_destroyer_count(1);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(0);
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.set_etac_count(0);
+        fleet.recompute_max_speed_from_composition();
+        fleet.set_rules_of_engagement(0);
+    }
+    roe_app.handle_key(key(KeyCode::Char('c')));
+    roe_app.handle_key(key(KeyCode::Char('r')));
+    roe_app.handle_key(key(KeyCode::Enter));
+    roe_app.handle_key(key(KeyCode::Char('3')));
+    roe_app.handle_key(key(KeyCode::Enter));
+    assert_eq!(
+        roe_app.game_data.fleets.records[roe_row.fleet_record_index_1_based - 1]
+            .rules_of_engagement(),
+        3
+    );
+    let roe_notice = format!("Fleet #{} ROE set to 3.", roe_row.fleet_number);
+    assert_eq!(
+        roe_app.fleet_overlay.aux_status.as_deref(),
+        Some(roe_notice.as_str())
+    );
+
+    let mut id_app = dash_app_with_store();
+    id_app.overlay = ActiveOverlay::FleetList;
+    let id_row = id_app
+        .selected_fleet_order_row_from_table()
+        .expect("selected fleet row");
+    let new_id = id_row.fleet_number + 100;
+    id_app.handle_key(key(KeyCode::Char('c')));
+    id_app.handle_key(key(KeyCode::Char('i')));
+    id_app.handle_key(key(KeyCode::Enter));
+    for ch in new_id.to_string().chars() {
+        id_app.handle_key(key(KeyCode::Char(ch)));
+    }
+    id_app.handle_key(key(KeyCode::Enter));
+    assert_eq!(
+        id_app.game_data.fleets.records[id_row.fleet_record_index_1_based - 1]
+            .local_slot_word_raw(),
+        new_id
+    );
+    let id_notice = format!(
+        "Fleet #{} renumbered to Fleet #{}.",
+        id_row.fleet_number, new_id
+    );
+    assert_eq!(
+        id_app.fleet_overlay.aux_status.as_deref(),
+        Some(id_notice.as_str())
+    );
+
+    let mut speed_app = dash_app_with_store();
+    speed_app.overlay = ActiveOverlay::FleetList;
+    let speed_row = speed_app
+        .selected_fleet_order_row_from_table()
+        .expect("selected fleet row");
+    speed_app.handle_key(key(KeyCode::Char('c')));
+    speed_app.handle_key(key(KeyCode::Char('s')));
+    speed_app.handle_key(key(KeyCode::Enter));
+    speed_app.handle_key(key(KeyCode::Char('1')));
+    speed_app.handle_key(key(KeyCode::Enter));
+    assert_eq!(
+        speed_app.game_data.fleets.records[speed_row.fleet_record_index_1_based - 1]
+            .current_speed(),
+        1
+    );
+    let speed_notice = format!("Fleet #{} speed set to 1.", speed_row.fleet_number);
+    assert_eq!(
+        speed_app.fleet_overlay.aux_status.as_deref(),
+        Some(speed_notice.as_str())
+    );
 }
 
 #[test]

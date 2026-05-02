@@ -116,6 +116,7 @@ impl DashApp {
     pub(crate) fn open_selected_fleet_change_flow(&mut self) {
         self.normalize_selected_fleet_order_selection();
         self.fleet_overlay.aux_input.clear();
+        self.fleet_overlay.aux_default = "R".to_string();
         self.fleet_overlay.aux_status = None;
         self.fleet_overlay.change_field = None;
         self.fleet_overlay
@@ -710,6 +711,7 @@ impl DashApp {
                         Some("Selected fleet is no longer available.".to_string());
                     return Ok(());
                 }
+                let checked_scope = !self.fleet_overlay.selected_fleet_record_indexes.is_empty();
                 match field {
                     FleetOverlayChangeField::Roe => {
                         let roe = raw
@@ -751,6 +753,18 @@ impl DashApp {
                         if failure_count == 0 {
                             self.fleet_overlay.clear_group_selection();
                             self.cancel_fleet_aux_prompt();
+                            self.fleet_overlay.aux_status = if checked_scope {
+                                Some(format!(
+                                    "Set ROE {} for {} checked fleets.",
+                                    roe,
+                                    rows.len()
+                                ))
+                            } else {
+                                Some(format!(
+                                    "Fleet #{} ROE set to {}.",
+                                    rows[0].fleet_number, roe
+                                ))
+                            };
                         } else {
                             self.fleet_overlay.aux_status = Some(format!(
                                 "Set ROE {} for {} fleets. {} {} remain selected: {}",
@@ -779,6 +793,7 @@ impl DashApp {
                         let id = raw
                             .parse::<u16>()
                             .map_err(|_| "Enter a fleet ID from 1 up.".to_string())?;
+                        let old_number = row.fleet_number;
                         self.game_data
                             .set_fleet_local_slot(
                                 self.player_record_index_1_based,
@@ -788,6 +803,10 @@ impl DashApp {
                             .map_err(|err| err.to_string())?;
                         self.save_and_refresh_runtime()?;
                         self.cancel_fleet_aux_prompt();
+                        self.fleet_overlay.aux_status = Some(format!(
+                            "Fleet #{} renumbered to Fleet #{}.",
+                            old_number, id
+                        ));
                     }
                     FleetOverlayChangeField::Speed => {
                         let speed = raw
@@ -858,6 +877,18 @@ impl DashApp {
                         if failure_count == 0 {
                             self.fleet_overlay.clear_group_selection();
                             self.cancel_fleet_aux_prompt();
+                            self.fleet_overlay.aux_status = if checked_scope {
+                                Some(format!(
+                                    "Set speed {} for {} checked fleets.",
+                                    speed,
+                                    rows.len()
+                                ))
+                            } else {
+                                Some(format!(
+                                    "Fleet #{} speed set to {}.",
+                                    rows[0].fleet_number, speed
+                                ))
+                            };
                         } else {
                             self.fleet_overlay.aux_status = Some(format!(
                                 "Set speed {} for {} fleets. {} {} remain selected: {}",

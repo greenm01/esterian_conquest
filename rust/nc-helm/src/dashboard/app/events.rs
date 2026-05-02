@@ -79,8 +79,12 @@ impl DashApp {
                 }
             },
             ActiveOverlay::FleetList => match self.fleet_overlay.prompt_mode {
-                FleetOverlayPromptMode::None
-                | FleetOverlayPromptMode::SortMenu
+                FleetOverlayPromptMode::None => self
+                    .fleet_overlay
+                    .aux_status
+                    .as_deref()
+                    .or(self.fleet_overlay.filter_prompt_status.as_deref()),
+                FleetOverlayPromptMode::SortMenu
                 | FleetOverlayPromptMode::FilterMenu
                 | FleetOverlayPromptMode::FilterValueInput => {
                     self.fleet_overlay.filter_prompt_status.as_deref()

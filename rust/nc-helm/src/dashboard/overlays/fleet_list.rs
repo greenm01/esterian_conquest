@@ -51,7 +51,7 @@ pub fn fleet_table_order_label(order: Order) -> &'static str {
 }
 use crate::dashboard::theme;
 
-pub(crate) const HOTKEYS: &str = "? ENTER F S O C M T SPACE <ESC>";
+pub(crate) const HOTKEYS: &str = "? F S O C M T SPACE <ESC>";
 const ORDER_PROMPT_LABEL_WIDTH: usize = 15;
 
 fn overlay_parent_rect(app: &DashApp) -> Rect {
@@ -241,10 +241,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             draw_mission_picker(buf, app, map_frame);
             return;
         }
-        FleetOverlayPromptMode::ChangeField | FleetOverlayPromptMode::ChangeValue => {
-            draw_fleet_change_prompt(buf, app);
-            return;
-        }
         FleetOverlayPromptMode::MergeHost | FleetOverlayPromptMode::MergeConfirm => {
             draw_fleet_merge_prompt(buf, app);
             return;
@@ -322,9 +318,16 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             default: &app.fleet_overlay.filter_prompt_default,
             input: &app.fleet_overlay.filter_prompt_input,
         },
-        FleetOverlayPromptMode::ChangeField
-        | FleetOverlayPromptMode::ChangeValue
-        | FleetOverlayPromptMode::MergeHost
+        FleetOverlayPromptMode::ChangeField | FleetOverlayPromptMode::ChangeValue => {
+            filter_prompt = fleet_change_prompt_label(app);
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.fleet_overlay.aux_default,
+                input: &app.fleet_overlay.aux_input,
+            }
+        }
+        FleetOverlayPromptMode::MergeHost
         | FleetOverlayPromptMode::MergeConfirm
         | FleetOverlayPromptMode::TransferHost
         | FleetOverlayPromptMode::TransferStage
@@ -406,9 +409,6 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         FleetOverlayPromptMode::MissionPicker => {
             return Some(mission_picker_popup_rect(app, map_frame));
         }
-        FleetOverlayPromptMode::ChangeField | FleetOverlayPromptMode::ChangeValue => {
-            return Some(fleet_change_popup_rect(app));
-        }
         FleetOverlayPromptMode::MergeHost | FleetOverlayPromptMode::MergeConfirm => {
             return Some(fleet_merge_popup_rect(app));
         }
@@ -478,9 +478,16 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             default: &app.fleet_overlay.filter_prompt_default,
             input: &app.fleet_overlay.filter_prompt_input,
         },
-        FleetOverlayPromptMode::ChangeField
-        | FleetOverlayPromptMode::ChangeValue
-        | FleetOverlayPromptMode::MergeHost
+        FleetOverlayPromptMode::ChangeField | FleetOverlayPromptMode::ChangeValue => {
+            filter_prompt = fleet_change_prompt_label(app);
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+                default: &app.fleet_overlay.aux_default,
+                input: &app.fleet_overlay.aux_input,
+            }
+        }
+        FleetOverlayPromptMode::MergeHost
         | FleetOverlayPromptMode::MergeConfirm
         | FleetOverlayPromptMode::TransferHost
         | FleetOverlayPromptMode::TransferStage
@@ -595,13 +602,13 @@ fn draw_mission_picker(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
     );
 }
 
-fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let prompt = match app.fleet_overlay.prompt_mode {
+fn fleet_change_prompt_label(app: &DashApp) -> String {
+    match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::ChangeField => {
             if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
-                "Change <R>, <I>, <S> ".to_string()
+                "Change <R>OE, <I>D, or <S>peed ".to_string()
             } else {
-                "Change checked <R>, <S> ".to_string()
+                "Change checked fleets <R>OE or <S>peed ".to_string()
             }
         }
         FleetOverlayPromptMode::ChangeValue => match app.fleet_overlay.change_field {
@@ -617,48 +624,6 @@ fn draw_fleet_change_prompt(buf: &mut PlayfieldBuffer, app: &DashApp) {
             None => "New Value ".to_string(),
         },
         _ => unreachable!("change prompt expected"),
-    };
-    let lines = vec![
-        if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
-            app.selected_fleet_order_row_from_table()
-                .map(|row| format!("Fleet #{}", row.fleet_number))
-                .unwrap_or_else(|| "Selected fleet is no longer available.".to_string())
-        } else {
-            format!(
-                "Checked fleets: {}",
-                app.selected_group_order_fleet_summary()
-            )
-        },
-    ];
-    let parent = overlay_parent_rect(app);
-    let wrapped = wrapped_prompt_blocks(parent, &lines);
-    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
-        buf,
-        parent,
-        "CHANGE FLEET",
-        wrapped.width(),
-        wrapped.height(),
-        OverlaySizePolicy::default(),
-        command_line_footer(
-            app,
-            TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: &prompt,
-                default: &app.fleet_overlay.aux_default,
-                input: &app.fleet_overlay.aux_input,
-            },
-        ),
-        app.overlay_position_for(ActiveOverlay::FleetList),
-    );
-    for (idx, line) in wrapped.body.lines.iter().enumerate() {
-        write_clipped(
-            buf,
-            frame.body_row + idx,
-            frame.body_col,
-            frame.body_width,
-            line,
-            theme::label_style(),
-        );
     }
 }
 
@@ -1079,62 +1044,6 @@ fn mission_picker_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
                 hotkeys_markup: "? <ESC>",
                 default: Some(&default),
                 input: &app.fleet_overlay.mission_picker_input,
-            },
-        ),
-        app.overlay_position_for(ActiveOverlay::FleetList),
-    )
-}
-
-fn fleet_change_popup_rect(app: &DashApp) -> Rect {
-    let prompt = match app.fleet_overlay.prompt_mode {
-        FleetOverlayPromptMode::ChangeField => {
-            if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
-                "Change <R>, <I>, <S> ".to_string()
-            } else {
-                "Change checked <R>, <S> ".to_string()
-            }
-        }
-        FleetOverlayPromptMode::ChangeValue => match app.fleet_overlay.change_field {
-            Some(crate::dashboard::app::state::FleetOverlayChangeField::Roe) => {
-                "New ROE ".to_string()
-            }
-            Some(crate::dashboard::app::state::FleetOverlayChangeField::Id) => {
-                "New Fleet ID ".to_string()
-            }
-            Some(crate::dashboard::app::state::FleetOverlayChangeField::Speed) => {
-                "New Speed ".to_string()
-            }
-            None => "New Value ".to_string(),
-        },
-        _ => unreachable!("change popup expected"),
-    };
-    let lines = vec![
-        if app.fleet_overlay.selected_fleet_record_indexes.is_empty() {
-            app.selected_fleet_order_row_from_table()
-                .map(|row| format!("Fleet #{}", row.fleet_number))
-                .unwrap_or_else(|| "Selected fleet is no longer available.".to_string())
-        } else {
-            format!(
-                "Checked fleets: {}",
-                app.selected_group_order_fleet_summary()
-            )
-        },
-    ];
-    let parent = overlay_parent_rect(app);
-    let wrapped = wrapped_prompt_blocks(parent, &lines);
-    overlay_popup_rect_for_body_in_parent(
-        parent,
-        "CHANGE FLEET",
-        wrapped.width(),
-        wrapped.height(),
-        OverlaySizePolicy::default(),
-        command_line_footer(
-            app,
-            TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: &prompt,
-                default: &app.fleet_overlay.aux_default,
-                input: &app.fleet_overlay.aux_input,
             },
         ),
         app.overlay_position_for(ActiveOverlay::FleetList),
@@ -1864,7 +1773,7 @@ mod tests {
 
     #[test]
     fn fleet_browse_hotkeys_match_supported_commands() {
-        assert_eq!(HOTKEYS, "? ENTER F S O C M T SPACE <ESC>");
+        assert_eq!(HOTKEYS, "? F S O C M T SPACE <ESC>");
     }
 
     #[test]
@@ -1957,7 +1866,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("COMMAND <- ? ENTER F S O C M T SPACE <ESC>"))
+                .any(|line| line.contains("COMMAND <- ? F S O C M T SPACE <ESC>"))
         );
         assert!(
             !lines

@@ -171,13 +171,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("F", "Open the fleet-list filter prompt"),
             ("S", "Open the fleet-list sort menu"),
             ("SPACE", "Toggle the checked state of the current fleet row"),
-            ("O", "Order checked fleets, or the selected fleet/starbase"),
-            ("C", "Change checked fleets, or the selected fleet"),
-            ("M", "Merge checked fleets, or the selected fleet"),
-            (
-                "T",
-                "Transfer ships between checked fleets, or the selected fleet",
-            ),
+            ("O", "Assign fleet/starbase orders"),
+            ("C", "Change ROE, ID, or speed"),
+            ("M", "Merge fleets"),
+            ("T", "Transfer ships"),
             (
                 "Fleet / SB ID",
                 "Typed jump; exact match clears the footer input",
@@ -291,13 +288,29 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("O") && line.contains("Order checked fleets"))
+                .any(|line| line.contains("O") && line.contains("Assign fleet/starbase orders"))
         );
         assert!(
             lines
                 .iter()
                 .any(|line| line.contains("SPACE") && line.contains("checked state"))
         );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("C") && line.contains("Change ROE, ID, or speed"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("M") && line.contains("Merge fleets"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("T") && line.contains("Transfer ships"))
+        );
+        assert!(!lines.iter().any(|line| line.contains("checked fleets")));
         assert!(
             lines
                 .iter()
