@@ -318,7 +318,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             default: &app.fleet_overlay.filter_prompt_default,
             input: &app.fleet_overlay.filter_prompt_input,
         },
-        FleetOverlayPromptMode::ChangeField | FleetOverlayPromptMode::ChangeValue => {
+        FleetOverlayPromptMode::ChangeField => {
+            filter_prompt = format!("{}<ESC> -> ", fleet_change_prompt_label(app));
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+            }
+        }
+        FleetOverlayPromptMode::ChangeValue => {
             filter_prompt = fleet_change_prompt_label(app);
             TableFooter::CommandInput {
                 label: "COMMAND",
@@ -478,7 +485,14 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             default: &app.fleet_overlay.filter_prompt_default,
             input: &app.fleet_overlay.filter_prompt_input,
         },
-        FleetOverlayPromptMode::ChangeField | FleetOverlayPromptMode::ChangeValue => {
+        FleetOverlayPromptMode::ChangeField => {
+            filter_prompt = format!("{}<ESC> -> ", fleet_change_prompt_label(app));
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: filter_prompt.as_str(),
+            }
+        }
+        FleetOverlayPromptMode::ChangeValue => {
             filter_prompt = fleet_change_prompt_label(app);
             TableFooter::CommandInput {
                 label: "COMMAND",

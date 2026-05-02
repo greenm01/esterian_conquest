@@ -1853,12 +1853,7 @@ mod tests {
             .position(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
             .expect("fleet row");
 
-        for key in [
-            KeyCode::Char('c'),
-            KeyCode::Char('r'),
-            KeyCode::Enter,
-            KeyCode::Char('4'),
-        ] {
+        for key in [KeyCode::Char('c'), KeyCode::Char('r'), KeyCode::Char('4')] {
             assert!(handle_key(&mut model, KeyEvent::new(key, KeyModifiers::NONE)).is_empty());
         }
         let effects = handle_key(

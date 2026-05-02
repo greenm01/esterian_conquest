@@ -433,8 +433,15 @@ impl DashApp {
     fn handle_fleet_overlay_key(&mut self, key: KeyEvent) {
         let prompt_mode = self.fleet_overlay.prompt_mode;
         match prompt_mode {
-            FleetOverlayPromptMode::ChangeField
-            | FleetOverlayPromptMode::ChangeValue
+            FleetOverlayPromptMode::ChangeField => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
+                KeyCode::Esc => {
+                    self.cancel_fleet_aux_prompt();
+                }
+                KeyCode::Char(ch) => self.select_fleet_change_field(ch),
+                _ => {}
+            },
+            FleetOverlayPromptMode::ChangeValue
             | FleetOverlayPromptMode::MergeHost
             | FleetOverlayPromptMode::MergeConfirm
             | FleetOverlayPromptMode::TransferHost
@@ -442,8 +449,7 @@ impl DashApp {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
                 KeyCode::Enter => {
                     let result = match prompt_mode {
-                        FleetOverlayPromptMode::ChangeField
-                        | FleetOverlayPromptMode::ChangeValue => self.submit_fleet_change_prompt(),
+                        FleetOverlayPromptMode::ChangeValue => self.submit_fleet_change_prompt(),
                         FleetOverlayPromptMode::MergeHost
                         | FleetOverlayPromptMode::MergeConfirm => self.submit_fleet_merge_prompt(),
                         FleetOverlayPromptMode::TransferHost
@@ -465,7 +471,6 @@ impl DashApp {
                 }
                 KeyCode::Char(ch)
                     if match prompt_mode {
-                        FleetOverlayPromptMode::ChangeField => ch.is_ascii_alphabetic(),
                         FleetOverlayPromptMode::ChangeValue
                         | FleetOverlayPromptMode::TransferHost
                         | FleetOverlayPromptMode::MergeHost => ch.is_ascii_alphanumeric(),

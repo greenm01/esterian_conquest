@@ -1072,7 +1072,6 @@ fn checked_change_applies_roe_to_all_checked_fleets() {
     );
 
     app.handle_key(key(KeyCode::Char('r')));
-    app.handle_key(key(KeyCode::Enter));
     assert_eq!(
         app.fleet_overlay.prompt_mode,
         FleetOverlayPromptMode::ChangeValue
@@ -1107,7 +1106,7 @@ fn fleet_change_prompt_renders_inline_in_fleet_list_footer() {
     assert!(render_fleet_title_line(&app, "FLEET LIST:").contains("FLEET LIST:"));
     assert!(
         render_fleet_footer_line(&app, "Change <R>OE, <I>D, or <S>peed")
-            .contains("COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <ESC> ->")
+            .contains("COMMAND <- Change <R>OE, <I>D, or <S>peed <ESC> ->")
     );
     assert!(
         !render_dashboard_lines(&app)
@@ -1124,7 +1123,6 @@ fn checked_fleet_change_rejects_id_field_inline() {
 
     app.handle_key(key(KeyCode::Char('c')));
     app.handle_key(key(KeyCode::Char('i')));
-    app.handle_key(key(KeyCode::Enter));
 
     assert_eq!(
         app.fleet_overlay.prompt_mode,
@@ -1157,7 +1155,10 @@ fn selected_fleet_change_accepts_roe_id_and_speed() {
     }
     roe_app.handle_key(key(KeyCode::Char('c')));
     roe_app.handle_key(key(KeyCode::Char('r')));
-    roe_app.handle_key(key(KeyCode::Enter));
+    assert_eq!(
+        roe_app.fleet_overlay.prompt_mode,
+        FleetOverlayPromptMode::ChangeValue
+    );
     roe_app.handle_key(key(KeyCode::Char('3')));
     roe_app.handle_key(key(KeyCode::Enter));
     assert_eq!(
@@ -1179,7 +1180,10 @@ fn selected_fleet_change_accepts_roe_id_and_speed() {
     let new_id = id_row.fleet_number + 100;
     id_app.handle_key(key(KeyCode::Char('c')));
     id_app.handle_key(key(KeyCode::Char('i')));
-    id_app.handle_key(key(KeyCode::Enter));
+    assert_eq!(
+        id_app.fleet_overlay.prompt_mode,
+        FleetOverlayPromptMode::ChangeValue
+    );
     for ch in new_id.to_string().chars() {
         id_app.handle_key(key(KeyCode::Char(ch)));
     }
@@ -1205,7 +1209,10 @@ fn selected_fleet_change_accepts_roe_id_and_speed() {
         .expect("selected fleet row");
     speed_app.handle_key(key(KeyCode::Char('c')));
     speed_app.handle_key(key(KeyCode::Char('s')));
-    speed_app.handle_key(key(KeyCode::Enter));
+    assert_eq!(
+        speed_app.fleet_overlay.prompt_mode,
+        FleetOverlayPromptMode::ChangeValue
+    );
     speed_app.handle_key(key(KeyCode::Char('1')));
     speed_app.handle_key(key(KeyCode::Enter));
     assert_eq!(
@@ -1254,7 +1261,6 @@ fn checked_change_clears_only_successful_fleets_on_partial_roe_update() {
 
     app.handle_key(key(KeyCode::Char('c')));
     app.handle_key(key(KeyCode::Char('r')));
-    app.handle_key(key(KeyCode::Enter));
     app.handle_key(key(KeyCode::Char('6')));
     app.handle_key(key(KeyCode::Enter));
 

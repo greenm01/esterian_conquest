@@ -116,12 +116,36 @@ impl DashApp {
     pub(crate) fn open_selected_fleet_change_flow(&mut self) {
         self.normalize_selected_fleet_order_selection();
         self.fleet_overlay.aux_input.clear();
-        self.fleet_overlay.aux_default = "R".to_string();
+        self.fleet_overlay.aux_default.clear();
         self.fleet_overlay.aux_status = None;
         self.fleet_overlay.change_field = None;
         self.fleet_overlay
             .open_prompt(FleetOverlayPromptMode::ChangeField);
         self.help_context = HelpContext::FleetOrderInput;
+    }
+
+    pub(crate) fn select_fleet_change_field(&mut self, ch: char) {
+        let field = match ch.to_ascii_uppercase() {
+            'R' => FleetOverlayChangeField::Roe,
+            'S' => FleetOverlayChangeField::Speed,
+            'I' if self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
+                FleetOverlayChangeField::Id
+            }
+            _ if self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
+                self.fleet_overlay.aux_status = Some("Enter R, I, or S.".to_string());
+                return;
+            }
+            _ => {
+                self.fleet_overlay.aux_status = Some("Enter R or S.".to_string());
+                return;
+            }
+        };
+        self.fleet_overlay.change_field = Some(field);
+        self.fleet_overlay.aux_input.clear();
+        self.fleet_overlay.aux_status = None;
+        self.fleet_overlay.aux_default = self.fleet_change_value_default(field);
+        self.fleet_overlay
+            .open_prompt(FleetOverlayPromptMode::ChangeValue);
     }
 
     pub(crate) fn open_selected_fleet_merge_flow(&mut self) {
@@ -667,32 +691,14 @@ impl DashApp {
     pub(crate) fn submit_fleet_change_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.fleet_overlay.prompt_mode {
             FleetOverlayPromptMode::ChangeField => {
-                let raw = if self.fleet_overlay.aux_input.trim().is_empty() {
-                    self.fleet_overlay.aux_default.trim()
-                } else {
-                    self.fleet_overlay.aux_input.trim()
-                };
-                let field = match raw.chars().next().map(|ch| ch.to_ascii_uppercase()) {
-                    Some('R') => FleetOverlayChangeField::Roe,
-                    Some('S') => FleetOverlayChangeField::Speed,
-                    Some('I') if self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
-                        FleetOverlayChangeField::Id
+                self.fleet_overlay.aux_status = Some(
+                    if self.fleet_overlay.selected_fleet_record_indexes.is_empty() {
+                        "Enter R, I, or S."
+                    } else {
+                        "Enter R or S."
                     }
-                    _ if self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
-                        self.fleet_overlay.aux_status = Some("Enter R, I, or S.".to_string());
-                        return Ok(());
-                    }
-                    _ => {
-                        self.fleet_overlay.aux_status = Some("Enter R or S.".to_string());
-                        return Ok(());
-                    }
-                };
-                self.fleet_overlay.change_field = Some(field);
-                self.fleet_overlay.aux_input.clear();
-                self.fleet_overlay.aux_status = None;
-                self.fleet_overlay.aux_default = self.fleet_change_value_default(field);
-                self.fleet_overlay
-                    .open_prompt(FleetOverlayPromptMode::ChangeValue);
+                    .to_string(),
+                );
                 Ok(())
             }
             FleetOverlayPromptMode::ChangeValue => {
