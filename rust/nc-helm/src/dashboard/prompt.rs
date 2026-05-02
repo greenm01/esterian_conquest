@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::dashboard::buffer::{PlayfieldBuffer, StyledSpan};
+use crate::dashboard::buffer::{CellStyle, PlayfieldBuffer, StyledSpan};
 use crate::dashboard::theme::classic;
 
 const COMMAND_LABEL: &str = "COMMAND";
@@ -587,6 +587,29 @@ pub fn draw_table_command_bar_in_span(
     )
 }
 
+pub fn draw_table_command_bar_in_span_with_default_style(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    default_style: CellStyle,
+    input: &str,
+) -> usize {
+    draw_labeled_table_command_bar_in_span_with_default_style(
+        buffer,
+        row,
+        col,
+        width,
+        COMMAND_LABEL,
+        hotkeys_markup,
+        default,
+        default_style,
+        input,
+    )
+}
+
 pub fn draw_labeled_table_command_bar_in_span(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -595,6 +618,30 @@ pub fn draw_labeled_table_command_bar_in_span(
     label: &str,
     hotkeys_markup: &str,
     default: Option<&str>,
+    input: &str,
+) -> usize {
+    draw_labeled_table_command_bar_in_span_with_default_style(
+        buffer,
+        row,
+        col,
+        width,
+        label,
+        hotkeys_markup,
+        default,
+        classic::prompt_hotkey_style(),
+        input,
+    )
+}
+
+fn draw_labeled_table_command_bar_in_span_with_default_style(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    label: &str,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    default_style: CellStyle,
     input: &str,
 ) -> usize {
     fill_prompt_span(buffer, row, col, width);
@@ -621,7 +668,7 @@ pub fn draw_labeled_table_command_bar_in_span(
             &[
                 StyledSpan::new(" ", classic::prompt_style()),
                 StyledSpan::new(DEFAULT_OPEN, classic::prompt_square_delimiter_style()),
-                StyledSpan::new(default, classic::prompt_hotkey_style()),
+                StyledSpan::new(default, default_style),
                 StyledSpan::new("]", classic::prompt_square_delimiter_style()),
                 StyledSpan::new(COMMAND_ARROW_SUFFIX, classic::prompt_style()),
             ],

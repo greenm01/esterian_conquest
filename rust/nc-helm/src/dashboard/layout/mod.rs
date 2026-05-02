@@ -205,13 +205,14 @@ pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp, layout: &DashboardL
 pub fn draw_footer(buf: &mut PlayfieldBuffer, app: &DashApp, layout: &DashboardLayout) {
     let (ox, _) = frame_offset_for(app.geometry, layout.frame);
     let row = layout.widgets.footer_bar_row;
-    prompt::draw_table_command_bar_in_span(
+    prompt::draw_table_command_bar_in_span_with_default_style(
         buf,
         row,
         ox + 1,
         layout.frame.width().saturating_sub(2),
-        "? P F T R D A S V X <ESC>",
+        "? P F T R D X <ESC>",
         Some(&current_coord_default(app)),
+        theme::map_selection_style(),
         &app.map_coord_input,
     );
 }
@@ -414,8 +415,21 @@ mod tests {
 
         let widgets = layout.widgets;
         let line = buffer.plain_line(widgets.footer_bar_row);
-        assert!(line.contains("COMMAND <- ? P F T R D A S V X <ESC> [02,03] ->"));
+        assert!(line.contains("COMMAND <- ? P F T R D X <ESC> [02,03] ->"));
         assert!(!line.contains("P:Planets"));
+
+        let coord_col = line.find("[02,03]").expect("coord default col");
+        let row = buffer.row(widgets.footer_bar_row);
+        assert_eq!(
+            row[coord_col].style,
+            theme::classic::prompt_square_delimiter_style()
+        );
+        assert_eq!(row[coord_col + 1].style, theme::map_selection_style());
+        assert_eq!(row[coord_col + 5].style, theme::map_selection_style());
+        assert_eq!(
+            row[coord_col + 6].style,
+            theme::classic::prompt_square_delimiter_style()
+        );
     }
 
     fn dash_app() -> DashApp {
