@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,7 @@ pub struct DashClientSettings {
     pub window_width: Option<u16>,
     pub window_height: Option<u16>,
     pub window_maximized: bool,
+    pub last_seen_report_keys: BTreeMap<String, String>,
 }
 
 impl Default for DashClientSettings {
@@ -26,6 +28,7 @@ impl Default for DashClientSettings {
             window_width: None,
             window_height: None,
             window_maximized: false,
+            last_seen_report_keys: BTreeMap::new(),
         }
     }
 }
@@ -73,6 +76,12 @@ pub fn load_client_settings_from(
             "window_width" => settings.window_width = value.trim().parse::<u16>().ok(),
             "window_height" => settings.window_height = value.trim().parse::<u16>().ok(),
             "window_maximized" => settings.window_maximized = value.trim() == "true",
+            k if k.starts_with("last_seen_report:") => {
+                let id = &k["last_seen_report:".len()..];
+                settings
+                    .last_seen_report_keys
+                    .insert(id.to_string(), value.trim().to_string());
+            }
             _ => {}
         }
     }
@@ -97,6 +106,11 @@ pub fn save_client_settings_to(
         writeln!(file, "window_height={height}")?;
     }
     writeln!(file, "window_maximized={}", settings.window_maximized)?;
+    for (id, key) in &settings.last_seen_report_keys {
+        writeln!(file, "last_seen_report:{id}={key}")?;
+    }
+    file.sync_all()?;
+    drop(file);
     fs::rename(tmp, path)?;
     Ok(())
 }
@@ -139,6 +153,25 @@ mod tests {
         let raw = fs::read_to_string(&path).expect("read settings");
 
         assert!(!raw.contains("follow_mouse_on_map"));
+        fs::remove_file(path).expect("remove settings");
+    }
+
+    #[test]
+    fn last_seen_report_keys_are_persisted() {
+        let path = temp_settings_path("last-seen-reports");
+        let mut settings = DashClientSettings::default();
+        settings
+            .last_seen_report_keys
+            .insert("game1".to_string(), "turn1".to_string());
+        settings
+            .last_seen_report_keys
+            .insert("game2".to_string(), "turn2".to_string());
+
+        save_client_settings_to(&settings, &path).expect("save settings");
+        let loaded = load_client_settings_from(&path).expect("load settings");
+
+        assert_eq!(loaded.last_seen_report_keys.get("game1"), Some(&"turn1".to_string()));
+        assert_eq!(loaded.last_seen_report_keys.get("game2"), Some(&"turn2".to_string()));
         fs::remove_file(path).expect("remove settings");
     }
 }

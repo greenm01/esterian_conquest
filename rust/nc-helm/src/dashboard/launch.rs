@@ -5,8 +5,8 @@ use crate::dashboard::geometry::ScreenGeometry;
 use nc_data::{
     BaseRecord, CampaignStore, CoreGameData, FleetRecord, GameStateBuilder, IntelTier, Order,
     PlanetIntelSnapshot, PlanetRecord, PlayerActivityState, PlayerLifecycleState,
-    PlayerWarStatsState, QueuedPlayerMail, ReportBlockRow, WinnerState,
-    default_player_lifecycle_states,
+    PlayerWarStatsState, QueuedPlayerMail, ReportBlockRow, ReportsPreview, WinnerState,
+    default_player_lifecycle_states, has_visible_runtime_messages, has_visible_runtime_reports,
 };
 use nc_nostr::state_sync::{GameState, HostedFleetShips, HostedOwnedFleet, HostedWorldState};
 
@@ -163,6 +163,66 @@ impl DashLaunchState {
             app.initialize_hosted_turn_draft();
         }
         app.resize_canvas(geometry.width() as u16, geometry.height() as u16);
+
+        let viewer_id = app.player_record_index_1_based as u8;
+        let reports_pending = has_visible_runtime_reports(viewer_id, &app.report_block_rows);
+        let messages_pending = has_visible_runtime_messages(viewer_id, &app.queued_mail);
+
+        if reports_pending || messages_pending {
+            let game_key = if let Some(store) = &app.campaign_store {
+                store.path().display().to_string()
+            } else {
+                app._game_dir.display().to_string()
+            };
+
+            let player_record = app
+                .game_data
+                .player
+                .records
+                .get(app.player_record_index_1_based.saturating_sub(1));
+            let results_word = player_record
+                .map(|p| p.classic_results_review_word_raw())
+                .unwrap_or(0);
+            let messages_word = player_record
+                .map(|p| p.classic_message_review_word_raw())
+                .unwrap_or(0);
+            let report_key = format!(
+                "{}:{}:{}",
+                app.game_data.conquest.game_year(),
+                results_word,
+                messages_word
+            );
+
+            let already_seen = app
+                .client_settings
+                .last_seen_report_keys
+                .get(&game_key)
+                .map(|k| k == &report_key)
+                .unwrap_or(false);
+
+            if !already_seen {
+                app.popup = crate::dashboard::app::state::ActivePopup::StartupReview;
+                app.startup_review.reports = ReportsPreview::from_block_rows(
+                    &app.game_data,
+                    viewer_id,
+                    &app.report_block_rows,
+                    &app.queued_mail,
+                );
+                app.startup_review.mode = if reports_pending {
+                    crate::dashboard::app::state::StartupReviewMode::Results
+                } else {
+                    crate::dashboard::app::state::StartupReviewMode::Messages
+                };
+
+                app.client_settings
+                    .last_seen_report_keys
+                    .insert(game_key, report_key);
+                if let Some(path) = &app.client_settings_path {
+                    let _ = client_settings::save_client_settings_to(&app.client_settings, path);
+                }
+            }
+        }
+
         Ok(app)
     }
 }

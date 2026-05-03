@@ -89,6 +89,7 @@ pub enum ActivePopup {
     PlanetDetail { planet_record_index_1_based: usize },
     OwnedPlanet { planet_record_index_1_based: usize },
     FleetDetail { fleet_record_index_1_based: usize },
+    StartupReview,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +140,50 @@ impl Default for OwnedPlanetPopupState {
 }
 
 impl OwnedPlanetPopupState {
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartupReviewMode {
+    Results,
+    Messages,
+}
+
+#[derive(Debug, Clone)]
+pub struct StartupReviewPopupState {
+    pub mode: StartupReviewMode,
+    pub results_block: usize,
+    pub results_scroll: usize,
+    pub results_nonstop: bool,
+    pub messages_block: usize,
+    pub messages_scroll: usize,
+    pub messages_nonstop: bool,
+    pub reports: nc_data::ReportsPreview,
+}
+
+impl Default for StartupReviewPopupState {
+    fn default() -> Self {
+        Self {
+            mode: StartupReviewMode::Results,
+            results_block: 0,
+            results_scroll: 0,
+            results_nonstop: false,
+            messages_block: 0,
+            messages_scroll: 0,
+            messages_nonstop: false,
+            reports: nc_data::ReportsPreview {
+                results_lines: Vec::new(),
+                message_lines: Vec::new(),
+                result_blocks: Vec::new(),
+                message_blocks: Vec::new(),
+            },
+        }
+    }
+}
+
+impl StartupReviewPopupState {
     pub fn reset(&mut self) {
         *self = Self::default();
     }
@@ -890,6 +935,7 @@ pub struct DashApp {
     pub diplomacy_overlay: ListOverlayState,
     pub inbox_overlay: InboxOverlayState,
     pub owned_planet_popup: OwnedPlanetPopupState,
+    pub startup_review: StartupReviewPopupState,
     pub tax_prompt_input: String,
     pub tax_prompt_status: Option<String>,
 
@@ -955,6 +1001,7 @@ impl Clone for DashApp {
             diplomacy_overlay: self.diplomacy_overlay.clone(),
             inbox_overlay: self.inbox_overlay.clone(),
             owned_planet_popup: self.owned_planet_popup.clone(),
+            startup_review: self.startup_review.clone(),
             tax_prompt_input: self.tax_prompt_input.clone(),
             tax_prompt_status: self.tax_prompt_status.clone(),
             is_terminal_too_small: self.is_terminal_too_small,
@@ -1044,6 +1091,7 @@ impl DashApp {
             diplomacy_overlay: ListOverlayState::default(),
             inbox_overlay: InboxOverlayState::default(),
             owned_planet_popup: OwnedPlanetPopupState::default(),
+            startup_review: StartupReviewPopupState::default(),
             tax_prompt_input: String::new(),
             tax_prompt_status: None,
             is_terminal_too_small: false,

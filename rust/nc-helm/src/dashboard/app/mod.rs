@@ -120,11 +120,24 @@ impl NativeApp for DashApp {
     }
 
     fn on_idle(&mut self) -> bool {
-        self.update_command_line_toast_state(Instant::now())
+        let mut changed = self.update_command_line_toast_state(Instant::now());
+        if self.advance_startup_review_if_nonstop() {
+            changed = true;
+        }
+        changed
     }
 
     fn next_wakeup(&self) -> Option<Instant> {
-        self.command_line_toast_deadline
+        let toast = self.command_line_toast_deadline;
+        let review = if self.is_startup_review_nonstop() {
+            Some(Instant::now() + std::time::Duration::from_millis(100))
+        } else {
+            None
+        };
+        match (toast, review) {
+            (Some(t), Some(r)) => Some(t.min(r)),
+            (t, r) => t.or(r),
+        }
     }
 
     fn is_dragging_surface(&self) -> bool {

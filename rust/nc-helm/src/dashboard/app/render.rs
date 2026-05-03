@@ -464,6 +464,9 @@ fn draw_popup_layer(
         } => {
             popups::fleet_detail::draw(buf, app, map_frame, fleet_record_index_1_based);
         }
+        ActivePopup::StartupReview => {
+            popups::startup_review::draw(buf, app, map_frame);
+        }
         ActivePopup::None => {}
     }
 }

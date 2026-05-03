@@ -649,6 +649,9 @@ impl DashApp {
                 map_frame,
                 fleet_record_index_1_based,
             )),
+            ActivePopup::StartupReview => Some(crate::dashboard::popups::startup_review::popup_rect(
+                self, map_frame,
+            )),
         }
     }
 }

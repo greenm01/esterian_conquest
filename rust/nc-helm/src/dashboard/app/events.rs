@@ -58,6 +58,7 @@ impl DashApp {
                 ActivePopup::QuitConfirm
                 | ActivePopup::PlanetDetail { .. }
                 | ActivePopup::FleetDetail { .. }
+                | ActivePopup::StartupReview
                 | ActivePopup::None => None,
             },
             ActiveOverlay::PlanetList => match self.planet_overlay.prompt_mode {
@@ -231,12 +232,60 @@ impl DashApp {
         } else if self.popup == ActivePopup::TaxPrompt {
             self.tax_prompt_input.clear();
             self.tax_prompt_status = None;
+        } else if self.popup == ActivePopup::StartupReview {
+            self.startup_review.reset();
         }
         self.popup = ActivePopup::None;
         self.popup_position = None;
         self.quit_confirm_return_popup = ActivePopup::None;
         self.quit_confirm_return_popup_position = None;
         self.mouse_gesture = ActiveMouseGesture::None;
+    }
+
+    pub(crate) fn advance_startup_review(&mut self) {
+        match self.startup_review.mode {
+            state::StartupReviewMode::Results => {
+                if self.startup_review.results_block + 1
+                    < self.startup_review.reports.result_blocks.len()
+                {
+                    self.startup_review.results_block += 1;
+                } else {
+                    if !self.startup_review.reports.message_blocks.is_empty() {
+                        self.startup_review.mode = state::StartupReviewMode::Messages;
+                    } else {
+                        self.close_active_popup();
+                    }
+                }
+            }
+            state::StartupReviewMode::Messages => {
+                if self.startup_review.messages_block + 1
+                    < self.startup_review.reports.message_blocks.len()
+                {
+                    self.startup_review.messages_block += 1;
+                } else {
+                    self.close_active_popup();
+                }
+            }
+        }
+    }
+
+    pub(crate) fn is_startup_review_nonstop(&self) -> bool {
+        if self.popup != state::ActivePopup::StartupReview {
+            return false;
+        }
+        match self.startup_review.mode {
+            state::StartupReviewMode::Results => self.startup_review.results_nonstop,
+            state::StartupReviewMode::Messages => self.startup_review.messages_nonstop,
+        }
+    }
+
+    pub(crate) fn advance_startup_review_if_nonstop(&mut self) -> bool {
+        if self.is_startup_review_nonstop() {
+            self.advance_startup_review();
+            true
+        } else {
+            false
+        }
     }
 
     pub(super) fn handle_key(&mut self, key: crate::dashboard::input::KeyEvent) {
@@ -279,6 +328,7 @@ impl DashApp {
             ActivePopup::OwnedPlanet { .. }
                 | ActivePopup::PlanetDetail { .. }
                 | ActivePopup::FleetDetail { .. }
+                | ActivePopup::StartupReview
         );
         if !popup_over_caller {
             return false;
@@ -453,6 +503,27 @@ impl DashApp {
                     self.tax_prompt_status = None;
                 }
                 _ => {}
+            },
+            ActivePopup::StartupReview => match key.code {
+                KeyCode::Esc => {
+                    if self.startup_review.results_nonstop || self.startup_review.messages_nonstop {
+                        self.startup_review.results_nonstop = false;
+                        self.startup_review.messages_nonstop = false;
+                    } else {
+                        self.close_active_popup();
+                    }
+                }
+                KeyCode::Char('s' | 'S') => match self.startup_review.mode {
+                    state::StartupReviewMode::Results => {
+                        self.startup_review.results_nonstop = true
+                    }
+                    state::StartupReviewMode::Messages => {
+                        self.startup_review.messages_nonstop = true
+                    }
+                },
+                _ => {
+                    self.advance_startup_review();
+                }
             },
             ActivePopup::OwnedPlanet { .. } => match self.owned_planet_popup.mode {
                 OwnedPlanetPopupMode::Browse => match key.code {

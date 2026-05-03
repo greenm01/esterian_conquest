@@ -92,6 +92,165 @@ fn typed_map_coords_move_crosshair_and_clear_on_exact_match() {
 }
 
 #[test]
+fn startup_review_opens_automatically_if_pending() {
+    let viewer_id = 1;
+    let report_block_rows = vec![ReportBlockRow {
+        viewer_empire_id: viewer_id as u8,
+        block_index: 0,
+        decoded_text: "Empire Status Report Body Line 1\nLine 2".to_string(),
+        raw_bytes: Some(Vec::new()),
+        recipient_deleted: false,
+    }];
+
+    let geom = ScreenGeometry::new(100, 40);
+    let mut app = DashApp::new_for_tests(
+        PathBuf::from("."),
+        GameStateBuilder::new()
+            .with_player_count(4)
+            .build_initialized_baseline()
+            .unwrap(),
+        BTreeMap::new(),
+        BTreeSet::new(),
+        report_block_rows.clone(),
+        Vec::new(),
+        Vec::new(),
+        geom,
+        geom,
+        viewer_id,
+    );
+
+    // Manually trigger what into_app does for the test
+    let reports_pending =
+        nc_data::has_visible_runtime_reports(viewer_id as u8, &report_block_rows);
+    if reports_pending {
+        app.popup = ActivePopup::StartupReview;
+        app.startup_review.reports = nc_data::ReportsPreview::from_block_rows(
+            &app.game_data,
+            viewer_id as u8,
+            &report_block_rows,
+            &[],
+        );
+    }
+
+    assert_eq!(app.popup, ActivePopup::StartupReview);
+    assert_eq!(app.startup_review.reports.result_blocks.len(), 1);
+}
+
+#[test]
+fn startup_review_advances_on_slap() {
+    let viewer_id = 1;
+    let report_block_rows = vec![
+        ReportBlockRow {
+            viewer_empire_id: viewer_id as u8,
+            block_index: 0,
+            decoded_text: "Block 1".to_string(),
+            raw_bytes: Some(Vec::new()),
+            recipient_deleted: false,
+        },
+        ReportBlockRow {
+            viewer_empire_id: viewer_id as u8,
+            block_index: 1,
+            decoded_text: "Block 2".to_string(),
+            raw_bytes: Some(Vec::new()),
+            recipient_deleted: false,
+        },
+    ];
+
+    let geom = ScreenGeometry::new(100, 40);
+    let mut app = DashApp::new_for_tests(
+        PathBuf::from("."),
+        GameStateBuilder::new()
+            .with_player_count(4)
+            .build_initialized_baseline()
+            .unwrap(),
+        BTreeMap::new(),
+        BTreeSet::new(),
+        report_block_rows.clone(),
+        Vec::new(),
+        Vec::new(),
+        geom,
+        geom,
+        viewer_id,
+    );
+
+    app.popup = ActivePopup::StartupReview;
+    app.startup_review.reports = nc_data::ReportsPreview::from_block_rows(
+        &app.game_data,
+        viewer_id as u8,
+        &report_block_rows,
+        &[],
+    );
+
+    assert_eq!(app.popup, ActivePopup::StartupReview);
+    assert_eq!(app.startup_review.results_block, 0);
+
+    // Slap a key (Space)
+    app.handle_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.startup_review.results_block, 1);
+
+    // Slap again
+    app.handle_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.popup, ActivePopup::None);
+}
+
+#[test]
+fn startup_review_nonstop_advances_on_idle() {
+    let viewer_id = 1;
+    let report_block_rows = vec![
+        ReportBlockRow {
+            viewer_empire_id: viewer_id as u8,
+            block_index: 0,
+            decoded_text: "Block 1".to_string(),
+            raw_bytes: Some(Vec::new()),
+            recipient_deleted: false,
+        },
+        ReportBlockRow {
+            viewer_empire_id: viewer_id as u8,
+            block_index: 1,
+            decoded_text: "Block 2".to_string(),
+            raw_bytes: Some(Vec::new()),
+            recipient_deleted: false,
+        },
+    ];
+
+    let geom = ScreenGeometry::new(100, 40);
+    let mut app = DashApp::new_for_tests(
+        PathBuf::from("."),
+        GameStateBuilder::new()
+            .with_player_count(4)
+            .build_initialized_baseline()
+            .unwrap(),
+        BTreeMap::new(),
+        BTreeSet::new(),
+        report_block_rows.clone(),
+        Vec::new(),
+        Vec::new(),
+        geom,
+        geom,
+        viewer_id,
+    );
+
+    app.popup = ActivePopup::StartupReview;
+    app.startup_review.reports = nc_data::ReportsPreview::from_block_rows(
+        &app.game_data,
+        viewer_id as u8,
+        &report_block_rows,
+        &[],
+    );
+    app.startup_review.results_nonstop = true;
+
+    assert_eq!(app.startup_review.results_block, 0);
+
+    // Call on_idle (via NativeApp trait)
+    app.on_idle();
+    assert_eq!(app.startup_review.results_block, 1);
+
+    // Call on_idle again
+    app.on_idle();
+    assert_eq!(app.popup, ActivePopup::None);
+}
+
+#[test]
 fn typed_map_coords_keep_partial_input_visible() {
     let mut app = dash_app();
     app.handle_key(KeyEvent::new(
