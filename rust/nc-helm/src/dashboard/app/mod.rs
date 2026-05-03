@@ -22,13 +22,28 @@ use crate::dashboard::geometry::ScreenGeometry;
 use crate::dashboard::input::MouseEvent;
 use crate::dashboard::native::NativeApp;
 use crate::dashboard::ui::UiScene;
-use state::{ActiveMouseGesture, DashApp};
+use state::{ActiveMouseGesture, DashApp, InboxMessageConfirmAction};
 use std::time::{Duration, Instant};
 
 const COMMAND_LINE_TOAST_STEP: Duration = Duration::from_secs(1);
 
 fn quit_confirm_message() -> &'static str {
     "Quit to Lobby? Y/[N]"
+}
+
+fn inbox_message_confirm_title() -> &'static str {
+    "MESSAGE"
+}
+
+fn inbox_message_confirm_message(action: InboxMessageConfirmAction) -> &'static str {
+    match action {
+        InboxMessageConfirmAction::Send => "Send Message? Y/[N]",
+        InboxMessageConfirmAction::Discard => "Discard Message? Y/[N]",
+    }
+}
+
+fn confirm_popup_width(title: &str, message: &str) -> usize {
+    (message.chars().count() + 4).max(crate::dashboard::modal::modal_min_width_for_title(title))
 }
 
 fn map_coord_rows(app: &DashApp) -> Vec<Vec<String>> {

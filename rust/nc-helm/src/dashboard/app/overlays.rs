@@ -11,9 +11,10 @@ use crate::dashboard::table_selection::{sync_scroll_to_cursor, wrap_next_index, 
 use super::state;
 use super::state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter,
-    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext, IntelOverlayFilter,
-    IntelOverlayPromptMode, IntelOverlaySort, PlanetOverlayFilter, PlanetOverlayPromptMode,
-    PlanetOverlaySort, default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
+    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext,
+    InboxMessageConfirmAction, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
+    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+    default_fleet_overlay_sort_direction, default_intel_overlay_sort_direction,
     default_planet_overlay_sort_direction,
 };
 
@@ -1244,17 +1245,18 @@ impl DashApp {
             },
             state::InboxPromptMode::ComposeBody => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    match key.code {
-                        KeyCode::Char('e' | 'E') => self.submit_inbox_compose_body(),
-                        KeyCode::Char('x' | 'X') => self.close_inbox_prompt(),
-                        _ => {}
-                    }
                     return;
                 }
                 match key.code {
                     KeyCode::F(1) => self.open_overlay_help(HelpContext::InboxCompose),
                     KeyCode::Char('?') => self.open_overlay_help(HelpContext::InboxCompose),
-                    KeyCode::Esc => self.close_inbox_prompt(),
+                    KeyCode::Char('s' | 'S') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.open_inbox_message_confirm(InboxMessageConfirmAction::Send);
+                    }
+                    KeyCode::Char('x' | 'X') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.open_inbox_message_confirm(InboxMessageConfirmAction::Discard);
+                    }
+                    KeyCode::Esc => {}
                     KeyCode::Backspace => self.handle_compose_body_backspace(),
                     KeyCode::Delete => self.handle_compose_body_delete(),
                     KeyCode::Enter => self.handle_compose_body_newline(),
@@ -1265,6 +1267,7 @@ impl DashApp {
                     KeyCode::Down => self.handle_compose_body_cursor_down(),
                     KeyCode::Home => self.handle_compose_body_cursor_home(),
                     KeyCode::End => self.handle_compose_body_cursor_end(),
+                    KeyCode::Char(_) if key.modifiers.contains(KeyModifiers::ALT) => {}
                     KeyCode::Char(ch) => self.handle_compose_body_char(ch),
                     _ => {}
                 }
@@ -1528,12 +1531,16 @@ impl DashApp {
         self.inbox_overlay.prompt_status = None;
     }
 
-    fn submit_inbox_compose_body(&mut self) {
-        self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeConfirm;
+    fn open_inbox_message_confirm(&mut self, action: InboxMessageConfirmAction) {
         self.inbox_overlay.prompt_status = None;
+        self.popup = ActivePopup::InboxMessageConfirm { action };
+        self.popup_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
     }
 
-    fn confirm_inbox_compose_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub(super) fn confirm_inbox_compose_message(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let recipient = self
             .inbox_overlay
             .compose_recipient_empire
@@ -1605,7 +1612,7 @@ impl DashApp {
         Ok(())
     }
 
-    fn close_inbox_prompt(&mut self) {
+    pub(super) fn close_inbox_prompt(&mut self) {
         self.inbox_overlay.prompt_mode = state::InboxPromptMode::None;
         self.inbox_overlay.prompt_input.clear();
         self.inbox_overlay.prompt_default.clear();

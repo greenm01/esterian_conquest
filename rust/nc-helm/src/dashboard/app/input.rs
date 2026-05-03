@@ -56,7 +56,7 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         KeyCode::Char('t') | KeyCode::Char('T') => {
             Action::OpenOverlay(ActiveOverlay::IntelDatabase)
         }
-        KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenOverlay(ActiveOverlay::Inbox),
+        KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenOverlay(ActiveOverlay::Inbox),
         KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenOverlay(ActiveOverlay::Diplomacy),
         KeyCode::Char('?') => Action::OpenOverlay(ActiveOverlay::Help),
 

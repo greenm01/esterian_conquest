@@ -254,8 +254,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Y", "Toggle the current-year filter"),
             ("D", "Delete the selected item"),
             ("Tab", "Switch list and preview focus"),
-            ("Ctrl-E", "Send composed message"),
-            ("Ctrl-X", "Discard composed message"),
+            ("Alt-S", "Send composed message"),
+            ("Alt-X", "Discard composed message"),
             (
                 "Visible ID",
                 "Typed jump; exact match clears the footer input",
@@ -263,9 +263,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::InboxCompose => vec![
-            ("Ctrl-E", "Finish and send message"),
-            ("Ctrl-X", "Discard message"),
-            ("Esc", "Close prompt"),
+            ("Alt-S", "Confirm and send message"),
+            ("Alt-X", "Confirm and discard message"),
             ("?", "Open this helper"),
         ],
         HelpContext::Diplomacy => vec![

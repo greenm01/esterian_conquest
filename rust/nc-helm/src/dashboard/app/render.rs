@@ -8,8 +8,8 @@ use crate::dashboard::layout::widgets::WidgetRect;
 
 use crate::dashboard::app::panel_cache::CachedPanel;
 use crate::dashboard::app::state::{
-    ActiveOverlay, ActivePopup, DashApp, FleetOverlayPromptMode, IntelOverlayPromptMode,
-    MapViewMode, PlanetOverlayPromptMode,
+    ActiveOverlay, ActivePopup, DashApp, FleetOverlayPromptMode, InboxPromptMode,
+    IntelOverlayPromptMode, MapViewMode, PlanetOverlayPromptMode,
 };
 use crate::dashboard::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
@@ -341,6 +341,37 @@ fn render_quit_confirm(
     app: &DashApp,
     map_frame: crate::dashboard::layout::MapWidgetFrame,
 ) {
+    render_centered_confirm(
+        buf,
+        app,
+        map_frame,
+        crate::dashboard::QUIT_CONFIRM_TITLE,
+        super::quit_confirm_message(),
+    );
+}
+
+fn render_inbox_message_confirm(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    map_frame: crate::dashboard::layout::MapWidgetFrame,
+    action: crate::dashboard::app::state::InboxMessageConfirmAction,
+) {
+    render_centered_confirm(
+        buf,
+        app,
+        map_frame,
+        super::inbox_message_confirm_title(),
+        super::inbox_message_confirm_message(action),
+    );
+}
+
+fn render_centered_confirm(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    map_frame: crate::dashboard::layout::MapWidgetFrame,
+    title: &str,
+    message: &str,
+) {
     let parent = crate::dashboard::overlays::frame::overlay_parent_rect(map_frame);
     let placement = app
         .popup_position
@@ -349,11 +380,10 @@ fn render_quit_confirm(
             y: parent.y.saturating_add(origin.row_offset as u16),
         })
         .unwrap_or(ModalPlacement::Centered);
-    let message = super::quit_confirm_message();
-    let popup_width = crate::dashboard::quit_confirm_popup_width(message);
+    let popup_width = super::confirm_popup_width(title, message);
     let popup = draw_modal_frame_in_parent_with_placement(
         buf,
-        crate::dashboard::QUIT_CONFIRM_TITLE,
+        title,
         popup_width,
         crate::dashboard::QUIT_CONFIRM_HEIGHT as u16,
         parent,
@@ -396,15 +426,16 @@ fn draw_dynamic_layer(
     app: &DashApp,
     widgets: crate::dashboard::layout::DashboardWidgetFrames,
 ) {
+    buf.clear_cursor();
     let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
     if underlay != ActiveOverlay::None && !caller_overlay_is_hidden_by_popup(app) {
         draw_non_help_overlay(buf, app, widgets.center_map, underlay);
     }
     if app.overlay == ActiveOverlay::Help {
-        overlays::help::draw(buf, app, widgets.center_map);
+        overlays::help::draw(buf, app, app.help_context);
     }
-    if app.popup == ActivePopup::QuitConfirm {
-        render_quit_confirm(buf, app, widgets.center_map);
+    if let Some((title, message)) = confirm_popup_text(app.popup) {
+        render_centered_confirm(buf, app, widgets.center_map, title, message);
         return;
     }
     if app.overlay == ActiveOverlay::None || caller_overlay_popup_is_visible(app) {
@@ -413,7 +444,10 @@ fn draw_dynamic_layer(
 }
 
 fn caller_overlay_is_hidden_by_popup(app: &DashApp) -> bool {
-    if app.popup == ActivePopup::QuitConfirm {
+    if matches!(
+        app.popup,
+        ActivePopup::QuitConfirm | ActivePopup::InboxMessageConfirm { .. }
+    ) {
         return app.overlay != ActiveOverlay::None;
     }
     caller_overlay_popup_is_visible(app)
@@ -425,6 +459,7 @@ fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {
         ActivePopup::OwnedPlanet { .. }
             | ActivePopup::PlanetDetail { .. }
             | ActivePopup::FleetDetail { .. }
+            | ActivePopup::StartupReview
     );
     if !popup_over_caller {
         return false;
@@ -437,6 +472,7 @@ fn caller_overlay_popup_is_visible(app: &DashApp) -> bool {
             app.intel_overlay.prompt_mode == IntelOverlayPromptMode::None
         }
         ActiveOverlay::FleetList => app.fleet_overlay.prompt_mode == FleetOverlayPromptMode::None,
+        ActiveOverlay::Inbox => app.inbox_overlay.prompt_mode == InboxPromptMode::None,
         _ => false,
     }
 }
@@ -448,6 +484,9 @@ fn draw_popup_layer(
 ) {
     match app.popup {
         ActivePopup::QuitConfirm => render_quit_confirm(buf, app, map_frame),
+        ActivePopup::InboxMessageConfirm { action } => {
+            render_inbox_message_confirm(buf, app, map_frame, action);
+        }
         ActivePopup::TaxPrompt => popups::tax_prompt::draw(buf, app, map_frame),
         ActivePopup::PlanetDetail {
             planet_record_index_1_based,
@@ -468,6 +507,20 @@ fn draw_popup_layer(
             popups::startup_review::draw(buf, app, map_frame);
         }
         ActivePopup::None => {}
+    }
+}
+
+fn confirm_popup_text(popup: ActivePopup) -> Option<(&'static str, &'static str)> {
+    match popup {
+        ActivePopup::QuitConfirm => Some((
+            crate::dashboard::QUIT_CONFIRM_TITLE,
+            super::quit_confirm_message(),
+        )),
+        ActivePopup::InboxMessageConfirm { action } => Some((
+            super::inbox_message_confirm_title(),
+            super::inbox_message_confirm_message(action),
+        )),
+        _ => None,
     }
 }
 

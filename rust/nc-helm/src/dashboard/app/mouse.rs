@@ -237,7 +237,7 @@ impl DashApp {
                     mouse.column as usize,
                     mouse.row as usize,
                 ) {
-                    Some(inbox::InboxPane::List) => {
+                    Some(inbox::list::InboxPane::List) => {
                         let total = inbox::inbox_items(self).len();
                         self.inbox_overlay.selected =
                             scroll_selected(self.inbox_overlay.selected, lines, total);
@@ -246,7 +246,7 @@ impl DashApp {
                                 self.inbox_overlay.scroll.min(self.inbox_overlay.selected);
                         }
                     }
-                    Some(inbox::InboxPane::Preview) => {
+                    Some(inbox::list::InboxPane::Preview) => {
                         let selected = self.inbox_overlay.selected;
                         let items = inbox::inbox_items(self);
                         let max_preview = items
@@ -625,6 +625,18 @@ impl DashApp {
                     self.popup_position,
                 ),
             ),
+            ActivePopup::InboxMessageConfirm { action } => Some(
+                crate::dashboard::overlays::frame::overlay_popup_rect_in_map(
+                    map_frame,
+                    super::inbox_message_confirm_title(),
+                    super::confirm_popup_width(
+                        super::inbox_message_confirm_title(),
+                        super::inbox_message_confirm_message(action),
+                    ),
+                    crate::dashboard::QUIT_CONFIRM_HEIGHT,
+                    self.popup_position,
+                ),
+            ),
             ActivePopup::TaxPrompt => Some(crate::dashboard::popups::tax_prompt::popup_rect(
                 self, map_frame,
             )),
@@ -649,9 +661,9 @@ impl DashApp {
                 map_frame,
                 fleet_record_index_1_based,
             )),
-            ActivePopup::StartupReview => Some(crate::dashboard::popups::startup_review::popup_rect(
-                self, map_frame,
-            )),
+            ActivePopup::StartupReview => Some(
+                crate::dashboard::popups::startup_review::popup_rect(self, map_frame),
+            ),
         }
     }
 }

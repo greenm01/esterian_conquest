@@ -170,8 +170,14 @@ mod tests {
         save_client_settings_to(&settings, &path).expect("save settings");
         let loaded = load_client_settings_from(&path).expect("load settings");
 
-        assert_eq!(loaded.last_seen_report_keys.get("game1"), Some(&"turn1".to_string()));
-        assert_eq!(loaded.last_seen_report_keys.get("game2"), Some(&"turn2".to_string()));
+        assert_eq!(
+            loaded.last_seen_report_keys.get("game1"),
+            Some(&"turn1".to_string())
+        );
+        assert_eq!(
+            loaded.last_seen_report_keys.get("game2"),
+            Some(&"turn2".to_string())
+        );
         fs::remove_file(path).expect("remove settings");
     }
 }

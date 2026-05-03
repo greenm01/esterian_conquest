@@ -11,8 +11,8 @@ use super::input::{Action, key_to_action};
 use super::state;
 use super::state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest,
-    FleetOverlayPromptMode, HelpContext, IntelOverlayPromptMode, OwnedPlanetPopupMode,
-    PlanetOverlayPromptMode,
+    FleetOverlayPromptMode, HelpContext, InboxMessageConfirmAction, IntelOverlayPromptMode,
+    OwnedPlanetPopupMode, PlanetOverlayPromptMode,
 };
 use super::{COMMAND_LINE_TOAST_STEP, map_coord_rows, parse_table_coord};
 use crate::dashboard::app::render;
@@ -56,6 +56,7 @@ impl DashApp {
                 ActivePopup::OwnedPlanet { .. } => self.owned_planet_popup.status.as_deref(),
                 ActivePopup::TaxPrompt => self.tax_prompt_status.as_deref(),
                 ActivePopup::QuitConfirm
+                | ActivePopup::InboxMessageConfirm { .. }
                 | ActivePopup::PlanetDetail { .. }
                 | ActivePopup::FleetDetail { .. }
                 | ActivePopup::StartupReview
@@ -320,7 +321,10 @@ impl DashApp {
     }
 
     fn caller_overlay_popup_has_key_priority(&self) -> bool {
-        if self.popup == ActivePopup::QuitConfirm {
+        if matches!(
+            self.popup,
+            ActivePopup::QuitConfirm | ActivePopup::InboxMessageConfirm { .. }
+        ) {
             return true;
         }
         let popup_over_caller = matches!(
@@ -487,6 +491,25 @@ impl DashApp {
                 }
                 _ => {}
             },
+            ActivePopup::InboxMessageConfirm { action } => match key.code {
+                KeyCode::Char('y' | 'Y') => match action {
+                    InboxMessageConfirmAction::Send => {
+                        self.apply_action(Action::ClosePopup);
+                        if let Err(err) = self.confirm_inbox_compose_message() {
+                            self.inbox_overlay.prompt_status = Some(err.to_string());
+                            self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeBody;
+                        }
+                    }
+                    InboxMessageConfirmAction::Discard => {
+                        self.apply_action(Action::ClosePopup);
+                        self.close_inbox_prompt();
+                    }
+                },
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n' | 'N') => {
+                    self.apply_action(Action::ClosePopup);
+                }
+                _ => {}
+            },
             ActivePopup::TaxPrompt => match key.code {
                 KeyCode::Esc => self.apply_action(Action::ClosePopup),
                 KeyCode::Enter => {
@@ -514,9 +537,7 @@ impl DashApp {
                     }
                 }
                 KeyCode::Char('s' | 'S') => match self.startup_review.mode {
-                    state::StartupReviewMode::Results => {
-                        self.startup_review.results_nonstop = true
-                    }
+                    state::StartupReviewMode::Results => self.startup_review.results_nonstop = true,
                     state::StartupReviewMode::Messages => {
                         self.startup_review.messages_nonstop = true
                     }

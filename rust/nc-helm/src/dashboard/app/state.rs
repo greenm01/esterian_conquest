@@ -85,11 +85,18 @@ impl ActiveOverlay {
 pub enum ActivePopup {
     None,
     QuitConfirm,
+    InboxMessageConfirm { action: InboxMessageConfirmAction },
     TaxPrompt,
     PlanetDetail { planet_record_index_1_based: usize },
     OwnedPlanet { planet_record_index_1_based: usize },
     FleetDetail { fleet_record_index_1_based: usize },
     StartupReview,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxMessageConfirmAction {
+    Send,
+    Discard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

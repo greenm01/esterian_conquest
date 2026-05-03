@@ -3,9 +3,9 @@ use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::layout::{MapWidgetFrame, dashboard};
 use crate::dashboard::modal::{Rect, max_content_width};
 use crate::dashboard::overlays::frame::{
-    dashboard_overlay_parent_rect,
+    OverlaySizePolicy, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
-    overlay_popup_rect_for_body_in_parent, OverlaySizePolicy,
+    overlay_popup_rect_for_body_in_parent,
 };
 use crate::dashboard::table::TableFooter;
 use crate::dashboard::theme;
@@ -72,12 +72,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame
     let lines_to_draw = &lines[lines.len().saturating_sub(visible_lines)..];
 
     for (idx, line) in lines_to_draw.iter().enumerate() {
-        buf.write_text(
-            start_y + idx,
-            frame.body_col,
-            line,
-            theme::body_style(),
-        );
+        buf.write_text(start_y + idx, frame.body_col, line, theme::body_style());
     }
 }
 

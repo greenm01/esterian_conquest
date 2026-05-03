@@ -1,9 +1,10 @@
 use super::{map_coord_rows, parse_table_coord};
 use crate::dashboard::app::state::{
     ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest, FleetOrderScope, FleetOverlayFilter,
-    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext, InboxPromptMode,
-    IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort, OwnedPlanetPopupMode,
-    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
+    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext,
+    InboxMessageConfirmAction, InboxPromptMode, IntelOverlayFilter, IntelOverlayPromptMode,
+    IntelOverlaySort, OwnedPlanetPopupMode, PlanetOverlayFilter, PlanetOverlayPromptMode,
+    PlanetOverlaySort, SortDirection,
 };
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::geometry::ScreenGeometry;
@@ -3775,7 +3776,7 @@ fn inbox_quick_compose_stages_and_removes_hosted_message() {
     app.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE));
-    app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL));
+    app.handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::ALT));
     app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
 
     let draft = app.hosted_turn_draft.as_ref().expect("draft");
@@ -3817,6 +3818,86 @@ fn inbox_quick_compose_stages_and_removes_hosted_message() {
 }
 
 #[test]
+fn inbox_message_editor_alt_send_confirms_before_submission() {
+    let mut app = dash_app_with_store();
+    open_inbox_message_body_editor(&mut app, "Hi", "Move");
+
+    assert!(render_dashboard_line(&app, "Alt-S").contains("Alt-X"));
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::ALT));
+
+    assert_eq!(
+        app.popup,
+        ActivePopup::InboxMessageConfirm {
+            action: InboxMessageConfirmAction::Send
+        }
+    );
+    assert!(render_dashboard_line(&app, "Send Message? Y/[N]").contains("Send Message? Y/[N]"));
+    assert!(app.hosted_turn_draft.as_ref().unwrap().messages.is_empty());
+
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::ComposeBody);
+    assert_eq!(app.inbox_overlay.compose_subject, "Hi");
+    assert_eq!(app.inbox_overlay.compose_body, "Move");
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL));
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::ComposeBody);
+    assert_eq!(app.inbox_overlay.compose_body, "Move");
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::ALT));
+    app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
+
+    let draft = app.hosted_turn_draft.as_ref().expect("draft");
+    assert_eq!(draft.messages.len(), 1);
+    assert_eq!(draft.messages[0].subject, "Hi");
+    assert_eq!(draft.messages[0].body, "Move");
+}
+
+#[test]
+fn inbox_message_editor_alt_discard_confirms_before_clearing_draft() {
+    let mut app = dash_app();
+    open_inbox_message_body_editor(&mut app, "Hi", "Move");
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT));
+
+    assert_eq!(
+        app.popup,
+        ActivePopup::InboxMessageConfirm {
+            action: InboxMessageConfirmAction::Discard
+        }
+    );
+    assert!(
+        render_dashboard_line(&app, "Discard Message? Y/[N]").contains("Discard Message? Y/[N]")
+    );
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::ComposeBody);
+    assert_eq!(app.inbox_overlay.compose_subject, "Hi");
+    assert_eq!(app.inbox_overlay.compose_body, "Move");
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::ComposeBody);
+    assert_eq!(app.inbox_overlay.compose_body, "Move");
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT));
+    app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
+
+    assert_eq!(app.popup, ActivePopup::None);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::None);
+    assert!(app.inbox_overlay.compose_subject.is_empty());
+    assert!(app.inbox_overlay.compose_body.is_empty());
+}
+
+#[test]
 fn inbox_outbox_escape_returns_to_inbox() {
     let mut app = dash_app();
     app.initialize_hosted_turn_draft();
@@ -3855,6 +3936,23 @@ fn inbox_help_key_uses_active_prompt_context() {
     assert_eq!(app.help_context, HelpContext::InboxCompose);
     assert_eq!(app.help_return_overlay, ActiveOverlay::Inbox);
     assert_eq!(app.inbox_overlay.compose_body, "M");
+}
+
+fn open_inbox_message_body_editor(app: &mut DashApp, subject: &str, body: &str) {
+    app.initialize_hosted_turn_draft();
+    app.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    for ch in subject.chars() {
+        app.handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+    }
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    for ch in body.chars() {
+        app.handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+    }
+    assert_eq!(app.overlay, ActiveOverlay::Inbox);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::ComposeBody);
 }
 
 fn detail_value<'a>(fields: &'a [planet_view::DetailLine], label: &str) -> Option<&'a str> {

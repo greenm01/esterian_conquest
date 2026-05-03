@@ -1906,7 +1906,7 @@ mod tests {
         assert!(
             handle_key(
                 &mut model,
-                KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL)
+                KeyEvent::new(KeyCode::Char('s'), KeyModifiers::ALT)
             )
             .is_empty()
         );

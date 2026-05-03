@@ -19,7 +19,7 @@ const TITLE: &str = "COMMUNICATE (SEND MESSAGE)";
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
     let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
     let footer = TableFooter::CommandBar {
-        hotkeys_markup: "? ^E ^X",
+        hotkeys_markup: "? Alt-S Alt-X",
         default: None,
         input: "",
     };
@@ -128,7 +128,7 @@ pub fn popup_rect(app: &DashApp, _map_frame: MapWidgetFrame) -> Rect {
         body_height + 4,
         OverlaySizePolicy::default(),
         TableFooter::CommandBar {
-            hotkeys_markup: "? ^E ^X",
+            hotkeys_markup: "? Alt-S Alt-X",
             default: None,
             input: "",
         },

@@ -210,7 +210,7 @@ pub fn draw_footer(buf: &mut PlayfieldBuffer, app: &DashApp, layout: &DashboardL
         row,
         ox + 1,
         layout.frame.width().saturating_sub(2),
-        "? P F T R D X <ESC>",
+        "? P F T I D X <ESC>",
         Some(&current_coord_default(app)),
         theme::map_selection_style(),
         &app.map_coord_input,
@@ -415,7 +415,7 @@ mod tests {
 
         let widgets = layout.widgets;
         let line = buffer.plain_line(widgets.footer_bar_row);
-        assert!(line.contains("COMMAND <- ? P F T R D X <ESC> [02,03] ->"));
+        assert!(line.contains("COMMAND <- ? P F T I D X <ESC> [02,03] ->"));
         assert!(!line.contains("P:Planets"));
 
         let coord_col = line.find("[02,03]").expect("coord default col");
