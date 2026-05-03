@@ -6,17 +6,24 @@ use crate::dashboard::layout::MapWidgetFrame;
 use crate::dashboard::layout::dashboard;
 use crate::dashboard::modal::Rect;
 use crate::dashboard::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect, draw_hline,
-    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, draw_vline,
-    max_overlay_body_width, overlay_chrome_height, overlay_popup_rect_for_body_in_parent,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
+    overlay_chrome_height, overlay_popup_rect_for_body_in_parent, standard_table_body_height,
     write_clipped,
 };
-use crate::dashboard::table::{TableFooter, draw_scrollbar_at};
+use crate::dashboard::table::{
+    TableAlign, TableColumn, TableFooter, TableRowState, table_render_width,
+    write_table_window_with_theme_at,
+};
 use crate::dashboard::theme;
 
-const LIST_WIDTH: usize = 28;
-const SPLIT_GAP_WIDTH: usize = 2;
-const TARGET_PREVIEW_WIDTH: usize = 72;
+const INBOX_LIST_TARGET_TABLE_WIDTH: usize = 38;
+const INBOX_PREVIEW_TARGET_TABLE_WIDTH: usize = 72;
+const INBOX_TABLE_GAP_WIDTH: usize = 2;
+const TABLE_SCROLL_GUTTER_WIDTH: usize = 1;
+const INBOX_LIST_MIN_TABLE_WIDTH: usize = 22;
+const INBOX_PREVIEW_MIN_TABLE_WIDTH: usize = 12;
+const OUTBOX_TARGET_TABLE_WIDTH: usize = 80;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InboxPane {
@@ -26,10 +33,11 @@ pub enum InboxPane {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct InboxPaneLayout {
-    list_width: usize,
-    divider_offset: usize,
+    list_table_width: usize,
+    list_scroll_gutter_width: usize,
     preview_offset: usize,
-    preview_width: usize,
+    preview_table_width: usize,
+    preview_scroll_gutter_width: usize,
 }
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
@@ -63,45 +71,57 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             ""
         }
     );
-    let target_body_width = filter_line
-        .chars()
-        .count()
-        .max(LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH);
-    let body_width = target_body_width.min(max_overlay_body_width(map_frame));
+    let body_width = inbox_body_width(&filter_line).min(max_overlay_body_width(map_frame));
     let natural_content_rows = items.len().max(1).max(
         items
             .get(selected)
             .map(|item| item.body_lines.len().max(1))
             .unwrap_or(1),
     );
+    let body_height = 1 + standard_table_body_height(natural_content_rows);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INBOX",
         body_width,
-        4 + natural_content_rows,
+        body_height,
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
     );
-    let max_rows = frame.body_height.saturating_sub(4);
-    assert_overlay_body_write_fits(frame, "INBOX", frame.body_width, 4 + max_rows);
+    let visible_rows = frame
+        .body_height
+        .saturating_sub(1 + standard_table_body_height(0));
     let pane_layout = inbox_pane_layout(frame.body_width);
-    let divider_col = frame.body_col + pane_layout.divider_offset;
-    let preview_col = frame.body_col + pane_layout.preview_offset;
-    let preview_width = pane_layout.preview_width;
-    let table_theme = theme::table_theme();
+    let list_columns = inbox_list_columns(pane_layout.list_table_width);
+    let preview_columns = (pane_layout.preview_table_width > 0)
+        .then(|| preview_columns(pane_layout.preview_table_width));
+    let used_width = preview_columns
+        .as_ref()
+        .map(|columns| {
+            pane_layout.preview_offset
+                + table_render_width(columns)
+                + pane_layout.preview_scroll_gutter_width
+        })
+        .unwrap_or_else(|| {
+            table_render_width(&list_columns) + pane_layout.list_scroll_gutter_width
+        });
+    let used_height = 1 + standard_table_body_height(visible_rows);
+    assert_overlay_body_write_fits(frame, "INBOX", used_width, used_height);
+
     let list_focus = matches!(app.inbox_overlay.focus, InboxFocus::List);
-    let divider_style = if list_focus {
-        theme::classic::notice_style()
+    let preview_focus = matches!(app.inbox_overlay.focus, InboxFocus::Preview);
+    let mut list_theme = theme::table_theme();
+    let mut preview_theme = theme::table_theme();
+    if list_focus {
+        list_theme.header_style = theme::classic::notice_style();
+    }
+    if preview_focus {
+        preview_theme.header_style = theme::classic::notice_style();
+        preview_theme.body_style = theme::value_style();
     } else {
-        theme::border_style()
-    };
-    let list_header_style = if list_focus {
-        theme::classic::notice_style()
-    } else {
-        table_theme.header_style
-    };
+        preview_theme.body_style = theme::label_style();
+    }
 
     write_clipped(
         buf,
@@ -111,129 +131,54 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         &filter_line,
         theme::section_title_style(),
     );
-    draw_hline(
+
+    let list_rows = inbox_list_rows(&items);
+    let list_row_states = inbox_list_row_states(items.is_empty(), list_rows.len());
+    let scroll = if items.is_empty() {
+        0
+    } else {
+        clamp_scroll(
+            app.inbox_overlay.scroll,
+            selected,
+            visible_rows,
+            items.len(),
+        )
+    };
+    let _list_metrics = write_table_window_with_theme_at(
         buf,
         frame.body_row + 1,
         frame.body_col,
-        frame.body_width,
-        theme::border_style(),
-    );
-    draw_vline(
-        buf,
-        frame.body_row + 2,
-        divider_col,
-        frame.body_height.saturating_sub(2),
-        divider_style,
-    );
-    buf.set_cell(frame.body_row + 1, divider_col, '┬', divider_style);
-    buf.set_cell(frame.footer_row - 1, divider_col, '┴', divider_style);
-
-    write_clipped(
-        buf,
-        frame.body_row + 2,
-        frame.body_col,
-        pane_layout.list_width.saturating_sub(1),
-        "ID  Type Year Subject",
-        list_header_style,
-    );
-    write_clipped(
-        buf,
-        frame.body_row + 2,
-        preview_col,
-        preview_width.saturating_sub(1),
-        "Preview",
-        theme::section_title_style(),
-    );
-    draw_hline(
-        buf,
-        frame.body_row + 3,
-        frame.body_col,
-        frame.body_width,
-        theme::border_style(),
-    );
-    buf.set_cell(frame.body_row + 3, divider_col, '┼', divider_style);
-
-    let list_start = frame.body_row + 4;
-    let scroll = clamp_scroll(app.inbox_overlay.scroll, selected, max_rows, items.len());
-
-    for (visible_idx, item) in items.iter().skip(scroll).take(max_rows).enumerate() {
-        let row = list_start + visible_idx;
-        let absolute_idx = scroll + visible_idx;
-        let is_selected = absolute_idx == selected;
-        let list_style = table_theme.body_style;
-        let line = format!(
-            "{:>2}  {}   {:>4} {}",
-            absolute_idx + 1,
-            item.item_type.code(),
-            item.year.to_string(),
-            truncate(&item.subject, pane_layout.list_width.saturating_sub(14)),
-        );
-        write_clipped(
-            buf,
-            row,
-            frame.body_col,
-            pane_layout.list_width.saturating_sub(1),
-            &line,
-            list_style,
-        );
-        if is_selected {
-            highlight_selected_id_cell(
-                buf,
-                row,
-                frame.body_col,
-                absolute_idx + 1,
-                table_theme.selected_style,
-            );
-        }
-    }
-
-    if items.is_empty() {
-        write_clipped(
-            buf,
-            list_start,
-            frame.body_col,
-            pane_layout.list_width.saturating_sub(1),
-            "(empty)",
-            theme::dim_style(),
-        );
-    }
-
-    draw_scrollbar_at(
-        buf,
-        list_start,
-        frame.body_col + pane_layout.list_width.saturating_sub(1),
-        max_rows,
-        items.len(),
+        &list_columns,
+        &list_rows,
         scroll,
-        theme::table_theme(),
+        visible_rows,
+        list_theme,
+        items.get(selected).map(|_| selected),
+        0,
+        Some(&list_row_states),
     );
 
-    if let Some(item) = items.get(selected) {
-        let preview_style = if matches!(app.inbox_overlay.focus, InboxFocus::Preview) {
-            theme::value_style()
-        } else {
-            theme::label_style()
-        };
-        let preview_scroll = app
-            .inbox_overlay
-            .preview_scroll
-            .min(item.body_lines.len().saturating_sub(max_rows.max(1)));
-        for (visible_idx, line) in item
-            .body_lines
-            .iter()
-            .skip(preview_scroll)
-            .take(max_rows)
-            .enumerate()
-        {
-            write_clipped(
-                buf,
-                list_start + visible_idx,
-                preview_col,
-                preview_width.saturating_sub(1),
-                line,
-                preview_style,
-            );
-        }
+    if pane_layout.preview_table_width > 0 {
+        let preview_col = frame.body_col + pane_layout.preview_offset;
+        let preview_rows = preview_rows(items.get(selected));
+        let preview_scroll = clamp_offset(
+            app.inbox_overlay.preview_scroll,
+            visible_rows,
+            preview_rows.len(),
+        );
+        let _preview_metrics = write_table_window_with_theme_at(
+            buf,
+            frame.body_row + 1,
+            preview_col,
+            preview_columns.as_ref().expect("preview columns"),
+            &preview_rows,
+            preview_scroll,
+            visible_rows,
+            preview_theme,
+            None,
+            0,
+            None,
+        );
     }
 }
 
@@ -266,11 +211,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             ""
         }
     );
-    let target_body_width = filter_line
-        .chars()
-        .count()
-        .max(LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH);
-    let body_width = target_body_width.min(max_overlay_body_width(map_frame));
+    let body_width = inbox_body_width(&filter_line).min(max_overlay_body_width(map_frame));
     let natural_content_rows = items.len().max(1).max(
         items
             .get(selected)
@@ -281,7 +222,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INBOX",
         body_width,
-        4 + natural_content_rows,
+        1 + standard_table_body_height(natural_content_rows),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
@@ -333,7 +274,7 @@ fn draw_outbox(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFra
         default: selected_default.as_deref(),
         input: &app.inbox_overlay.prompt_input,
     };
-    let body_width = (LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH)
+    let body_width = (OUTBOX_TARGET_TABLE_WIDTH + TABLE_SCROLL_GUTTER_WIDTH)
         .min(max_overlay_body_width(map_frame));
     let natural_rows = messages.len().max(1);
     let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
@@ -341,59 +282,47 @@ fn draw_outbox(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFra
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "OUTBOX",
         body_width,
-        2 + natural_rows,
+        standard_table_body_height(natural_rows),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
     );
-    let max_rows = frame.body_height.saturating_sub(2);
-    write_clipped(
+    let visible_rows = frame
+        .body_height
+        .saturating_sub(standard_table_body_height(0));
+    let table_width = frame.body_width.saturating_sub(TABLE_SCROLL_GUTTER_WIDTH);
+    let columns = outbox_columns(table_width);
+    assert_overlay_body_write_fits(
+        frame,
+        "OUTBOX",
+        table_render_width(&columns) + TABLE_SCROLL_GUTTER_WIDTH,
+        standard_table_body_height(visible_rows),
+    );
+    let rows = outbox_rows(&messages);
+    let row_states = inbox_list_row_states(messages.is_empty(), rows.len());
+    let scroll = if messages.is_empty() {
+        0
+    } else {
+        clamp_scroll(
+            app.inbox_overlay.outbox_scroll,
+            selected,
+            visible_rows,
+            messages.len(),
+        )
+    };
+    let _metrics = write_table_window_with_theme_at(
         buf,
         frame.body_row,
         frame.body_col,
-        frame.body_width,
-        "ID  To  Subject",
-        theme::section_title_style(),
+        &columns,
+        &rows,
+        scroll,
+        visible_rows,
+        theme::table_theme(),
+        messages.get(selected).map(|_| selected),
+        0,
+        Some(&row_states),
     );
-    draw_hline(
-        buf,
-        frame.body_row + 1,
-        frame.body_col,
-        frame.body_width,
-        theme::border_style(),
-    );
-    let scroll = clamp_scroll(
-        app.inbox_overlay.outbox_scroll,
-        selected,
-        max_rows,
-        messages.len(),
-    );
-    for (visible_idx, message) in messages.iter().skip(scroll).take(max_rows).enumerate() {
-        let row = frame.body_row + 2 + visible_idx;
-        let absolute_idx = scroll + visible_idx;
-        let style = if absolute_idx == selected {
-            theme::alert_style()
-        } else {
-            theme::value_style()
-        };
-        let line = format!(
-            "{:>2}  {:>2}  {}",
-            absolute_idx + 1,
-            message.recipient_empire_raw,
-            truncate(&message.subject, frame.body_width.saturating_sub(9))
-        );
-        write_clipped(buf, row, frame.body_col, frame.body_width, &line, style);
-    }
-    if messages.is_empty() {
-        write_clipped(
-            buf,
-            frame.body_row + 2,
-            frame.body_col,
-            frame.body_width,
-            "No staged outgoing messages.",
-            theme::dim_style(),
-        );
-    }
 }
 
 fn outbox_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
@@ -401,9 +330,9 @@ fn outbox_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     overlay_popup_rect_for_body_in_parent(
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "OUTBOX",
-        (LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH)
+        (OUTBOX_TARGET_TABLE_WIDTH + TABLE_SCROLL_GUTTER_WIDTH)
             .min(max_overlay_body_width(map_frame)),
-        2 + messages.len().max(1),
+        standard_table_body_height(messages.len().max(1)),
         OverlaySizePolicy::default(),
         TableFooter::CommandBar {
             hotkeys_markup: "? D <ESC>",
@@ -456,11 +385,7 @@ pub fn hit_test_inbox_pane(
             ""
         }
     );
-    let target_body_width = filter_line
-        .chars()
-        .count()
-        .max(LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH);
-    let body_width = target_body_width.min(max_overlay_body_width(map_frame));
+    let body_width = inbox_body_width(&filter_line).min(max_overlay_body_width(map_frame));
     let natural_content_rows = items.len().max(1).max(
         items
             .get(selected)
@@ -471,7 +396,7 @@ pub fn hit_test_inbox_pane(
         dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INBOX",
         body_width,
-        4 + natural_content_rows,
+        1 + standard_table_body_height(natural_content_rows),
         OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
@@ -485,7 +410,7 @@ pub fn hit_test_inbox_pane(
         return None;
     }
     let pane = inbox_pane_layout(body_width);
-    if col < body_col + pane.divider_offset {
+    if pane.preview_table_width == 0 || col < body_col + pane.preview_offset {
         Some(InboxPane::List)
     } else {
         Some(InboxPane::Preview)
@@ -534,40 +459,199 @@ fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usi
     scroll.min(total_rows.saturating_sub(max_rows))
 }
 
+fn inbox_body_width(filter_line: &str) -> usize {
+    filter_line.chars().count().max(
+        INBOX_LIST_TARGET_TABLE_WIDTH
+            + TABLE_SCROLL_GUTTER_WIDTH
+            + INBOX_TABLE_GAP_WIDTH
+            + INBOX_PREVIEW_TARGET_TABLE_WIDTH
+            + TABLE_SCROLL_GUTTER_WIDTH,
+    )
+}
+
 fn inbox_pane_layout(body_width: usize) -> InboxPaneLayout {
-    let list_width = LIST_WIDTH.min(body_width.saturating_sub(SPLIT_GAP_WIDTH + 1));
-    let divider_offset = list_width;
-    let preview_offset = divider_offset + SPLIT_GAP_WIDTH;
-    let preview_width = body_width.saturating_sub(preview_offset);
+    let minimum_split_width = INBOX_LIST_MIN_TABLE_WIDTH
+        + TABLE_SCROLL_GUTTER_WIDTH
+        + INBOX_TABLE_GAP_WIDTH
+        + INBOX_PREVIEW_MIN_TABLE_WIDTH
+        + TABLE_SCROLL_GUTTER_WIDTH;
+    if body_width < minimum_split_width {
+        return InboxPaneLayout {
+            list_table_width: body_width.saturating_sub(TABLE_SCROLL_GUTTER_WIDTH),
+            list_scroll_gutter_width: TABLE_SCROLL_GUTTER_WIDTH.min(body_width),
+            preview_offset: body_width,
+            preview_table_width: 0,
+            preview_scroll_gutter_width: 0,
+        };
+    }
+
+    let available_table_width = body_width.saturating_sub(
+        TABLE_SCROLL_GUTTER_WIDTH + INBOX_TABLE_GAP_WIDTH + TABLE_SCROLL_GUTTER_WIDTH,
+    );
+    let ratio_limited_list_width =
+        ((available_table_width * 2) / 5).max(INBOX_LIST_MIN_TABLE_WIDTH);
+    let list_table_width = INBOX_LIST_TARGET_TABLE_WIDTH
+        .min(ratio_limited_list_width)
+        .min(body_width.saturating_sub(
+            TABLE_SCROLL_GUTTER_WIDTH
+                + INBOX_TABLE_GAP_WIDTH
+                + INBOX_PREVIEW_MIN_TABLE_WIDTH
+                + TABLE_SCROLL_GUTTER_WIDTH,
+        ));
+    let preview_offset = list_table_width + TABLE_SCROLL_GUTTER_WIDTH + INBOX_TABLE_GAP_WIDTH;
+    let preview_table_width = body_width.saturating_sub(preview_offset + TABLE_SCROLL_GUTTER_WIDTH);
     InboxPaneLayout {
-        list_width,
-        divider_offset,
+        list_table_width,
+        list_scroll_gutter_width: TABLE_SCROLL_GUTTER_WIDTH,
         preview_offset,
-        preview_width,
+        preview_table_width,
+        preview_scroll_gutter_width: TABLE_SCROLL_GUTTER_WIDTH,
     }
 }
 
-fn truncate(value: &str, width: usize) -> String {
-    value.chars().take(width).collect()
+fn inbox_list_columns(table_width: usize) -> Vec<TableColumn<'static>> {
+    columns_for_width(
+        table_width,
+        &[
+            ("ID", 2, TableAlign::Right),
+            ("Type", 4, TableAlign::Left),
+            ("Year", 4, TableAlign::Right),
+            ("Subject", usize::MAX, TableAlign::Left),
+        ],
+    )
 }
 
-fn highlight_selected_id_cell(
-    buf: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    visible_id: usize,
-    style: crate::dashboard::buffer::CellStyle,
-) {
-    buf.write_text(row, col, &format!("{visible_id:>2}"), style);
+fn preview_columns(table_width: usize) -> Vec<TableColumn<'static>> {
+    vec![TableColumn {
+        header: "Preview",
+        width: table_width.saturating_sub(2),
+        align: TableAlign::Left,
+        flex: 0,
+    }]
+}
+
+fn outbox_columns(table_width: usize) -> Vec<TableColumn<'static>> {
+    columns_for_width(
+        table_width,
+        &[
+            ("ID", 2, TableAlign::Right),
+            ("To", 2, TableAlign::Right),
+            ("Subject", usize::MAX, TableAlign::Left),
+        ],
+    )
+}
+
+fn columns_for_width(
+    table_width: usize,
+    specs: &[(&'static str, usize, TableAlign)],
+) -> Vec<TableColumn<'static>> {
+    let separators = specs.len() + 1;
+    let mut remaining = table_width.saturating_sub(separators);
+    specs
+        .iter()
+        .enumerate()
+        .map(|(idx, (header, preferred_width, align))| {
+            let last = idx + 1 == specs.len();
+            let width = if last {
+                remaining
+            } else {
+                let width = remaining.min(*preferred_width);
+                remaining -= width;
+                width
+            };
+            TableColumn {
+                header,
+                width,
+                align: *align,
+                flex: 0,
+            }
+        })
+        .collect()
+}
+
+fn inbox_list_rows(items: &[DashInboxItem]) -> Vec<Vec<String>> {
+    if items.is_empty() {
+        return vec![vec![
+            String::new(),
+            String::new(),
+            String::new(),
+            "No inbox messages.".to_string(),
+        ]];
+    }
+    items
+        .iter()
+        .enumerate()
+        .map(|(idx, item)| {
+            vec![
+                format!("{:02}", idx + 1),
+                item.item_type.code().to_string(),
+                item.year.to_string(),
+                item.subject.clone(),
+            ]
+        })
+        .collect()
+}
+
+fn preview_rows(item: Option<&DashInboxItem>) -> Vec<Vec<String>> {
+    let lines = item
+        .map(|item| {
+            if item.body_lines.is_empty() {
+                vec!["(no body)".to_string()]
+            } else {
+                item.body_lines.clone()
+            }
+        })
+        .unwrap_or_else(|| vec!["No message selected.".to_string()]);
+    lines.into_iter().map(|line| vec![line]).collect()
+}
+
+fn outbox_rows(messages: &[nc_data::TurnMessage]) -> Vec<Vec<String>> {
+    if messages.is_empty() {
+        return vec![vec![
+            String::new(),
+            String::new(),
+            "No staged outgoing messages.".to_string(),
+        ]];
+    }
+    messages
+        .iter()
+        .enumerate()
+        .map(|(idx, message)| {
+            vec![
+                format!("{:02}", idx + 1),
+                message.recipient_empire_raw.to_string(),
+                message.subject.clone(),
+            ]
+        })
+        .collect()
+}
+
+fn inbox_list_row_states(empty: bool, len: usize) -> Vec<TableRowState> {
+    vec![
+        if empty {
+            TableRowState::Disabled
+        } else {
+            TableRowState::Normal
+        };
+        len
+    ]
+}
+
+fn clamp_offset(scroll: usize, visible_rows: usize, total_rows: usize) -> usize {
+    if visible_rows == 0 || total_rows <= visible_rows {
+        0
+    } else {
+        scroll.min(total_rows.saturating_sub(visible_rows))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{HOTKEYS, inbox_pane_layout};
     use crate::dashboard::app::render;
-    use crate::dashboard::app::state::{ActiveOverlay, DashApp};
+    use crate::dashboard::app::state::{ActiveOverlay, DashApp, InboxPromptMode};
     use crate::dashboard::geometry::ScreenGeometry;
-    use nc_data::{GameStateBuilder, QueuedPlayerMail, ReportBlockRow};
+    use nc_data::{GameStateBuilder, QueuedPlayerMail, ReportBlockRow, TurnMessage};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 
@@ -577,23 +661,36 @@ mod tests {
     }
 
     #[test]
-    fn inbox_pane_layout_keeps_default_list_width_when_space_allows() {
-        let layout = inbox_pane_layout(103);
+    fn inbox_pane_layout_keeps_target_widths_when_space_allows() {
+        let layout = inbox_pane_layout(114);
 
-        assert_eq!(layout.list_width, 28);
-        assert_eq!(layout.divider_offset, 28);
-        assert_eq!(layout.preview_offset, 30);
-        assert_eq!(layout.preview_width, 73);
+        assert_eq!(layout.list_table_width, 38);
+        assert_eq!(layout.list_scroll_gutter_width, 1);
+        assert_eq!(layout.preview_offset, 41);
+        assert_eq!(layout.preview_table_width, 72);
+        assert_eq!(layout.preview_scroll_gutter_width, 1);
     }
 
     #[test]
-    fn inbox_pane_layout_shrinks_list_to_preserve_preview_space() {
+    fn inbox_pane_layout_shrinks_list_to_preserve_preview_table() {
+        let layout = inbox_pane_layout(40);
+
+        assert_eq!(layout.list_table_width, 22);
+        assert_eq!(layout.list_scroll_gutter_width, 1);
+        assert_eq!(layout.preview_offset, 25);
+        assert_eq!(layout.preview_table_width, 14);
+        assert_eq!(layout.preview_scroll_gutter_width, 1);
+    }
+
+    #[test]
+    fn inbox_pane_layout_drops_preview_when_split_would_not_fit() {
         let layout = inbox_pane_layout(20);
 
-        assert_eq!(layout.list_width, 17);
-        assert_eq!(layout.divider_offset, 17);
-        assert_eq!(layout.preview_offset, 19);
-        assert_eq!(layout.preview_width, 1);
+        assert_eq!(layout.list_table_width, 19);
+        assert_eq!(layout.list_scroll_gutter_width, 1);
+        assert_eq!(layout.preview_offset, 20);
+        assert_eq!(layout.preview_table_width, 0);
+        assert_eq!(layout.preview_scroll_gutter_width, 0);
     }
 
     #[test]
@@ -638,8 +735,67 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("ID  Type Year Subject"))
+                .any(|line| line.contains("│ID│Type│Year│Subject"))
         );
+    }
+
+    #[test]
+    fn inbox_overlay_renders_empty_state_inside_table() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(25)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(187, 45),
+            ScreenGeometry::new(108, 26),
+            1,
+        );
+        app.overlay = ActiveOverlay::Inbox;
+
+        let buffer = render::render(&app).expect("render empty inbox overlay");
+        let lines = (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .collect::<Vec<_>>();
+
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("│ID│Type│Year│Subject"))
+        );
+        assert!(lines.iter().any(|line| line.contains("No inbox messages.")));
+        assert!(!lines.iter().any(|line| line.contains("(empty)")));
+    }
+
+    #[test]
+    fn outbox_overlay_renders_bordered_table() {
+        let mut app = inbox_test_app();
+        app.initialize_hosted_turn_draft();
+        app.hosted_turn_draft
+            .as_mut()
+            .expect("draft")
+            .messages
+            .push(TurnMessage {
+                recipient_empire_raw: 2,
+                subject: "Move".to_string(),
+                body: "Fleet moves".to_string(),
+            });
+        app.overlay = ActiveOverlay::Inbox;
+        app.inbox_overlay.prompt_mode = InboxPromptMode::Outbox;
+
+        let buffer = render::render(&app).expect("render outbox overlay");
+        let lines = (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .collect::<Vec<_>>();
+
+        assert!(lines.iter().any(|line| line.contains("OUTBOX")));
+        assert!(lines.iter().any(|line| line.contains("│ID│To│Subject")));
+        assert!(lines.iter().any(|line| line.contains("Move")));
     }
 
     #[test]

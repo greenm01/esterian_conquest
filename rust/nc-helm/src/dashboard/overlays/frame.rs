@@ -20,6 +20,7 @@ pub struct OverlayFrame {
     pub body_row: usize,
     pub body_width: usize,
     pub body_height: usize,
+    #[allow(dead_code)]
     pub footer_row: usize,
 }
 
@@ -848,28 +849,4 @@ pub fn write_clipped(
     }
     let clipped: String = text.chars().take(width).collect();
     buf.write_text_clipped(row, col, &clipped, style);
-}
-
-pub fn draw_hline(
-    buf: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    width: usize,
-    style: CellStyle,
-) {
-    for offset in 0..width {
-        buf.set_cell(row, col + offset, '─', style);
-    }
-}
-
-pub fn draw_vline(
-    buf: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    height: usize,
-    style: CellStyle,
-) {
-    for offset in 0..height {
-        buf.set_cell(row + offset, col, '│', style);
-    }
 }
