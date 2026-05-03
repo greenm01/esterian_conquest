@@ -17,24 +17,33 @@ use std::time::{Duration, Instant};
 
 use bytemuck::{Pod, Zeroable};
 use swash::scale::ScaleContext;
-use swash::shape::ShapeContext;
 use wgpu::{
-    self, BindGroup, BindGroupLayout, Buffer, BufferAddress, CommandEncoderDescriptor,
-    CompositeAlphaMode, Device, DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, Operations,
-    Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
+    self, BindGroup, BindGroupLayout, Buffer, CommandEncoderDescriptor, CompositeAlphaMode, Device,
+    DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, Operations, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
     SamplerDescriptor, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension,
     TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
 use winit::event_loop::ActiveEventLoop;
 
+mod common;
+mod logo;
+mod matrix;
+
 use super::primitives;
-use crate::fonts::{ResolvedGlyph, render_alpha_glyph, resolve_mono_glyph, shape_stormfaze_text};
-use crate::geometry::{GridMapper, GridMetrics, PhysicalRect};
+use crate::fonts::{render_alpha_glyph, resolve_mono_glyph};
+use crate::geometry::{GridMapper, GridMetrics};
 use crate::grid::{
-    BackgroundMode, Cell, CellStyle, GameColor, OverlayLogo, OverlayLogoKind, OverlaySelection,
-    PlayfieldBuffer, Point, ScreenGeometry,
+    BackgroundMode, Cell, CellStyle, GameColor, OverlayLogo, OverlaySelection, PlayfieldBuffer,
+    Point, ScreenGeometry,
 };
 use crate::theme as chrome_theme;
+use common::{atlas_slot_contains_pixel, clear_color};
+use logo::{
+    LogoAtlas, LogoPlacement, LogoVertex, build_logo_vertices, create_logo_bind_group,
+    create_logo_pipeline, generate_logo_atlas, logo_rect,
+};
+use matrix::MatrixRenderer;
 
 /// A GPU-ready representation of a single grid cell.
 #[repr(C)]
@@ -71,42 +80,8 @@ struct GpuGrid {
     selection_color: u32,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct MatrixStateUniform {
-    grid_width: f32,
-    grid_height: f32,
-    time_seconds: f32,
-    frame_count: f32,
-    fall_speed: f32,
-    cycle_speed: f32,
-    raindrop_length: f32,
-    brightness_decay: f32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct MatrixFinalUniform {
-    surface_width: f32,
-    surface_height: f32,
-    cell_width: f32,
-    cell_height: f32,
-    atlas_width: f32,
-    atlas_height: f32,
-    glyph_count: f32,
-    time_seconds: f32,
-    grid_width: f32,
-    grid_height: f32,
-    _pad0: f32,
-    _pad1: f32,
-}
-
 const GPU_STYLE_BOLD: u32 = 1 << 0;
 const GPU_STYLE_TEXT_BAND: u32 = 1 << 1;
-const MATRIX_SHADER_FALL_SPEED: f32 = 0.3;
-const MATRIX_SHADER_CYCLE_SPEED: f32 = 0.03;
-const MATRIX_SHADER_RAINDROP_LENGTH: f32 = 0.75;
-const MATRIX_SHADER_BRIGHTNESS_DECAY: f32 = 1.0;
 
 const GRID_ATLAS_ASCII_START: u32 = 32;
 const GRID_ATLAS_ASCII_END: u32 = 127;
@@ -125,11 +100,6 @@ const GRID_ATLAS_ROWS: u32 = 17;
 const GRID_ATLAS_MATRIX_CHARS: [char; 34] = [
     'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'ς',
     'τ', 'υ', 'φ', 'χ', 'ψ', 'ω', 'ϲ', 'ϛ', 'ϟ', 'ϡ', '´', '῀', '᾿', '῾', 'ͅ',
-];
-
-const MATRIX_SHADER_GLYPHS: [char; 35] = [
-    'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'ς',
-    'τ', 'υ', 'φ', 'χ', 'ψ', 'ω', 'ϲ', 'ϛ', 'ϟ', 'ϡ', '´', '`', '῀', '᾿', '῾', 'ͅ',
 ];
 
 /// Fullscreen-quad shader that uploads the CPU `background_pixels` buffer.
@@ -592,238 +562,6 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 }
 "#;
 
-const MATRIX_RAINDROP_SHADER: &str = r#"
-struct StateUniform {
-    grid_width: f32,
-    grid_height: f32,
-    time_seconds: f32,
-    frame_count: f32,
-    fall_speed: f32,
-    cycle_speed: f32,
-    raindrop_length: f32,
-    brightness_decay: f32,
-};
-
-@group(0) @binding(0) var<uniform> state: StateUniform;
-@group(0) @binding(1) var previous_raindrop: texture_2d<f32>;
-@group(0) @binding(2) var state_sampler: sampler;
-
-struct VertexOut {
-    @builtin(position) position: vec4<f32>,
-};
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
-    var positions = array<vec2<f32>, 3>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>(3.0, -1.0),
-        vec2<f32>(-1.0, 3.0),
-    );
-    var out: VertexOut;
-    out.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
-    return out;
-}
-
-fn random_float(p: vec2<f32>) -> f32 {
-    return fract(sin(dot(p, vec2<f32>(12.9898, 78.233))) * 43758.5453123);
-}
-
-fn rain_brightness(t: f32, cell: vec2<f32>) -> f32 {
-    let fall_speed = max(state.fall_speed, 0.001);
-    let raindrop_length = max(state.raindrop_length, 0.05);
-    let column_time_offset = random_float(vec2<f32>(cell.x, 0.0)) * 1000.0;
-    let column_speed_offset = random_float(vec2<f32>(cell.x + 0.1, 0.0)) * 0.5 + 0.5;
-    let column_time = column_time_offset + t * fall_speed * column_speed_offset;
-    let glyph_y = max(state.grid_height, 1.0) - cell.y - 1.0;
-    let rain_time = (glyph_y * 0.01 + column_time) / raindrop_length;
-    return 1.0 - fract(rain_time);
-}
-
-@fragment
-fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    let grid = max(vec2<f32>(state.grid_width, state.grid_height), vec2<f32>(1.0, 1.0));
-    let cell = floor(in.position.xy);
-    let prev_uv = (cell + vec2<f32>(0.5, 0.5)) / grid;
-    let prev = textureSample(previous_raindrop, state_sampler, prev_uv);
-    var brightness = rain_brightness(state.time_seconds, cell);
-    let brightness_below = rain_brightness(state.time_seconds, cell + vec2<f32>(0.0, 1.0));
-    let cursor = select(0.0, 1.0, brightness > brightness_below);
-    if (state.frame_count > 0.5) {
-        brightness = mix(prev.r, brightness, clamp(state.brightness_decay, 0.0, 1.0));
-    }
-    return vec4<f32>(clamp(brightness, 0.0, 1.0), cursor, 1.0, 1.0);
-}
-"#;
-
-const MATRIX_SYMBOL_SHADER: &str = r#"
-struct StateUniform {
-    grid_width: f32,
-    grid_height: f32,
-    time_seconds: f32,
-    frame_count: f32,
-    fall_speed: f32,
-    cycle_speed: f32,
-    raindrop_length: f32,
-    glyph_count: f32,
-};
-
-@group(0) @binding(0) var<uniform> state: StateUniform;
-@group(0) @binding(1) var previous_symbol: texture_2d<f32>;
-@group(0) @binding(2) var raindrop_state: texture_2d<f32>;
-@group(0) @binding(3) var state_sampler: sampler;
-
-struct VertexOut {
-    @builtin(position) position: vec4<f32>,
-};
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
-    var positions = array<vec2<f32>, 3>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>(3.0, -1.0),
-        vec2<f32>(-1.0, 3.0),
-    );
-    var out: VertexOut;
-    out.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
-    return out;
-}
-
-fn random_float(p: vec2<f32>) -> f32 {
-    return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453123);
-}
-
-@fragment
-fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    let grid = max(vec2<f32>(state.grid_width, state.grid_height), vec2<f32>(1.0, 1.0));
-    let glyph_count = max(state.glyph_count, 1.0);
-    let cell = floor(in.position.xy);
-    let state_uv = (cell + vec2<f32>(0.5, 0.5)) / grid;
-    let prev = textureSample(previous_symbol, state_sampler, state_uv);
-    let rain = textureSample(raindrop_state, state_sampler, state_uv);
-    let animation_speed = max(rain.r * 2.0, 0.15);
-    let cycle_rate = max(state.cycle_speed, 0.001) * 25.0 * animation_speed;
-    let phase = random_float(cell + vec2<f32>(17.0, 19.0));
-    let bucket = floor((state.time_seconds + phase * 8.0) * cycle_rate);
-    let symbol_seed = random_float(cell + vec2<f32>(bucket * 0.37 + 7.0, bucket * 0.11 + 13.0));
-    let symbol = floor(symbol_seed * glyph_count);
-    let age = fract(prev.g + cycle_rate * 0.04);
-    return vec4<f32>((symbol + 0.5) / glyph_count, age, 0.0, 1.0);
-}
-"#;
-
-const MATRIX_FINAL_SHADER: &str = r#"
-struct FinalUniform {
-    surface_width: f32,
-    surface_height: f32,
-    cell_width: f32,
-    cell_height: f32,
-    atlas_width: f32,
-    atlas_height: f32,
-    glyph_count: f32,
-    time_seconds: f32,
-    grid_width: f32,
-    grid_height: f32,
-    pad0: f32,
-    pad1: f32,
-};
-
-@group(0) @binding(0) var<uniform> params: FinalUniform;
-@group(0) @binding(1) var raindrop_state: texture_2d<f32>;
-@group(0) @binding(2) var symbol_state: texture_2d<f32>;
-@group(0) @binding(3) var glyph_tex: texture_2d<f32>;
-@group(0) @binding(4) var state_sampler: sampler;
-@group(0) @binding(5) var glyph_sampler: sampler;
-
-struct VertexOut {
-    @builtin(position) position: vec4<f32>,
-};
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
-    var positions = array<vec2<f32>, 3>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>(3.0, -1.0),
-        vec2<f32>(-1.0, 3.0),
-    );
-    var out: VertexOut;
-    out.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
-    return out;
-}
-
-@fragment
-fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    let surface = vec2<f32>(params.surface_width, params.surface_height);
-    let cell_size = max(vec2<f32>(params.cell_width, params.cell_height), vec2<f32>(1.0, 1.0));
-    let top_pixel = in.position.xy;
-    if (top_pixel.x < 0.0 || top_pixel.y < 0.0 || top_pixel.x >= surface.x || top_pixel.y >= surface.y) {
-        discard;
-    }
-    let grid = max(vec2<f32>(params.grid_width, params.grid_height), vec2<f32>(1.0, 1.0));
-    let cell = floor(top_pixel / cell_size);
-    if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= grid.x || cell.y >= grid.y) {
-        discard;
-    }
-    let local = fract(top_pixel / cell_size);
-    let state_uv = (cell + vec2<f32>(0.5, 0.5)) / grid;
-    let rain = textureSample(raindrop_state, state_sampler, state_uv);
-    let symbol_sample = textureSample(symbol_state, state_sampler, state_uv);
-    let glyph_count = max(params.glyph_count, 1.0);
-    let symbol = clamp(floor(clamp(symbol_sample.r, 0.0, 0.99999) * glyph_count), 0.0, glyph_count - 1.0);
-    let glyph_uv = vec2<f32>((symbol + local.x) / glyph_count, local.y);
-    let alpha = textureSample(glyph_tex, glyph_sampler, glyph_uv).r;
-    let brightness = rain.r * 1.1 - 0.5;
-    if (brightness <= 0.0 || alpha <= 0.01) {
-        discard;
-    }
-    let trail = vec3<f32>(0.0, 0.82, 0.04) * brightness;
-    let cursor = vec3<f32>(0.86, 1.0, 0.86) * max(brightness, 0.55);
-    let color = mix(trail, cursor, step(0.5, rain.g));
-    return vec4<f32>(color * alpha, 1.0);
-}
-"#;
-
-const LOGO_SHADER: &str = r#"
-@group(0) @binding(0) var logo_tex: texture_2d<f32>;
-@group(0) @binding(1) var logo_sampler: sampler;
-
-struct VertexIn {
-    @location(0) position: vec2<f32>,
-    @location(1) uv: vec2<f32>,
-    @location(2) color: vec4<f32>,
-};
-
-struct VertexOut {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-    @location(1) color: vec4<f32>,
-};
-
-@vertex
-fn vs_main(in: VertexIn) -> VertexOut {
-    var out: VertexOut;
-    out.position = vec4<f32>(in.position, 0.0, 1.0);
-    out.uv = in.uv;
-    out.color = in.color;
-    return out;
-}
-
-@fragment
-fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    let alpha = textureSample(logo_tex, logo_sampler, in.uv).r;
-    return vec4<f32>(in.color.rgb, in.color.a * alpha);
-}
-"#;
-
-const LOGO_KIND_COUNT: usize = OverlayLogoKind::ALL.len();
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct LogoVertex {
-    position: [f32; 2],
-    uv: [f32; 2],
-    color: [f32; 4],
-}
-
 /// GPU-side resources for the background image: a 2D texture sized to the
 /// surface, plus a pre-built bind group ready to attach during rendering.
 struct BackgroundTexture {
@@ -834,69 +572,6 @@ struct BackgroundTexture {
 struct GridAtlas {
     _texture: Texture,
     view: TextureView,
-}
-
-struct MatrixGlyphAtlas {
-    _texture: Texture,
-    view: TextureView,
-    width_px: u32,
-    height_px: u32,
-    glyph_count: u32,
-}
-
-struct MatrixStateTarget {
-    _texture: Texture,
-    view: TextureView,
-}
-
-struct MatrixStateTargets {
-    grid_width: u32,
-    grid_height: u32,
-    raindrop: [MatrixStateTarget; 2],
-    symbol: [MatrixStateTarget; 2],
-}
-
-struct MatrixShaderState {
-    raindrop_pipeline: wgpu::RenderPipeline,
-    raindrop_bind_group_layout: BindGroupLayout,
-    symbol_pipeline: wgpu::RenderPipeline,
-    symbol_bind_group_layout: BindGroupLayout,
-    final_pipeline: wgpu::RenderPipeline,
-    final_bind_group_layout: BindGroupLayout,
-    state_sampler: Sampler,
-    glyph_sampler: Sampler,
-    state_uniform_buffer: Buffer,
-    symbol_uniform_buffer: Buffer,
-    final_uniform_buffer: Buffer,
-    glyph_atlas: MatrixGlyphAtlas,
-    targets: Option<MatrixStateTargets>,
-    current_raindrop: usize,
-    current_symbol: usize,
-    frame_count: u32,
-    clock_start: Option<Instant>,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-struct LogoSprite {
-    x_px: u32,
-    y_px: u32,
-    width_px: u32,
-    height_px: u32,
-}
-
-struct LogoAtlas {
-    _texture: Texture,
-    view: TextureView,
-    width_px: u32,
-    height_px: u32,
-    sprites: [LogoSprite; LOGO_KIND_COUNT],
-}
-
-#[derive(Clone, Copy, Debug)]
-struct LogoPlacement {
-    sprite: LogoSprite,
-    rect: PhysicalRect,
-    color: GameColor,
 }
 
 #[derive(Clone, Debug)]
@@ -982,7 +657,7 @@ pub struct Renderer {
     grid_config_buffer: Buffer,
     grid_bind_group: BindGroup,
     grid_atlas: GridAtlas,
-    matrix: MatrixShaderState,
+    matrix: MatrixRenderer,
     logo_pipeline: wgpu::RenderPipeline,
     logo_bind_group_layout: BindGroupLayout,
     logo_sampler: Sampler,
@@ -1052,8 +727,7 @@ impl Renderer {
         });
 
         let grid_atlas = generate_grid_atlas(&device, &queue, grid_metrics);
-        let matrix =
-            create_matrix_shader_state(&device, &queue, surface_config.format, grid_metrics);
+        let matrix = MatrixRenderer::new(&device, &queue, surface_config.format, grid_metrics);
         let logo_atlas = generate_logo_atlas(&device, &queue, grid_metrics);
         let (logo_pipeline, logo_bind_group_layout) =
             create_logo_pipeline(&device, surface_config.format);
@@ -1246,7 +920,7 @@ impl Renderer {
         if matches!(mode, RenderMode::MatrixLocked) {
             return self.render_matrix_locked();
         }
-        self.matrix.clock_start = None;
+        self.matrix.reset_clock();
         let total_start = Instant::now();
         self.sync_scale_metrics();
         let size = self.window.inner_size();
@@ -1261,7 +935,12 @@ impl Renderer {
         let glyph_prepare = Duration::ZERO;
 
         self.upload_grid_to_gpu(playfield, &prepared.dirty_cells);
-        let logo_vertices = self.build_logo_vertices();
+        let logo_vertices = build_logo_vertices(
+            &self.logo_placements,
+            &self.logo_atlas,
+            self.surface_config.width,
+            self.surface_config.height,
+        );
         self.ensure_logo_vertex_capacity(logo_vertices.len());
         if !logo_vertices.is_empty() {
             self.queue.write_buffer(
@@ -1371,64 +1050,12 @@ impl Renderer {
             return Ok(RenderTimings::default());
         }
         self.ensure_surface_size(size.width, size.height);
-
-        let cell_width = self.grid_metrics.cell.width_px.max(1) as u32;
-        let cell_height = self.grid_metrics.cell.height_px.max(1) as u32;
-        let (grid_width, grid_height) = matrix_grid_dimensions(
+        let matrix_setup = self.matrix.prepare(
+            &self.device,
+            &self.queue,
             self.surface_config.width,
             self.surface_config.height,
-            cell_width,
-            cell_height,
-        );
-        let state_recreated = self.ensure_matrix_state_targets(grid_width, grid_height);
-
-        let now = Instant::now();
-        let start = *self.matrix.clock_start.get_or_insert(now);
-        let time_seconds = now.duration_since(start).as_secs_f32();
-        let frame_count = self.matrix.frame_count as f32;
-
-        let state_uniform = MatrixStateUniform {
-            grid_width: grid_width as f32,
-            grid_height: grid_height as f32,
-            time_seconds,
-            frame_count,
-            fall_speed: MATRIX_SHADER_FALL_SPEED,
-            cycle_speed: MATRIX_SHADER_CYCLE_SPEED,
-            raindrop_length: MATRIX_SHADER_RAINDROP_LENGTH,
-            brightness_decay: MATRIX_SHADER_BRIGHTNESS_DECAY,
-        };
-        self.queue.write_buffer(
-            &self.matrix.state_uniform_buffer,
-            0,
-            bytemuck::bytes_of(&state_uniform),
-        );
-        let symbol_uniform = MatrixStateUniform {
-            brightness_decay: self.matrix.glyph_atlas.glyph_count as f32,
-            ..state_uniform
-        };
-        self.queue.write_buffer(
-            &self.matrix.symbol_uniform_buffer,
-            0,
-            bytemuck::bytes_of(&symbol_uniform),
-        );
-        let final_uniform = MatrixFinalUniform {
-            surface_width: self.surface_config.width as f32,
-            surface_height: self.surface_config.height as f32,
-            cell_width: cell_width as f32,
-            cell_height: cell_height as f32,
-            atlas_width: self.matrix.glyph_atlas.width_px as f32,
-            atlas_height: self.matrix.glyph_atlas.height_px as f32,
-            glyph_count: self.matrix.glyph_atlas.glyph_count as f32,
-            time_seconds,
-            grid_width: grid_width as f32,
-            grid_height: grid_height as f32,
-            _pad0: 0.0,
-            _pad1: 0.0,
-        };
-        self.queue.write_buffer(
-            &self.matrix.final_uniform_buffer,
-            0,
-            bytemuck::bytes_of(&final_uniform),
+            self.grid_metrics,
         );
 
         let gpu_start = Instant::now();
@@ -1459,250 +1086,20 @@ impl Renderer {
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
-        if state_recreated {
-            self.clear_matrix_state_targets(&mut encoder);
+        if matrix_setup.state_recreated {
+            self.matrix.clear_state_targets(&mut encoder);
         }
-        self.encode_matrix_passes(&mut encoder, &view);
+        self.matrix.encode_passes(&self.device, &mut encoder, &view);
 
         self.window.pre_present_notify();
         self.queue.submit(Some(encoder.finish()));
         frame.present();
-        self.matrix.frame_count = self.matrix.frame_count.saturating_add(1);
+        self.matrix.finish_frame();
         Ok(RenderTimings {
             gpu_submit_present: gpu_start.elapsed(),
             total: total_start.elapsed(),
             ..RenderTimings::default()
         })
-    }
-
-    fn ensure_matrix_state_targets(&mut self, grid_width: u32, grid_height: u32) -> bool {
-        if self.matrix.targets.as_ref().is_some_and(|targets| {
-            targets.grid_width == grid_width && targets.grid_height == grid_height
-        }) {
-            return false;
-        }
-        self.matrix.targets = Some(MatrixStateTargets {
-            grid_width,
-            grid_height,
-            raindrop: [
-                create_matrix_state_target(
-                    &self.device,
-                    grid_width,
-                    grid_height,
-                    "matrix-raindrop-a",
-                ),
-                create_matrix_state_target(
-                    &self.device,
-                    grid_width,
-                    grid_height,
-                    "matrix-raindrop-b",
-                ),
-            ],
-            symbol: [
-                create_matrix_state_target(
-                    &self.device,
-                    grid_width,
-                    grid_height,
-                    "matrix-symbol-a",
-                ),
-                create_matrix_state_target(
-                    &self.device,
-                    grid_width,
-                    grid_height,
-                    "matrix-symbol-b",
-                ),
-            ],
-        });
-        self.matrix.current_raindrop = 0;
-        self.matrix.current_symbol = 0;
-        self.matrix.frame_count = 0;
-        true
-    }
-
-    fn clear_matrix_state_targets(&self, encoder: &mut wgpu::CommandEncoder) {
-        let Some(targets) = self.matrix.targets.as_ref() else {
-            return;
-        };
-        for target in targets.raindrop.iter().chain(targets.symbol.iter()) {
-            let _pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("nc-helm-matrix-clear-state-pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &target.view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-        }
-    }
-
-    fn encode_matrix_passes(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        surface_view: &TextureView,
-    ) {
-        let targets = self
-            .matrix
-            .targets
-            .as_ref()
-            .expect("matrix state targets should be initialized before rendering");
-        let raindrop_src = self.matrix.current_raindrop;
-        let raindrop_dst = 1 - raindrop_src;
-        let symbol_src = self.matrix.current_symbol;
-        let symbol_dst = 1 - symbol_src;
-
-        let raindrop_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("nc-helm-matrix-raindrop-bind-group"),
-            layout: &self.matrix.raindrop_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: self.matrix.state_uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(
-                        &targets.raindrop[raindrop_src].view,
-                    ),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(&self.matrix.state_sampler),
-                },
-            ],
-        });
-        {
-            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("nc-helm-matrix-raindrop-pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &targets.raindrop[raindrop_dst].view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-            pass.set_pipeline(&self.matrix.raindrop_pipeline);
-            pass.set_bind_group(0, &raindrop_bind_group, &[]);
-            pass.draw(0..3, 0..1);
-        }
-        self.matrix.current_raindrop = raindrop_dst;
-
-        let symbol_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("nc-helm-matrix-symbol-bind-group"),
-            layout: &self.matrix.symbol_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: self.matrix.symbol_uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&targets.symbol[symbol_src].view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(
-                        &targets.raindrop[self.matrix.current_raindrop].view,
-                    ),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&self.matrix.state_sampler),
-                },
-            ],
-        });
-        {
-            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("nc-helm-matrix-symbol-pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &targets.symbol[symbol_dst].view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-            pass.set_pipeline(&self.matrix.symbol_pipeline);
-            pass.set_bind_group(0, &symbol_bind_group, &[]);
-            pass.draw(0..3, 0..1);
-        }
-        self.matrix.current_symbol = symbol_dst;
-
-        let final_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("nc-helm-matrix-final-bind-group"),
-            layout: &self.matrix.final_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: self.matrix.final_uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(
-                        &targets.raindrop[self.matrix.current_raindrop].view,
-                    ),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(
-                        &targets.symbol[self.matrix.current_symbol].view,
-                    ),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::TextureView(&self.matrix.glyph_atlas.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 4,
-                    resource: wgpu::BindingResource::Sampler(&self.matrix.state_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 5,
-                    resource: wgpu::BindingResource::Sampler(&self.matrix.glyph_sampler),
-                },
-            ],
-        });
-        {
-            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("nc-helm-matrix-final-pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: surface_view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-            pass.set_pipeline(&self.matrix.final_pipeline);
-            pass.set_bind_group(0, &final_bind_group, &[]);
-            pass.draw(0..3, 0..1);
-        }
     }
 
     fn sync_scale_metrics(&mut self) {
@@ -1714,9 +1111,8 @@ impl Renderer {
         if updated != self.grid_metrics {
             self.grid_metrics = updated;
             self.grid_atlas = generate_grid_atlas(&self.device, &self.queue, self.grid_metrics);
-            self.matrix.glyph_atlas =
-                generate_matrix_glyph_atlas(&self.device, &self.queue, self.grid_metrics);
-            self.matrix.targets = None;
+            self.matrix
+                .sync_scale_metrics(&self.device, &self.queue, self.grid_metrics);
             self.logo_atlas = generate_logo_atlas(&self.device, &self.queue, self.grid_metrics);
             self.rebuild_grid_bind_group();
             self.rebuild_logo_bind_group();
@@ -1764,64 +1160,6 @@ impl Renderer {
             dirty_cells,
             ..PreparedFrame::default()
         }
-    }
-
-    fn build_logo_vertices(&self) -> Vec<LogoVertex> {
-        let mut vertices = Vec::with_capacity(self.logo_placements.len() * 6);
-        for placement in &self.logo_placements {
-            if placement.rect.width == 0 || placement.rect.height == 0 {
-                continue;
-            }
-            let left = pixel_to_ndc_x(placement.rect.x, self.surface_config.width);
-            let right = pixel_to_ndc_x(
-                placement.rect.x.saturating_add(placement.rect.width),
-                self.surface_config.width,
-            );
-            let top = pixel_to_ndc_y(placement.rect.y, self.surface_config.height);
-            let bottom = pixel_to_ndc_y(
-                placement.rect.y.saturating_add(placement.rect.height),
-                self.surface_config.height,
-            );
-            let color = linear_color_f32(placement.color);
-            let sprite = placement.sprite;
-            let u0 = sprite.x_px as f32 / self.logo_atlas.width_px as f32;
-            let v0 = sprite.y_px as f32 / self.logo_atlas.height_px as f32;
-            let u1 = (sprite.x_px + sprite.width_px) as f32 / self.logo_atlas.width_px as f32;
-            let v1 = (sprite.y_px + sprite.height_px) as f32 / self.logo_atlas.height_px as f32;
-            vertices.extend_from_slice(&[
-                LogoVertex {
-                    position: [left, top],
-                    uv: [u0, v0],
-                    color,
-                },
-                LogoVertex {
-                    position: [right, top],
-                    uv: [u1, v0],
-                    color,
-                },
-                LogoVertex {
-                    position: [left, bottom],
-                    uv: [u0, v1],
-                    color,
-                },
-                LogoVertex {
-                    position: [left, bottom],
-                    uv: [u0, v1],
-                    color,
-                },
-                LogoVertex {
-                    position: [right, top],
-                    uv: [u1, v0],
-                    color,
-                },
-                LogoVertex {
-                    position: [right, bottom],
-                    uv: [u1, v1],
-                    color,
-                },
-            ]);
-        }
-        vertices
     }
 
     fn ensure_logo_vertex_capacity(&mut self, vertex_count: usize) {
@@ -1873,100 +1211,6 @@ impl Renderer {
     }
 }
 
-fn create_matrix_shader_state(
-    device: &Device,
-    queue: &Queue,
-    surface_format: TextureFormat,
-    grid_metrics: GridMetrics,
-) -> MatrixShaderState {
-    let (raindrop_pipeline, raindrop_bind_group_layout) = create_matrix_raindrop_pipeline(device);
-    let (symbol_pipeline, symbol_bind_group_layout) = create_matrix_symbol_pipeline(device);
-    let (final_pipeline, final_bind_group_layout) =
-        create_matrix_final_pipeline(device, surface_format);
-    let state_sampler = device.create_sampler(&SamplerDescriptor {
-        label: Some("nc-helm-matrix-state-sampler"),
-        mag_filter: wgpu::FilterMode::Nearest,
-        min_filter: wgpu::FilterMode::Nearest,
-        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-        address_mode_u: wgpu::AddressMode::ClampToEdge,
-        address_mode_v: wgpu::AddressMode::ClampToEdge,
-        ..SamplerDescriptor::default()
-    });
-    let glyph_sampler = device.create_sampler(&SamplerDescriptor {
-        label: Some("nc-helm-matrix-glyph-sampler"),
-        mag_filter: wgpu::FilterMode::Nearest,
-        min_filter: wgpu::FilterMode::Nearest,
-        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-        address_mode_u: wgpu::AddressMode::ClampToEdge,
-        address_mode_v: wgpu::AddressMode::ClampToEdge,
-        ..SamplerDescriptor::default()
-    });
-    let state_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("nc-helm-matrix-state-uniform-buffer"),
-        size: std::mem::size_of::<MatrixStateUniform>() as u64,
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let symbol_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("nc-helm-matrix-symbol-uniform-buffer"),
-        size: std::mem::size_of::<MatrixStateUniform>() as u64,
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let final_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("nc-helm-matrix-final-uniform-buffer"),
-        size: std::mem::size_of::<MatrixFinalUniform>() as u64,
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    MatrixShaderState {
-        raindrop_pipeline,
-        raindrop_bind_group_layout,
-        symbol_pipeline,
-        symbol_bind_group_layout,
-        final_pipeline,
-        final_bind_group_layout,
-        state_sampler,
-        glyph_sampler,
-        state_uniform_buffer,
-        symbol_uniform_buffer,
-        final_uniform_buffer,
-        glyph_atlas: generate_matrix_glyph_atlas(device, queue, grid_metrics),
-        targets: None,
-        current_raindrop: 0,
-        current_symbol: 0,
-        frame_count: 0,
-        clock_start: None,
-    }
-}
-
-fn create_matrix_state_target(
-    device: &Device,
-    width: u32,
-    height: u32,
-    label: &'static str,
-) -> MatrixStateTarget {
-    let texture = device.create_texture(&TextureDescriptor {
-        label: Some(label),
-        size: wgpu::Extent3d {
-            width: width.max(1),
-            height: height.max(1),
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::Rgba8Unorm,
-        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-        view_formats: &[],
-    });
-    let view = texture.create_view(&TextureViewDescriptor::default());
-    MatrixStateTarget {
-        _texture: texture,
-        view,
-    }
-}
-
 fn create_grid_bind_group(
     device: &Device,
     bind_group_layout: &BindGroupLayout,
@@ -1999,28 +1243,6 @@ fn create_grid_bind_group(
             wgpu::BindGroupEntry {
                 binding: 4,
                 resource: wgpu::BindingResource::TextureView(&grid_atlas.view),
-            },
-        ],
-    })
-}
-
-fn create_logo_bind_group(
-    device: &Device,
-    bind_group_layout: &BindGroupLayout,
-    logo_atlas: &LogoAtlas,
-    logo_sampler: &Sampler,
-) -> BindGroup {
-    device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("nc-helm-logo-bind-group"),
-        layout: bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&logo_atlas.view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(logo_sampler),
             },
         ],
     })
@@ -2185,181 +1407,6 @@ fn diff_row_spans(previous: &[Cell], current: &[Cell]) -> Vec<DirtyColumnSpan> {
     }
 }
 
-/// Build the lockme-style Matrix shader pipelines. These own no vertex buffer;
-/// each pass draws a fullscreen triangle and derives positions from
-/// `vertex_index`.
-fn create_matrix_raindrop_pipeline(device: &Device) -> (wgpu::RenderPipeline, BindGroupLayout) {
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("nc-helm-matrix-raindrop-shader"),
-        source: wgpu::ShaderSource::Wgsl(MATRIX_RAINDROP_SHADER.into()),
-    });
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("nc-helm-matrix-raindrop-bind-group-layout"),
-        entries: &[
-            uniform_layout_entry(0),
-            texture_layout_entry(1),
-            sampler_layout_entry(2),
-        ],
-    });
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("nc-helm-matrix-raindrop-pipeline-layout"),
-        bind_group_layouts: &[Some(&bind_group_layout)],
-        immediate_size: 0,
-    });
-    let pipeline = create_fullscreen_pipeline(
-        device,
-        &shader,
-        &pipeline_layout,
-        TextureFormat::Rgba8Unorm,
-        "nc-helm-matrix-raindrop-pipeline",
-    );
-    (pipeline, bind_group_layout)
-}
-
-fn create_matrix_symbol_pipeline(device: &Device) -> (wgpu::RenderPipeline, BindGroupLayout) {
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("nc-helm-matrix-symbol-shader"),
-        source: wgpu::ShaderSource::Wgsl(MATRIX_SYMBOL_SHADER.into()),
-    });
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("nc-helm-matrix-symbol-bind-group-layout"),
-        entries: &[
-            uniform_layout_entry(0),
-            texture_layout_entry(1),
-            texture_layout_entry(2),
-            sampler_layout_entry(3),
-        ],
-    });
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("nc-helm-matrix-symbol-pipeline-layout"),
-        bind_group_layouts: &[Some(&bind_group_layout)],
-        immediate_size: 0,
-    });
-    let pipeline = create_fullscreen_pipeline(
-        device,
-        &shader,
-        &pipeline_layout,
-        TextureFormat::Rgba8Unorm,
-        "nc-helm-matrix-symbol-pipeline",
-    );
-    (pipeline, bind_group_layout)
-}
-
-fn create_matrix_final_pipeline(
-    device: &Device,
-    surface_format: TextureFormat,
-) -> (wgpu::RenderPipeline, BindGroupLayout) {
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("nc-helm-matrix-final-shader"),
-        source: wgpu::ShaderSource::Wgsl(MATRIX_FINAL_SHADER.into()),
-    });
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("nc-helm-matrix-final-bind-group-layout"),
-        entries: &[
-            uniform_layout_entry(0),
-            texture_layout_entry(1),
-            texture_layout_entry(2),
-            texture_layout_entry(3),
-            sampler_layout_entry(4),
-            sampler_layout_entry(5),
-        ],
-    });
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("nc-helm-matrix-final-pipeline-layout"),
-        bind_group_layouts: &[Some(&bind_group_layout)],
-        immediate_size: 0,
-    });
-    let pipeline = create_fullscreen_pipeline(
-        device,
-        &shader,
-        &pipeline_layout,
-        surface_format,
-        "nc-helm-matrix-final-pipeline",
-    );
-    (pipeline, bind_group_layout)
-}
-
-fn create_fullscreen_pipeline(
-    device: &Device,
-    shader: &wgpu::ShaderModule,
-    pipeline_layout: &wgpu::PipelineLayout,
-    format: TextureFormat,
-    label: &'static str,
-) -> wgpu::RenderPipeline {
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(label),
-        layout: Some(pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: shader,
-            entry_point: Some("vs_main"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            buffers: &[],
-        },
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        fragment: Some(wgpu::FragmentState {
-            module: shader,
-            entry_point: Some("fs_main"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            targets: &[Some(wgpu::ColorTargetState {
-                format,
-                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        multiview_mask: None,
-        cache: None,
-    })
-}
-
-fn uniform_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
-    wgpu::BindGroupLayoutEntry {
-        binding,
-        visibility: wgpu::ShaderStages::FRAGMENT,
-        ty: wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Uniform,
-            has_dynamic_offset: false,
-            min_binding_size: None,
-        },
-        count: None,
-    }
-}
-
-fn texture_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
-    wgpu::BindGroupLayoutEntry {
-        binding,
-        visibility: wgpu::ShaderStages::FRAGMENT,
-        ty: wgpu::BindingType::Texture {
-            multisampled: false,
-            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-            view_dimension: wgpu::TextureViewDimension::D2,
-        },
-        count: None,
-    }
-}
-
-fn sampler_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
-    wgpu::BindGroupLayoutEntry {
-        binding,
-        visibility: wgpu::ShaderStages::FRAGMENT,
-        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-        count: None,
-    }
-}
-
-fn matrix_grid_dimensions(
-    surface_width: u32,
-    surface_height: u32,
-    cell_width: u32,
-    cell_height: u32,
-) -> (u32, u32) {
-    (
-        (surface_width / cell_width.max(1)).max(1),
-        (surface_height / cell_height.max(1)).max(1),
-    )
-}
-
 /// Build the wgpu render pipeline that draws the background texture as a
 /// fullscreen quad using [`BACKGROUND_SHADER`]. The pipeline owns no vertex
 /// buffer; six vertex IDs are generated by `pass.draw(0..6, 0..1)` and the
@@ -2456,89 +1503,6 @@ fn create_background_pipeline(
     (pipeline, bind_group_layout)
 }
 
-fn create_logo_pipeline(
-    device: &Device,
-    surface_format: TextureFormat,
-) -> (wgpu::RenderPipeline, BindGroupLayout) {
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("nc-helm-logo-shader"),
-        source: wgpu::ShaderSource::Wgsl(LOGO_SHADER.into()),
-    });
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("nc-helm-logo-bind-group-layout"),
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-        ],
-    });
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("nc-helm-logo-pipeline-layout"),
-        bind_group_layouts: &[Some(&bind_group_layout)],
-        immediate_size: 0,
-    });
-    let vertex_layout = wgpu::VertexBufferLayout {
-        array_stride: std::mem::size_of::<LogoVertex>() as BufferAddress,
-        step_mode: wgpu::VertexStepMode::Vertex,
-        attributes: &[
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x2,
-                offset: 0,
-                shader_location: 0,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x2,
-                offset: std::mem::size_of::<[f32; 2]>() as BufferAddress,
-                shader_location: 1,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x4,
-                offset: std::mem::size_of::<[f32; 4]>() as BufferAddress,
-                shader_location: 2,
-            },
-        ],
-    };
-    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("nc-helm-logo-pipeline"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: Some("vs_main"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            buffers: &[vertex_layout],
-        },
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: Some("fs_main"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: surface_format,
-                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        multiview_mask: None,
-        cache: None,
-    });
-    (pipeline, bind_group_layout)
-}
-
 impl BackgroundTexture {
     fn new(device: &Device, width: u32, height: u32) -> Self {
         let texture = device.create_texture(&TextureDescriptor {
@@ -2583,54 +1547,6 @@ fn char_atlas_base_index(ch: char) -> Option<u32> {
         .map(|index| {
             GRID_ATLAS_ASCII_COUNT + GRID_ATLAS_BOX_COUNT + GRID_ATLAS_MATRIX_COUNT + index as u32
         })
-}
-
-fn logo_rect(mapper: GridMapper, overlay: OverlayLogo) -> PhysicalRect {
-    let top_left = mapper.cell_rect(Point::from_usize(overlay.left_col, overlay.top_row));
-    let (width_cols, height_rows) = overlay.kind.cell_size();
-    PhysicalRect {
-        x: top_left.x,
-        y: top_left.y,
-        width: width_cols.saturating_mul(mapper.cell.width_px),
-        height: height_rows.saturating_mul(mapper.cell.height_px),
-    }
-}
-
-fn linear_color_f32(color: GameColor) -> [f32; 4] {
-    let [r, g, b, a] = primitives::color_to_rgba(color);
-    [
-        linear_channel_from_srgb_u8(r) as f32,
-        linear_channel_from_srgb_u8(g) as f32,
-        linear_channel_from_srgb_u8(b) as f32,
-        f32::from(a) / 255.0,
-    ]
-}
-
-fn pixel_to_ndc_x(x_px: usize, surface_width_px: u32) -> f32 {
-    (x_px as f32 / surface_width_px.max(1) as f32) * 2.0 - 1.0
-}
-
-fn pixel_to_ndc_y(y_px: usize, surface_height_px: u32) -> f32 {
-    1.0 - (y_px as f32 / surface_height_px.max(1) as f32) * 2.0
-}
-
-fn linear_channel_from_srgb_u8(value: u8) -> f64 {
-    let srgb = f64::from(value) / 255.0;
-    if srgb <= 0.04045 {
-        srgb / 12.92
-    } else {
-        ((srgb + 0.055) / 1.055).powf(2.4)
-    }
-}
-
-fn clear_color(color: GameColor) -> wgpu::Color {
-    let [r, g, b, a] = primitives::color_to_rgba(color);
-    wgpu::Color {
-        r: linear_channel_from_srgb_u8(r),
-        g: linear_channel_from_srgb_u8(g),
-        b: linear_channel_from_srgb_u8(b),
-        a: f64::from(a) / 255.0,
-    }
 }
 
 fn generate_grid_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics) -> GridAtlas {
@@ -2755,409 +1671,6 @@ fn generate_grid_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics
     }
 }
 
-fn generate_matrix_glyph_atlas(
-    device: &Device,
-    queue: &Queue,
-    grid_metrics: GridMetrics,
-) -> MatrixGlyphAtlas {
-    let slot_w = grid_metrics.cell.width_px.max(1) as u32;
-    let slot_h = grid_metrics.cell.height_px.max(1) as u32;
-    let glyph_count = MATRIX_SHADER_GLYPHS.len() as u32;
-    let atlas_width = slot_w * glyph_count;
-    let atlas_height = slot_h;
-
-    let texture = device.create_texture(&TextureDescriptor {
-        label: Some("nc-helm-matrix-glyph-atlas"),
-        size: wgpu::Extent3d {
-            width: atlas_width,
-            height: atlas_height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::R8Unorm,
-        usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-        view_formats: &[],
-    });
-    let view = texture.create_view(&TextureViewDescriptor::default());
-    let mut atlas_data = vec![0u8; (atlas_width * atlas_height) as usize];
-    let mut scale_context = ScaleContext::new();
-
-    for (index, ch) in MATRIX_SHADER_GLYPHS.iter().enumerate() {
-        let slot_left = index as i32 * slot_w as i32;
-        let slot_top = 0;
-        let slot_right = slot_left + slot_w as i32;
-        let slot_bottom = slot_h as i32;
-        let Some(glyph) = resolve_mono_glyph(*ch, false) else {
-            continue;
-        };
-        let Some(image) = render_alpha_glyph(
-            &mut scale_context,
-            glyph,
-            grid_metrics.text.font_size_px,
-            true,
-        ) else {
-            continue;
-        };
-        let glyph_left = image.placement.left;
-        let glyph_top = grid_metrics.text.baseline_px as i32 - image.placement.top as i32;
-        for y in 0..image.placement.height {
-            for x in 0..image.placement.width {
-                let src_idx = (y * image.placement.width + x) as usize;
-                let alpha = match image.data.len() {
-                    len if len == (image.placement.width * image.placement.height) as usize => {
-                        image.data[src_idx]
-                    }
-                    len if len == (image.placement.width * image.placement.height * 4) as usize => {
-                        image.data[src_idx * 4 + 3]
-                    }
-                    _ => continue,
-                };
-                if alpha == 0 {
-                    continue;
-                }
-                let dst_x = slot_left + glyph_left + x as i32;
-                let dst_y = slot_top + glyph_top + y as i32;
-                if !atlas_slot_contains_pixel(
-                    slot_left,
-                    slot_top,
-                    slot_right,
-                    slot_bottom,
-                    dst_x,
-                    dst_y,
-                ) {
-                    continue;
-                }
-                if dst_x < 0
-                    || dst_y < 0
-                    || dst_x >= atlas_width as i32
-                    || dst_y >= atlas_height as i32
-                {
-                    continue;
-                }
-                let dst_idx = dst_y as usize * atlas_width as usize + dst_x as usize;
-                atlas_data[dst_idx] = atlas_data[dst_idx].max(alpha);
-            }
-        }
-    }
-
-    queue.write_texture(
-        wgpu::TexelCopyTextureInfo {
-            texture: &texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
-        &atlas_data,
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(atlas_width),
-            rows_per_image: Some(atlas_height),
-        },
-        wgpu::Extent3d {
-            width: atlas_width,
-            height: atlas_height,
-            depth_or_array_layers: 1,
-        },
-    );
-
-    MatrixGlyphAtlas {
-        _texture: texture,
-        view,
-        width_px: atlas_width,
-        height_px: atlas_height,
-        glyph_count,
-    }
-}
-
-fn generate_logo_atlas(device: &Device, queue: &Queue, grid_metrics: GridMetrics) -> LogoAtlas {
-    let mut shape_context = ShapeContext::new();
-    let mut scale_context = ScaleContext::new();
-    let rasterized = OverlayLogoKind::ALL.map(|kind| {
-        rasterize_logo_sprite(kind, grid_metrics, &mut shape_context, &mut scale_context)
-    });
-    let atlas_width = rasterized
-        .iter()
-        .map(|sprite| sprite.width_px)
-        .max()
-        .unwrap_or(1)
-        .max(1);
-    let atlas_height = rasterized
-        .iter()
-        .map(|sprite| sprite.height_px)
-        .sum::<u32>()
-        .max(1);
-    let texture = device.create_texture(&TextureDescriptor {
-        label: Some("nc-helm-logo-atlas"),
-        size: wgpu::Extent3d {
-            width: atlas_width,
-            height: atlas_height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::R8Unorm,
-        usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-        view_formats: &[],
-    });
-    let view = texture.create_view(&TextureViewDescriptor::default());
-    let mut atlas_data = vec![0u8; (atlas_width * atlas_height) as usize];
-    let mut sprites = [LogoSprite::default(); LOGO_KIND_COUNT];
-    let mut y_cursor = 0u32;
-    for (index, raster) in rasterized.iter().enumerate() {
-        sprites[index] = LogoSprite {
-            x_px: 0,
-            y_px: y_cursor,
-            width_px: raster.width_px,
-            height_px: raster.height_px,
-        };
-        for row in 0..raster.height_px {
-            let dst_start = ((y_cursor + row) * atlas_width) as usize;
-            let src_start = (row * raster.width_px) as usize;
-            atlas_data[dst_start..dst_start + raster.width_px as usize]
-                .copy_from_slice(&raster.pixels[src_start..src_start + raster.width_px as usize]);
-        }
-        y_cursor += raster.height_px;
-    }
-    queue.write_texture(
-        wgpu::TexelCopyTextureInfo {
-            texture: &texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
-        &atlas_data,
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(atlas_width),
-            rows_per_image: Some(atlas_height),
-        },
-        wgpu::Extent3d {
-            width: atlas_width,
-            height: atlas_height,
-            depth_or_array_layers: 1,
-        },
-    );
-    LogoAtlas {
-        _texture: texture,
-        view,
-        width_px: atlas_width,
-        height_px: atlas_height,
-        sprites,
-    }
-}
-
-#[derive(Clone, Debug)]
-struct RasterizedLogo {
-    width_px: u32,
-    height_px: u32,
-    pixels: Vec<u8>,
-}
-
-fn rasterize_logo_sprite(
-    kind: OverlayLogoKind,
-    grid_metrics: GridMetrics,
-    shape_context: &mut ShapeContext,
-    scale_context: &mut ScaleContext,
-) -> RasterizedLogo {
-    let (text, width_cols, height_rows) = logo_spec(kind);
-    let width_px = (width_cols * grid_metrics.cell.width_px).max(1) as u32;
-    let height_px = (height_rows * grid_metrics.cell.height_px).max(1) as u32;
-    let font_size_px = fit_logo_font_size(text, width_px, height_px, shape_context, scale_context);
-    if font_size_px <= 0.0 {
-        return RasterizedLogo {
-            width_px,
-            height_px,
-            pixels: vec![0; (width_px * height_px) as usize],
-        };
-    }
-    let measured = measure_logo(text, font_size_px, shape_context, scale_context);
-    let mut pixels = vec![0u8; (width_px * height_px) as usize];
-    let offset_x = ((width_px as i32 - measured.bounds_width()) / 2) - measured.left_px;
-    let offset_y = ((height_px as i32 - measured.bounds_height()) / 2) - measured.top_px;
-    for glyph in measured.glyphs {
-        blit_alpha_image(
-            &mut pixels,
-            width_px,
-            height_px,
-            glyph.left_px + offset_x,
-            glyph.top_px + offset_y,
-            &glyph.image,
-        );
-    }
-    RasterizedLogo {
-        width_px,
-        height_px,
-        pixels,
-    }
-}
-
-fn fit_logo_font_size(
-    text: &str,
-    width_px: u32,
-    height_px: u32,
-    shape_context: &mut ShapeContext,
-    scale_context: &mut ScaleContext,
-) -> f32 {
-    let mut low = 1usize;
-    let mut high = height_px.saturating_mul(2) as usize;
-    let mut best = 0usize;
-    while low <= high {
-        let mid = (low + high) / 2;
-        let measured = measure_logo(text, mid as f32, shape_context, scale_context);
-        if measured.bounds_width() <= width_px as i32
-            && measured.bounds_height() <= height_px as i32
-        {
-            best = mid;
-            low = mid.saturating_add(1);
-        } else {
-            high = mid.saturating_sub(1);
-        }
-    }
-    best as f32
-}
-
-#[derive(Clone)]
-struct MeasuredLogoGlyph {
-    image: swash::scale::image::Image,
-    left_px: i32,
-    top_px: i32,
-}
-
-#[derive(Clone)]
-struct MeasuredLogo {
-    glyphs: Vec<MeasuredLogoGlyph>,
-    left_px: i32,
-    top_px: i32,
-    right_px: i32,
-    bottom_px: i32,
-}
-
-impl MeasuredLogo {
-    fn bounds_width(&self) -> i32 {
-        (self.right_px - self.left_px).max(1)
-    }
-
-    fn bounds_height(&self) -> i32 {
-        (self.bottom_px - self.top_px).max(1)
-    }
-}
-
-fn measure_logo(
-    text: &str,
-    font_size_px: f32,
-    shape_context: &mut ShapeContext,
-    scale_context: &mut ScaleContext,
-) -> MeasuredLogo {
-    let shaped = shape_stormfaze_text(shape_context, text, font_size_px);
-    let baseline_px = shaped.ascent_px.round() as i32;
-    let mut glyphs = Vec::new();
-    let mut left_px = i32::MAX;
-    let mut top_px = i32::MAX;
-    let mut right_px = i32::MIN;
-    let mut bottom_px = i32::MIN;
-    for glyph in shaped.glyphs {
-        let resolved = ResolvedGlyph {
-            font: crate::fonts::stormfaze_font(),
-            glyph_id: glyph.glyph_id,
-            embolden: 0.0,
-        };
-        let Some(image) = render_alpha_glyph(scale_context, resolved, font_size_px, false) else {
-            continue;
-        };
-        let glyph_left = glyph.x.round() as i32 + image.placement.left;
-        let glyph_top = baseline_px + glyph.y.round() as i32 - image.placement.top as i32;
-        left_px = left_px.min(glyph_left);
-        top_px = top_px.min(glyph_top);
-        right_px = right_px.max(glyph_left + image.placement.width as i32);
-        bottom_px = bottom_px.max(glyph_top + image.placement.height as i32);
-        glyphs.push(MeasuredLogoGlyph {
-            image,
-            left_px: glyph_left,
-            top_px: glyph_top,
-        });
-    }
-    if glyphs.is_empty() {
-        return MeasuredLogo {
-            glyphs,
-            left_px: 0,
-            top_px: 0,
-            right_px: shaped.width_px.round().max(1.0) as i32,
-            bottom_px: (shaped.ascent_px + shaped.descent_px).round().max(1.0) as i32,
-        };
-    }
-    MeasuredLogo {
-        glyphs,
-        left_px,
-        top_px,
-        right_px,
-        bottom_px,
-    }
-}
-
-fn blit_alpha_image(
-    dst: &mut [u8],
-    dst_width_px: u32,
-    dst_height_px: u32,
-    dst_left_px: i32,
-    dst_top_px: i32,
-    image: &swash::scale::image::Image,
-) {
-    for y in 0..image.placement.height {
-        for x in 0..image.placement.width {
-            let src_idx = (y * image.placement.width + x) as usize;
-            let alpha = match image.data.len() {
-                len if len == (image.placement.width * image.placement.height) as usize => {
-                    image.data[src_idx]
-                }
-                len if len == (image.placement.width * image.placement.height * 4) as usize => {
-                    image.data[src_idx * 4 + 3]
-                }
-                _ => continue,
-            };
-            if alpha == 0 {
-                continue;
-            }
-            let dst_x = dst_left_px + x as i32;
-            let dst_y = dst_top_px + y as i32;
-            if dst_x < 0
-                || dst_y < 0
-                || dst_x >= dst_width_px as i32
-                || dst_y >= dst_height_px as i32
-            {
-                continue;
-            }
-            let dst_idx = dst_y as usize * dst_width_px as usize + dst_x as usize;
-            dst[dst_idx] = dst[dst_idx].max(alpha);
-        }
-    }
-}
-
-fn logo_spec(kind: OverlayLogoKind) -> (&'static str, usize, usize) {
-    match kind {
-        OverlayLogoKind::HeaderWordmark => ("Nostrian Conquest", 22, 1),
-        OverlayLogoKind::GateNostrian54x4 => ("NOSTRIAN", 54, 4),
-        OverlayLogoKind::GateConquest54x4 => ("CONQUEST", 54, 4),
-        OverlayLogoKind::GateNostrian62x4 => ("NOSTRIAN", 62, 4),
-        OverlayLogoKind::GateConquest62x4 => ("CONQUEST", 62, 4),
-        OverlayLogoKind::GateNostrian66x4 => ("NOSTRIAN", 66, 4),
-        OverlayLogoKind::GateConquest66x4 => ("CONQUEST", 66, 4),
-    }
-}
-
-fn atlas_slot_contains_pixel(
-    slot_left: i32,
-    slot_top: i32,
-    slot_right: i32,
-    slot_bottom: i32,
-    dst_x: i32,
-    dst_y: i32,
-) -> bool {
-    dst_x >= slot_left && dst_x < slot_right && dst_y >= slot_top && dst_y < slot_bottom
-}
-
 fn atlas_repertoire_chars() -> Vec<char> {
     let mut chars = (GRID_ATLAS_ASCII_START..GRID_ATLAS_ASCII_END)
         .filter_map(char::from_u32)
@@ -3170,13 +1683,11 @@ fn atlas_repertoire_chars() -> Vec<char> {
 
 #[cfg(test)]
 mod tests {
+    use super::common::linear_channel_from_srgb_u8;
     use super::{
         BACKGROUND_SHADER, GPU_STYLE_BOLD, GPU_STYLE_TEXT_BAND, GRID_ATLAS_BASE_GLYPH_COUNT,
-        GRID_ATLAS_COLS, GRID_ATLAS_MISC_CHARS, GRID_ATLAS_ROWS, MATRIX_SHADER_BRIGHTNESS_DECAY,
-        MATRIX_SHADER_CYCLE_SPEED, MATRIX_SHADER_FALL_SPEED, MATRIX_SHADER_GLYPHS,
-        MATRIX_SHADER_RAINDROP_LENGTH, atlas_repertoire_chars, atlas_slot_contains_pixel,
-        char_atlas_base_index, clear_color, linear_channel_from_srgb_u8, matrix_grid_dimensions,
-        pack_gpu_style,
+        GRID_ATLAS_COLS, GRID_ATLAS_MISC_CHARS, GRID_ATLAS_ROWS, atlas_repertoire_chars,
+        atlas_slot_contains_pixel, char_atlas_base_index, clear_color, pack_gpu_style,
     };
     use crate::grid::{BackgroundMode, CellStyle, GameColor};
 
@@ -3200,29 +1711,6 @@ mod tests {
             );
         }
         assert!(atlas_repertoire_chars().contains(&GRID_ATLAS_MISC_CHARS[0]));
-    }
-
-    #[test]
-    fn matrix_shader_defaults_match_lockme_runtime_defaults() {
-        assert_eq!(MATRIX_SHADER_FALL_SPEED, 0.3);
-        assert_eq!(MATRIX_SHADER_CYCLE_SPEED, 0.03);
-        assert_eq!(MATRIX_SHADER_RAINDROP_LENGTH, 0.75);
-        assert_eq!(MATRIX_SHADER_BRIGHTNESS_DECAY, 1.0);
-    }
-
-    #[test]
-    fn matrix_shader_glyphs_match_lockme_repertoire() {
-        assert_eq!(
-            MATRIX_SHADER_GLYPHS.iter().collect::<String>(),
-            "αβγδεζηθικλμνξοπρσςτυφχψωϲϛϟϡ´`῀᾿῾ͅ"
-        );
-    }
-
-    #[test]
-    fn matrix_grid_dimensions_use_full_surface_cell_floor() {
-        assert_eq!(matrix_grid_dimensions(1919, 1079, 8, 16), (239, 67));
-        assert_eq!(matrix_grid_dimensions(1, 1, 8, 16), (1, 1));
-        assert_eq!(matrix_grid_dimensions(80, 48, 0, 0), (80, 48));
     }
 
     #[test]
