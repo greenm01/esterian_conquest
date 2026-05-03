@@ -464,7 +464,7 @@ impl DashApp {
                     KeyCode::Char('c') | KeyCode::Char('C') => {
                         self.open_owned_planet_commission_select()
                     }
-                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
                         self.open_owned_planet_mass_commission_confirm()
                     }
                     KeyCode::Char('l') | KeyCode::Char('L') => self

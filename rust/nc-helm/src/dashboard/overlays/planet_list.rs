@@ -30,7 +30,7 @@ use crate::dashboard::overlays::frame::{
 };
 use crate::dashboard::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S B C M L U X <ESC>";
+pub(crate) const HOTKEYS: &str = "? F S B C A L U X <ESC>";
 const TOP_HEADERS: [&str; 13] = [
     "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
@@ -1124,7 +1124,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_planet_list_commands() {
-        assert_eq!(HOTKEYS, "? F S B C M L U X <ESC>");
+        assert_eq!(HOTKEYS, "? F S B C A L U X <ESC>");
     }
 
     #[test]

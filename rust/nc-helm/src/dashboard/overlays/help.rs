@@ -104,7 +104,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::OwnedPlanetPopup => vec![
             ("B", "Specify new build orders for this planet"),
             ("C", "Commission a completed stardock slot"),
-            ("M", "Automatically commission all completed stardock slots"),
+            ("A", "Automatically commission all completed stardock slots"),
             ("L", "Load armies from this planet onto a fleet in orbit"),
             ("U", "Unload armies from a fleet in orbit onto this planet"),
             ("X", "Stage a scorch order for this planet"),
@@ -112,11 +112,11 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         ],
         HelpContext::PlanetList => vec![
             ("Enter", "Open status for the selected planet"),
-            ("F", "Open the planet-list filter prompt"),
-            ("S", "Open the planet-list sort menu"),
+            ("F", "Filter List"),
+            ("S", "Sort List"),
             ("B", "Specify new build orders for the selected planet"),
             ("C", "Commission a completed stardock slot"),
-            ("M", "Automatically commission all completed stardock slots"),
+            ("A", "Automatically commission all completed stardock slots"),
             ("L", "Load armies from this planet onto a fleet in orbit"),
             ("U", "Unload armies from a fleet in orbit onto this planet"),
             ("X", "Stage a scorch order for this planet"),
@@ -168,8 +168,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         ],
         HelpContext::FleetList => vec![
             ("Enter", "Open review for the selected fleet"),
-            ("F", "Open the fleet-list filter prompt"),
-            ("S", "Open the fleet-list sort menu"),
+            ("F", "Filter List"),
+            ("S", "Sort List"),
             ("SPACE", "Toggle the checked state of the current fleet row"),
             ("O", "Assign fleet/starbase orders"),
             ("C", "Change ROE, ID, or speed"),
@@ -223,8 +223,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabase => vec![
-            ("F", "Open the database filter prompt"),
-            ("S", "Open the database sort menu"),
+            ("F", "Filter List"),
+            ("S", "Sort List"),
             ("Coords", "Typed jump; exact match clears the footer input"),
             ("?", "Open this helper"),
         ],
@@ -316,6 +316,16 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("Enter") && line.contains("selected fleet"))
         );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("F") && line.contains("Filter List"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("S") && line.contains("Sort List"))
+        );
         assert!(!lines.iter().any(|line| line.contains("O / C / M / T")));
         assert!(!lines.iter().any(|line| line.contains("TODO")));
         assert!(!lines.iter().any(|line| line.contains("FLEET LIST")));
@@ -331,6 +341,16 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("B") && line.contains("build orders"))
         );
+        assert!(
+            planet
+                .iter()
+                .any(|line| line.contains("F") && line.contains("Filter List"))
+        );
+        assert!(
+            planet
+                .iter()
+                .any(|line| line.contains("S") && line.contains("Sort List"))
+        );
         assert!(!planet.iter().any(|line| line.contains("TODO")));
         assert!(
             planet
@@ -339,6 +359,16 @@ mod tests {
         );
 
         let intel = help_lines(HelpContext::IntelDatabase);
+        assert!(
+            intel
+                .iter()
+                .any(|line| line.contains("F") && line.contains("Filter List"))
+        );
+        assert!(
+            intel
+                .iter()
+                .any(|line| line.contains("S") && line.contains("Sort List"))
+        );
         assert!(intel.iter().any(|line| line.contains("Coords")));
         assert!(!intel.iter().any(|line| line.contains("TODO")));
         assert!(!intel.iter().any(|line| line.contains("Enter")));

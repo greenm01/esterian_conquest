@@ -394,7 +394,7 @@ impl DashApp {
             }
             KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
             KeyCode::Char('c') | KeyCode::Char('C') => self.open_planet_overlay_commission_select(),
-            KeyCode::Char('m') | KeyCode::Char('M') => {
+            KeyCode::Char('a') | KeyCode::Char('A') => {
                 self.open_planet_overlay_mass_commission_confirm()
             }
             KeyCode::Char('l') | KeyCode::Char('L') => {

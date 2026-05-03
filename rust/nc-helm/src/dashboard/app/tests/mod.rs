@@ -2780,8 +2780,8 @@ fn owned_planet_popup_footer_shows_command_rail() {
     app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
 
     assert!(
-        render_owned_planet_popup_line(&app, "COMMAND <- ? B C M L U X <ESC> ->")
-            .contains("COMMAND <- ? B C M L U X <ESC> ->")
+        render_owned_planet_popup_line(&app, "COMMAND <- ? B C A L U X <ESC> ->")
+            .contains("COMMAND <- ? B C A L U X <ESC> ->")
     );
 }
 
@@ -2791,8 +2791,8 @@ fn planet_list_footer_shows_owned_planet_commands() {
     app.overlay = ActiveOverlay::PlanetList;
 
     assert!(
-        render_planet_footer_line(&app, "COMMAND <- ? F S B C M L U X <ESC>")
-            .contains("COMMAND <- ? F S B C M L U X <ESC>")
+        render_planet_footer_line(&app, "COMMAND <- ? F S B C A L U X <ESC>")
+            .contains("COMMAND <- ? F S B C A L U X <ESC>")
     );
 }
 
@@ -2802,7 +2802,7 @@ fn planet_list_mass_commission_empty_toast_uses_plural_stardocks() {
     app.overlay = ActiveOverlay::PlanetList;
     clear_owned_stardocks(&mut app);
 
-    app.handle_key(key(KeyCode::Char('m')));
+    app.handle_key(key(KeyCode::Char('a')));
 
     assert_eq!(
         app.planet_overlay.footer_notice.as_deref(),
@@ -2817,7 +2817,7 @@ fn owned_planet_mass_commission_empty_toast_uses_singular_stardock() {
     clear_owned_stardocks(&mut app);
     app.open_owned_planet_popup(record);
 
-    app.handle_key(key(KeyCode::Char('m')));
+    app.handle_key(key(KeyCode::Char('a')));
 
     assert_eq!(
         app.owned_planet_popup.status.as_deref(),
@@ -2979,7 +2979,7 @@ fn planet_list_mass_commission_uses_all_owned_planets() {
     let other_record = seed_extra_owned_planet_with_stardock(&mut app);
     select_planet_row_by_record(&mut app, selected_record);
 
-    app.handle_key(key(KeyCode::Char('m')));
+    app.handle_key(key(KeyCode::Char('a')));
 
     assert_eq!(app.overlay, ActiveOverlay::PlanetList);
     assert_eq!(app.popup, ActivePopup::None);

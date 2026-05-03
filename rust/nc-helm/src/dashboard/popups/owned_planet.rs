@@ -89,7 +89,7 @@ fn popup_layout<'a>(
                     app,
                     TableFooter::CommandPrompt {
                         label: "COMMAND",
-                        prompt: "? B C M L U X <ESC> ->",
+                        prompt: "? B C A L U X <ESC> ->",
                     },
                 ),
             )

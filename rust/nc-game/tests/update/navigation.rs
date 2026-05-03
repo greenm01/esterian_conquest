@@ -2588,6 +2588,14 @@ fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
     app.render(&mut terminal)
         .expect("fleet list help should render");
     assert!(
+        line_containing(&terminal, "Filter List").contains("F"),
+        "fleet list helper should advertise F filter"
+    );
+    assert!(
+        line_containing(&terminal, "Sort List").contains("S"),
+        "fleet list helper should advertise S sort"
+    );
+    assert!(
         line_containing(&terminal, "review highlighted fleet").contains("Enter"),
         "fleet list helper should advertise Enter review"
     );
@@ -2635,6 +2643,14 @@ fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
     app.render(&mut terminal)
         .expect("planet list help should render");
     assert!(
+        line_containing(&terminal, "Filter List").contains("F"),
+        "planet list helper should advertise F filter"
+    );
+    assert!(
+        line_containing(&terminal, "Sort List").contains("S"),
+        "planet list helper should advertise S sort"
+    );
+    assert!(
         line_containing(&terminal, "review highlighted planet").contains("I"),
         "planet list helper should advertise I review"
     );
@@ -2673,9 +2689,33 @@ fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
         line_containing(&terminal, "scorch earth").contains("X"),
         "planet list helper should advertise X for scorch"
     );
+}
+
+#[test]
+fn planet_database_help_shortens_sort_and_filter_hotkeys() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    app.current_screen = ScreenId::PlanetDatabaseList;
+    apply_action(&mut app, Action::OpenPopupHelp);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet database help should render");
     assert!(
-        line_containing(&terminal, "sort the planet list").contains("S"),
-        "planet list helper should advertise S sort"
+        line_containing(&terminal, "Filter List").contains("F"),
+        "planet database helper should advertise F filter"
+    );
+    assert!(
+        line_containing(&terminal, "Sort List").contains("S"),
+        "planet database helper should advertise S sort"
     );
 }
 
