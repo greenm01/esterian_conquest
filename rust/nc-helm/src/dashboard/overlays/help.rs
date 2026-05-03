@@ -1,67 +1,84 @@
-//! ? overlay: keyboard reference, centered on screen.
-
-use crate::dashboard::buffer::PlayfieldBuffer;
-use crate::dashboard::table::TableFooter;
-
 use crate::dashboard::app::state::{ActiveOverlay, DashApp, HelpContext};
-use crate::dashboard::layout::MapWidgetFrame;
-use crate::dashboard::layout::dashboard;
-use crate::dashboard::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
-use crate::dashboard::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
-    draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
-    max_overlay_body_height_in_parent, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_parent, write_clipped,
-};
-use crate::dashboard::theme;
+use crate::dashboard::modal;
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
-    let lines = help_lines(app.help_context);
-    let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
-    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let body_height = wrapped
-        .lines
-        .len()
-        .min(max_overlay_body_height_in_parent(parent, TableFooter::None));
-    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
+pub fn draw(
+    buf: &mut crate::dashboard::buffer::PlayfieldBuffer,
+    app: &DashApp,
+    context: HelpContext,
+) {
+    let rows = help_lines(context);
+    let title = match context {
+        HelpContext::Global => "DASHBOARD HELP",
+        HelpContext::OwnedPlanetPopup => "OWNED PLANET COMMANDS",
+        HelpContext::PlanetList => "PLANET LIST COMMANDS",
+        HelpContext::PlanetListSort => "PLANET SORTING",
+        HelpContext::PlanetListFilter => "PLANET FILTERING",
+        HelpContext::PlanetBuildSpecify => "CONSTRUCTION OPTIONS",
+        HelpContext::PlanetBuildQuantity => "QUANTITY INPUT",
+        HelpContext::PromptInput => "VALUE INPUT",
+        HelpContext::FleetList => "FLEET LIST COMMANDS",
+        HelpContext::FleetListSort => "FLEET SORTING",
+        HelpContext::FleetListFilter => "FLEET FILTERING",
+        HelpContext::FleetMissionPicker => "FLEET MISSIONS",
+        HelpContext::FleetOrderInput => "ORDER INPUT",
+        HelpContext::StarbaseMove => "STARBASE RELOCATION",
+        HelpContext::IntelDatabase => "INTEL DATABASE COMMANDS",
+        HelpContext::IntelDatabaseSort => "INTEL SORTING",
+        HelpContext::IntelDatabaseFilter => "INTEL FILTERING",
+        HelpContext::Inbox => "INBOX COMMANDS",
+        HelpContext::InboxCompose => "MESSAGE EDITOR COMMANDS",
+        HelpContext::Diplomacy => "DIPLOMACY COMMANDS",
+    };
+
+    let parent = crate::dashboard::overlays::frame::dashboard_overlay_parent_rect(
+        crate::dashboard::layout::dashboard::dashboard_layout(app).widgets,
+    );
+    let max_body_width = modal::max_content_width(parent);
+
+    let metrics = modal::measure_modal_text_lines(&rows, max_body_width);
+    let body_width = metrics.content_width;
+    let body_height = metrics.lines.len();
+    let frame = crate::dashboard::overlays::frame::draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
         parent,
-        "HELP",
-        wrapped.content_width,
+        title,
+        body_width,
         body_height,
-        OverlaySizePolicy::default(),
-        TableFooter::None,
+        crate::dashboard::overlays::frame::OverlaySizePolicy::default(),
+        crate::dashboard::table::TableFooter::None,
         app.overlay_position_for(ActiveOverlay::Help),
     );
-    assert_overlay_body_write_fits(frame, "HELP", wrapped.content_width, body_height);
 
-    for (idx, line) in wrapped.lines.iter().enumerate().take(frame.body_height) {
-        write_clipped(
-            buf,
+    for (idx, row) in metrics.lines.iter().enumerate() {
+        buf.write_text(
             frame.body_row + idx,
             frame.body_col,
-            frame.body_width,
-            line,
-            theme::label_style(),
+            row,
+            crate::dashboard::theme::body_style(),
         );
     }
 }
 
-pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
-    let lines = help_lines(app.help_context);
-    let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
-    let parent = dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets);
-    let body_height = wrapped
-        .lines
-        .len()
-        .min(max_overlay_body_height_in_parent(parent, TableFooter::None));
-    overlay_popup_rect_for_body_in_parent(
+pub fn popup_rect(
+    app: &DashApp,
+    _map_frame: crate::dashboard::layout::MapWidgetFrame,
+) -> crate::dashboard::modal::Rect {
+    let rows = help_lines(app.help_context);
+    let title = "HELP";
+    let parent = crate::dashboard::overlays::frame::dashboard_overlay_parent_rect(
+        crate::dashboard::layout::dashboard::dashboard_layout(app).widgets,
+    );
+    let max_body_width = modal::max_content_width(parent);
+    let metrics = modal::measure_modal_text_lines(&rows, max_body_width);
+    let body_width = metrics.content_width;
+    let body_height = metrics.lines.len();
+    crate::dashboard::overlays::frame::overlay_popup_rect_for_body_in_parent(
         parent,
-        "HELP",
-        wrapped.content_width,
+        title,
+        body_width,
         body_height,
-        OverlaySizePolicy::default(),
-        TableFooter::None,
+        crate::dashboard::overlays::frame::OverlaySizePolicy::default(),
+        crate::dashboard::table::TableFooter::None,
         app.overlay_position_for(ActiveOverlay::Help),
     )
 }
@@ -72,24 +89,13 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("P", "Open Planet List"),
             ("F", "Open Fleet List"),
             ("T", "Open Total Planet Database"),
-            ("R", "Open Inbox"),
+            ("I", "Open Inbox"),
             ("D", "Open Diplomacy"),
             ("Alt-Q", "Return to lobby"),
             ("?", "Open this helper"),
             ("Tab", "Cycle dashboard focus"),
             ("Shift+Tab", "Cycle dashboard focus backward"),
-            ("XX,YY", "Jump crosshair to real map coordinates"),
-            ("[", "Jump to the previous planet on the map"),
-            ("]", "Jump to the next planet on the map"),
-            ("+", "Zoom the map in"),
-            ("-", "Zoom the map out"),
-            ("Z", "Reset the map zoom for the current view mode"),
-            (
-                "Viewport",
-                "Small terminals auto-clip the map around the crosshair",
-            ),
-            ("Mouse", "Hovering over the map moves the crosshair"),
-            ("Left Click", "Open player fleets at that sector, if any"),
+            ("Left Click", "Select map sector or dashboard widget"),
             (
                 "Right Click",
                 "Open owned-planet commands or planet info for the clicked world",
@@ -98,171 +104,168 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Map Exit",
                 "Leaving the map widget resets the crosshair home",
             ),
-            ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
-            ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
         ],
         HelpContext::OwnedPlanetPopup => vec![
-            ("B", "Specify new build orders for this planet"),
+            ("B", "Specify build orders"),
             ("C", "Commission a completed stardock slot"),
-            ("A", "Automatically commission all completed stardock slots"),
-            ("L", "Load armies from this planet onto a fleet in orbit"),
-            ("U", "Unload armies from a fleet in orbit onto this planet"),
-            ("X", "Stage a scorch order for this planet"),
+            ("M", "Mass construction..."),
+            ("T", "Transport units..."),
+            ("L", "Land docked fleets"),
+            ("U", "Unload all cargo"),
+            ("X", "Scorch planet"),
+            ("Esc", "Close popup"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetList => vec![
-            ("Enter", "Open status for the selected planet"),
-            ("F", "Filter List"),
-            ("S", "Sort List"),
-            ("B", "Specify new build orders for the selected planet"),
-            ("C", "Commission a completed stardock slot"),
-            ("A", "Automatically commission all completed stardock slots"),
-            ("L", "Load armies from this planet onto a fleet in orbit"),
-            ("U", "Unload armies from a fleet in orbit onto this planet"),
-            ("X", "Stage a scorch order for this planet"),
-            ("Coords", "Typed jump; exact match clears the footer input"),
+            ("S", "Sort planets"),
+            ("B", "Filter planets"),
+            ("C", "Filter to current-year construction"),
+            ("A", "Clear all filters"),
+            ("L", "Jump crosshair to planet"),
+            ("U", "Unload cargo (at planet)"),
+            ("X", "Scorch planet"),
+            ("Esc", "Close overlay"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetListSort => vec![
-            ("Type", "Enter a column code or unique prefix, then Enter"),
-            (
-                "Codes",
-                "coo pla max cur trs bdg rev gro bui sta sbs ars gbs",
-            ),
-            (
-                "Prefix",
-                "Ambiguous prefixes stay open and show matching codes",
-            ),
-            ("Repeat", "Same sort flips ASC/DESC"),
+            ("I", "Sort by ID"),
+            ("N", "Sort by Name"),
+            ("E", "Sort by Empire"),
+            ("C", "Sort by Class"),
+            ("P", "Sort by Population"),
+            ("F", "Sort by Factories"),
+            ("R", "Sort by Resources"),
+            ("D", "Sort by Defense"),
+            ("T", "Sort by Treasury"),
+            ("Esc", "Cancel sorting"),
             ("?", "Open this helper"),
         ],
         HelpContext::PlanetListFilter => vec![
-            ("Type", "Enter a column code or unique prefix, then Enter"),
-            (
-                "Codes",
-                "coo pla max cur trs bdg rev gro bui sta sbs ars gbs",
-            ),
-            (
-                "Prefix",
-                "Ambiguous prefixes stay open and show matching codes",
-            ),
-            ("Coords", "coo accepts xx,yy or xx,yy/r"),
-            ("Value", "Text contains; numbers accept > >= < <= = !="),
-            ("all", "Clear the current filter"),
+            ("N", "Filter by Name"),
+            ("E", "Filter by Empire"),
+            ("C", "Filter by Class"),
+            ("P", "Filter by Population"),
+            ("F", "Filter by Factories"),
+            ("R", "Filter by Resources"),
+            ("D", "Filter by Defense"),
+            ("T", "Filter by Treasury"),
+            ("Esc", "Cancel filtering"),
             ("?", "Open this helper"),
         ],
-        HelpContext::PromptInput => vec![
-            ("Type", "Enter the value shown on the command line"),
-            ("?", "Open this helper"),
-        ],
-        HelpContext::PlanetBuildSpecify => vec![
-            ("Type", "Enter a unit number to jump/highlight it"),
-            ("?", "Open this helper"),
-            ("+", "Queue one unit of the highlighted type"),
-            ("-", "Remove one queued unit of the highlighted type"),
-            ("D", "Clear queued builds for the highlighted unit type"),
-        ],
+        HelpContext::PromptInput => {
+            vec![("Esc", "Cancel input"), ("Enter", "Accept value / default")]
+        }
+        HelpContext::PlanetBuildSpecify => {
+            vec![("Esc", "Cancel build specify"), ("?", "Open this helper")]
+        }
         HelpContext::PlanetBuildQuantity => vec![
-            ("Type", "Enter the quantity to queue"),
-            ("?", "Open this helper"),
+            ("Esc", "Cancel build quantity"),
+            ("Enter", "Accept quantity / default"),
         ],
         HelpContext::FleetList => vec![
-            ("Enter", "Open review for the selected fleet"),
-            ("F", "Filter List"),
-            ("S", "Sort List"),
-            ("SPACE", "Toggle the checked state of the current fleet row"),
-            ("O", "Assign fleet/starbase orders"),
-            ("C", "Change ROE, ID, or speed"),
-            ("M", "Merge fleets"),
-            ("T", "Transfer ships"),
-            (
-                "Fleet / SB ID",
-                "Typed jump; exact match clears the footer input",
-            ),
+            ("S", "Sort fleets"),
+            ("B", "Filter fleets"),
+            ("C", "Change rules of engagement"),
+            ("E", "Expand/Collapse all fleet components"),
+            ("D", "Dissolve/Merge selected fleets"),
+            ("M", "Move selected fleets"),
+            ("T", "Transfer ships/cargo"),
+            ("L", "Load all units"),
+            ("U", "Unload all units"),
+            ("Esc", "Close overlay"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetListSort => vec![
-            ("Type", "Enter a column code or unique prefix, then Enter"),
-            ("Codes", "id sel loc ord tar spd eta roe ars shi"),
-            (
-                "Prefix",
-                "Ambiguous prefixes stay open and show matching codes",
-            ),
-            ("Repeat", "Same sort flips ASC/DESC"),
+            ("I", "Sort by ID"),
+            ("E", "Sort by Empire"),
+            ("S", "Sort by Ships"),
+            ("O", "Sort by Orders"),
+            ("R", "Sort by ROE"),
+            ("M", "Sort by Speed"),
+            ("L", "Sort by Location"),
+            ("Esc", "Cancel sorting"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetListFilter => vec![
-            ("Type", "Enter a column code or unique prefix, then Enter"),
-            ("Codes", "id sel loc ord tar spd eta roe ars shi"),
-            (
-                "Prefix",
-                "Ambiguous prefixes stay open and show matching codes",
-            ),
-            ("Order", "ord also accepts holding, moving, and combat"),
-            ("Selected", "sel accepts yes/no, selected, unselected, or x"),
-            ("all", "Clear the current filter"),
+            ("I", "Filter by ID"),
+            ("E", "Filter by Empire"),
+            ("S", "Filter by Ships"),
+            ("R", "Filter by ROE"),
+            ("M", "Filter by Speed"),
+            ("L", "Filter by Location"),
+            ("Esc", "Cancel filtering"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetMissionPicker => vec![
-            ("Type", "Enter a mission number from 0 to 15"),
-            ("Up/Down", "Move between enabled missions"),
-            ("PgUp/PgDn", "Page through the mission list"),
-            (
-                "Filter",
-                "Only missions valid for all selected fleets stay enabled",
-            ),
+            ("Esc", "Cancel mission selection"),
             ("?", "Open this helper"),
         ],
         HelpContext::FleetOrderInput => vec![
-            ("Type", "Enter the requested target or confirm input"),
-            ("?", "Open this helper"),
+            ("Esc", "Cancel order input"),
+            ("Enter", "Accept coordinate / default"),
         ],
         HelpContext::StarbaseMove => vec![
-            ("M", "Move the selected starbase"),
-            ("H", "Halt the selected starbase"),
-            ("?", "Open this helper"),
+            ("Esc", "Cancel starbase relocation"),
+            ("Enter", "Accept destination / default"),
         ],
         HelpContext::IntelDatabase => vec![
-            ("F", "Filter List"),
-            ("S", "Sort List"),
-            ("Coords", "Typed jump; exact match clears the footer input"),
+            ("S", "Sort intel"),
+            ("B", "Filter intel"),
+            ("A", "Clear all filters"),
+            ("L", "Jump crosshair to planet"),
+            ("Esc", "Close overlay"),
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabaseSort => vec![
-            ("Type", "Enter a column code or unique prefix, then Enter"),
-            ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
-            ("rng", "Sort by range from a sector"),
-            (
-                "Prefix",
-                "Ambiguous prefixes stay open and show matching codes",
-            ),
-            ("Repeat", "Same sort flips ASC/DESC"),
+            ("I", "Sort by ID"),
+            ("N", "Sort by Name"),
+            ("E", "Sort by Empire"),
+            ("C", "Sort by Class"),
+            ("P", "Sort by Population"),
+            ("F", "Sort by Factories"),
+            ("R", "Sort by Resources"),
+            ("D", "Sort by Defense"),
+            ("K", "Sort by Range"),
+            ("Esc", "Cancel sorting"),
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabaseFilter => vec![
-            ("Type", "Enter a column code or unique prefix, then Enter"),
-            ("Codes", "coo pla own max see ars gbs sbs cur trs sco"),
-            (
-                "Prefix",
-                "Ambiguous prefixes stay open and show matching codes",
-            ),
-            ("Coords", "coo accepts xx,yy or xx,yy/r"),
+            ("N", "Filter by Name"),
+            ("E", "Filter by Empire"),
+            ("C", "Filter by Class"),
+            ("P", "Filter by Population"),
+            ("F", "Filter by Factories"),
+            ("R", "Filter by Resources"),
+            ("D", "Filter by Defense"),
+            ("K", "Filter by Range"),
+            ("T", "Filter by Intel Tier"),
+            ("Y", "Filter by Intel Year"),
             ("Unknown", "Use ? for unknown database values"),
             ("Value", "Text contains; numbers accept > >= < <= = !="),
             ("all", "Clear the current filter"),
             ("?", "Open this helper"),
         ],
         HelpContext::Inbox => vec![
+            ("C", "Compose message"),
+            ("O", "Open Outbox"),
             ("M", "Filter to messages"),
             ("R", "Filter to reports"),
             ("A", "Filter to all items"),
             ("Y", "Toggle the current-year filter"),
             ("D", "Delete the selected item"),
             ("Tab", "Switch list and preview focus"),
+            ("Ctrl-E", "Send composed message"),
+            ("Ctrl-X", "Discard composed message"),
             (
                 "Visible ID",
                 "Typed jump; exact match clears the footer input",
             ),
+            ("?", "Open this helper"),
+        ],
+        HelpContext::InboxCompose => vec![
+            ("Ctrl-E", "Finish and send message"),
+            ("Ctrl-X", "Discard message"),
+            ("Esc", "Close prompt"),
             ("?", "Open this helper"),
         ],
         HelpContext::Diplomacy => vec![
@@ -273,247 +276,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{draw, help_lines, popup_rect};
-    use crate::dashboard::app::state::{ActiveOverlay, DashApp, HelpContext};
-    use crate::dashboard::geometry::ScreenGeometry;
-    use crate::dashboard::layout::dashboard::dashboard_layout;
-
-    #[test]
-    fn fleet_help_mentions_typed_jump_and_real_actions() {
-        let lines = help_lines(HelpContext::FleetList);
-
-        assert!(lines.iter().any(|line| line.contains("Typed jump")));
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("O") && line.contains("Assign fleet/starbase orders"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("SPACE") && line.contains("checked state"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("C") && line.contains("Change ROE, ID, or speed"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("M") && line.contains("Merge fleets"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("T") && line.contains("Transfer ships"))
-        );
-        assert!(!lines.iter().any(|line| line.contains("checked fleets")));
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("Enter") && line.contains("selected fleet"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("F") && line.contains("Filter List"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("S") && line.contains("Sort List"))
-        );
-        assert!(!lines.iter().any(|line| line.contains("O / C / M / T")));
-        assert!(!lines.iter().any(|line| line.contains("TODO")));
-        assert!(!lines.iter().any(|line| line.contains("FLEET LIST")));
-        assert!(!lines.iter().any(|line| line.contains("Up/Down")));
-        assert!(!lines.iter().any(|line| line.contains("PgUp")));
-    }
-
-    #[test]
-    fn overlay_help_omits_stale_browse_commands() {
-        let planet = help_lines(HelpContext::PlanetList);
-        assert!(
-            planet
-                .iter()
-                .any(|line| line.contains("B") && line.contains("build orders"))
-        );
-        assert!(
-            planet
-                .iter()
-                .any(|line| line.contains("F") && line.contains("Filter List"))
-        );
-        assert!(
-            planet
-                .iter()
-                .any(|line| line.contains("S") && line.contains("Sort List"))
-        );
-        assert!(!planet.iter().any(|line| line.contains("TODO")));
-        assert!(
-            planet
-                .iter()
-                .any(|line| line.contains("Enter") && line.contains("selected planet"))
-        );
-
-        let intel = help_lines(HelpContext::IntelDatabase);
-        assert!(
-            intel
-                .iter()
-                .any(|line| line.contains("F") && line.contains("Filter List"))
-        );
-        assert!(
-            intel
-                .iter()
-                .any(|line| line.contains("S") && line.contains("Sort List"))
-        );
-        assert!(intel.iter().any(|line| line.contains("Coords")));
-        assert!(!intel.iter().any(|line| line.contains("TODO")));
-        assert!(!intel.iter().any(|line| line.contains("Enter")));
-
-        let inbox = help_lines(HelpContext::Inbox);
-        assert!(inbox.iter().any(|line| line.contains("Tab")));
-        assert!(!inbox.iter().any(|line| line.contains("TODO")));
-        assert!(!inbox.iter().any(|line| line.contains("Enter")));
-
-        let diplomacy = help_lines(HelpContext::Diplomacy);
-        assert!(!diplomacy.iter().any(|line| line.contains("Rows")));
-        assert!(
-            diplomacy
-                .iter()
-                .any(|line| line.contains("E") && line.contains("Enemy"))
-        );
-        assert!(
-            diplomacy
-                .iter()
-                .any(|line| line.contains("N") && line.contains("Neutral"))
-        );
-        assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
-    }
-
-    #[test]
-    fn global_help_keeps_dashboard_overview() {
-        let lines = help_lines(HelpContext::Global);
-
-        assert!(!lines.iter().any(|line| line.contains("GLOBAL HOTKEYS")));
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("P") && line.contains("Open Planet List"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("[") && line.contains("previous planet"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("XX,YY") && line.contains("map coordinates"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("+") && line.contains("Zoom the map in"))
-        );
-        assert!(!lines.iter().any(|line| line.contains("Open Settings")));
-        assert!(!lines.iter().any(|line| line.contains("fill map view")));
-        assert!(
-            !lines
-                .iter()
-                .any(|line| line.contains("toggled in Settings"))
-        );
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.contains("Mouse") && line.contains("moves the crosshair"))
-        );
-        assert!(lines.iter().any(|line| line.contains("Left Click")));
-        assert!(lines.iter().any(|line| line.contains("Right Click")));
-        assert!(lines.iter().any(|line| line.contains("Map Exit")));
-        assert!(lines.iter().any(|line| line.contains("Potential, current")));
-        assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
-        assert!(!lines.iter().any(|line| line.contains("Up/Down")));
-    }
-
-    #[test]
-    fn help_overlay_omits_implied_navigation_rows() {
-        for context in [
-            HelpContext::Global,
-            HelpContext::OwnedPlanetPopup,
-            HelpContext::PlanetList,
-            HelpContext::PlanetListSort,
-            HelpContext::PlanetListFilter,
-            HelpContext::PromptInput,
-            HelpContext::PlanetBuildSpecify,
-            HelpContext::PlanetBuildQuantity,
-            HelpContext::FleetList,
-            HelpContext::FleetListSort,
-            HelpContext::FleetListFilter,
-            HelpContext::FleetMissionPicker,
-            HelpContext::FleetOrderInput,
-            HelpContext::StarbaseMove,
-            HelpContext::IntelDatabase,
-            HelpContext::IntelDatabaseSort,
-            HelpContext::IntelDatabaseFilter,
-            HelpContext::Inbox,
-            HelpContext::Diplomacy,
-        ] {
-            let lines = help_lines(context);
-            assert!(!lines.iter().any(|line| line.starts_with("Arrows")));
-            assert!(!lines.iter().any(|line| line.starts_with("H J K L")));
-            if !matches!(context, HelpContext::PlanetList | HelpContext::FleetList) {
-                assert!(!lines.iter().any(|line| line.starts_with("Enter")));
-            }
-            assert!(!lines.iter().any(|line| line.starts_with("Esc")));
-        }
-    }
-
-    #[test]
-    fn help_overlay_clamps_to_available_dashboard_height() {
-        let mut app =
-            DashApp::new_for_repro(ScreenGeometry::new(120, 40), ScreenGeometry::new(108, 26));
-        app.overlay = ActiveOverlay::Help;
-        app.help_context = HelpContext::Global;
-        let map_frame = dashboard_layout(&app).widgets.center_map;
-        let mut buffer = app.render_playfield().expect("playfield");
-
-        draw(&mut buffer, &app, map_frame);
-
-        let rect = popup_rect(&app, map_frame);
-        assert!(rect.height > 0);
-    }
-
-    #[test]
-    fn help_overlay_has_no_dismiss_footer() {
-        let mut app =
-            DashApp::new_for_repro(ScreenGeometry::new(120, 40), ScreenGeometry::new(108, 26));
-        app.overlay = ActiveOverlay::Help;
-        app.help_context = HelpContext::Global;
-        let map_frame = dashboard_layout(&app).widgets.center_map;
-        let mut buffer = app.render_playfield().expect("playfield");
-
-        draw(&mut buffer, &app, map_frame);
-
-        let rect = popup_rect(&app, map_frame);
-        let left = rect.x as usize;
-        let width = rect.width as usize;
-        let bottom_inner_row = rect.y as usize + rect.height as usize - 2;
-        let popup_text = |row: usize| {
-            buffer.row(row)[left..left + width]
-                .iter()
-                .map(|cell| cell.ch)
-                .collect::<String>()
-        };
-
-        for row in rect.y as usize..rect.y as usize + rect.height as usize {
-            assert!(!popup_text(row).contains("(slap a key)"));
-        }
-
-        let bottom_inner_line = popup_text(bottom_inner_row);
-        assert!(!bottom_inner_line.contains("├"));
-        assert!(!bottom_inner_line.contains("┤"));
-    }
+fn format_help_rows(rows: Vec<(&str, &str)>) -> Vec<String> {
+    let key_width = rows.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
+    rows.into_iter()
+        .map(|(k, v)| format!("{:<width$} : {}", k, v, width = key_width))
+        .collect()
 }

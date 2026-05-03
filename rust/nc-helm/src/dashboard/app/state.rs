@@ -237,6 +237,7 @@ pub enum HelpContext {
     IntelDatabaseSort,
     IntelDatabaseFilter,
     Inbox,
+    InboxCompose,
     Diplomacy,
 }
 
@@ -848,8 +849,12 @@ pub struct InboxOverlayState {
     pub prompt_default: String,
     pub prompt_status: Option<String>,
     pub compose_recipient_empire: Option<u8>,
+    pub compose_recipient_selected: usize,
+    pub compose_recipient_scroll: usize,
     pub compose_subject: String,
     pub compose_body: String,
+    pub compose_body_cursor_row: usize,
+    pub compose_body_cursor_col: usize,
     pub outbox_selected: usize,
     pub outbox_scroll: usize,
 }
@@ -870,8 +875,12 @@ impl Default for InboxOverlayState {
             prompt_default: String::new(),
             prompt_status: None,
             compose_recipient_empire: None,
+            compose_recipient_selected: 0,
+            compose_recipient_scroll: 0,
             compose_subject: String::new(),
             compose_body: String::new(),
+            compose_body_cursor_row: 0,
+            compose_body_cursor_col: 0,
             outbox_selected: 0,
             outbox_scroll: 0,
         }

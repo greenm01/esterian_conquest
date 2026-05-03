@@ -1900,10 +1900,17 @@ mod tests {
             KeyCode::Char('o'),
             KeyCode::Char('v'),
             KeyCode::Char('e'),
-            KeyCode::Enter,
         ] {
             assert!(handle_key(&mut model, KeyEvent::new(key, KeyModifiers::NONE)).is_empty());
         }
+        assert!(
+            handle_key(
+                &mut model,
+                KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL)
+            )
+            .is_empty()
+        );
+
         let effects = handle_key(
             &mut model,
             KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
@@ -1919,6 +1926,11 @@ mod tests {
         assert_eq!(draft.messages[0].recipient_empire_raw, 2);
         assert_eq!(draft.messages[0].subject, "Hi");
         assert_eq!(draft.messages[0].body, "Move");
+        assert!(
+            draft
+                .to_kdl_string()
+                .contains("message to=2 subject=\"Hi\" body=\"Move\"")
+        );
     }
 
     #[test]

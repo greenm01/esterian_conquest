@@ -1,5 +1,5 @@
 use crate::dashboard::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
-use crate::dashboard::input::{KeyCode, KeyEvent};
+use crate::dashboard::input::{KeyCode, KeyEvent, KeyModifiers};
 use crate::dashboard::overlays::{diplomacy, fleet_list, inbox, intel_database, planet_list};
 use crate::dashboard::table_filter::{
     TableFilterClause, format_column_code_error, is_filter_column_char, parse_column_code,
@@ -85,6 +85,12 @@ impl DashApp {
                 true
             }
             ActiveOverlay::Inbox => {
+                if self.inbox_overlay.prompt_mode != state::InboxPromptMode::None
+                    || self.inbox_overlay.delete_confirm
+                {
+                    self.handle_inbox_overlay_key(key);
+                    return true;
+                }
                 if self.handle_overlay_close_or_help(key, HelpContext::Inbox) {
                     return true;
                 }
@@ -1029,6 +1035,20 @@ impl DashApp {
             match key.code {
                 KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
                     delete_selected_inbox_item(self);
+                    if let Err(err) = self.save_and_refresh_runtime() {
+                        self.command_line_toast_message = Some(err.to_string());
+                    }
+                    let total_rows = inbox::selection_rows(self).len();
+                    self.inbox_overlay.selected = self
+                        .inbox_overlay
+                        .selected
+                        .min(total_rows.saturating_sub(1));
+                    sync_scroll_to_cursor(
+                        &mut self.inbox_overlay.scroll,
+                        self.inbox_overlay.selected,
+                        10,
+                    );
+                    self.inbox_overlay.preview_scroll = 0;
                     self.inbox_overlay.delete_confirm = false;
                 }
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
@@ -1050,24 +1070,32 @@ impl DashApp {
                 self.inbox_overlay.filter = state::InboxFilter::All;
                 self.inbox_overlay.selected = 0;
                 self.inbox_overlay.scroll = 0;
+                self.inbox_overlay.preview_scroll = 0;
             }
             KeyCode::Char('r') | KeyCode::Char('R') => {
                 self.inbox_overlay.filter = state::InboxFilter::Reports;
                 self.inbox_overlay.selected = 0;
                 self.inbox_overlay.scroll = 0;
+                self.inbox_overlay.preview_scroll = 0;
             }
             KeyCode::Char('m') | KeyCode::Char('M') => {
                 self.inbox_overlay.filter = state::InboxFilter::Messages;
                 self.inbox_overlay.selected = 0;
                 self.inbox_overlay.scroll = 0;
+                self.inbox_overlay.preview_scroll = 0;
             }
             KeyCode::Char('y') | KeyCode::Char('Y') => {
                 self.inbox_overlay.current_year_only = !self.inbox_overlay.current_year_only;
                 self.inbox_overlay.selected = 0;
                 self.inbox_overlay.scroll = 0;
+                self.inbox_overlay.preview_scroll = 0;
             }
             KeyCode::Char('d') | KeyCode::Char('D') => {
-                self.inbox_overlay.delete_confirm = true;
+                if inbox::selection_rows(self).is_empty() {
+                    self.inbox_overlay.prompt_status = Some("No inbox item selected.".to_string());
+                } else {
+                    self.inbox_overlay.delete_confirm = true;
+                }
             }
             KeyCode::Char('c') | KeyCode::Char('C') => self.open_inbox_compose_recipient(),
             KeyCode::Char('o') | KeyCode::Char('O') => self.open_inbox_outbox(),
@@ -1088,6 +1116,7 @@ impl DashApp {
                     if self.inbox_overlay.selected < self.inbox_overlay.scroll {
                         self.inbox_overlay.scroll = self.inbox_overlay.selected;
                     }
+                    self.inbox_overlay.preview_scroll = 0;
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll =
@@ -1099,6 +1128,12 @@ impl DashApp {
                     let total_rows = inbox::selection_rows(self).len();
                     self.inbox_overlay.selected =
                         wrap_next_index(self.inbox_overlay.selected, total_rows);
+                    sync_scroll_to_cursor(
+                        &mut self.inbox_overlay.scroll,
+                        self.inbox_overlay.selected,
+                        10,
+                    );
+                    self.inbox_overlay.preview_scroll = 0;
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll += 1;
@@ -1111,6 +1146,7 @@ impl DashApp {
                     self.inbox_overlay.selected = self.inbox_overlay.selected.saturating_sub(10);
                     self.inbox_overlay.selected = self.inbox_overlay.selected.min(last);
                     self.inbox_overlay.scroll = self.inbox_overlay.scroll.saturating_sub(10);
+                    self.inbox_overlay.preview_scroll = 0;
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll =
@@ -1123,6 +1159,12 @@ impl DashApp {
                     let last = total_rows.saturating_sub(1);
                     self.inbox_overlay.selected =
                         self.inbox_overlay.selected.saturating_add(10).min(last);
+                    sync_scroll_to_cursor(
+                        &mut self.inbox_overlay.scroll,
+                        self.inbox_overlay.selected,
+                        10,
+                    );
+                    self.inbox_overlay.preview_scroll = 0;
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll += 10;
@@ -1132,6 +1174,7 @@ impl DashApp {
                 state::InboxFocus::List => {
                     self.inbox_overlay.selected = 0;
                     self.inbox_overlay.scroll = 0;
+                    self.inbox_overlay.preview_scroll = 0;
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll = 0;
@@ -1142,6 +1185,7 @@ impl DashApp {
                     let last = inbox::selection_rows(self).len().saturating_sub(1);
                     self.inbox_overlay.selected = last;
                     self.inbox_overlay.scroll = self.inbox_overlay.selected.saturating_sub(5);
+                    self.inbox_overlay.preview_scroll = 0;
                 } else {
                     self.inbox_overlay.preview_scroll = usize::MAX / 4;
                 }
@@ -1153,64 +1197,93 @@ impl DashApp {
     fn handle_inbox_prompt_key(&mut self, key: KeyEvent) {
         match self.inbox_overlay.prompt_mode {
             state::InboxPromptMode::ComposeRecipient => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::InboxCompose),
                 KeyCode::Esc => self.close_inbox_prompt(),
                 KeyCode::Enter => self.submit_inbox_compose_recipient(),
+                KeyCode::Up | KeyCode::Char('k') => {
+                    let total = inbox::compose::recipient_rows(self).len();
+                    self.inbox_overlay.compose_recipient_selected =
+                        wrap_prev_index(self.inbox_overlay.compose_recipient_selected, total);
+                    self.sync_compose_recipient_input_to_selected();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    let total = inbox::compose::recipient_rows(self).len();
+                    self.inbox_overlay.compose_recipient_selected =
+                        wrap_next_index(self.inbox_overlay.compose_recipient_selected, total);
+                    self.sync_compose_recipient_input_to_selected();
+                }
                 KeyCode::Backspace => {
                     self.inbox_overlay.prompt_input.pop();
                     self.inbox_overlay.prompt_status = None;
+                    self.sync_compose_recipient_selected_to_input();
                 }
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
                     self.inbox_overlay.prompt_input.push(ch);
                     self.inbox_overlay.prompt_status = None;
+                    self.sync_compose_recipient_selected_to_input();
                 }
                 _ => {}
             },
             state::InboxPromptMode::ComposeSubject => match key.code {
-                KeyCode::Esc => self.close_inbox_prompt(),
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::InboxCompose),
+                KeyCode::Esc => self.open_inbox_compose_recipient(),
                 KeyCode::Enter => self.submit_inbox_compose_subject(),
                 KeyCode::Backspace => {
                     self.inbox_overlay.prompt_input.pop();
                     self.inbox_overlay.prompt_status = None;
                 }
                 KeyCode::Char(ch)
-                    if !ch.is_control()
+                    if !key.modifiers.contains(KeyModifiers::CONTROL)
                         && self.inbox_overlay.prompt_input.chars().count()
-                            < nc_data::MAX_MESSAGE_SUBJECT_CHARS =>
+                            < inbox::editor::COMPOSE_SUBJECT_LIMIT =>
                 {
                     self.inbox_overlay.prompt_input.push(ch);
                     self.inbox_overlay.prompt_status = None;
                 }
                 _ => {}
             },
-            state::InboxPromptMode::ComposeBody => match key.code {
-                KeyCode::Esc => self.close_inbox_prompt(),
-                KeyCode::Enter => self.submit_inbox_compose_body(),
-                KeyCode::Backspace => {
-                    self.inbox_overlay.prompt_input.pop();
-                    self.inbox_overlay.prompt_status = None;
+            state::InboxPromptMode::ComposeBody => {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    match key.code {
+                        KeyCode::Char('e' | 'E') => self.submit_inbox_compose_body(),
+                        KeyCode::Char('x' | 'X') => self.close_inbox_prompt(),
+                        _ => {}
+                    }
+                    return;
                 }
-                KeyCode::Char(ch)
-                    if !ch.is_control()
-                        && self.inbox_overlay.prompt_input.chars().count()
-                            < nc_data::MAX_MESSAGE_BODY_CHARS =>
-                {
-                    self.inbox_overlay.prompt_input.push(ch);
-                    self.inbox_overlay.prompt_status = None;
+                match key.code {
+                    KeyCode::F(1) => self.open_overlay_help(HelpContext::InboxCompose),
+                    KeyCode::Char('?') => self.open_overlay_help(HelpContext::InboxCompose),
+                    KeyCode::Esc => self.close_inbox_prompt(),
+                    KeyCode::Backspace => self.handle_compose_body_backspace(),
+                    KeyCode::Delete => self.handle_compose_body_delete(),
+                    KeyCode::Enter => self.handle_compose_body_newline(),
+                    KeyCode::Tab => self.handle_compose_body_tab(),
+                    KeyCode::Left => self.handle_compose_body_cursor_left(),
+                    KeyCode::Right => self.handle_compose_body_cursor_right(),
+                    KeyCode::Up => self.handle_compose_body_cursor_up(),
+                    KeyCode::Down => self.handle_compose_body_cursor_down(),
+                    KeyCode::Home => self.handle_compose_body_cursor_home(),
+                    KeyCode::End => self.handle_compose_body_cursor_end(),
+                    KeyCode::Char(ch) => self.handle_compose_body_char(ch),
+                    _ => {}
                 }
-                _ => {}
-            },
+            }
             state::InboxPromptMode::ComposeConfirm => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::InboxCompose),
                 KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
                     if let Err(err) = self.confirm_inbox_compose_message() {
                         self.inbox_overlay.prompt_status = Some(err.to_string());
                         self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeBody;
-                        self.inbox_overlay.prompt_input = self.inbox_overlay.compose_body.clone();
                     }
                 }
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => self.close_inbox_prompt(),
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                    self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeBody;
+                }
                 _ => {}
             },
             state::InboxPromptMode::Outbox => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::Inbox),
                 KeyCode::Esc => self.close_inbox_prompt(),
                 KeyCode::Char('d') | KeyCode::Char('D') => {
                     if let Err(err) = self.delete_selected_outbox_message() {
@@ -1218,14 +1291,24 @@ impl DashApp {
                     }
                 }
                 KeyCode::Up | KeyCode::Char('k') => {
-                    let total_rows = inbox::staged_outbox_messages(self).len();
+                    let total_rows = inbox::list::staged_outbox_messages(self).len();
                     self.inbox_overlay.outbox_selected =
                         wrap_prev_index(self.inbox_overlay.outbox_selected, total_rows);
+                    sync_scroll_to_cursor(
+                        &mut self.inbox_overlay.outbox_scroll,
+                        self.inbox_overlay.outbox_selected,
+                        10,
+                    );
                 }
                 KeyCode::Down | KeyCode::Char('j') => {
-                    let total_rows = inbox::staged_outbox_messages(self).len();
+                    let total_rows = inbox::list::staged_outbox_messages(self).len();
                     self.inbox_overlay.outbox_selected =
                         wrap_next_index(self.inbox_overlay.outbox_selected, total_rows);
+                    sync_scroll_to_cursor(
+                        &mut self.inbox_overlay.outbox_scroll,
+                        self.inbox_overlay.outbox_selected,
+                        10,
+                    );
                 }
                 KeyCode::Backspace => {
                     self.inbox_overlay.prompt_input.pop();
@@ -1241,14 +1324,175 @@ impl DashApp {
         }
     }
 
+    fn handle_compose_body_char(&mut self, ch: char) {
+        if self.inbox_overlay.compose_body.chars().count() >= inbox::editor::COMPOSE_BODY_LIMIT {
+            return;
+        }
+        let cursor = inbox::editor::ComposeCursor {
+            row: self.inbox_overlay.compose_body_cursor_row,
+            col: self.inbox_overlay.compose_body_cursor_col,
+        };
+        if let Some(index) =
+            inbox::editor::materialize_compose_cursor(&mut self.inbox_overlay.compose_body, cursor)
+        {
+            let byte_idx =
+                inbox::editor::char_to_byte_index(&self.inbox_overlay.compose_body, index);
+            self.inbox_overlay.compose_body.insert(byte_idx, ch);
+            self.handle_compose_body_cursor_right();
+        }
+    }
+
+    fn handle_compose_body_backspace(&mut self) {
+        let cursor = inbox::editor::ComposeCursor {
+            row: self.inbox_overlay.compose_body_cursor_row,
+            col: self.inbox_overlay.compose_body_cursor_col,
+        };
+        if cursor.row == 0 && cursor.col == 0 {
+            return;
+        }
+        if cursor.col > 0 {
+            self.handle_compose_body_cursor_left();
+            self.handle_compose_body_delete();
+        } else {
+            // Merge with previous line
+            self.handle_compose_body_cursor_up();
+            self.handle_compose_body_cursor_end();
+            self.handle_compose_body_delete();
+        }
+    }
+
+    fn handle_compose_body_delete(&mut self) {
+        let cursor = inbox::editor::ComposeCursor {
+            row: self.inbox_overlay.compose_body_cursor_row,
+            col: self.inbox_overlay.compose_body_cursor_col,
+        };
+        if let Some(index) = inbox::editor::compose_existing_index_for_cursor(
+            &self.inbox_overlay.compose_body,
+            cursor,
+        ) {
+            if index < self.inbox_overlay.compose_body.chars().count() {
+                let byte_idx =
+                    inbox::editor::char_to_byte_index(&self.inbox_overlay.compose_body, index);
+                self.inbox_overlay.compose_body.remove(byte_idx);
+            }
+        }
+    }
+
+    fn handle_compose_body_newline(&mut self) {
+        self.handle_compose_body_char('\n');
+    }
+
+    fn handle_compose_body_tab(&mut self) {
+        for _ in 0..4 {
+            self.handle_compose_body_char(' ');
+        }
+    }
+
+    fn handle_compose_body_cursor_left(&mut self) {
+        if self.inbox_overlay.compose_body_cursor_col > 0 {
+            self.inbox_overlay.compose_body_cursor_col -= 1;
+        } else if self.inbox_overlay.compose_body_cursor_row > 0 {
+            self.handle_compose_body_cursor_up();
+            self.handle_compose_body_cursor_end();
+        }
+    }
+
+    fn handle_compose_body_cursor_right(&mut self) {
+        let row_end = inbox::editor::compose_row_end_col(
+            &self.inbox_overlay.compose_body,
+            self.inbox_overlay.compose_body_cursor_row,
+        );
+        if self.inbox_overlay.compose_body_cursor_col < row_end {
+            self.inbox_overlay.compose_body_cursor_col += 1;
+        } else {
+            let total_rows = inbox::editor::wrap_body_segments(
+                &self.inbox_overlay.compose_body,
+                inbox::editor::COMPOSE_BODY_WRAP_WIDTH,
+            )
+            .len();
+            if self.inbox_overlay.compose_body_cursor_row + 1 < total_rows {
+                self.inbox_overlay.compose_body_cursor_row += 1;
+                self.inbox_overlay.compose_body_cursor_col = 0;
+            }
+        }
+    }
+
+    fn handle_compose_body_cursor_up(&mut self) {
+        if self.inbox_overlay.compose_body_cursor_row > 0 {
+            self.inbox_overlay.compose_body_cursor_row -= 1;
+            let row_end = inbox::editor::compose_row_end_col(
+                &self.inbox_overlay.compose_body,
+                self.inbox_overlay.compose_body_cursor_row,
+            );
+            self.inbox_overlay.compose_body_cursor_col =
+                self.inbox_overlay.compose_body_cursor_col.min(row_end);
+        }
+    }
+
+    fn handle_compose_body_cursor_down(&mut self) {
+        let total_rows = inbox::editor::wrap_body_segments(
+            &self.inbox_overlay.compose_body,
+            inbox::editor::COMPOSE_BODY_WRAP_WIDTH,
+        )
+        .len();
+        if self.inbox_overlay.compose_body_cursor_row + 1 < total_rows {
+            self.inbox_overlay.compose_body_cursor_row += 1;
+            let row_end = inbox::editor::compose_row_end_col(
+                &self.inbox_overlay.compose_body,
+                self.inbox_overlay.compose_body_cursor_row,
+            );
+            self.inbox_overlay.compose_body_cursor_col =
+                self.inbox_overlay.compose_body_cursor_col.min(row_end);
+        }
+    }
+
+    fn handle_compose_body_cursor_home(&mut self) {
+        self.inbox_overlay.compose_body_cursor_col = 0;
+    }
+
+    fn handle_compose_body_cursor_end(&mut self) {
+        self.inbox_overlay.compose_body_cursor_col = inbox::editor::compose_row_end_col(
+            &self.inbox_overlay.compose_body,
+            self.inbox_overlay.compose_body_cursor_row,
+        );
+    }
+
+    fn sync_compose_recipient_input_to_selected(&mut self) {
+        let rows = inbox::compose::recipient_rows(self);
+        if let Some(row) = rows.get(self.inbox_overlay.compose_recipient_selected) {
+            if let Some(id) = row.first() {
+                self.inbox_overlay.prompt_input = id.trim().to_string();
+            }
+        }
+    }
+
+    fn sync_compose_recipient_selected_to_input(&mut self) {
+        let input = self.inbox_overlay.prompt_input.trim();
+        if input.is_empty() {
+            return;
+        }
+        let rows = inbox::compose::recipient_rows(self);
+        if let Some(idx) = rows
+            .iter()
+            .position(|row: &Vec<String>| row.first().map(|s: &String| s.trim()) == Some(input))
+        {
+            self.inbox_overlay.compose_recipient_selected = idx;
+        }
+    }
+
     fn open_inbox_compose_recipient(&mut self) {
         self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeRecipient;
         self.inbox_overlay.prompt_input.clear();
         self.inbox_overlay.prompt_default = first_message_recipient_default(self);
         self.inbox_overlay.prompt_status = None;
         self.inbox_overlay.compose_recipient_empire = None;
+        self.inbox_overlay.compose_recipient_selected = 0;
+        self.inbox_overlay.compose_recipient_scroll = 0;
         self.inbox_overlay.compose_subject.clear();
         self.inbox_overlay.compose_body.clear();
+        self.inbox_overlay.compose_body_cursor_row = 0;
+        self.inbox_overlay.compose_body_cursor_col = 0;
+        self.sync_compose_recipient_selected_to_input();
     }
 
     fn submit_inbox_compose_recipient(&mut self) {
@@ -1285,7 +1529,6 @@ impl DashApp {
     }
 
     fn submit_inbox_compose_body(&mut self) {
-        self.inbox_overlay.compose_body = self.inbox_overlay.prompt_input.trim().to_string();
         self.inbox_overlay.prompt_mode = state::InboxPromptMode::ComposeConfirm;
         self.inbox_overlay.prompt_status = None;
     }
@@ -1323,10 +1566,23 @@ impl DashApp {
         self.inbox_overlay.prompt_input.clear();
         self.inbox_overlay.prompt_default.clear();
         self.inbox_overlay.prompt_status = None;
+        let total_rows = inbox::staged_outbox_messages(self).len();
+        self.inbox_overlay.outbox_selected = self
+            .inbox_overlay
+            .outbox_selected
+            .min(total_rows.saturating_sub(1));
+        sync_scroll_to_cursor(
+            &mut self.inbox_overlay.outbox_scroll,
+            self.inbox_overlay.outbox_selected,
+            10,
+        );
     }
 
     fn delete_selected_outbox_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let messages = inbox::staged_outbox_messages(self);
+        if messages.is_empty() {
+            return Err("No outbox message selected.".into());
+        }
         let selected = self
             .inbox_overlay
             .outbox_selected
@@ -1341,6 +1597,11 @@ impl DashApp {
             .inbox_overlay
             .outbox_selected
             .min(remaining.saturating_sub(1));
+        sync_scroll_to_cursor(
+            &mut self.inbox_overlay.outbox_scroll,
+            self.inbox_overlay.outbox_selected,
+            10,
+        );
         Ok(())
     }
 

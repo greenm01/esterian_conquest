@@ -1,9 +1,9 @@
 use super::{map_coord_rows, parse_table_coord};
 use crate::dashboard::app::state::{
     ActiveOverlay, ActivePopup, DashApp, DashboardExitRequest, FleetOrderScope, FleetOverlayFilter,
-    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext, IntelOverlayFilter,
-    IntelOverlayPromptMode, IntelOverlaySort, OwnedPlanetPopupMode, PlanetOverlayFilter,
-    PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
+    FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort, HelpContext, InboxPromptMode,
+    IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort, OwnedPlanetPopupMode,
+    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort, SortDirection,
 };
 use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::geometry::ScreenGeometry;
@@ -120,8 +120,7 @@ fn startup_review_opens_automatically_if_pending() {
     );
 
     // Manually trigger what into_app does for the test
-    let reports_pending =
-        nc_data::has_visible_runtime_reports(viewer_id as u8, &report_block_rows);
+    let reports_pending = nc_data::has_visible_runtime_reports(viewer_id as u8, &report_block_rows);
     if reports_pending {
         app.popup = ActivePopup::StartupReview;
         app.startup_review.reports = nc_data::ReportsPreview::from_block_rows(
@@ -3761,9 +3760,10 @@ fn diplomacy_selection_uses_displayed_live_ranking_order() {
 
 #[test]
 fn inbox_quick_compose_stages_and_removes_hosted_message() {
-    let mut app = dash_app();
+    let mut app = dash_app_with_store();
     app.initialize_hosted_turn_draft();
-    app.overlay = ActiveOverlay::Inbox;
+    app.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+    assert_eq!(app.overlay, ActiveOverlay::Inbox);
 
     app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
@@ -3775,7 +3775,7 @@ fn inbox_quick_compose_stages_and_removes_hosted_message() {
     app.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE));
     app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE));
-    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL));
     app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
 
     let draft = app.hosted_turn_draft.as_ref().expect("draft");
@@ -3783,7 +3783,20 @@ fn inbox_quick_compose_stages_and_removes_hosted_message() {
     assert_eq!(draft.messages[0].recipient_empire_raw, 2);
     assert_eq!(draft.messages[0].subject, "Hi");
     assert_eq!(draft.messages[0].body, "Move");
+    assert!(
+        app.hosted_turn_text()
+            .unwrap()
+            .contains("message to=2 subject=\"Hi\" body=\"Move\"")
+    );
     assert!(app.queued_mail.iter().any(|mail| {
+        mail.sender_empire_id == 1 && mail.recipient_empire_id == 2 && mail.subject == "Hi"
+    }));
+    let store = app.campaign_store.clone().expect("campaign store");
+    let runtime_state = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime state");
+    assert!(runtime_state.queued_mail.iter().any(|mail| {
         mail.sender_empire_id == 1 && mail.recipient_empire_id == 2 && mail.subject == "Hi"
     }));
 
@@ -3794,6 +3807,54 @@ fn inbox_quick_compose_stages_and_removes_hosted_message() {
     assert!(!app.queued_mail.iter().any(|mail| {
         mail.sender_empire_id == 1 && mail.recipient_empire_id == 2 && mail.subject == "Hi"
     }));
+    let runtime_state = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime state");
+    assert!(!runtime_state.queued_mail.iter().any(|mail| {
+        mail.sender_empire_id == 1 && mail.recipient_empire_id == 2 && mail.subject == "Hi"
+    }));
+}
+
+#[test]
+fn inbox_outbox_escape_returns_to_inbox() {
+    let mut app = dash_app();
+    app.initialize_hosted_turn_draft();
+    app.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+
+    assert_eq!(app.overlay, ActiveOverlay::Inbox);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::Outbox);
+
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+    assert_eq!(app.overlay, ActiveOverlay::Inbox);
+    assert_eq!(app.inbox_overlay.prompt_mode, InboxPromptMode::None);
+}
+
+#[test]
+fn inbox_help_key_uses_active_prompt_context() {
+    let mut app = dash_app();
+    app.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+
+    assert_eq!(app.overlay, ActiveOverlay::Help);
+    assert_eq!(app.help_context, HelpContext::Inbox);
+
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('H'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('M'), KeyModifiers::NONE));
+    app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+
+    assert_eq!(app.overlay, ActiveOverlay::Help);
+    assert_eq!(app.help_context, HelpContext::InboxCompose);
+    assert_eq!(app.help_return_overlay, ActiveOverlay::Inbox);
+    assert_eq!(app.inbox_overlay.compose_body, "M");
 }
 
 fn detail_value<'a>(fields: &'a [planet_view::DetailLine], label: &str) -> Option<&'a str> {

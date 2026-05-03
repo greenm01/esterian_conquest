@@ -1,9 +1,6 @@
-//! R overlay: centered split-pane inbox for reports and messages.
-
-use crate::dashboard::buffer::PlayfieldBuffer;
-use crate::dashboard::table::{TableFooter, draw_scrollbar_at};
-
+use super::HOTKEYS;
 use crate::dashboard::app::state::{ActiveOverlay, DashApp, InboxFocus, InboxPromptMode};
+use crate::dashboard::buffer::PlayfieldBuffer;
 use crate::dashboard::inbox::{DashInboxItem, matches_filter, project_inbox_items};
 use crate::dashboard::layout::MapWidgetFrame;
 use crate::dashboard::layout::dashboard;
@@ -14,15 +11,15 @@ use crate::dashboard::overlays::frame::{
     max_overlay_body_width, overlay_chrome_height, overlay_popup_rect_for_body_in_parent,
     write_clipped,
 };
+use crate::dashboard::table::{TableFooter, draw_scrollbar_at};
 use crate::dashboard::theme;
 
-pub(crate) const HOTKEYS: &str = "? M R A Y D C O <ESC>";
 const LIST_WIDTH: usize = 28;
 const SPLIT_GAP_WIDTH: usize = 2;
 const TARGET_PREVIEW_WIDTH: usize = 72;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InboxPane {
+pub enum InboxPane {
     List,
     Preview,
 }
@@ -40,6 +37,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         draw_outbox(buf, app, map_frame);
         return;
     }
+    // TODO: Routing for Compose stages will go here or in mod.rs
     let items = inbox_items(app);
     let selected = app
         .inbox_overlay
@@ -416,14 +414,14 @@ fn outbox_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     )
 }
 
-pub(crate) fn staged_outbox_messages(app: &DashApp) -> Vec<nc_data::TurnMessage> {
+pub fn staged_outbox_messages(app: &DashApp) -> Vec<nc_data::TurnMessage> {
     app.hosted_turn_draft
         .as_ref()
         .map(|draft| draft.messages.clone())
         .unwrap_or_default()
 }
 
-pub(crate) fn hit_test_inbox_pane(
+pub fn hit_test_inbox_pane(
     app: &DashApp,
     map_frame: MapWidgetFrame,
     col: usize,
@@ -494,7 +492,7 @@ pub(crate) fn hit_test_inbox_pane(
     }
 }
 
-pub(crate) fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {
+pub fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {
     let viewer = app.player_record_index_1_based as u8;
     let current_year = app.game_data.conquest.game_year();
     project_inbox_items(
@@ -515,7 +513,7 @@ pub(crate) fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {
     .collect()
 }
 
-pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
+pub fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
     inbox_items(app)
         .into_iter()
         .enumerate()
@@ -549,13 +547,6 @@ fn inbox_pane_layout(body_width: usize) -> InboxPaneLayout {
     }
 }
 
-#[cfg(test)]
-fn target_inbox_body_width(filter_line_width: usize, max_body_width: usize) -> usize {
-    filter_line_width
-        .max(LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH)
-        .min(max_body_width)
-}
-
 fn truncate(value: &str, width: usize) -> String {
     value.chars().take(width).collect()
 }
@@ -572,7 +563,7 @@ fn highlight_selected_id_cell(
 
 #[cfg(test)]
 mod tests {
-    use super::{HOTKEYS, inbox_pane_layout, target_inbox_body_width};
+    use super::{HOTKEYS, inbox_pane_layout};
     use crate::dashboard::app::render;
     use crate::dashboard::app::state::{ActiveOverlay, DashApp};
     use crate::dashboard::geometry::ScreenGeometry;
@@ -582,7 +573,7 @@ mod tests {
 
     #[test]
     fn browse_hotkeys_match_supported_inbox_commands() {
-        assert_eq!(HOTKEYS, "? M R A Y D C O <ESC>");
+        assert_eq!(HOTKEYS, "? M I A Y D C O <ESC>");
     }
 
     #[test]
@@ -603,12 +594,6 @@ mod tests {
         assert_eq!(layout.divider_offset, 17);
         assert_eq!(layout.preview_offset, 19);
         assert_eq!(layout.preview_width, 1);
-    }
-
-    #[test]
-    fn inbox_target_body_width_prefers_fixed_preview_width() {
-        assert_eq!(target_inbox_body_width(40, 103), 102);
-        assert_eq!(target_inbox_body_width(120, 103), 103);
     }
 
     #[test]
