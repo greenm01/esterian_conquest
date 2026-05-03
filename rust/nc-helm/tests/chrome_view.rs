@@ -277,7 +277,7 @@ fn matrix_locked_route_renders_rain_without_lock_panel_copy() {
     let _ = app.dispatch(Msg::Key(alt_key(nc_helm::KeyCode::Char('l'))));
 
     let buffer = app.view();
-    let allowed = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+#%*";
+    let allowed = "αβγδεζηθικλμνξοπρσςτυφχψωϲϛϟϡ´`῀᾿῾ͅ";
     let glyph = (0..buffer.height())
         .find_map(|row| {
             buffer

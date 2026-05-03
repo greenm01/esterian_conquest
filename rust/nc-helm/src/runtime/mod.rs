@@ -1144,11 +1144,16 @@ impl ApplicationHandler<RuntimeEvent> for Runtime {
                     self.dispatch(Msg::Mouse(mouse), event_loop);
                 }
                 if let Some(renderer) = &mut self.renderer {
+                    let render_mode = if matches!(self.app.model().route, Route::MatrixLocked) {
+                        renderer::RenderMode::MatrixLocked
+                    } else {
+                        renderer::RenderMode::Grid
+                    };
                     let view_started = Instant::now();
                     let (view_cache_hit, view_timings, buffer) =
                         self.app.view_with_cache_hit_and_timings();
                     let view_build = view_started.elapsed();
-                    match renderer.render(buffer) {
+                    match renderer.render(buffer, render_mode) {
                         Ok(render_timings) => {
                             self.record_frame_timing(
                                 view_build,
@@ -1729,13 +1734,19 @@ mod tests {
     };
     use crate::Point;
     use crate::app::{
-        BootModel, HostedGameModel, LobbyModel, LobbyTab, MIN_SUPPORTED_GEOMETRY, MyGameRow, Route,
+        BootModel, HostedGameModel, LobbyModel, LobbyTab, MATRIX_FRAME_STEP,
+        MIN_SUPPORTED_GEOMETRY, MyGameRow, Route,
     };
     use crate::dashboard::DashApp;
     use crate::geometry;
     use crate::input::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use crate::startup::NativeWindowMode;
     use winit::window::WindowAttributes;
+
+    #[test]
+    fn matrix_frame_step_matches_lockme_runtime_default() {
+        assert_eq!(MATRIX_FRAME_STEP, Duration::from_millis(40));
+    }
 
     #[test]
     fn wayland_backend_disables_programmatic_focus() {

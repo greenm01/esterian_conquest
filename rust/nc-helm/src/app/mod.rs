@@ -865,10 +865,10 @@ struct MatrixColumn {
 }
 
 const MATRIX_MIN_STREAM_LENGTH: usize = 3;
-pub(crate) const MATRIX_FRAME_STEP: std::time::Duration = std::time::Duration::from_millis(80);
+pub(crate) const MATRIX_FRAME_STEP: std::time::Duration = std::time::Duration::from_millis(40);
 pub(crate) const MATRIX_GLYPHS: &[char] = &[
-    'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ', 'Τ',
-    'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
+    'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'ς',
+    'τ', 'υ', 'φ', 'χ', 'ψ', 'ω', 'ϲ', 'ϛ', 'ϟ', 'ϡ', '´', '`', '῀', '᾿', '῾', 'ͅ',
 ];
 
 impl MatrixRain {
@@ -892,7 +892,7 @@ impl MatrixRain {
         self.columns = (0..width)
             .map(|column| self.make_column(column))
             .collect::<Vec<_>>();
-        let warmup_steps = (height / 3).max(1);
+        let warmup_steps = (height + MATRIX_MIN_STREAM_LENGTH + 2).max(1);
         for _ in 0..warmup_steps {
             self.advance();
         }
