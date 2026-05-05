@@ -251,6 +251,9 @@ fn infer_player_count(snapshot: &GameState) -> u8 {
     let mut max_empire = snapshot
         .player_seat
         .max(snapshot.state.starmap.viewer_empire_id as u32);
+    for roster_entry in &snapshot.state.roster {
+        max_empire = max_empire.max(u32::from(roster_entry.empire_id));
+    }
     for relation in &snapshot.state.player.diplomacy {
         max_empire = max_empire.max(u32::from(relation.empire_id));
     }
@@ -294,6 +297,16 @@ fn set_player_records(game_data: &mut CoreGameData, snapshot: &GameState, player
             player.set_tax_rate_raw(50);
             player.set_last_run_year_raw(snapshot.year as u16);
             player.set_starbase_count_raw(0);
+        }
+    }
+
+    for roster_entry in &snapshot.state.roster {
+        let empire_id = usize::from(roster_entry.empire_id);
+        if empire_id == 0 || empire_id > usize::from(player_count) {
+            continue;
+        }
+        if let Some(player) = game_data.player.records.get_mut(empire_id - 1) {
+            player.set_controlled_empire_name_raw(&roster_entry.empire_name);
         }
     }
 
@@ -573,5 +586,71 @@ fn order_from_label(label: &str) -> Order {
         "rendezvous" => Order::RendezvousSector,
         "salvage" => Order::Salvage,
         _ => Order::Unknown(0),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DashLaunchState;
+    use nc_nostr::state_sync::{
+        GameState, HostedPlayerRosterEntry, HostedPlayerState, HostedStarmapState,
+        HostedStatePayload,
+    };
+
+    #[test]
+    fn hosted_snapshot_applies_roster_empire_names_to_player_records() {
+        let snapshot = GameState {
+            game_id: "friday-night".to_string(),
+            turn: 4,
+            year: 3004,
+            player_seat: 1,
+            player_name: "Terran Union".to_string(),
+            state_hash: "abc123".to_string(),
+            state: HostedStatePayload {
+                player: HostedPlayerState {
+                    seat: 1,
+                    empire_name: "Terran Union".to_string(),
+                    handle: Some("captain".to_string()),
+                    mode: "active".to_string(),
+                    tax_rate: 33,
+                    planet_count: 0,
+                    starbase_count: 0,
+                    homeworld_planet_index: 1,
+                    last_run_year: 3004,
+                    diplomacy: Vec::new(),
+                },
+                roster: vec![
+                    HostedPlayerRosterEntry {
+                        empire_id: 1,
+                        empire_name: "Terran Union".to_string(),
+                        is_self: true,
+                    },
+                    HostedPlayerRosterEntry {
+                        empire_id: 2,
+                        empire_name: "Rigel Empire".to_string(),
+                        is_self: false,
+                    },
+                ],
+                starmap: HostedStarmapState {
+                    map_width: 18,
+                    map_height: 18,
+                    viewer_empire_id: 1,
+                    year: 3004,
+                    worlds: Vec::new(),
+                },
+                owned_planets: Vec::new(),
+                owned_fleets: Vec::new(),
+            },
+            queued_mail: Vec::new(),
+            report_blocks: Vec::new(),
+        };
+
+        let launch = DashLaunchState::from_hosted_snapshot(&snapshot).expect("hosted launch");
+
+        assert_eq!(launch.game_data.conquest.player_count(), 2);
+        assert_eq!(
+            launch.game_data.player.records[1].controlled_empire_name_summary(),
+            "Rigel Empire"
+        );
     }
 }

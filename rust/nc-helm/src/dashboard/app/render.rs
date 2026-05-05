@@ -282,6 +282,10 @@ pub(crate) fn render_incremental_into(
         );
     }
 
+    if !hashes.dynamic_layer_active {
+        buf.clear_cursor();
+    }
+
     Ok(IncrementalRenderOutcome {
         hashes,
         dirty_rects,

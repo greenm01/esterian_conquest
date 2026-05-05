@@ -864,6 +864,8 @@ pub struct InboxOverlayState {
     pub compose_body_cursor_col: usize,
     pub outbox_selected: usize,
     pub outbox_scroll: usize,
+    pub outbox_preview_scroll: usize,
+    pub outbox_focus: InboxFocus,
 }
 
 impl Default for InboxOverlayState {
@@ -890,6 +892,8 @@ impl Default for InboxOverlayState {
             compose_body_cursor_col: 0,
             outbox_selected: 0,
             outbox_scroll: 0,
+            outbox_preview_scroll: 0,
+            outbox_focus: InboxFocus::List,
         }
     }
 }

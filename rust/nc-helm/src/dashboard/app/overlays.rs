@@ -1285,43 +1285,75 @@ impl DashApp {
                 }
                 _ => {}
             },
-            state::InboxPromptMode::Outbox => match key.code {
-                KeyCode::Char('?') => self.open_overlay_help(HelpContext::Inbox),
-                KeyCode::Esc => self.close_inbox_prompt(),
-                KeyCode::Char('d') | KeyCode::Char('D') => {
-                    if let Err(err) = self.delete_selected_outbox_message() {
-                        self.inbox_overlay.prompt_status = Some(err.to_string());
+            state::InboxPromptMode::Outbox => match self.inbox_overlay.outbox_focus {
+                state::InboxFocus::List => match key.code {
+                    KeyCode::Char('?') => self.open_overlay_help(HelpContext::Inbox),
+                    KeyCode::Esc => self.close_inbox_prompt(),
+                    KeyCode::Tab => {
+                        self.inbox_overlay.outbox_focus = state::InboxFocus::Preview;
                     }
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    let total_rows = inbox::list::staged_outbox_messages(self).len();
-                    self.inbox_overlay.outbox_selected =
-                        wrap_prev_index(self.inbox_overlay.outbox_selected, total_rows);
-                    sync_scroll_to_cursor(
-                        &mut self.inbox_overlay.outbox_scroll,
-                        self.inbox_overlay.outbox_selected,
-                        10,
-                    );
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    let total_rows = inbox::list::staged_outbox_messages(self).len();
-                    self.inbox_overlay.outbox_selected =
-                        wrap_next_index(self.inbox_overlay.outbox_selected, total_rows);
-                    sync_scroll_to_cursor(
-                        &mut self.inbox_overlay.outbox_scroll,
-                        self.inbox_overlay.outbox_selected,
-                        10,
-                    );
-                }
-                KeyCode::Backspace => {
-                    self.inbox_overlay.prompt_input.pop();
-                    self.sync_outbox_cursor_to_input();
-                }
-                KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    self.inbox_overlay.prompt_input.push(ch);
-                    self.sync_outbox_cursor_to_input();
-                }
-                _ => {}
+                    KeyCode::Char('d') | KeyCode::Char('D') => {
+                        if let Err(err) = self.delete_selected_outbox_message() {
+                            self.inbox_overlay.prompt_status = Some(err.to_string());
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        let total_rows = inbox::list::staged_outbox_messages(self).len();
+                        self.inbox_overlay.outbox_selected =
+                            wrap_prev_index(self.inbox_overlay.outbox_selected, total_rows);
+                        sync_scroll_to_cursor(
+                            &mut self.inbox_overlay.outbox_scroll,
+                            self.inbox_overlay.outbox_selected,
+                            10,
+                        );
+                        self.inbox_overlay.outbox_preview_scroll = 0;
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        let total_rows = inbox::list::staged_outbox_messages(self).len();
+                        self.inbox_overlay.outbox_selected =
+                            wrap_next_index(self.inbox_overlay.outbox_selected, total_rows);
+                        sync_scroll_to_cursor(
+                            &mut self.inbox_overlay.outbox_scroll,
+                            self.inbox_overlay.outbox_selected,
+                            10,
+                        );
+                        self.inbox_overlay.outbox_preview_scroll = 0;
+                    }
+                    KeyCode::Backspace => {
+                        self.inbox_overlay.prompt_input.pop();
+                        self.sync_outbox_cursor_to_input();
+                    }
+                    KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                        self.inbox_overlay.prompt_input.push(ch);
+                        self.sync_outbox_cursor_to_input();
+                    }
+                    _ => {}
+                },
+                state::InboxFocus::Preview => match key.code {
+                    KeyCode::Char('?') => self.open_overlay_help(HelpContext::Inbox),
+                    KeyCode::Esc => self.close_inbox_prompt(),
+                    KeyCode::Tab => {
+                        self.inbox_overlay.outbox_focus = state::InboxFocus::List;
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.inbox_overlay.outbox_preview_scroll =
+                            self.inbox_overlay.outbox_preview_scroll.saturating_sub(1);
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        self.inbox_overlay.outbox_preview_scroll += 1;
+                    }
+                    KeyCode::PageUp => {
+                        self.inbox_overlay.outbox_preview_scroll =
+                            self.inbox_overlay.outbox_preview_scroll.saturating_sub(10);
+                    }
+                    KeyCode::PageDown => {
+                        self.inbox_overlay.outbox_preview_scroll += 10;
+                    }
+                    KeyCode::Home => {
+                        self.inbox_overlay.outbox_preview_scroll = 0;
+                    }
+                    _ => {}
+                },
             },
             state::InboxPromptMode::None => {}
         }
@@ -1573,6 +1605,8 @@ impl DashApp {
         self.inbox_overlay.prompt_input.clear();
         self.inbox_overlay.prompt_default.clear();
         self.inbox_overlay.prompt_status = None;
+        self.inbox_overlay.outbox_focus = state::InboxFocus::List;
+        self.inbox_overlay.outbox_preview_scroll = 0;
         let total_rows = inbox::staged_outbox_messages(self).len();
         self.inbox_overlay.outbox_selected = self
             .inbox_overlay
@@ -1632,6 +1666,7 @@ impl DashApp {
             return;
         };
         self.inbox_overlay.outbox_selected = matched.index;
+        self.inbox_overlay.outbox_preview_scroll = 0;
         sync_scroll_to_cursor(&mut self.inbox_overlay.outbox_scroll, matched.index, 10);
         if matched.is_terminal_exact_match {
             self.inbox_overlay.prompt_input.clear();
