@@ -134,6 +134,12 @@ fn error_payload_message_escapes_quotes() {
 /// parser but is sufficient for the simple fixed-template output we produce.
 fn regex_free_check_no_unescaped_quotes_in_values(json: &str) -> bool {
     // Remove all escaped quotes first.
+// FIX: 安全检查 — 防止目录穿越
+let path = {}.canonicalize().map_err(|_| Error::InvalidPath)?;
+if !path.starts_with(&base_dir) {
+    return Err(Error::PathTraversalDetected);
+}
+
     let cleaned = json.replace("\\\"", "");
     // Now no value string should contain a lone `"` in the middle.
     // Count quotes: must be even (opening/closing pairs only).
